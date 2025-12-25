@@ -76,7 +76,7 @@ export async function runScripted(code:string, arg:{
         await ensureLuaFactory()
     }
     let ScriptingEngineState = await getOrCreateEngineState(mode, type);
-    
+
     return await ScriptingEngineState.mutex.runExclusive(async () => {
         ScriptingEngineState.chat = chat
         ScriptingEngineState.setVar = setVar
@@ -1456,7 +1456,9 @@ export async function runLuaEditTrigger<T extends string|OpenAIChat[]>(char:char
     }
 }
 
-export async function runLuaButtonTrigger(char:character|simpleCharacterArgument, triggerKey:string):Promise<any>{
+export async function runLuaInteractionTrigger(type: 'button'|'form', char: character|simpleCharacterArgument, triggerKey: string, meta?: object): Promise<any> {
+    const mode = type === 'button' ? 'onButtonClick' : 'onFormSubmit'
+
     let runResult
     try {
         const triggers = char.triggerscript.map<triggerscript>((v) => ({
@@ -1467,35 +1469,11 @@ export async function runLuaButtonTrigger(char:character|simpleCharacterArgument
         for(let trigger of triggers){
             if(trigger?.effect?.[0]?.type === 'triggerlua'){
                 runResult = await runScripted(trigger.effect[0].code, {
-                    char: char,
-                    data: triggerKey,
-                    lowLevelAccess: trigger.lowLevelAccess,
-                    mode: 'onButtonClick',
-                })
-            }
-        }
-    } catch (error) {
-        throw(error)
-    }
-    return runResult   
-}
-
-export async function runLuaFormTrigger(char:character|simpleCharacterArgument, triggerKey:string, meta?:object):Promise<any>{
-    let runResult
-    try {
-        const triggers = char.triggerscript.map<triggerscript>((v) => ({
-            ...v,
-            lowLevelAccess: char.type !== 'simple' ? char.lowLevelAccess ?? false : false
-        })).concat(getModuleTriggers())
-
-        for(let trigger of triggers){
-            if(trigger?.effect?.[0]?.type === 'triggerlua'){
-                runResult = await runScripted(trigger.effect[0].code, {
-                    char: char,
+                    char,
                     data: triggerKey,
                     lowLevelAccess: trigger.lowLevelAccess,
                     meta,
-                    mode: 'onFormSubmit',
+                    mode,
                 })
             }
         }

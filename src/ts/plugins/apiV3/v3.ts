@@ -254,6 +254,7 @@ class SafeElement {
             }
             this.#eventIdMap.set(id, modifiedListener)
             document.addEventListener(type, modifiedListener, realOptions)
+            return id;
         }
         else if(allowedDelayedEventListeners.includes(type)){
             const modifiedListener = (event: any) => {
@@ -267,10 +268,11 @@ class SafeElement {
             }
             this.#eventIdMap.set(id, modifiedListener)
             document.addEventListener(type, modifiedListener, realOptions);
+            return id;
         }
-
-        throw new Error(`Event listener of type '${type}' is not allowed for security reasons.`);
-        
+        else{
+            throw new Error(`Event listener of type '${type}' is not allowed for security reasons.`);
+        }        
     }
 
     removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {

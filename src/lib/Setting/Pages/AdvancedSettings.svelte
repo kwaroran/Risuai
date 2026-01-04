@@ -3,16 +3,18 @@
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { DBState } from 'src/ts/stores.svelte';
-    import { alertMd, alertNormal } from "src/ts/alert";
-    import { downloadFile, getRequestLog, isNodeServer, isTauri } from "src/ts/globalApi.svelte";
+    import { alertMd, alertNormal, alertRequestLogs } from "src/ts/alert";
+    import { downloadFile, isNodeServer, isTauri } from "src/ts/globalApi.svelte";
+    import { alertMd, alertNormal, alertRequestLogs } from "src/ts/alert";
+    import { downloadFile, getRequestLog } from "src/ts/globalApi.svelte";
+    import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import Help from "src/lib/Others/Help.svelte";
-    import { Capacitor } from "@capacitor/core";
     import { capStorageInvestigation } from "src/ts/storage/mobileStorage";
-    import Arcodion from "src/lib/UI/Arcodion.svelte";
+    import Accordion from "src/lib/UI/Accordion.svelte";
   import { PlusIcon, TrashIcon, ArrowUp, ArrowDown } from "@lucide/svelte";
   import { v4 } from "uuid";
   import { getDatabase } from "src/ts/storage/database.svelte";
@@ -308,7 +310,7 @@
     </div>
 {/if}
 
-<Arcodion styled name={language.banCharacterset}>
+<Accordion styled name={language.banCharacterset}>
     {#each characterSets as set}
         <Button styled={DBState.db.banCharacterset.includes(set) ? 'primary' : "outlined"} onclick={(e) => {
             if (DBState.db.banCharacterset.includes(set)) {
@@ -320,7 +322,7 @@
             {new Intl.DisplayNames([navigator.language,'en'], { type: 'script' }).of(set)} ({characterSetsPreview[set]})
         </Button>
     {/each}
-</Arcodion>
+</Accordion>
 
 {#snippet CustomFlagButton(index:number,name:string,flag:number)}
     <Button className="mt-2" onclick={(e) => {
@@ -335,7 +337,7 @@
     </Button>
 {/snippet}
 
-<Arcodion styled name={language.customModels} className="overflow-x-auto">
+<Accordion styled name={language.customModels} className="overflow-x-auto">
 
     {#each DBState.db.customModels as model, index (model.id)}
         <div class="flex flex-col mt-2">
@@ -436,7 +438,7 @@
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].key}/>
             <span class="text-textcolor">{language.additionalParams}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].params}/>
-            <Arcodion styled name={language.flags}>
+            <Accordion styled name={language.flags}>
                 {@render CustomFlagButton(index,'hasImageInput', 0)}
                 {@render CustomFlagButton(index,'hasImageOutput', 1)}
                 {@render CustomFlagButton(index,'hasAudioInput', 2)}
@@ -456,7 +458,7 @@
                 {@render CustomFlagButton(index,'deepSeekPrefix', 17)}
                 {@render CustomFlagButton(index,'deepSeekThinkingInput', 18)}
                 {@render CustomFlagButton(index,'deepSeekThinkingOutput', 19)}
-            </Arcodion>
+            </Accordion>
                 </div>
             {/if}
         </div>
@@ -478,17 +480,17 @@
             <PlusIcon />
         </button>
     </div>
-</Arcodion>
+</Accordion>
 
 <Button
     className="mt-4"
-    onclick={async () => {
-        alertMd(getRequestLog())
+    onclick={() => {
+        alertRequestLogs()
     }}
 >
     {language.ShowLog}
 </Button>
-{#if Capacitor.isNativePlatform()}
+{#if isCapacitor}
     <Button
         className="mt-4"
         onclick={async () => {
@@ -548,14 +550,14 @@ Show Statistics
             }
         }
 
-        //@ts-expect-error meta is not defined in Database type, added for settings export report
-        db.meta = {
+        const meta = {
             isTauri: isTauri,
             isNodeServer: isNodeServer,
-            protocol: location.protocol
+            protocol: location.protocol,
+            userAgent: navigator.userAgent
         }
 
-        const json = JSON.stringify(db, null, 2)
+        const json = JSON.stringify({ ...db, meta }, null, 2)
         await downloadFile('risuai-settings-report.json', new TextEncoder().encode(json))
         await navigator.clipboard.writeText(json)
         alertNormal(language.settingsExported)

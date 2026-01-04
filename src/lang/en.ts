@@ -1486,5 +1486,5 @@ export const languageEnglish = {
     newMessageButtonTopBar: "Top Bar",
     trimStartNewChat: "Trim 'Start New Chat' Messages",
     pluginDevelopMode: "Plugin Develop Mode",
-    fetchLogConsent: "Plugin {} is requesting to fetch logs. do you want to allow this?",
+    fetchLogConsent: "Plugin {} is requesting to fetch logs. Do you want to allow this?",
 }

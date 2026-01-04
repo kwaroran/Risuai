@@ -460,6 +460,23 @@ const unloadV3Plugin = async (pluginName: string) => {
     instance.host.terminate();
 }
 
+const permissionGivenPlugins: Set<string> = new Set();
+
+const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs') => {
+    if(permissionGivenPlugins.has(pluginName)){
+        return true;
+    }
+    let alertTitle =
+        permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
+        : `Error`
+    const conf = await alertConfirm(alertTitle)
+    if(conf){
+        permissionGivenPlugins.add(pluginName);
+        return true;
+    }
+    return false;
+}
+
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
@@ -649,7 +666,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         getFetchLogs: async () => {
             const unsafeFetchLog = getFetchLogs()
-            const conf = await alertConfirm(language.fetchLogConsent.replace("{}", plugin.name))
+            const conf = await checkPluginPermission(plugin.name, 'fetchLogs');
             if(!conf){
                 return null;
             }

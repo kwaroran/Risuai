@@ -875,7 +875,10 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
                 const loadPlugins = globalThis.__pluginApis__.loadPlugins
                 const SafeFunction = globalThis.__pluginApis__.SafeFunction
             ` : ''}
-            ${data}
+
+            (async () => {
+                ${data}             
+            })()
         })();`
 
         if(version === '2.1'){

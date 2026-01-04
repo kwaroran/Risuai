@@ -462,13 +462,14 @@ const unloadV3Plugin = async (pluginName: string) => {
 
 const permissionGivenPlugins: Set<string> = new Set();
 
-const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db') => {
+const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
     let alertTitle =
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
+        : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
         : `Error`
     const conf = await alertConfirm(alertTitle)
     if(conf){
@@ -572,7 +573,11 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         hideContainer: () => {
             iframe.style.display = "none";
         },
-        getRootDocument: () => {
+        getRootDocument: async () => {
+            const conf = await checkPluginPermission(plugin.name, 'mainDom');
+            if(!conf){
+                return null;
+            }
             return new SafeDocument(document);
         },
         registerSetting: (

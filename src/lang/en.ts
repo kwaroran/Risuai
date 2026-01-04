@@ -1486,6 +1486,7 @@ export const languageEnglish = {
     newMessageButtonTopBar: "Top Bar",
     trimStartNewChat: "Trim 'Start New Chat' Messages",
     pluginDevelopMode: "Plugin Develop Mode",
-    fetchLogConsent: "Plugin {} is requesting to fetch logs. Do you want to allow this?",
-    getFullDatabaseConsent: "Plugin {} is requesting to access the full database. Do you want to allow this?",
+    fetchLogConsent: "Plugin {} is requesting to fetch logs, which may expose sensitive information. Do you want to allow this?", 
+    getFullDatabaseConsent: "Plugin {} is requesting to access the full database, which may expose sensitive information. Do you want to allow this?",
+    mainDomAccessConsent: "Plugin {} is requesting to access the main Document, which may expose sensitive information. Do you want to allow this?",
 }

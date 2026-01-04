@@ -615,6 +615,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             response: "Streaming",
             success: true,
             url: replacerURL,
+            status: da.status,
         })
 
         const transtream = getTranStream(arg)
@@ -1452,8 +1453,9 @@ function wrapToolStream(
                                     response: "Streaming",
                                     success: true,
                                     url: replacerURL,
+                                    status: resRec.status,
                                 })
-                                
+
                                 errorFlag = false
                                 break
                             }     

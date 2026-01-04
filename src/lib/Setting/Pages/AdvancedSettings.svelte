@@ -3,7 +3,9 @@
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { DBState } from 'src/ts/stores.svelte';
-    import { alertMd, alertNormal } from "src/ts/alert";
+    import { alertMd, alertNormal, alertRequestLogs } from "src/ts/alert";
+    import { downloadFile, isNodeServer, isTauri } from "src/ts/globalApi.svelte";
+    import { alertMd, alertNormal, alertRequestLogs } from "src/ts/alert";
     import { downloadFile, getRequestLog } from "src/ts/globalApi.svelte";
     import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
@@ -482,8 +484,8 @@
 
 <Button
     className="mt-4"
-    onclick={async () => {
-        alertMd(getRequestLog())
+    onclick={() => {
+        alertRequestLogs()
     }}
 >
     {language.ShowLog}

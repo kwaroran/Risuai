@@ -1698,6 +1698,12 @@ export function risuChatParser(da:string, arg:{
         consistantChar: arg.consistantChar ?? false,
         cbsConditions: arg.cbsConditions ?? {},
         callStack: arg.callStack,
+        getNested: () => {
+            return nested
+        },
+        setNestedRoot: (val:string) => {
+            nested[0] = val
+        }
     }
 
     da = da.replace(/\<(user|char|bot)\>/gi, '{{$1}}')
@@ -1846,8 +1852,8 @@ export function risuChatParser(da:string, arg:{
                 else{
                     nested[0] += mc.text
                     tempVar = mc.var
-                    if(tempVar?.['__force_return__']){
-                        return tempVar?.['__return__'] ?? 'null'
+                    if(tempVar['__force_return__']){
+                        return tempVar['__return__'] ?? 'null'
                     }
                 }
                 break

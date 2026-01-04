@@ -8,6 +8,7 @@ import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm } from "src/ts/alert";
 import { language } from "src/lang";
+import { getFetchLogs } from "src/ts/globalApi.svelte";
 
 /*
     V3 API for RisuAI Plugins
@@ -646,6 +647,19 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         onUnload: (callback: () => void) => {
             addPluginUnloadCallback(plugin.name, callback);
         },
+        getFetchLogs: () => {
+            const unsafeFetchLog = getFetchLogs()
+
+            return unsafeFetchLog.map(log => {
+                return {
+                    url: log.url,
+                    body: log.body,
+                    status: log.status,
+                    response: log.response,
+                }
+            })
+        },
+        //Internal use APIs
         _getOldKeys: () => {
             return Object.keys(oldApis)
         },

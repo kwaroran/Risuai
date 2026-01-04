@@ -1218,7 +1218,7 @@ interface RisuaiPluginAPI {
      * await risuai.addProvider(
      *   'MyProvider',
      *   async (args, abortSignal) => {
-     *     const response = await risuai.risuFetch('https://api.example.com/chat', {
+     *     const response = await risuai.nativeFetch('https://api.example.com/chat', {
      *       method: 'POST',
      *       body: JSON.stringify({
      *         messages: args.prompt_chat,
@@ -1350,12 +1350,18 @@ interface RisuaiPluginAPI {
      */
     onUnload(func: () => void | Promise<void>): Promise<void>;
 
-    // ========== Internal Methods ==========
-
     /**
-     * @internal Gets old API keys (for debugging/compatibility)
-     */
-    _getOldKeys(): Promise<string[]>;
+     * Gets the fetch logs
+     * @returns Array of fetch log entries 
+    */
+    getFetchLogs(): Promise<{
+        url: string;
+        body: string;
+        status?: number;
+        response?: string;
+        error?: string;
+        timestamp: number;
+    }[]>;
 }
 
 // ============================================================================

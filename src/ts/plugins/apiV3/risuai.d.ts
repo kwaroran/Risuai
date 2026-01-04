@@ -1352,7 +1352,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Gets the fetch logs
-     * @returns Array of fetch log entries 
+     * @returns Array of fetch log entries or null if consent not given
     */
     getFetchLogs(): Promise<{
         url: string;
@@ -1361,7 +1361,7 @@ interface RisuaiPluginAPI {
         response?: string;
         error?: string;
         timestamp: number;
-    }[]>;
+    }[]|null>;
 }
 
 // ============================================================================

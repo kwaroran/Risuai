@@ -647,9 +647,12 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         onUnload: (callback: () => void) => {
             addPluginUnloadCallback(plugin.name, callback);
         },
-        getFetchLogs: () => {
+        getFetchLogs: async () => {
             const unsafeFetchLog = getFetchLogs()
-
+            const conf = await alertConfirm(language.fetchLogConsent.replace("{}", plugin.name))
+            if(!conf){
+                return null;
+            }
             return unsafeFetchLog.map(log => {
                 return {
                     url: log.url,

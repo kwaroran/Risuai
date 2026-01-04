@@ -21,7 +21,7 @@
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import { openRouterModels } from "src/ts/model/openrouter";
     import OobaSettings from "./OobaSettings.svelte";
-    import Arcodion from "src/lib/UI/Arcodion.svelte";
+    import Accordion from "src/lib/UI/Accordion.svelte";
     import OpenrouterSettings from "./OpenrouterSettings.svelte";
     import ChatFormatSettings from "./ChatFormatSettings.svelte";
     import PromptSettings from "./PromptSettings.svelte";
@@ -469,7 +469,7 @@ let tokens = $state({
 {/if}
 
 {#if submenu === 3 || submenu === -1}
-    <Arcodion styled name="Bias " help="bias">
+    <Accordion styled name="Bias " help="bias">
         <table class="contain w-full max-w-full tabler">
             <tbody>
             <tr>
@@ -520,10 +520,10 @@ let tokens = $state({
                 }
             }}><HardDriveUploadIcon /></button>
         </div>
-    </Arcodion>
+    </Accordion>
 
     {#if DBState.db.aiModel === 'reverse_proxy'}
-    <Arcodion styled name="{language.additionalParams} " help="additionalParams">
+    <Accordion styled name="{language.additionalParams} " help="additionalParams">
         <table class="contain w-full max-w-full tabler">
             <tbody>
             <tr>
@@ -561,11 +561,11 @@ let tokens = $state({
             {/each}
             </tbody>
         </table>
-    </Arcodion>
+    </Accordion>
     {/if}
 
 
-    <Arcodion styled name={language.promptTemplate}>
+    <Accordion styled name={language.promptTemplate}>
         {#if DBState.db.promptTemplate}
             {#if submenu !== -1}
                 <PromptSettings mode='inline' subMenu={1} />
@@ -575,7 +575,7 @@ let tokens = $state({
                 DBState.db.promptTemplate = []
             }}/>
         {/if}
-    </Arcodion>
+    </Accordion>
 
     {#snippet CustomFlagButton(name:string,flag:number)}
         <Button className="mt-2" onclick={(e) => {
@@ -590,7 +590,7 @@ let tokens = $state({
         </Button>
     {/snippet}
 
-    <Arcodion styled name={language.customFlags}>
+    <Accordion styled name={language.customFlags}>
         <Check bind:check={DBState.db.enableCustomFlags} name={language.enableCustomFlags}/>
 
 
@@ -616,13 +616,13 @@ let tokens = $state({
             {@render CustomFlagButton('deepSeekThinkingOutput', 19)}
 
         {/if}
-    </Arcodion>
+    </Accordion>
 
-    <Arcodion styled name={language.moduleIntergration} help="moduleIntergration">
+    <Accordion styled name={language.moduleIntergration} help="moduleIntergration">
         <TextAreaInput bind:value={DBState.db.moduleIntergration} fullwidth height={"32"} autocomplete="off"/>
-    </Arcodion>
+    </Accordion>
 
-    <Arcodion styled name={language.tools}>
+    <Accordion styled name={language.tools}>
         <Check name={language.search} check={DBState.db.modelTools.includes('search')} onChange={() => {
             if(DBState.db.modelTools.includes('search')){
                 DBState.db.modelTools = DBState.db.modelTools.filter((tool) => tool !== 'search')
@@ -631,13 +631,13 @@ let tokens = $state({
                 DBState.db.modelTools.push('search')
             }
         }} />
-    </Arcodion>
+    </Accordion>
     
-    <Arcodion styled name={language.regexScript}>
+    <Accordion styled name={language.regexScript}>
         <RegexList bind:value={DBState.db.presetRegex} buttons />
-    </Arcodion>
+    </Accordion>
 
-    <Arcodion styled name={language.icon}>
+    <Accordion styled name={language.icon}>
         <div class="p-2 rounded-md border border-darkborderc flex flex-col items-center gap-2">
             <span>
                 {language.preview}
@@ -668,7 +668,7 @@ let tokens = $state({
         }}>
             <UploadIcon />
         </button>
-    </Arcodion>
+    </Accordion>
     {#if submenu !== -1}
         <Button onclick={() => {$openPresetList = true}} className="mt-4">{language.presets}</Button>
     {/if}

@@ -479,7 +479,7 @@ export class MCPClient{
         return d
     }
 
-    async checkHandshake(){
+    checkHandshake(){
         if(this.initialized){
             return this.serverInfo
         }

@@ -174,7 +174,7 @@ export async function SaveLocalBackup(){
     }
 }
 
-export async function LoadLocalBackup(){
+export function LoadLocalBackup(){
     try {
         const input = document.createElement('input');
         input.type = 'file';

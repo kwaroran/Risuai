@@ -108,7 +108,7 @@ let lastSaved:number = parseInt(localStorage.getItem('risu_lastsaved') ?? '-1')
 let BackupDb:Database = null
 
 
-export async function syncDrive() {
+export function syncDrive() {
     BackupDb = safeStructuredClone(getDatabase())
     return
 }

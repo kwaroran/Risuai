@@ -23,7 +23,7 @@
                 <SliderInput min={0} max={200} marginBottom bind:value={DBState.db.seperateParameters[param].temperature} multiple={0.01} fixed={2} disableable/>
                 <span class="text-textcolor">Top K</span>
                 <SliderInput min={0} max={100} marginBottom step={1} bind:value={DBState.db.seperateParameters[param].top_k} disableable/>
-                <span class="text-textcolor">{language.repetitionPenalty ?? 'Repetition Penalty'}</span>
+                <span class="text-textcolor">{'Repetition Penalty'}</span>
                 <SliderInput min={0} max={2} marginBottom step={0.01} fixed={2} bind:value={DBState.db.seperateParameters[param].repetition_penalty} disableable/>
                 <span class="text-textcolor">Min P</span>
                 <SliderInput min={0} max={1} marginBottom step={0.01} fixed={2} bind:value={DBState.db.seperateParameters[param].min_p} disableable/>
@@ -37,7 +37,7 @@
                 <SliderInput min={0} max={200} marginBottom step={0.01} fixed={2} bind:value={DBState.db.seperateParameters[param].presence_penalty} disableable/>
                 <span class="text-textcolor">{language.thinkingTokens}</span>
                 <SliderInput min={0} max={64000} marginBottom step={200} fixed={0} bind:value={DBState.db.seperateParameters[param].thinking_tokens} disableable/>
-                <span class="text-textcolor">{language.verbosity ?? 'Verbosity'}</span>
+                <span class="text-textcolor">{'Verbosity'}</span>
                 <SliderInput min={0} max={2} marginBottom step={1} fixed={0} bind:value={DBState.db.seperateParameters[param].verbosity} disableable/>
             </Accordion>
         {/each}

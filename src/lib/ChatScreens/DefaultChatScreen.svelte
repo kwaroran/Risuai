@@ -33,6 +33,13 @@
     import Chats from './Chats.svelte';
     import Button from '../UI/GUI/Button.svelte';
 
+    
+    interface Props {
+        openModuleList?: boolean;
+        openChatList?: boolean;
+        customStyle?: string;
+    }
+
     let messageInput:string = $state('')
     let messageInputTranslate:string = $state('')
     let openMenu = $state(false)
@@ -47,12 +54,13 @@
     let showNewMessageButton = $state(false)
     let chatsInstance: any = $state()
     let isScrollingToMessage = $state(false)
-
+    let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
+    }
     $effect(() => {
         if(ScrollToMessageStore.value !== -1){
             const index = ScrollToMessageStore.value
@@ -340,12 +348,6 @@
         }
     }
 
-    interface Props {
-        openModuleList?: boolean;
-        openChatList?: boolean;
-        customStyle?: string;
-    }
-
     let { userIconPortrait, currentUsername, userIcon } = $derived.by(() => {
         const bindedPersona = DBState?.db?.characters?.[$selectedCharID]?.chats?.[DBState?.db?.characters?.[$selectedCharID]?.chatPage]?.bindedPersona
 
@@ -368,7 +370,6 @@
         }
     })
 
-    let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let inputHeight = $state("44px")
     let inputEle:HTMLTextAreaElement = $state()
     let inputTranslateHeight = $state("44px")
@@ -499,6 +500,8 @@
             alertError("Error while taking screenshot")
         }
     }
+
+    
 </script>
 
 

@@ -34,9 +34,7 @@ import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
 import {
-    isTauri,
     forageStorage,
-    isNodeServer,
     saveDb,
     getDbBackups,
     getUnpargeables,
@@ -44,6 +42,7 @@ import {
     setUsingSw,
     checkCharOrder
 } from "./globalApi.svelte";
+import { isTauri } from "./platform";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 

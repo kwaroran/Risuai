@@ -5,7 +5,7 @@
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
-    import Arcodion from "src/lib/UI/Arcodion.svelte";
+    import Accordion from "src/lib/UI/Accordion.svelte";
     import { PlusIcon, TrashIcon, ArrowUp, ArrowDown } from "@lucide/svelte";
     import { v4 } from "uuid";
 
@@ -25,7 +25,7 @@
     </Button>
 {/snippet}
 
-<Arcodion styled name={language.customModels} className="overflow-x-auto">
+<Accordion styled name={language.customModels} className="overflow-x-auto">
     {#each DBState.db.customModels as model, index (model.id)}
         <div class="flex flex-col mt-2">
             <button class="hover:bg-selected px-6 py-2 text-lg rounded-t-md border-selected border flex justify-between items-center"
@@ -125,7 +125,7 @@
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].key}/>
             <span class="text-textcolor">{language.additionalParams}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].params}/>
-            <Arcodion styled name={language.flags}>
+            <Accordion styled name={language.flags}>
                 {@render CustomFlagButton(index,'hasImageInput', 0)}
                 {@render CustomFlagButton(index,'hasImageOutput', 1)}
                 {@render CustomFlagButton(index,'hasAudioInput', 2)}
@@ -145,7 +145,7 @@
                 {@render CustomFlagButton(index,'deepSeekPrefix', 17)}
                 {@render CustomFlagButton(index,'deepSeekThinkingInput', 18)}
                 {@render CustomFlagButton(index,'deepSeekThinkingOutput', 19)}
-            </Arcodion>
+            </Accordion>
                 </div>
             {/if}
         </div>
@@ -167,4 +167,4 @@
             <PlusIcon />
         </button>
     </div>
-</Arcodion>
+</Accordion>

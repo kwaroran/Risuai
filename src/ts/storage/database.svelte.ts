@@ -616,6 +616,8 @@ export function setDatabase(data:Database){
     data.autoScrollToNewMessage ??= true
     data.alwaysScrollToNewMessage ??= false
     data.newMessageButtonStyle ??= 'bottom-center'
+    data.echoMessage ??= "Echo Message"
+    data.echoDelay ??= 0
     if(!isNodeServer && !isTauri){
         //this is intended to forcely reduce the size of the database in web
         data.promptInfoInsideChat = false
@@ -1137,6 +1139,8 @@ export interface Database{
     alwaysScrollToNewMessage?: boolean
     newMessageButtonStyle?: string
     pluginDevelopMode?: boolean
+    echoMessage?:string
+    echoDelay?:number
 }
 
 interface SeparateParameters{

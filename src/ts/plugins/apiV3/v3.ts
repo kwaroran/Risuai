@@ -462,12 +462,13 @@ const unloadV3Plugin = async (pluginName: string) => {
 
 const permissionGivenPlugins: Set<string> = new Set();
 
-const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs') => {
+const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
     let alertTitle =
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
+        : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
         : `Error`
     const conf = await alertConfirm(alertTitle)
     if(conf){
@@ -500,6 +501,10 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
         //Same functionality, but new implementation
         getDatabase: async () => {
+            const conf = await checkPluginPermission(plugin.name, 'db');
+            if(!conf){
+                return null;
+            }
             const db = getDatabase();
             let liteDB = {}
             for(const key of allowedDbKeys){

@@ -1487,4 +1487,5 @@ export const languageEnglish = {
     trimStartNewChat: "Trim 'Start New Chat' Messages",
     pluginDevelopMode: "Plugin Develop Mode",
     fetchLogConsent: "Plugin {} is requesting to fetch logs. Do you want to allow this?",
+    getFullDatabaseConsent: "Plugin {} is requesting to access the full database. Do you want to allow this?",
 }

@@ -1109,7 +1109,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Gets the database with limited access
-     * @returns DatabaseSubset object (limited to allowed keys)
+     * @returns DatabaseSubset object (limited to allowed keys) or null if consent not given
      *
      * Allowed keys: characters, modules, enabledModules, moduleIntergration,
      * pluginV2, personas, plugins, pluginCustomStorage, temperature, askRemoval,
@@ -1120,10 +1120,12 @@ interface RisuaiPluginAPI {
      * @example
      * ```typescript
      * const db = await risuai.getDatabase();
-     * console.log(db.characters);
+     * if(db) {
+     *   console.log(db.characters);
+     * }
      * ```
      */
-    getDatabase(): Promise<DatabaseSubset>;
+    getDatabase(): Promise<DatabaseSubset|null>;
 
     /**
      * Sets the database (lightweight save)

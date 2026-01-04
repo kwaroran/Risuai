@@ -614,7 +614,7 @@ interface SafeElement {
      * @param options - Event listener options
      * @returns Unique listener ID for later removal
      *
-     * Allowed events (unlimited):
+     * Allowed events (without delay):
      * - Mouse: click, dblclick, contextmenu, mousedown, mouseup, mousemove, mouseover, mouseleave
      * - Pointer: pointercancel, pointerdown, pointerenter, pointerleave, pointermove, pointerout, pointerover, pointerup
      * - Scroll: scroll, scrollend
@@ -622,6 +622,8 @@ interface SafeElement {
      * Allowed events (with random delay for anti-fingerprinting):
      * - Keyboard: keydown, keyup, keypress
      *
+     * listener function receives trimmed event object with common properties only.
+     * 
      * @example
      * ```typescript
      * const id = await element.addEventListener('click', async (event) => {

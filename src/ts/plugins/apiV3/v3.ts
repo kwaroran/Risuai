@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify';
 import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, type MenuDef } from "src/ts/stores.svelte";
 import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
-import { alertConfirm } from "src/ts/alert";
+import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
 import { getFetchLogs } from "src/ts/globalApi.svelte";
 
@@ -688,6 +688,16 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     response: log.response,
                 }
             })
+        },
+
+        alert: (msg:string) => {
+            return alertNormal(msg)
+        },
+        alertConfirm: (msg:string) => {
+            return alertConfirm(msg)
+        },
+        alertError: (msg:string) => {
+            return alertError(msg)
         },
         //Internal use APIs
         _getOldKeys: () => {

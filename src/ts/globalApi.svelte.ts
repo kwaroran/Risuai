@@ -44,13 +44,9 @@ import { fetch as TauriHTTPFetch } from '@tauri-apps/plugin-http';
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
+import { isTauri, isNodeServer, isCapacitor, isInStandaloneMode } from "./platform";
 
-//@ts-expect-error __TAURI_INTERNALS__ is injected by Tauri runtime, not defined in Window interface
-export const isTauri = !!window.__TAURI_INTERNALS__
-export const isNodeServer = !!globalThis.__NODE__
 export const forageStorage = new AutoStorage()
-export const googleBuild = false
-export const isMobile = navigator.userAgent.match(/(iPad)|(iPhone)|(iPod)|(android)|(webOS)/i)
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -155,7 +151,7 @@ export async function getFileSrc(loc: string) {
     if (forageStorage.isAccount && loc.startsWith('assets')) {
         return hubURL + `/rs/` + loc
     }
-    if (Capacitor.isNativePlatform()) {
+    if (isCapacitor) {
         if (!await checkCapFileExists({
             path: encodeCapKeySafe(loc),
             directory: CapFS.Directory.External
@@ -671,7 +667,7 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
         if (isTauri) {
             return await fetchWithTauri(url, arg);
         }
-        if (Capacitor.isNativePlatform()) {
+        if (isCapacitor) {
             return await fetchWithCapacitor(url, arg);
         }
         return await fetchWithProxy(url, arg);
@@ -1119,32 +1115,6 @@ function formDataToString(formData: FormData): string {
 }
 
 /**
- * Gets the maximum context length for a given model.
- * 
- * @param {string} model - The model name.
- * @returns {number|undefined} The maximum context length, or undefined if the model is not recognized.
- */
-export function getModelMaxContext(model: string): number | undefined {
-    if (model.startsWith('gpt35')) {
-        if (model.includes('16k')) {
-            return 16000
-        }
-        return 4000
-    }
-    if (model.startsWith('gpt4')) {
-        if (model.includes('turbo')) {
-            return 128000
-        }
-        if (model.includes('32k')) {
-            return 32000
-        }
-        return 8000
-    }
-
-    return undefined
-}
-
-/**
  * A writer class for Tauri environment.
  */
 export class TauriWriter {
@@ -1260,7 +1230,7 @@ export class LocalWriter {
             this.writer = new TauriWriter(filePath)
             return true
         }
-        if (Capacitor.isNativePlatform()) {
+        if (isCapacitor) {
             this.writer = new MobileWriter(name + '.' + ext[0])
             return true
         }
@@ -1424,7 +1394,7 @@ if (isTauri) {
     })
 }
 
-if (Capacitor.isNativePlatform()) {
+if (isCapacitor) {
     capStreamedFetch = registerPlugin<StreamedFetchPlugin>('CapacitorHttp', CapacitorHttp)
 
     capStreamedFetch.addListener('streamed_fetch', (data) => {

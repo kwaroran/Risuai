@@ -2,8 +2,9 @@
 
     import Suggestion from './Suggestion.svelte';
     import AdvancedChatEditor from './AdvancedChatEditor.svelte';
-    import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon } from "@lucide/svelte";
-    import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen } from "../../ts/stores.svelte";
+    import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown } from "@lucide/svelte";
+    import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore } from "../../ts/stores.svelte";
+    import { tick } from 'svelte';
     import Chat from "./Chat.svelte";
     import { type Message } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
@@ -43,9 +44,86 @@
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
+    let showNewMessageButton = $state(false)
+    let chatsInstance: any = $state()
+    let isScrollingToMessage = $state(false)
 
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
+
+    function scrollToBottom() {
+        chatsInstance?.scrollToLatestMessage();
+    $effect(() => {
+        if(ScrollToMessageStore.value !== -1){
+            const index = ScrollToMessageStore.value
+            ScrollToMessageStore.value = -1
+            scrollToMessage(index)
+        }
+    })
+
+    async function scrollToMessage(index: number){
+        // Forces the loading of past messages not rendered on the screen
+        isScrollingToMessage = true
+        try {
+            const totalMessages = currentChat.length
+            const neededLoadPages = totalMessages - index + 5
+
+            if(loadPages < neededLoadPages){
+                loadPages = neededLoadPages
+                await tick()
+            }
+
+            let element: Element | null = null;
+            // Poll for element existence (max 5 seconds)
+            for(let i = 0; i < 50; i++){
+                element = document.querySelector(`[data-chat-index="${index}"]`)
+                if(element) break;
+                await sleep(100)
+            }
+
+            const preIndex = Math.max(0, index - 3)
+            const preElement = document.querySelector(`[data-chat-index="${preIndex}"]`)
+            if(preElement){
+                preElement.scrollIntoView({behavior: "instant", block: "start"})
+            } else {
+                element?.scrollIntoView({behavior: "instant", block: "start"})
+            }
+            await sleep(50)
+
+            if(element){
+                // Wait for images to load to prevent layout shift
+                const chatContainer = document.querySelector('.default-chat-screen');
+                if(chatContainer) {
+                    const images = Array.from(chatContainer.querySelectorAll('img'));
+                    const promises = images.map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(resolve => {
+                            img.onload = () => resolve(null);
+                            img.onerror = () => resolve(null);
+                        });
+                    });
+                    // Wait for all images or timeout after 4 seconds
+                    await Promise.race([
+                        Promise.all(promises),
+                        sleep(4000)
+                    ]);
+                }
+
+                element.scrollIntoView({behavior: "instant", block: "start"})
+                
+                // Small delay and scroll again to ensure position is correct after any final layout adjustments
+                await sleep(50)
+                element.scrollIntoView({behavior: "instant", block: "start"})
+
+                element.classList.add('ring-2', 'ring-blue-500')
+                setTimeout(() => {
+                    element.classList.remove('ring-2', 'ring-blue-500')
+                }, 2000)
+            }
+        } finally {
+            isScrollingToMessage = false
+        }
+    }
 
     async function send(){
         return sendMain(false)
@@ -427,9 +505,57 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="w-full h-full" style={customStyle} onclick={() => {
+<div class="w-full h-full relative" style={customStyle} onclick={() => {
     openMenu = false
 }}>
+    
+    {#if showNewMessageButton}
+        {#if (DBState.db.newMessageButtonStyle === 'bottom-center' || !DBState.db.newMessageButtonStyle)}
+            <button class="absolute bottom-16 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 hover:bg-blue-600 transition-colors" onclick={scrollToBottom}>
+                <ArrowDown size={16} />
+                <span>{language.newMessage}</span>
+            </button>
+        {/if}
+
+        {#if DBState.db.newMessageButtonStyle === 'bottom-right'}
+            <button class="absolute bottom-20 right-4 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 hover:bg-blue-600 transition-colors" onclick={scrollToBottom}>
+                <ArrowDown size={16} />
+                <span>{language.newMessage}</span>
+            </button>
+        {/if}
+
+        {#if DBState.db.newMessageButtonStyle === 'bottom-left'}
+            <button class="absolute bottom-20 left-4 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 hover:bg-blue-600 transition-colors" onclick={scrollToBottom}>
+                <ArrowDown size={16} />
+                <span>{language.newMessage}</span>
+            </button>
+        {/if}
+
+        {#if DBState.db.newMessageButtonStyle === 'floating-circle'}
+            <button class="absolute bottom-36 right-4 bg-blue-500 text-white w-12 h-12 rounded-full shadow-lg z-50 flex items-center justify-center hover:bg-blue-600 transition-colors" onclick={scrollToBottom} title="4. 원형 (우하단)">
+                <ArrowDown size={20} />
+            </button>
+        {/if}
+
+        {#if DBState.db.newMessageButtonStyle === 'right-center'}
+            <button class="absolute top-1/2 right-2 -translate-y-1/2 bg-blue-500 text-white px-2 py-3 rounded-l-lg shadow-lg z-50 flex flex-col items-center gap-1 hover:bg-blue-600 transition-colors" onclick={scrollToBottom}>
+                <ArrowDown size={14} />
+                <span class="text-xs writing-mode-vertical">{language.newMessage}</span>
+            </button>
+        {/if}
+
+        {#if DBState.db.newMessageButtonStyle === 'top-bar'}
+            <button class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-1.5 rounded-full shadow-lg z-50 flex items-center gap-2 hover:bg-blue-600 transition-colors text-sm" onclick={scrollToBottom}>
+                <ArrowDown size={14} />
+                <span>{language.newMessage}</span>
+            </button>
+        {/if}
+    {/if}
+    {#if isScrollingToMessage}
+        <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 text-white text-xl font-bold backdrop-blur-sm">
+            Loading...
+        </div>
+    {/if}
     {#if $selectedCharID < 0}
         {#if $PlaygroundStore === 0}
             <MainMenu />
@@ -437,11 +563,18 @@
             <PlaygroundMenu />
         {/if}
     {:else}
-        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen"  onscroll={(e) => {
+        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
             if(scrolled < 100 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length > loadPages){
                 loadPages += 15
+            }
+            const chatTarget = e.target as HTMLElement;
+            const chatsContainer = (DBState.db.fixedChatTextarea && chatTarget.children[1]) ? chatTarget.children[1] : chatTarget.children[0];
+            const lastEl = chatsContainer?.firstElementChild;
+            const isAtBottom = lastEl ? lastEl.getBoundingClientRect().top <= chatTarget.getBoundingClientRect().bottom + 100 : true;
+            if(isAtBottom){
+                showNewMessageButton = false;
             }
         }}>
             <div
@@ -675,6 +808,7 @@
             {/if}
             
             <Chats
+                bind:this={chatsInstance}
                 messages={currentChat}
                 loadPages={loadPages}
                 onReroll={reroll}
@@ -683,6 +817,7 @@
                 currentUsername={currentUsername}
                 userIcon={userIcon}
                 userIconPortrait={userIconPortrait}
+                bind:hasNewUnreadMessage={showNewMessageButton}
             />
 
             {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length <= loadPages}

@@ -1,4 +1,4 @@
-import { getV2PluginAPIs, type RisuPlugin } from "../plugins";
+import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { tagWhitelist } from "../pluginSafeClass";
@@ -474,16 +474,24 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
         addRisuReplacer: oldApis.addRisuReplacer,
         removeRisuReplacer: oldApis.removeRisuReplacer,
-        getDatabase: oldApis.getDatabase,
         setDatabaseLite: oldApis.setDatabaseLite,
         setDatabase: oldApis.setDatabase,
         loadPlugins: oldApis.loadPlugins,
         readImage: oldApis.readImage,
         saveAsset: oldApis.saveAsset,
+
+        //Same functionality, but new implementation
+        getDatabase: async () => {
+            const db = getDatabase();
+            let liteDB = {}
+            for(const key of allowedDbKeys){
+                (liteDB as any)[key] = (db as any)[key];
+            }
+            return liteDB;
+        },
+
         
         //Deprecated APIs from v2.1
-
-
         //Use getArgument / setArgument instead if possible
         getArg: oldApis.getArg,
         setArg: oldApis.setArg,

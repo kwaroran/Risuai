@@ -505,7 +505,7 @@ export const pluginV2 = {
     loaded: false
 }
 
-const allowedDbKeys = [
+export const allowedDbKeys = [
     'characters',
     'modules',
     'enabledModules',

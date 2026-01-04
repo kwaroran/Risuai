@@ -30,7 +30,21 @@ Risuai plugins are JavaScript extensions that can add new features, customize be
 
 ## Plugin Structure
 
-### Basic Template
+### Template
+
+We recommend starting with our Typescript plugin template for best practices and type safety.
+
+You can download Typescript template from Risuai app -> Plugin Settings -> </> Menu -> Download plugin template.
+
+If you are using IDE like Visual Studio Code, you can open the template folder directly and start coding with IntelliSense support.
+
+### Initial Setup
+
+You can import your plugin script directly in Risuai app via Plugin Settings -> Import Plugin.
+
+if your browser support local file access, we recommend using **Hot Reload** feature for faster development cycle. to use Hot Reload, import the plugin via Plugin Settings -> </> Menu -> Import plugin with hot reload
+
+### Basic Structure
 
 Every plugin starts with metadata comments and a main script:
 

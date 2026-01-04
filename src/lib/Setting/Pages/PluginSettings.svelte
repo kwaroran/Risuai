@@ -1,7 +1,7 @@
 <script lang="ts">
     import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon } from "@lucide/svelte";
     import { language } from "src/lang";
-    import { alertConfirm, alertMd } from "src/ts/alert";
+    import { alertConfirm, alertMd, alertSelect } from "src/ts/alert";
     import { TriangleAlert } from '@lucide/svelte';
 
     import { DBState, hotReloading } from "src/ts/stores.svelte";
@@ -238,7 +238,22 @@
 
     <button
         onclick={async () => {
-            await hotReloadPluginFiles()
+            const v = parseInt(await alertSelect([
+                "Import plugin with hot reload",
+                "Download plugin template",
+                language.cancel
+            ]))
+            switch(v){
+                case 0:
+                    await hotReloadPluginFiles()
+                    break;
+                case 1:{
+                    const a = document.createElement('a');
+                    a.href = '/plugin_start.7z';
+                    a.download = 'plugin_starter.7z';
+                    document.body.appendChild(a);
+                }
+            }
         }}
         class="hover:text-textcolor cursor-pointer"
     >

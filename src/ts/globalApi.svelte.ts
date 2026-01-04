@@ -1505,41 +1505,15 @@ export class AppendableBuffer {
  * @returns {ReadableStream<Uint8Array>} - The new readable stream.
  */
 const pipeFetchLog = (fetchLogIndex: number, readableStream: ReadableStream<Uint8Array>) => {
-    let textDecoderBuffer = new AppendableBuffer()
-    let textDecoderPointer = 0
-    const textDecoder = TextDecoderStream ? (new TextDecoderStream()) : new TransformStream<Uint8Array, string>({
-        transform(chunk, controller) {
-            try {
-                textDecoderBuffer.append(chunk)
-                const decoded = new TextDecoder('utf-8', {
-                    fatal: true
-                }).decode(textDecoderBuffer.buffer)
-                let newString = decoded.slice(textDecoderPointer)
-                textDecoderPointer = decoded.length
-                controller.enqueue(newString)
-            } catch { }
-        }
-    })
-    textDecoder.readable.pipeTo(new WritableStream({
-        write(chunk) {
-            fetchLog[fetchLogIndex].response += chunk
-        }
-    }))
-    const writer = textDecoder.writable.getWriter()
-    return new ReadableStream<Uint8Array>({
-        start(controller) {
-            readableStream.pipeTo(new WritableStream({
-                write(chunk) {
-                    controller.enqueue(chunk)
-                    writer.write(chunk as any)
-                },
-                close() {
-                    controller.close()
-                    writer.close()
-                }
-            }))
-        }
-    })
+    
+    const splited = readableStream.tee();
+    
+    (async () => {
+        const text = await (new Response(splited[0])).text()
+        fetchLog[fetchLogIndex].response = text
+    })()
+    
+    return splited[1]
 }
 
 /**

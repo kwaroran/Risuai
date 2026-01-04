@@ -4,12 +4,12 @@ import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModel } from "src/ts/model/openrouter"
-import { addFetchLog, fetchNative, globalFetch, isNodeServer, isTauri, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
 import type { OpenAIChatFull } from "../index.svelte"
 import { extractJSON, getOpenAIJSONSchema } from "../templates/jsonSchema"
 import { applyChatTemplate } from "../templates/chatTemplate"
 import { supportsInlayImage } from "../files/inlays"
-import { Capacitor } from "@capacitor/core"
 import { simplifySchema } from "src/ts/util"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
@@ -565,7 +565,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         body.n = db.genTime
     }
-    let throughProxi = (!isTauri) && (!isNodeServer) && (!db.usePlainFetch) && (!Capacitor.isNativePlatform())
+    let throughProxi = (!isTauri) && (!isNodeServer) && (!db.usePlainFetch) && (!isCapacitor)
     if(arg.useStreaming){
         body.stream = true
         let urlHost = new URL(replacerURL).host
@@ -673,11 +673,23 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                     body[key] = JSON.parse(value)                            
                 } catch (error) {}
             }
-            else if(isNaN(parseFloat(value))){
-                body = setObjectValue(body, key, value)
+            else if((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))){
+                body = setObjectValue(body, key, value.slice(1, -1))
+            }
+            else if(value === 'true' || value === 'false'){
+                body = setObjectValue(body, key, value === 'true')
+            }
+            else if(value === 'null'){
+                body = setObjectValue(body, key, null)
             }
             else{
-                body = setObjectValue(body, key, parseFloat(value))
+                const num = Number(value)
+                if(isNaN(num)){
+                    body = setObjectValue(body, key, value)
+                }
+                else{
+                    body = setObjectValue(body, key, num)
+                }
             }
         }
     }

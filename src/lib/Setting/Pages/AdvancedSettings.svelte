@@ -4,13 +4,13 @@
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { alertMd, alertNormal } from "src/ts/alert";
-    import { downloadFile, getRequestLog, isNodeServer, isTauri } from "src/ts/globalApi.svelte";
+    import { downloadFile, getRequestLog } from "src/ts/globalApi.svelte";
+    import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import Help from "src/lib/Others/Help.svelte";
-    import { Capacitor } from "@capacitor/core";
     import { capStorageInvestigation } from "src/ts/storage/mobileStorage";
     import Arcodion from "src/lib/UI/Arcodion.svelte";
   import { PlusIcon, TrashIcon, ArrowUp, ArrowDown } from "@lucide/svelte";
@@ -488,7 +488,7 @@
 >
     {language.ShowLog}
 </Button>
-{#if Capacitor.isNativePlatform()}
+{#if isCapacitor}
     <Button
         className="mt-4"
         onclick={async () => {
@@ -548,14 +548,14 @@ Show Statistics
             }
         }
 
-        //@ts-expect-error meta is not defined in Database type, added for settings export report
-        db.meta = {
+        const meta = {
             isTauri: isTauri,
             isNodeServer: isNodeServer,
-            protocol: location.protocol
+            protocol: location.protocol,
+            userAgent: navigator.userAgent
         }
 
-        const json = JSON.stringify(db, null, 2)
+        const json = JSON.stringify({ ...db, meta }, null, 2)
         await downloadFile('risuai-settings-report.json', new TextEncoder().encode(json))
         await navigator.clipboard.writeText(json)
         alertNormal(language.settingsExported)

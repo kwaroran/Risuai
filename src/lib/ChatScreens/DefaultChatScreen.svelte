@@ -53,6 +53,8 @@
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
+    }
+
     $effect(() => {
         if(ScrollToMessageStore.value !== -1){
             const index = ScrollToMessageStore.value

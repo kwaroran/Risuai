@@ -2,7 +2,7 @@
     import { DBState } from 'src/ts/stores.svelte';
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
-    import Arcodion from "src/lib/UI/Arcodion.svelte";
+    import Accordion from "src/lib/UI/Accordion.svelte";
 
     const characterSets = [
         'Latn', 'Hani', 'Arab', 'Deva', 'Cyrl', 'Beng', 'Hira', 'Kana', 'Telu', 'Hang',
@@ -17,7 +17,7 @@
     };
 </script>
 
-<Arcodion styled name={language.banCharacterset}>
+<Accordion styled name={language.banCharacterset}>
     {#each characterSets as set}
         <Button styled={DBState.db.banCharacterset.includes(set) ? 'primary' : "outlined"} onclick={(e) => {
             if (DBState.db.banCharacterset.includes(set)) {
@@ -29,4 +29,4 @@
             {new Intl.DisplayNames([navigator.language,'en'], { type: 'script' }).of(set)} ({characterSetsPreview[set]})
         </Button>
     {/each}
-</Arcodion>
+</Accordion>

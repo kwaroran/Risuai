@@ -50,7 +50,7 @@
                     </span>
                 {/if}
             </div>
-            {#if plugin.version === 2}
+            {#if plugin.version === 2 || plugin.version === "2.1"}
                 <button class="text-yellow-400 hover:gray-200 cursor-pointer" onclick={() => {
                     alertMd(language.pluginV2Warning);
                 }} >

@@ -20,7 +20,6 @@ export const SizeStore = writable({
     h: 0
 })
 
-const t = 'https://raw.githubusercontent.com/ProjectAliceDev/ProjectAliceDev.github.io/master/'
 export const loadedStore = writable(false)
 export const DynamicGUI = writable(false)
 export const sideBarClosing = writable(false)

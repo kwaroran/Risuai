@@ -608,6 +608,7 @@ export function setDatabase(data:Database){
     data.streamGeminiThoughts ??= false
     data.sourcemapTranslate ??= false
     data.settingsCloseButtonSize ??= 24
+    data.hideAllImages ??= false
     data.ImagenModel ??= 'imagen-4.0-generate-001'
     data.ImagenImageSize ??= '1K'
     data.ImagenAspectRatio ??= '1:1'
@@ -1130,6 +1131,7 @@ export interface Database{
     sourcemapTranslate:boolean
     settingsCloseButtonSize:number
     enableBookmark?: boolean
+    hideAllImages?: boolean
     autoScrollToNewMessage?: boolean
     alwaysScrollToNewMessage?: boolean
     newMessageButtonStyle?: string

@@ -1,8 +1,7 @@
 import { get, writable } from "svelte/store"
 import { sleep } from "./util"
 import { language } from "../lang"
-import { isNodeServer, isTauri } from "./globalApi.svelte"
-import { Capacitor } from "@capacitor/core"
+import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
 import { getDatabase, type MessageGenerationInfo } from "./storage/database.svelte"
 import { alertStore as alertStoreImported } from "./stores.svelte"
 
@@ -10,7 +9,7 @@ export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
             |'input'|'toast'|'wait2'|'markdown'|'select'|'login'
             |'tos'|'cardexport'|'requestdata'|'addchar'|'hypaV2'|'selectModule'
-            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm',
+            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
     msg: string,
     submsg?: string
     datalist?: [string, string][],
@@ -62,7 +61,7 @@ export function alertError(msg: string | Error) {
     //check if it's a known error
     if(msg.includes('Failed to fetch') || msg.includes("NetworkError when attempting to fetch resource.")){
         submsg =    db.usePlainFetch ? language.errors.networkFetchPlain :
-                    (!isTauri && !isNodeServer && !Capacitor.isNativePlatform()) ? language.errors.networkFetchWeb : language.errors.networkFetch
+                    (!isTauri && !isNodeServer && !isCapacitor) ? language.errors.networkFetchWeb : language.errors.networkFetch
     }
 
     alertStoreImported.set({
@@ -295,5 +294,12 @@ export function showHypaV2Alert(){
     alertStoreImported.set({
         'type': 'hypaV2',
         'msg': ""
+    })
+}
+
+export function alertRequestLogs(){
+    alertStoreImported.set({
+        'type': 'requestlogs',
+        'msg': ''
     })
 }

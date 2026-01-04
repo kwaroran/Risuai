@@ -208,6 +208,15 @@ export const languageSpanish = {
         additionalPrompt:
             "Texto que se agrega al final del Prompt Principal cuando el Preprocesamiento de Prompt está habilitado. El valor predeterminado es 'The assistant must act as {{char}}. user is {{user}}.' Esto ayuda a establecer el contexto básico del juego de roles.",
         hideAllImagesDesc: "Oculta los iconos de bots, recursos de imágenes de bots y portadas de RisuRealm.",
+        embedding:
+            "El modelo de incrustación (embedding) se utiliza para la búsqueda de similitud en múltiples características:\n\n" +
+            "- **Memoria a Largo Plazo**: HypaV2, HypaV3, Memoria Hanurai y SupaMemory (con HypaMemory habilitado)\n" +
+            "- **Texto Adicional**: Coincidencia de información adicional del personaje basada en el contexto\n" +
+            "- **Activos Dinámicos**: Encontrar nombres de activos similares cuando no se encuentra una coincidencia exacta\n" +
+            "- **Imágenes de Emoción**: Cuando el método de Emoción está configurado en 'embedding'\n" +
+            "- **Scripts de Activación**: Condiciones de similitud en scripts de activación\n" +
+            "- **Archivos Adjuntos**: Búsqueda dentro de archivos adjuntos PDF/TXT/XML\n" +
+            "- **Playground**: Pruebas de incrustación en Playground",
     },
     setup: {
         chooseProvider: "Elige Proveedor de IA",

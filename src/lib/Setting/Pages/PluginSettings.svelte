@@ -10,7 +10,6 @@
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
-    import migrationGuideContent from "src/ts/plugins/migrationGuide.md?raw";
     import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import { hotReloadPluginFiles } from "src/ts/plugins/apiV3/developMode";
@@ -53,7 +52,7 @@
             </div>
             {#if plugin.version === 2}
                 <button class="text-yellow-400 hover:gray-200 cursor-pointer" onclick={() => {
-                    alertMd(migrationGuideContent);
+                    alertMd(language.pluginV2Warning);
                 }} >
                     <TriangleAlert />
                 </button>

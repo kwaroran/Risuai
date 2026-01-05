@@ -56,10 +56,10 @@ Regex Scripts are used to replace text in the chat based on regex patterns. Fiel
 - 'comment': The name of the script. This is used to identify the script in the list.
 
 Lorebooks are texts containing various information about the character with conditional activation based on chat history. Fields:
+- 'alwaysActive': A boolean value indicating whether the entry is always active. If true, the entry will be included even if all of its keys are not in the chat history.
 - 'key': The key that will activate this lorebook. Multiple keys can be specified separated by commas. If one of the keys is in the chat history, the entry will be included in the next prompt.
 - 'content': The content of the entry.
-- 'comment': The name of the lorebook. Used for identifying the entry in the list.
-- 'alwaysActive': A boolean value indicating whether the entry is always active. If true, the entry will be included even if all of its keys are not in the chat history.
+- 'name': The name of the lorebook. Used for identifying the entry in the list.
 
 backgroundEmbedding is an HTML string mainly for custom styling. It can, and mostly include <style> tags with CSS. Note that all selectors will be prefixed with '.chattext ' so they cannot escape the chat boundary - No html, body, :root access.
 `

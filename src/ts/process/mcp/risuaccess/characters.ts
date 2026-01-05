@@ -458,7 +458,8 @@ export class CharacterHandler extends MCPToolHandler {
     const lorebook = char.globalLore.slice(offset, offset + count)
     const organized = lorebook.map((entry) => {
       return {
-        keys: entry.alwaysActive ? 'alwaysActive' : entry.key,
+        alwaysActive: entry.alwaysActive,
+        keys: entry.key,
         name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
       }
     })
@@ -505,8 +506,9 @@ export class CharacterHandler extends MCPToolHandler {
     }
 
     const result = entries.map((entry) => ({
+      alwaysActive: entry.alwaysActive,
       content: entry.content,
-      keys: entry.alwaysActive ? 'alwaysActive' : entry.key,
+      keys: entry.key,
       name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
     }))
 

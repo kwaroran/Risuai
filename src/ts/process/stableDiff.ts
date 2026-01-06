@@ -724,5 +724,63 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
         const mimeType = res.data?.predictions?.[0]?.mimeType || 'image/png'
         return `data:${mimeType};base64,${img64}`
     }
+    if(db.sdProvider === 'openai-compat'){
+        const config = db.openaiCompatImage
+        if(!config.url){
+            alertError("OpenAI Compatible API URL is not set")
+            return false
+        }
+
+        const body: {[key:string]: any} = {
+            "prompt": genPrompt,
+            "response_format": "b64_json",
+            "size": config.size || "1024x1024",
+            "quality": config.quality || "auto"
+        }
+
+        if(config.model){
+            body.model = config.model
+        }
+
+        const headers: {[key:string]: string} = {
+            "Content-Type": "application/json"
+        }
+
+        if(config.key){
+            headers["Authorization"] = "Bearer " + config.key
+        }
+
+        const da = await globalFetch(config.url, {
+            body: body,
+            headers: headers
+        })
+
+        if(returnSdData === 'inlay'){
+            let res = da?.data?.data?.[0]?.b64_json
+            if(!res){
+                alertError(JSON.stringify(da.data))
+                return ''
+            }
+            return `data:image/png;base64,${res}`
+        }
+
+        if(da.ok){
+            let charemotions = get(CharEmotion)
+            let img = da?.data?.data?.[0]?.b64_json
+            if(!img){
+                alertError(JSON.stringify(da.data))
+                return false
+            }
+            img = `data:image/png;base64,${img}`
+            const emos:[string, string,number][] = [[img, img, Date.now()]]
+            charemotions[currentChar.chaId] = emos
+            CharEmotion.set(charemotions)
+        }
+        else{
+            alertError(JSON.stringify(da.data))
+            return false
+        }
+        return returnSdData
+    }
     return ''
 }

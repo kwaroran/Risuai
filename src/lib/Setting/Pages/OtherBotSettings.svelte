@@ -118,6 +118,7 @@
             <OptionInput value="fal" >Fal.ai</OptionInput>
             <OptionInput value="comfyui" >ComfyUI</OptionInput>
             <OptionInput value="Imagen" >Imagen</OptionInput>
+            <OptionInput value="openai-compat" >OpenAI Compatible</OptionInput>
 
             <!-- Legacy -->
             {#if DBState.db.sdProvider === 'comfy'}
@@ -635,6 +636,34 @@
                 <OptionInput value="allow_all" >Allow all</OptionInput>
                 <OptionInput value="allow_adult" >Allow adult</OptionInput>
                 <OptionInput value="dont_allow" >Don't allow</OptionInput>
+            </SelectInput>
+        {/if}
+
+        {#if DBState.db.sdProvider === 'openai-compat'}
+            <span class="text-textcolor mt-2">API URL</span>
+            <TextInput size="sm" marginBottom placeholder="https://api.example.com/v1/images/generations" bind:value={DBState.db.openaiCompatImage.url}/>
+
+            <span class="text-textcolor">API Key</span>
+            <TextInput size="sm" marginBottom placeholder="sk-..." hideText={DBState.db.hideApiKey} bind:value={DBState.db.openaiCompatImage.key}/>
+
+            <span class="text-textcolor">Model</span>
+            <TextInput size="sm" marginBottom placeholder="dall-e-3" bind:value={DBState.db.openaiCompatImage.model}/>
+
+            <span class="text-textcolor">Image Size</span>
+            <SelectInput className="mb-4" bind:value={DBState.db.openaiCompatImage.size}>
+                <OptionInput value="1024x1024" >1024x1024</OptionInput>
+                <OptionInput value="1536x1024" >1536x1024</OptionInput>
+                <OptionInput value="1024x1536" >1024x1536</OptionInput>
+                <OptionInput value="512x512" >512x512</OptionInput>
+                <OptionInput value="256x256" >256x256</OptionInput>
+            </SelectInput>
+
+            <span class="text-textcolor">Quality</span>
+            <SelectInput className="mb-4" bind:value={DBState.db.openaiCompatImage.quality}>
+                <OptionInput value="auto" >Auto</OptionInput>
+                <OptionInput value="low" >Low</OptionInput>
+                <OptionInput value="medium" >Medium</OptionInput>
+                <OptionInput value="high" >High</OptionInput>
             </SelectInput>
         {/if}
     </Accordion>

@@ -2454,10 +2454,15 @@ Usage:: {{#when condition}}...{{/when}} or {{#when::not::condition}}...{{/when}}
     })
 
     registerFunction({
-        name:':each',
+        name:'#each',
         callback: 'doc_only',
-        alias: ['#each'],
-        description: 'Iterates over an array or object.\n\nUsage:: {{#each array}}...{{/each}} or {{#each object as key}}... {{slot::key}}...{{/each}}',
+        alias: [':each'],
+        description: `Iterates over an array.
+
+Operators:
+{{#each::keep A as V}} - keep whitespace handling, so it will not trim spaces inside block.
+
+Usage:: {{#each A as V}} ... {{slot::V}} ... {{/each}}`,
     })
 
     registerFunction({

@@ -1,0 +1,5 @@
+# Rpack.js
+
+Rpack.js is a JavaScript library of rpack, which is a simple obsufication file format which was made for obsuficating resource packs used on some closed source software, but later used in Risuai for compatibility reasons.
+
+Rpack.js is a JavaScript rewrite of the original rpack written in Rust, with permission from the original author.

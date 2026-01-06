@@ -2088,7 +2088,7 @@ import * as fflate from "fflate";
 import type { OnnxModelFiles } from '../process/transformers';
 import type { RisuModule } from '../process/modules';
 import type { SerializableHypaV2Data } from '../process/memory/hypav2';
-import { decodeRPack, encodeRPack } from '../rpack/rpack_bg';
+import { decodeRPack, encodeRPack } from '../rpack/rpack_js';
 import { DBState, selectedCharID } from '../stores.svelte';
 import { LLMFlags, LLMFormat, LLMTokenizer } from '../model/modellist';
 import type { HypaModel } from '../process/memory/hypamemory';

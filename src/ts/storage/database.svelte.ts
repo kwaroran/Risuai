@@ -629,6 +629,7 @@ export function setDatabase(data:Database){
         //this is intended to forcely reduce the size of the database in web
         data.promptInfoInsideChat = false
     }
+    data.createFolderOnBranch ??= true
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1154,6 +1155,7 @@ export interface Database{
     pluginDevelopMode?: boolean
     echoMessage?:string
     echoDelay?:number
+    createFolderOnBranch?:boolean
 }
 
 interface SeparateParameters{

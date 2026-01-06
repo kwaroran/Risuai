@@ -731,6 +731,17 @@
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentChat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
+        
+        if(DBState.db.createFolderOnBranch && !currentChat.folderId){
+            const folderId = v4()
+            DBState.db.characters[selIdState.selId].chatFolders.unshift({
+                id: folderId,
+                name: `Branches of ${currentChat.name}`,
+                folded: false,
+            })
+            currentChat.folderId = folderId
+        }
+        
         const currentMessage = currentChat.message[idx]
         const newChat = $state.snapshot(currentChat)
         newChat.name = `Copy of ${newChat.name}`

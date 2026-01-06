@@ -1239,7 +1239,7 @@ function makeArray(p1:string[]):string{
     }))
 }
 
-function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,type2?:string,funcArg?:string[]}{
+function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,type2?:string,funcArg?:string[],mode?:string}{
     if(p1.startsWith('#if') || p1.startsWith('#if_pure ')){
         const statement = p1.split(' ', 2)
         const state = statement[1]
@@ -1491,10 +1491,15 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
     }
     if(p1.startsWith('#each')){
         let t2 = p1.substring(5).trim()
+        let mode: string | undefined
+        if(t2.startsWith('::keep ')){
+            mode = 'keep'
+            t2 = t2.substring(7).trim()
+        }
         if(t2.startsWith('as ')){
             t2 = t2.substring(3).trim()
         }
-        return {type:'each',type2:t2}
+        return {type:'each', type2:t2, mode}
     }
     if(p1.startsWith('#func')){
         const statement = p1.split(' ')
@@ -1503,7 +1508,6 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
         }
 
     }
-
 
     return {type:'nothing'}
 }
@@ -1514,7 +1518,7 @@ function trimLines(p1:string){
     }).join('\n').trim()
 }
 
-function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string},matcherArg:matcherArg):string{
+function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string,mode?:string},matcherArg:matcherArg):string{
     const p1Trimed = p1.trim() 
     switch(type.type){
         case 'pure':
@@ -1522,8 +1526,13 @@ function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string},matcherA
         case 'function':{
             return p1Trimed
         }
-        case 'parse':
+        case 'parse':{
+            return trimLines(p1Trimed)
+        }
         case 'each':{
+            if(type.mode === 'keep'){
+                return p1
+            }
             return trimLines(p1Trimed)
         }
         case 'ifpure':{
@@ -1660,7 +1669,6 @@ export function risuChatParser(da:string, arg:{
         }
     }
 
-    
     let pointer = 0;
     let nested:string[] = [""]
     let stackType = new Uint8Array(512)
@@ -1670,6 +1678,7 @@ export function risuChatParser(da:string, arg:{
         type:blockMatch,
         type2?:string
         funcArg?:string[]
+        mode?:string
     }> = new Map()
     let commentMode = false
     let commentLatest:string[] = [""]
@@ -1713,12 +1722,7 @@ export function risuChatParser(da:string, arg:{
     const isPureMode = () => {
         return pureModeNest.size > 0
     }
-    const pureModeType = () => {
-        if(pureModeNest.size === 0){
-            return ''
-        }
-        return pureModeNestType.get(nested.length) ?? [...pureModeNestType.values()].at(-1) ?? ''
-    }
+
     while(pointer < da.length){
         switch(da[pointer]){
             case '{':{
@@ -1790,15 +1794,18 @@ export function risuChatParser(da:string, arg:{
                         const dat2 = nested.shift()
                         const matchResult = blockEndMatcher(dat2, blockType, matcherObj)
                         if(blockType.type === 'each'){
-                            const subind = blockType.type2.lastIndexOf(' ')
-                            const sub = blockType.type2.substring(subind + 1)
-                            const array = parseArray(blockType.type2.substring(0, subind))
+                            const asIndex = blockType.type2.lastIndexOf(' as ')
+                            if(asIndex === -1){
+                                break
+                            }
+                            const sub = blockType.type2.substring(asIndex + 4).trim()
+                            const array = parseArray(blockType.type2.substring(0, asIndex))
                             let added = ''
                             for(let i = 0;i < array.length;i++){
                                 const res = matchResult.replaceAll(`{{slot::${sub}}}`, array[i])
                                 added += res
                             }
-                            da = da.substring(0, pointer + 1) + added.trim() + da.substring(pointer + 1)
+                            da = da.substring(0, pointer + 1) + (blockType.mode === 'keep' ? added : added.trim()) + da.substring(pointer + 1)
                             break
                         }
                         if(blockType.type === 'function'){

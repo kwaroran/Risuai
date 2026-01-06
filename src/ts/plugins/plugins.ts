@@ -26,6 +26,7 @@ interface ProviderPlugin {
     argMeta: { [key: string]: {[key:string]:string} }
     versionOfPlugin?: string
     updateURL?: string
+    enabled?: boolean
 }
 interface ProviderPluginCustomLink {
     link: string
@@ -414,7 +415,8 @@ export async function importPlugin(code:string|null = null, argu:{
             customLink: customLink,
             argMeta: argMeta,
             versionOfPlugin: versionOfPlugin,
-            updateURL: updateURL
+            updateURL: updateURL,
+            enabled: true
         }
 
         db.plugins ??= []
@@ -463,9 +465,9 @@ export async function loadPlugins() {
     let db = getDatabase()
 
 
-    const structuredCloned = safeStructuredClone(db.plugins)
-    const pluginV2 = structuredCloned.filter((a: RisuPlugin) => a.version === 2 || a.version === '2.1')
-    const pluginV3 = structuredCloned.filter((a: RisuPlugin) => a.version === '3.0')
+    const enabledPlugins = safeStructuredClone(db.plugins).filter((p: RisuPlugin) => p.enabled)
+    const pluginV2 = enabledPlugins.filter((a: RisuPlugin) => a.version === 2 || a.version === '2.1')
+    const pluginV3 = enabledPlugins.filter((a: RisuPlugin) => a.version === '3.0')
 
     await loadV2Plugin(pluginV2)
     await loadV3Plugins(pluginV3)

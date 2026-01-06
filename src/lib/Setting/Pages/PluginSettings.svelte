@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon } from "@lucide/svelte";
+    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import { alertConfirm, alertMd, alertSelect } from "src/ts/alert";
     import { TriangleAlert } from '@lucide/svelte';
@@ -93,6 +93,22 @@
                     {/if}
                 {/await}
             {/if}
+
+            <button
+                class="textcolor2 hover:gray-200 cursor-pointer"
+                onclick={async (e) => {
+                    plugin.enabled = !plugin.enabled
+                    DBState.db.plugins[i] = plugin
+                    loadPlugins()
+                    e.preventDefault()
+                }}
+            >
+                {#if plugin.enabled}
+                    <PowerIcon />
+                {:else}
+                    <PowerOffIcon />
+                {/if}
+            </button>
 
             <!--Also, remove button.-->
             <button

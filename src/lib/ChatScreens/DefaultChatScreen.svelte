@@ -861,7 +861,7 @@
 
                     />
                     {#if (aiLawApplies() && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0)}
-                        <div class="w-full flex justify-center text-textcolor2 italic m-2 max-w-full text-wrap">
+                        <div class="ml-auto mr-auto mt-4 text-textcolor2 italic max-w-2/3 wrap-break-word text-center">
                             {language.aiGenerationWarning}
                         </div>
                     {/if}

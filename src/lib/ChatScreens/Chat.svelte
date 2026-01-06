@@ -389,6 +389,7 @@
         {:else}
             <span class="text-xs">{statusMessage}</span>
             <div class="flex items-center ml-2 gap-2">
+                {@render translationButton()}
                 {#if window.innerWidth >= 640}
                     {@render majorIconButtonsBody(false)}
                     {#if DBState.db.characters[selIdState.selId]}
@@ -681,17 +682,16 @@
         </button>
     {/if}
 {/if}
-{#if DBState.db.translator !== '' && !blankMessage}
-    <button class={"flex items-center cursor-pointer hover:text-blue-500 transition-colors button-icon-translate " + (translated ? 'text-blue-400':'')} class:translating={translating} onclick={async () => {
-        translated = !translated
-    }}>
-        <LanguagesIcon />
+{/snippet}
 
-        {#if showNames}
-            <span class="ml-1">{language.translate}</span>
-        {/if}
-    </button>
-{/if}
+{#snippet translationButton()}
+    {#if DBState.db.translator !== '' && !blankMessage}
+        <button class={"flex items-center cursor-pointer hover:text-blue-500 transition-colors button-icon-translate " + (translated ? 'text-blue-400':'')} class:translating={translating} onclick={async () => {
+            translated = !translated
+        }}>
+            <LanguagesIcon />
+        </button>
+    {/if}
 {/snippet}
 
 {#snippet rerolls()}

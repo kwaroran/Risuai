@@ -422,11 +422,6 @@
             <Check bind:check={DBState.db.useChatSticker} name={language.useChatSticker}/>
             <Help key="unrecommended" name={language.useChatSticker} unrecommended/>
         </div>
-
-        <div class="flex items-center mt-2">
-            <Check bind:check={DBState.db.useAdvancedEditor} name={language.useAdvancedEditor}/>
-            <Help key="unrecommended" unrecommended/>
-        </div>    
     {/if}
 
     <span class="text-textcolor mt-4">{language.customCSS}<Help key="customCSS" /></span>

@@ -592,7 +592,6 @@
                     </div>
                 {/if}
 
-                {#if !DBState.db.useAdvancedEditor}
                 <textarea class="peer text-input-area focus:border-textcolor transition-colors outline-hidden text-textcolor p-2 min-w-0 border border-r-0 bg-transparent rounded-md rounded-r-none input-text text-xl grow ml-4 border-darkborderc resize-none overflow-y-hidden overflow-x-hidden max-w-full placeholder:text-sm"
                           bind:value={messageInput}
                           bind:this={inputEle}
@@ -653,12 +652,6 @@
                           oninput={()=>{updateInputSizeAll();updateInputTransateMessage(false)}}
                           style:height={inputHeight}
                 ></textarea>
-                {:else}
-                    <AdvancedChatEditor
-                            bind:value={messageInput}
-                            bind:translate={messageInputTranslate}
-                    />
-                {/if}
 
 
                 {#if $doingChat || doingChatInputTranslate}
@@ -704,7 +697,7 @@
                     </div>
                 {/if}
             </div>
-            {#if DBState.db.useAutoTranslateInput && !DBState.db.useAdvancedEditor && DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}
+            {#if DBState.db.useAutoTranslateInput && DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}
                 <div class="flex items-center mt-2 mb-2">
                     <label for='messageInputTranslate' class="text-textcolor ml-4">
                         <LanguagesIcon />

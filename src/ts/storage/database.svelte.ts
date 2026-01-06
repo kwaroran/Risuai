@@ -944,7 +944,6 @@ export interface Database{
     requestInfoInsideChat?:boolean
     additionalParams:[string, string][]
     heightMode:string
-    useAdvancedEditor:boolean
     noWaitForTranslate:boolean
     antiClaudeOverload:boolean
     maxSupaChunkSize:number

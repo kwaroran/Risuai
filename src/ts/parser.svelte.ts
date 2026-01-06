@@ -1284,10 +1284,12 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
                     }
                     case 'keep':{
                         mode = 'keep'
+                        statement.push(condition)
                         break
                     }
                     case 'legacy':{
                         mode = 'legacy'
+                        statement.push(condition)
                         break
                     }
                     case 'and':{

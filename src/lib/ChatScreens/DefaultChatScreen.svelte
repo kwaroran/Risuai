@@ -1,7 +1,6 @@
 <script lang="ts">
 
     import Suggestion from './Suggestion.svelte';
-    import AdvancedChatEditor from './AdvancedChatEditor.svelte';
     import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown } from "@lucide/svelte";
     import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons } from "../../ts/stores.svelte";
     import { tick } from 'svelte';

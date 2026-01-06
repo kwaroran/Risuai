@@ -1,4 +1,4 @@
-export const LanguageVietnamese = {
+export const languageVietnamese = {
     formating: {
         main: "Lời nhắc chính",
         jailbreak: "Lời nhắc bẻ khóa",

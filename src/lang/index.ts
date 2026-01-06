@@ -3,7 +3,7 @@ import { languageChinese } from "./cn";
 import { languageGerman } from "./de";
 import { languageEnglish } from "./en";
 import { languageKorean } from "./ko";
-import { LanguageVietnamese } from "./vi";
+import { languageVietnamese } from "./vi";
 import { languageChineseTraditional } from "./zh-Hant";
 import { languageSpanish } from "./es";
 import { googleBuild } from "src/ts/platform";
@@ -22,7 +22,7 @@ export function changeLanguage(lang:string){
         language = merge(safeStructuredClone(languageEnglish), languageKorean)
     }
     else if(lang === 'vi'){
-        language = merge(safeStructuredClone(languageEnglish), LanguageVietnamese)
+        language = merge(safeStructuredClone(languageEnglish), languageVietnamese)
     }
     else if(lang === 'zh-Hant'){
         language = merge(safeStructuredClone(languageEnglish), languageChineseTraditional)

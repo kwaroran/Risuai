@@ -613,6 +613,13 @@ export function setDatabase(data:Database){
     data.ImagenImageSize ??= '1K'
     data.ImagenAspectRatio ??= '1:1'
     data.ImagenPersonGeneration ??= 'allow_all'
+    data.openaiCompatImage ??= {
+        url: '',
+        key: '',
+        model: '',
+        size: '1024x1024',
+        quality: 'auto'
+    }
     data.autoScrollToNewMessage ??= true
     data.alwaysScrollToNewMessage ??= false
     data.newMessageButtonStyle ??= 'bottom-center'
@@ -1130,6 +1137,13 @@ export interface Database{
     ImagenImageSize:string
     ImagenAspectRatio:string
     ImagenPersonGeneration:string,
+    openaiCompatImage: {
+        url: string
+        key: string
+        model: string
+        size: string
+        quality: string
+    }
     sourcemapTranslate:boolean
     settingsCloseButtonSize:number
     promptDiffPrefs:PromptDiffPrefs

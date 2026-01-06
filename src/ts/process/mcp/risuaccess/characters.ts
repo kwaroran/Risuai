@@ -44,7 +44,7 @@ export class CharacterHandler extends MCPToolHandler {
         name: 'risu-get-character-info',
       },
       {
-        description: 'Get the lorebooks of a Risuai character.',
+        description: 'List the lorebooks of a Risuai character.',
         inputSchema: {
           properties: {
             count: {
@@ -64,7 +64,26 @@ export class CharacterHandler extends MCPToolHandler {
           required: ['id'],
           type: 'object',
         },
-        name: 'risu-get-character-lorebooks',
+        name: 'risu-list-character-lorebooks',
+      },
+      {
+        description: 'Get all lorebook entries with specific names from a Risuai character.',
+        inputSchema: {
+          properties: {
+            entryNames: {
+              description: 'The names of the lorebook entries to retrieve.',
+              items: { type: 'string' },
+              type: 'array',
+            },
+            id: {
+              description: 'The ID or name of the character. Use an empty string for the currently selected character.',
+              type: 'string',
+            },
+          },
+          required: ['entryNames', 'id'],
+          type: 'object',
+        },
+        name: 'risu-get-character-lorebook',
       },
       {
         description: 'Set basic information about a Risuai character.',
@@ -314,8 +333,10 @@ export class CharacterHandler extends MCPToolHandler {
     switch (toolName) {
       case 'risu-get-character-info':
         return await this.getCharacterInfo(args.id, args.fields)
-      case 'risu-get-character-lorebooks':
+      case 'risu-list-character-lorebooks':
         return await this.getCharacterLorebooks(args.id, args.count, args.offset)
+      case 'risu-get-character-lorebook':
+        return await this.getCharacterLorebook(args.id, args.entryNames)
       case 'risu-set-character-info':
         return await this.setCharacterInfo(args.id, args.data)
       case 'risu-set-character-lorebook':
@@ -437,8 +458,8 @@ export class CharacterHandler extends MCPToolHandler {
     const lorebook = char.globalLore.slice(offset, offset + count)
     const organized = lorebook.map((entry) => {
       return {
-        content: entry.content,
-        keys: entry.alwaysActive ? 'alwaysActive' : entry.key,
+        alwaysActive: entry.alwaysActive,
+        keys: entry.key,
         name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
       }
     })
@@ -447,6 +468,54 @@ export class CharacterHandler extends MCPToolHandler {
       {
         type: 'text',
         text: JSON.stringify(organized),
+      },
+    ]
+  }
+
+  async getCharacterLorebook(id: string, entryNames: string[]): Promise<RPCToolCallContent[]> {
+    const char: character | groupChat = getCharacter(id)
+    if (!char) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Character with ID ${id} not found.`,
+        },
+      ]
+    }
+    if (char.type === 'group') {
+      return [
+        {
+          type: 'text',
+          text: `Error: The id pointed to a group chat, not a character.`,
+        },
+      ]
+    }
+
+    const entries = char.globalLore.filter((entry) => {
+      const displayName = entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content)
+      return entryNames.includes(displayName)
+    })
+
+    if (entries.length === 0) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Lorebook entries with names "${entryNames.join(', ')}" not found.`,
+        },
+      ]
+    }
+
+    const result = entries.map((entry) => ({
+      alwaysActive: entry.alwaysActive,
+      content: entry.content,
+      keys: entry.key,
+      name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
+    }))
+
+    return [
+      {
+        type: 'text',
+        text: JSON.stringify(result),
       },
     ]
   }

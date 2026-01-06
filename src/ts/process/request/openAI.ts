@@ -51,22 +51,6 @@ interface OAIResponseOutputToolCall {
     status: 'in_progress'|'complete'|'error'
 }
 
-interface OaiFunctions {
-    name: string;
-    description: string;
-    parameters: {
-        type: string;
-        properties: {
-            [key:string]: {
-                type: string;
-                enum: string[]
-            };
-        };
-        required: string[];
-    };
-}
-
-
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     let formatedChat:OpenAIChatExtra[] = []
     const formated = arg.formated
@@ -206,7 +190,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
     if(db.newOAIHandle){
         formatedChat = formatedChat.filter(m => {
-            return m.content !== '' || (m.multimodals && m.multimodals.length > 0) || m.tool_calls
+            return m.content !== '' || (m.multimodals && m.multimodals.length > 0) || m.tool_calls || m.role === 'tool'
         })
     }
 
@@ -767,6 +751,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
     }
 
     const dat = res.data as any
+
     if(res.ok){
         try {
             // Collect all tool_calls from all choices
@@ -799,11 +784,11 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
                 const callCodes: string[] = []
 
                 for(const toolCall of toolCalls){
-                    if(!toolCall.function || !toolCall.function.name || !toolCall.function.arguments){
+                    if(!toolCall.function || !toolCall.function.name || toolCall.function.arguments === undefined || toolCall.function.arguments === null){
                         continue
                     }
                     try {
-                        const functionArgs = JSON.parse(toolCall.function.arguments)
+                        const functionArgs = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {}
                         if(arg.tools && arg.tools.length > 0){
                             const tool = arg.tools.find(t => t.name === toolCall.function.name)
                             if(!tool){
@@ -922,19 +907,17 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
             }
         }
     }
-    else{
-        if(dat.error && dat.error.message){                    
-            return {
-                type: 'fail',
-                result: (language.errors.httpError + `${dat.error.message}`)
-            }
+    
+    if(dat.error && dat.error.message){                    
+        return {
+            type: 'fail',
+            result: (language.errors.httpError + `${dat.error.message}`)
         }
-        else{                    
-            return {
-                type: 'fail',
-                result: (language.errors.httpError + `${JSON.stringify(res.data)}`)
-            }
-        }
+    }
+
+    return {
+        type: 'fail',
+        result: (language.errors.httpError + `${JSON.stringify(res.data)}`)
     }
 }
 
@@ -1180,8 +1163,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    const calls = (response.data.output?.filter((m:OAIResponseOutputItem|OAIResponseOutputToolCall) => m.type === 'function_call')) as OAIResponseOutputToolCall[]
-    let result:string = (response.data.output?.find((m:OAIResponseOutputItem) => m.type === 'message') as OAIResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
+    let result: string = (response.data.output?.find((m:OAIResponseOutputItem) => m.type === 'message') as OAIResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
 
     if(!result){
         return {

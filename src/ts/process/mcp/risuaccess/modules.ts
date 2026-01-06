@@ -88,7 +88,7 @@ export class ModuleHandler extends MCPToolHandler {
         name: 'risu-set-module-info',
       },
       {
-        description: 'Get the lorebooks of a Risuai module.',
+        description: 'List the lorebooks of a Risuai module.',
         inputSchema: {
           properties: {
             count: {
@@ -109,7 +109,26 @@ export class ModuleHandler extends MCPToolHandler {
           required: ['id'],
           type: 'object',
         },
-        name: 'risu-get-module-lorebooks',
+        name: 'risu-list-module-lorebooks',
+      },
+      {
+        description: 'Get all lorebook entries with specific names from a Risuai module.',
+        inputSchema: {
+          properties: {
+            id: {
+              description: 'The ID of the Risuai module.',
+              type: 'string',
+            },
+            names: {
+              description: 'The unique names of the lorebook entries to retrieve.',
+              items: { type: 'string' },
+              type: 'array',
+            },
+          },
+          required: ['id', 'names'],
+          type: 'object',
+        },
+        name: 'risu-get-module-lorebook',
       },
       {
         description: 'Update an existing lorebook entry in a Risuai module, or create a new one if it does not exist.',
@@ -240,8 +259,10 @@ export class ModuleHandler extends MCPToolHandler {
         return await this.getModuleInfo(args.id, args.fields)
       case 'risu-set-module-info':
         return await this.setModuleInfo(args.id, args.data)
-      case 'risu-get-module-lorebooks':
+      case 'risu-list-module-lorebooks':
         return await this.getModuleLorebooks(args.id, args.count, args.offset)
+      case 'risu-get-module-lorebook':
+        return await this.getModuleLorebook(args.id, args.names)
       case 'risu-set-module-lorebook':
         return await this.setModuleLorebook(args.id, args.name, args.content, args.keys, args.alwaysActive)
       case 'risu-get-module-regex-scripts':
@@ -410,8 +431,8 @@ export class ModuleHandler extends MCPToolHandler {
     const lorebook = (module.lorebook || []).slice(offset, offset + count)
     const organized = lorebook.map((entry) => {
       return {
-        content: entry.content,
-        keys: entry.alwaysActive ? 'alwaysActive' : entry.key,
+        alwaysActive: entry.alwaysActive,
+        keys: entry.key,
         name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
       }
     })
@@ -420,6 +441,47 @@ export class ModuleHandler extends MCPToolHandler {
       {
         type: 'text',
         text: JSON.stringify(organized),
+      },
+    ]
+  }
+
+  async getModuleLorebook(id: string, names: string[]): Promise<RPCToolCallContent[]> {
+    const module = DBState.db.modules.find((m) => m.id === id)
+
+    if (!module || module.mcp) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Module with ID ${id} not found.`,
+        },
+      ]
+    }
+
+    const entries = (module.lorebook || []).filter((l) => {
+      const displayName = l.comment || 'Unnamed ' + pickHashRand(5515, l.content)
+      return names.includes(displayName)
+    })
+
+    if (entries.length === 0) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Lorebook entries with names "${names.join(', ')}" not found.`,
+        },
+      ]
+    }
+
+    const result = entries.map((entry) => ({
+      alwaysActive: entry.alwaysActive,
+      content: entry.content,
+      keys: entry.key,
+      name: entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content),
+    }))
+
+    return [
+      {
+        type: 'text',
+        text: JSON.stringify(result),
       },
     ]
   }

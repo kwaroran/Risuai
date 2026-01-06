@@ -35,6 +35,18 @@ export const defaultColorScheme: ColorScheme = {
 
 const colorShemes = {
     "default": defaultColorScheme,
+    "dark": {
+        bgcolor: "#1a1a1a",
+        darkbg: "#141414",
+        borderc: "#525252",
+        selected: "#3d3d3d",
+        draculared: "#ff5555",
+        textcolor: "#f5f5f5",
+        textcolor2: "#a3a3a3",
+        darkBorderc: "#404040",
+        darkbutton: "#2e2e2e",
+        type:'dark'
+    },
     "light": {
         bgcolor: "#ffffff",
         darkbg: "#f0f0f0",
@@ -93,6 +105,30 @@ const colorShemes = {
         textcolor2: "#64748b",
         darkBorderc: "#4b5563",
         darkbutton: "#374151",
+        type:'dark'
+    },
+    "monokai-light": {
+        bgcolor: "#f8f8f2",
+        darkbg: "#e8e8e3",
+        borderc: "#75715e",
+        selected: "#d8d8d0",
+        draculared: "#f92672",
+        textcolor: "#272822",
+        textcolor2: "#75715e",
+        darkBorderc: "#c0c0b8",
+        darkbutton: "#d0d0c8",
+        type:'light'
+    },
+    "monokai-black": {
+        bgcolor: "#272822",
+        darkbg: "#1e1f1a",
+        borderc: "#75715e",
+        selected: "#3e3d32",
+        draculared: "#f92672",
+        textcolor: "#f8f8f2",
+        textcolor2: "#a6a68a",
+        darkBorderc: "#3e3d32",
+        darkbutton: "#3e3d32",
         type:'dark'
     },
     "lite": {

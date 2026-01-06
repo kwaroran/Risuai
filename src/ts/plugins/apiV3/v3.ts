@@ -716,8 +716,10 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return null;
             }
             return unsafeFetchLog.map(log => {
+
+                const url = new URL(log.url);
                 return {
-                    url: log.url,
+                    url: url.origin + url.pathname,
                     body: log.body,
                     status: log.status,
                     response: log.response,

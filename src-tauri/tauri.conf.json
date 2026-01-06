@@ -17,7 +17,7 @@
     "resources": [
       "src-python/*"
     ],
-    "targets": "all",
+    "targets": ["deb", "rpm", "appimage", "nsis", "app", "dmg"],
     "createUpdaterArtifacts": true,
     "fileAssociations": [
       {

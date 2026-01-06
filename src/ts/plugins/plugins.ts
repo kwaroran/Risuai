@@ -876,9 +876,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
                     const SafeFunction = globalThis.__pluginApis__.SafeFunction
                 ` : ''}
 
-                (async () => {
-                    ${data}             
-                })()
+                ${data}
             })();`
 
         }

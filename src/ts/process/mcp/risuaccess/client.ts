@@ -50,18 +50,18 @@ Regex Scripts are used to replace text in the chat based on regex patterns. Fiel
   - 'edittrans': Modifies the text after translation.
 - 'in': The regex pattern to match, without the leading and trailing slashes and flags. Should be a valid ECMAScript regex.
 - 'out': The replacement text for the matches. It can use $1, $2, or $<name> (for named capture groups) to refer to the captured groups.
-  - Note: It can accept Markdown and HTML, even <style> tags which gets deduplicated. One can use regex scripts for decoration with 'editdisplay' type. Same restriction as backgroundEmbedding applies; see below.
+  - Note: It can accept Markdown and HTML, even <style> tags which will be prepended and deduplicated. One can use regex scripts for decoration with 'editdisplay' type. Same restriction as backgroundEmbedding applies; see below.
 - 'flag': The regex flags to use. Should be valid ECMAScript regex flags, like 'g', 'i', 'm', etc. Multiple flags can also be used like 'gi' or 'gm'.
 - 'ableFlag': A boolean value indicating whether the flag settings are enabled. If false, the script will use default flags of 'g'.
 - 'comment': The name of the script. This is used to identify the script in the list.
 
 Lorebooks are texts containing various information about the character with conditional activation based on chat history. Fields:
+- 'alwaysActive': A boolean value indicating whether the entry is always active. If true, the entry will be included even if all of its keys are not in the chat history.
 - 'key': The key that will activate this lorebook. Multiple keys can be specified separated by commas. If one of the keys is in the chat history, the entry will be included in the next prompt.
 - 'content': The content of the entry.
-- 'comment': The name of the lorebook. Used for identifying the entry in the list.
-- 'alwaysActive': A boolean value indicating whether the entry is always active. If true, the entry will be included even if all of its keys are not in the chat history.
+- 'name': The name of the lorebook. Used for identifying the entry in the list.
 
-backgroundEmbedding is an HTML string mainly for custom styling. It can include <style> tags with CSS. Note that all selectors will be prefixed with '.chattext ' so they cannot escape the chat boundary - No html, body, :root access.
+backgroundEmbedding is an HTML string mainly for custom styling. It can, and mostly include <style> tags with CSS. Note that all selectors will be prefixed with '.chattext ' so they cannot escape the chat boundary - No html, body, :root access.
 `
     super('internal:risuai')
     this.serverInfo.serverInfo.name = 'Risuai Access MCP'

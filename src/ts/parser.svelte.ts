@@ -1795,11 +1795,17 @@ export function risuChatParser(da:string, arg:{
                         const matchResult = blockEndMatcher(dat2, blockType, matcherObj)
                         if(blockType.type === 'each'){
                             const asIndex = blockType.type2.lastIndexOf(' as ')
+                            let sub = blockType.type2.substring(asIndex + 4).trim()
+                            let array = parseArray(blockType.type2.substring(0, asIndex))
                             if(asIndex === -1){
-                                break
+                                //compability mode
+                                const subind = blockType.type2.lastIndexOf(' ')
+                                if(subind === -1){
+                                    break
+                                }
+                                sub = blockType.type2.substring(subind + 1)
+                                array = parseArray(blockType.type2.substring(0, subind))
                             }
-                            const sub = blockType.type2.substring(asIndex + 4).trim()
-                            const array = parseArray(blockType.type2.substring(0, asIndex))
                             let added = ''
                             for(let i = 0;i < array.length;i++){
                                 const res = matchResult.replaceAll(`{{slot::${sub}}}`, array[i])

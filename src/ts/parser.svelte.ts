@@ -1395,7 +1395,7 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
                     }
                     case '>':{
                         const condition2 = statement.pop()
-                        if(parseFloat(condition) > parseFloat(condition2)){
+                        if(parseFloat(condition2) > parseFloat(condition)){
                             statement.push('1')
                         }
                         else{
@@ -1405,7 +1405,7 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
                     }
                     case '<':{
                         const condition2 = statement.pop()
-                        if(parseFloat(condition) < parseFloat(condition2)){
+                        if(parseFloat(condition2) < parseFloat(condition)){
                             statement.push('1')
                         }
                         else{
@@ -1415,7 +1415,7 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
                     }
                     case '>=':{
                         const condition2 = statement.pop()
-                        if(parseFloat(condition) >= parseFloat(condition2)){
+                        if(parseFloat(condition2) >= parseFloat(condition)){
                             statement.push('1')
                         }
                         else{
@@ -1425,7 +1425,7 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
                     }
                     case '<=':{
                         const condition2 = statement.pop()
-                        if(parseFloat(condition) <= parseFloat(condition2)){
+                        if(parseFloat(condition2) <= parseFloat(condition)){
                             statement.push('1')
                         }
                         else{

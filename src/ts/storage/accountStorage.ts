@@ -84,6 +84,9 @@ export class AccountStorage{
         if(da.status < 200 || da.status >= 300){
             throw await getDaText()
         }
+        if(key.startsWith('assets/')){
+            await localforage.setItem(key, new Uint8Array(value).buffer)
+        }
         return await getDaText()
     }
     async getItem(key:string, callback?:(status:number) => void):Promise<Buffer> {

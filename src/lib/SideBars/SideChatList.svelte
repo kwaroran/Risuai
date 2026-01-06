@@ -19,7 +19,7 @@
     import { bookmarkListOpen } from "src/ts/stores.svelte";
     import { language } from "src/lang";
     import Toggles from "./Toggles.svelte";
-    import { changeChatTo } from "src/ts/globalApi.svelte";
+    import { changeChatTo, createChatCopyName } from "src/ts/globalApi.svelte";
 
     interface Props {
         chara: character|groupChat;
@@ -265,7 +265,7 @@
                                 switch(option){
                                     case 0:{
                                         const newChat = $state.snapshot(chara.chats[chara.chats.indexOf(chat)])
-                                        newChat.name = `Copy of ${newChat.name}`
+                                        newChat.name = createChatCopyName(newChat.name, 'Copy')
                                         newChat.id = v4()
                                         chara.chats.unshift(newChat)
                                         changeChatTo(0)
@@ -376,7 +376,7 @@
                         switch(option){
                             case 0:{
                                 const newChat = $state.snapshot(chara.chats[i])
-                                newChat.name = `Copy of ${newChat.name}`
+                                newChat.name = createChatCopyName(newChat.name, 'Copy')
                                 newChat.id = v4()
                                 chara.chats.unshift(newChat)
                                 changeChatTo(0)

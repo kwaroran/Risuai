@@ -2178,3 +2178,15 @@ export function changeChatTo(IdOrIndex: string | number) {
     DBState.db.characters[selIdState.selId].chatPage = index
     ReloadGUIPointer.set(Math.random())
 }
+
+export function createChatCopyName(originalName: string,type:'Copy'|'Branch'): string {
+    let name = originalName.replaceAll(/\(((Copy|Branch)( \d+)?)\)$/g, '').trim()
+    let copyIndex = 1
+    let newName = `${name} (${type})`
+    const char = getCurrentCharacter()
+    while (char.chats.find((v) => v.name === newName)) {
+        copyIndex++
+        newName = `${name} (${type} ${copyIndex})`
+    }
+    return newName
+}

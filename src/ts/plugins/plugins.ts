@@ -847,39 +847,41 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             version = 2
         }
 
+        const createRealScript = (data:string) => {
+            return `(async () => {
+                const risuFetch = globalThis.__pluginApis__.risuFetch
+                const nativeFetch = globalThis.__pluginApis__.nativeFetch
+                const getArg = globalThis.__pluginApis__.getArg
+                const printLog = globalThis.__pluginApis__.printLog
+                const getChar = globalThis.__pluginApis__.getChar
+                const setChar = globalThis.__pluginApis__.setChar
+                const addProvider = globalThis.__pluginApis__.addProvider
+                const addRisuScriptHandler = globalThis.__pluginApis__.addRisuScriptHandler
+                const removeRisuScriptHandler = globalThis.__pluginApis__.removeRisuScriptHandler
+                const addRisuReplacer = globalThis.__pluginApis__.addRisuReplacer
+                const removeRisuReplacer = globalThis.__pluginApis__.removeRisuReplacer
+                const onUnload = globalThis.__pluginApis__.onUnload
+                const setArg = globalThis.__pluginApis__.setArg
+                ${version === '2.1' ? `
+                    const safeGlobalThis = globalThis.__pluginApis__.getSafeGlobalThis()
+                    const Risuai = globalThis.__pluginApis__
+                    const safeLocalStorage = globalThis.__pluginApis__.safeLocalStorage
+                    const safeIdbFactory = globalThis.__pluginApis__.safeIdbFactory
+                    const alertStore = globalThis.__pluginApis__.alertStore
+                    const safeDocument = globalThis.__pluginApis__.safeDocument
+                    const getDatabase = globalThis.__pluginApis__.getDatabase
+                    const setDatabaseLite = globalThis.__pluginApis__.setDatabaseLite
+                    const setDatabase = globalThis.__pluginApis__.setDatabase
+                    const loadPlugins = globalThis.__pluginApis__.loadPlugins
+                    const SafeFunction = globalThis.__pluginApis__.SafeFunction
+                ` : ''}
 
-        const realScript = `(async () => {
-            const risuFetch = globalThis.__pluginApis__.risuFetch
-            const nativeFetch = globalThis.__pluginApis__.nativeFetch
-            const getArg = globalThis.__pluginApis__.getArg
-            const printLog = globalThis.__pluginApis__.printLog
-            const getChar = globalThis.__pluginApis__.getChar
-            const setChar = globalThis.__pluginApis__.setChar
-            const addProvider = globalThis.__pluginApis__.addProvider
-            const addRisuScriptHandler = globalThis.__pluginApis__.addRisuScriptHandler
-            const removeRisuScriptHandler = globalThis.__pluginApis__.removeRisuScriptHandler
-            const addRisuReplacer = globalThis.__pluginApis__.addRisuReplacer
-            const removeRisuReplacer = globalThis.__pluginApis__.removeRisuReplacer
-            const onUnload = globalThis.__pluginApis__.onUnload
-            const setArg = globalThis.__pluginApis__.setArg
-            ${version === '2.1' ? `
-                const safeGlobalThis = globalThis.__pluginApis__.getSafeGlobalThis()
-                const Risuai = globalThis.__pluginApis__
-                const safeLocalStorage = globalThis.__pluginApis__.safeLocalStorage
-                const safeIdbFactory = globalThis.__pluginApis__.safeIdbFactory
-                const alertStore = globalThis.__pluginApis__.alertStore
-                const safeDocument = globalThis.__pluginApis__.safeDocument
-                const getDatabase = globalThis.__pluginApis__.getDatabase
-                const setDatabaseLite = globalThis.__pluginApis__.setDatabaseLite
-                const setDatabase = globalThis.__pluginApis__.setDatabase
-                const loadPlugins = globalThis.__pluginApis__.loadPlugins
-                const SafeFunction = globalThis.__pluginApis__.SafeFunction
-            ` : ''}
+                (async () => {
+                    ${data}             
+                })()
+            })();`
 
-            (async () => {
-                ${data}             
-            })()
-        })();`
+        }
 
         if(version === '2.1'){
             const safety = (await checkCodeSafety(plugin.script))
@@ -888,7 +890,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loading V2.1 Plugin', plugin.name, data)
 
             try {
-                new Function(realScript)()
+                new Function(createRealScript(data))()
             } catch (error) {
                 console.error(error)
             }
@@ -900,7 +902,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loading V2.0 Plugin', plugin.name)
 
             try {
-                eval(data)
+                eval(createRealScript(data))
             } catch (error) {
                 console.error(error)
             }

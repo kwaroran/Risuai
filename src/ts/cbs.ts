@@ -93,10 +93,10 @@ export type CBSRegisterArg = {
     getUserName: () => string,
     getPersonaPrompt: () => string,
     risuChatParser: (text: string, arg: matcherArg) => string,
-    makeArray: (arr: string[]) => string,
+    makeArray: (arr: unknown[]) => string,
     safeStructuredClone: <T>(obj: T) => T,
-    parseArray: (str: string) => string[],
-    parseDict: (str: string) => {[key: string]: string},
+    parseArray: (str: string) => unknown[],
+    parseDict: (str: string) => {[key: string]: unknown},
     getChatVar: (key: string) => string,
     setChatVar: (key: string, value: string) => void,
     getGlobalChatVar: (key: string) => string,
@@ -1155,7 +1155,8 @@ export function registerCBS(arg:CBSRegisterArg) {
     registerFunction({
         name: 'arrayelement',
         callback: (str, matcherArg, args, vars) => {
-            return parseArray(args[0]).at(Number(args[1])) ?? 'null'
+            const element = parseArray(args[0]).at(Number(args[1])) ?? 'null'
+            return typeof element === 'object' ? JSON.stringify(element) : String(element)
         },
         alias: ['arrayelement'],
         description: 'Retrieves the element at the specified index from a JSON array. Uses 0-based indexing. Returns "null" if index is out of bounds.\n\nUsage:: {{arrayelement::["a","b","c"]::1}} → b',
@@ -1164,7 +1165,8 @@ export function registerCBS(arg:CBSRegisterArg) {
     registerFunction({
         name: 'dictelement',
         callback: (str, matcherArg, args, vars) => {
-            return parseDict(args[0])[args[1]] ?? 'null'
+            const element = parseDict(args[0])[args[1]] ?? 'null'
+            return typeof element === 'object' ? JSON.stringify(element) : String(element)
         },
         alias: ['dictelement', 'objectelement'],
         description: 'Retrieves the value associated with a key from a JSON object/dictionary. Returns "null" if key doesn\'t exist.\n\nUsage:: {{dictelement::{"name":"John"}::name}} → John',
@@ -1631,7 +1633,7 @@ export function registerCBS(arg:CBSRegisterArg) {
                     case 1:
                         return f !== ''
                     case 2:
-                        return i === array.indexOf(f)               
+                        return i === array.indexOf(f)
                 }
             }))
         },
@@ -1972,34 +1974,34 @@ export function registerCBS(arg:CBSRegisterArg) {
         description: 'Applies Caesar cipher encryption/decryption with custom shift value (default 32768). Shifts Unicode character codes within 16-bit range. By using default shift, it can be used for both encryption and decryption.\n\nUsage:: {{crypt::hello}} or {{crypt::hello::1000}}',
     });
 
+    /**
+     * @param rand 0-1 random value from PRNG
+     */
+    const randomPickImpl = (str: string, matcherArg: matcherArg, args: string[], rand: number): string => {
+        if (args.length === 0) {
+            return rand.toString()
+        }
+
+        let arr: unknown[]
+        if (args.length === 1) {
+            if (args[0].startsWith('[') && args[0].endsWith(']')) {
+                arr = parseArray(args[0])
+            } else {
+                arr = args[0].replace(/\\,/g, '§X').split(/\:|\,/g)
+            }
+        } else {
+            arr = args
+        }
+
+        const index = matcherArg.tokenizeAccurate ? 0 : Math.floor(rand * arr.length)
+        const element = arr[index]
+        return typeof element === 'string' ? element.replace(/§X/g, ',') : JSON.stringify(element) ?? ''
+    }
+
     registerFunction({
         name: 'random',
         callback: (str, matcherArg, args, vars) => {
-
-            if(args.length === 0){
-                return Math.random().toString()
-            }
-            if(args.length === 1){
-                let arr:string[]
-                
-                if(str.startsWith('[') && str.endsWith(']')){
-                    arr = parseArray(str)
-                }
-                else{
-                    arr = args[0].replace(/\\,/g, '§X').split(/\:|\,/g)
-                }
-                const randomIndex = Math.floor(Math.random() * arr.length)
-                if(matcherArg.tokenizeAccurate){
-                    return arr[0]
-                }
-                return arr[randomIndex]?.replace(/§X/g, ',') ?? ''
-            }
-
-            const randomIndex = Math.floor(Math.random() * args.length)
-            if(matcherArg.tokenizeAccurate){
-                return args[0]
-            }
-            return args[randomIndex]
+            return randomPickImpl(str, matcherArg, args, Math.random())
         },
         alias: [],
         description: 'Returns a random number between 0 and 1 if no arguments. With one argument, returns a random element from the provided array or string split by commas/colons. With multiple arguments, returns a random argument.\n\nUsage:: {{random}} or {{random::a,b,c}} → "b"',
@@ -2008,37 +2010,12 @@ export function registerCBS(arg:CBSRegisterArg) {
     registerFunction({
         name: 'pick',
         callback: (str, matcherArg, args, vars) => {
-
             const db = getDatabase()
             const selchar = db.characters[getSelectedCharID()]
             const selChat = selchar.chats[selchar.chatPage]
             const cid = selChat.message.length
             const hashRand = pickHashRand(cid, selchar.chaId + (selChat.id ?? ''))
-            
-            if(args.length === 0){
-                return hashRand.toString()
-            }
-            if(args.length === 1){
-                let arr:string[]
-                
-                if(str.startsWith('[') && str.endsWith(']')){
-                    arr = parseArray(str)
-                }
-                else{
-                    arr = args[0].replace(/\\,/g, '§X').split(/\:|\,/g)
-                }
-                const randomIndex = Math.floor(hashRand * arr.length)
-                if(matcherArg.tokenizeAccurate){
-                    return arr[0]
-                }
-                return arr[randomIndex]?.replace(/§X/g, ',') ?? ''
-            }
-
-            const randomIndex = Math.floor(hashRand * args.length)
-            if(matcherArg.tokenizeAccurate){
-                return args[0]
-            }
-            return args[randomIndex]
+            return randomPickImpl(str, matcherArg, args, hashRand)
         },
         alias: [],
         description: 'Returns a random number between 0 and 1 if no arguments. With one argument, returns a random element from the provided array or string split by commas/colons. With multiple arguments, returns a random argument. unlike {{random}}, uses a hash-based randomization based on chat ID and character ID for consistent results across messages.\n\nUsage:: {{pick}} or {{pick::a,b,c}} → "b"',

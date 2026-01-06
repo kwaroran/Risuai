@@ -1126,7 +1126,7 @@ const legacyBlockMatcher = (p1:string,matcherArg:matcherArg) => {
 
 type blockMatch = 'ignore'|'parse'|'nothing'|'ifpure'|'pure'|'each'|'function'|'pure-display'|'normalize'|'escape'|'newif'|'newif-falsy'
 
-function parseArray(p1:string):string[]{
+function parseArray(p1:string): unknown[]{
     try {
         const arr = JSON.parse(p1)
         if(Array.isArray(arr)){
@@ -1138,7 +1138,7 @@ function parseArray(p1:string):string[]{
     }
 }
 
-function parseDict(p1:string):{[key:string]:string}{
+function parseDict(p1 :string): {[key:string]: unknown}{
     try {
         return JSON.parse(p1)
     } catch (error) {
@@ -1146,7 +1146,7 @@ function parseDict(p1:string):{[key:string]:string}{
     }
 }
 
-function makeArray(p1:string[]):string{
+function makeArray(p1: unknown[]): string{
     return JSON.stringify(p1.map((f) => {
         if(typeof(f) === 'string'){
             return f.replace(/::/g, '\\u003A\\u003A')
@@ -1721,9 +1721,8 @@ export function risuChatParser(da:string, arg:{
                                 array = parseArray(blockType.type2.substring(0, subind))
                             }
                             let added = ''
-                            for(let i = 0;i < array.length;i++){
-                                const res = matchResult.replaceAll(`{{slot::${sub}}}`, array[i])
-                                added += res
+                            for(let i = 0; i < array.length; i++) {
+                                added += matchResult.replaceAll(`{{slot::${sub}}}`, typeof(array[i]) === 'string' ? array[i] as string : JSON.stringify(array[i]))
                             }
                             da = da.substring(0, pointer + 1) + (blockType.mode === 'keep' ? added : added.trim()) + da.substring(pointer + 1)
                             break

@@ -148,127 +148,33 @@ export class CharXWriter{
     }
 }
 
-/**
- * Manages concurrent asset save operations with a queue.
- *
- * Responsibilities:
- * - Limits concurrent save operations to prevent memory exhaustion
- * - Tracks progress (completed/total)
- * - Detects completion and triggers callbacks
- * - Handles finalization when no more assets will be added
- */
-class AssetSaveQueue {
-    private queue: Array<{id: string, promise: Promise<void>}> = []
-    private completed: Set<string> = new Set()
-    private totalEnqueued: number = 0
-    private totalCompleted: number = 0
-    private isFinalized: boolean = false
-    private completionResolver?: () => void
+class Semaphore {
+    private available: number
+    private readonly max: number
+    private waiting: Array<() => void> = []
 
-    constructor(
-        private maxConcurrent: number,
-        private onProgress?: (done: number, total: number) => void
-    ) {}
-
-    /**
-     * Adds an asset save operation to the queue.
-     * Waits for a free slot if queue is full.
-     *
-     * @param id - Unique identifier for this asset
-     * @param saveFn - Async function that performs the save and returns the saved ID
-     * @returns Promise that resolves to the saved asset ID
-     */
-    async enqueue(
-        id: string,
-        saveFn: () => Promise<string>
-    ): Promise<string> {
-        this.totalEnqueued++
-
-        // Wait for a free slot if queue is full
-        await this.waitForSlot()
-
-        let resolvedId: string
-        const promise = (async () => {
-            try {
-                resolvedId = await saveFn()
-                this.totalCompleted++
-                this.completed.add(id)
-
-                // Notify progress after each asset save
-                this.onProgress?.(this.totalCompleted, this.totalEnqueued)
-
-                // Check if all work is complete
-                this.checkCompletion()
-            } finally {
-                // Remove self from queue
-                this.queue = this.queue.filter(item => item.id !== id)
-            }
-        })()
-
-        this.queue.push({ id, promise })
-        await promise
-        return resolvedId!
+    constructor(max: number) {
+        this.available = max
+        this.max = max
     }
 
-    /**
-     * Waits until a slot becomes available in the queue.
-     */
-    private async waitForSlot(): Promise<void> {
-        while (this.queue.length >= this.maxConcurrent) {
-            await Promise.race(this.queue.map(q => q.promise))
-            // Clean up completed items
-            this.queue = this.queue.filter(q => !this.completed.has(q.id))
+    async acquire(): Promise<void> {
+        if (this.available > 0) {
+            this.available -= 1
+            return
         }
+        await new Promise<void>(resolve => this.waiting.push(resolve))
     }
 
-    /**
-     * Marks the queue as finalized (no more items will be added).
-     * If all items are already complete, triggers completion immediately.
-     */
-    finalize(): void {
-        this.isFinalized = true
-        this.checkCompletion()
-    }
-
-    /**
-     * Checks if all work is complete and triggers completion callback if so.
-     */
-    private checkCompletion(): void {
-        if (this.isFinalized && this.totalCompleted >= this.totalEnqueued) {
-            this.completionResolver?.()
+    release(): void {
+        const next = this.waiting.shift()
+        if (next) {
+            next()
+            return
         }
-    }
-
-    /**
-     * Returns a promise that resolves when all queued work is complete.
-     * Must call finalize() before awaiting this promise.
-     */
-    async awaitCompletion(): Promise<void> {
-        return new Promise<void>((resolve) => {
-            this.completionResolver = resolve
-            // Check immediately in case already complete
-            this.checkCompletion()
-        })
-    }
-
-    /**
-     * Returns current progress statistics.
-     */
-    getProgress() {
-        return {
-            done: this.totalCompleted,
-            total: this.totalEnqueued,
-            percentage: this.totalEnqueued > 0
-                ? (this.totalCompleted / this.totalEnqueued * 100)
-                : 0
+        if (this.available < this.max) {
+            this.available += 1
         }
-    }
-
-    /**
-     * Returns whether the queue has space for more work.
-     */
-    hasSpace(maxQueueSize: number): boolean {
-        return this.queue.length < maxQueueSize
     }
 }
 
@@ -289,11 +195,16 @@ export class CharXImporter{
     // ZIP streaming parser
     unzip:fflate.Unzip
 
-    // Asset save queue manager
-    private saveQueue: AssetSaveQueue
+    // Asset save semaphore
+    private semaphore: Semaphore
 
-    // Promise that resolves when all assets are saved
+    // Completion tracking
+    private totalEnqueued: number = 0
+    private totalCompleted: number = 0
+    private isFinalized: boolean = false
+    private completionResolver?: () => void
     private completionPromise?: Promise<void>
+    private onProgress?: (done: number, total: number) => void
 
     // Results: filename -> saved asset ID mapping
     assets:{[key:string]:string} = {}
@@ -320,18 +231,15 @@ export class CharXImporter{
         this.unzip.register(fflate.UnzipInflate)
         this.unzip.onfile = (file) => this.#handleFile(file)
 
-        // Initialize queue with progress callback
-        this.saveQueue = new AssetSaveQueue(
-            MAX_CONCURRENT_ASSET_SAVES,
-            (done, total) => {
-                if(this.alertInfo){
-                    alertStore.set({
-                        type: 'wait',
-                        msg: `Loading... (Saving Assets ${done}/${total})`
-                    })
-                }
+        this.semaphore = new Semaphore(MAX_CONCURRENT_ASSET_SAVES)
+        this.onProgress = (done, total) => {
+            if(this.alertInfo){
+                alertStore.set({
+                    type: 'wait',
+                    msg: `Loading... (Saving Assets ${done}/${total})`
+                })
             }
-        )
+        }
     }
 
     /**
@@ -359,7 +267,7 @@ export class CharXImporter{
         alertInfo?:boolean
     } = {}){
         // Create completion promise at the start of parsing
-        this.completionPromise = this.saveQueue.awaitCompletion()
+        this.completionPromise = this.#awaitCompletion()
 
         // Convert all input types to ReadableStream for uniform processing
         const stream = this.#toStream(data)
@@ -398,6 +306,19 @@ export class CharXImporter{
             throw new Error('parse() must be called before done()')
         }
         return this.completionPromise
+    }
+
+    #awaitCompletion(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.completionResolver = resolve
+            this.#checkCompletion()
+        })
+    }
+
+    #checkCompletion(): void {
+        if (this.isFinalized && this.totalCompleted >= this.totalEnqueued) {
+            this.completionResolver?.()
+        }
     }
 
         /**
@@ -487,24 +408,22 @@ export class CharXImporter{
 
     /**
      * Queues an asset for saving with concurrency control.
-     * Delegates to AssetSaveQueue for all queue management.
      */
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
-        // Queue the asset save operation
-        const assetSaveId = await this.saveQueue.enqueue(
-            asset.id,
-            async () => {
-                // Either save to storage or just compute hash
-                if(this.skipSaving){
-                    return `assets/${await hasher(asset.data)}.png`
-                } else {
-                    return await saveAsset(asset.data)
-                }
-            }
-        )
+        this.totalEnqueued += 1
+        await this.semaphore.acquire()
+        try {
+            const assetSaveId = this.skipSaving
+                ? `assets/${await hasher(asset.data)}.png`
+                : await saveAsset(asset.data)
 
-        // Store the result
-        this.assets[asset.id] = assetSaveId
+            this.assets[asset.id] = assetSaveId
+            this.totalCompleted += 1
+            this.onProgress?.(this.totalCompleted, this.totalEnqueued)
+            this.#checkCompletion()
+        } finally {
+            this.semaphore.release()
+        }
     }
 
     /**
@@ -517,8 +436,8 @@ export class CharXImporter{
             await saveAsset(new TextEncoder().encode(this.hashSignal))
         }
 
-        // Mark queue as finalized (no more assets will be added)
-        this.saveQueue.finalize()
+        this.isFinalized = true
+        this.#checkCompletion()
     }
 }
 

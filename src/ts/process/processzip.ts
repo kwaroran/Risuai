@@ -217,13 +217,6 @@ export class CharXReader{
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
         this.assetQueueLength++
         this.onQueue++
-        console.log('[CharX] processAssetQueue:', {
-            assetId: asset.id,
-            queueLength: this.assetQueueLength,
-            doneAssets: this.doneAssets,
-            onQueue: this.onQueue,
-            promiseCount: this.assetSavePromises.length
-        })
         if(this.alertInfo){
             alertStore.set({
                 type: 'progress',
@@ -232,14 +225,12 @@ export class CharXReader{
             })
         }
         if(this.assetSavePromises.length >= MAX_CONCURRENT_ASSET_SAVES){
-            console.log(`[CharX] Waiting for promises (>=${MAX_CONCURRENT_ASSET_SAVES})...`)
             await Promise.any(this.assetSavePromises.map(a => a.promise))
         }
         this.assetSavePromises = this.assetSavePromises.filter(a => !this.assetQueueDone.has(a.id))
         this.onQueue--
         if(this.assetSavePromises.length > MAX_CONCURRENT_ASSET_SAVES){
             this.assetQueueLength--
-            console.log('[CharX] ⚠️ RECURSION! queueLength decreased to:', this.assetQueueLength)
             return this.#processAssetQueue(asset)
         }
         const savePromise = (async () => {
@@ -248,12 +239,6 @@ export class CharXReader{
 
             this.doneAssets++
             this.assetQueueDone.add(asset.id)
-            console.log('[CharX] Asset saved:', {
-                assetId: asset.id,
-                doneAssets: this.doneAssets,
-                queueLength: this.assetQueueLength,
-                progress: (this.doneAssets / this.assetQueueLength * 100).toFixed(2) + '%'
-            })
             if(this.alertInfo){
                 alertStore.set({
                     type: 'progress',
@@ -262,24 +247,11 @@ export class CharXReader{
                 })
             }
 
-
             if(this.allPushed && this.doneAssets >= this.assetQueueLength){
-                console.log('[CharX] ✓ All assets processed! Resolving promise...', {
-                    allPushed: this.allPushed,
-                    doneAssets: this.doneAssets,
-                    queueLength: this.assetQueueLength
-                })
                 if(this.hashSignal){
                     const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
                 }
                 this.fullPromiseResolver?.()
-            } else {
-                console.log('[CharX] Not done yet:', {
-                    allPushed: this.allPushed,
-                    doneAssets: this.doneAssets,
-                    queueLength: this.assetQueueLength,
-                    condition: `${this.doneAssets} >= ${this.assetQueueLength} = ${this.doneAssets >= this.assetQueueLength}`
-                })
             }
         })()
         this.assetSavePromises.push({
@@ -319,13 +291,8 @@ export class CharXReader{
         this.unzip.push(data, final)
         this.allPushed = final
         if(final){
-            console.log('[CharX] All data pushed! allPushed=true')
             // Check if assets are already done (race condition fix)
             if(this.doneAssets >= this.assetQueueLength){
-                console.log('[CharX] ✓ Assets already completed! Resolving promise...', {
-                    doneAssets: this.doneAssets,
-                    queueLength: this.assetQueueLength
-                })
                 if(this.hashSignal){
                     const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
                 }

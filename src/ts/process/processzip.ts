@@ -341,8 +341,18 @@ export class CharXReader{
      * - Uint8Array: Splits into CHUNK_SIZE_BYTES chunks
      * - File: Reads in CHUNK_SIZE_BYTES chunks
      *
-     * All data is fed through feedChunk() for processing.
-     * Creates a completion promise that can be awaited with done().
+     * After parse() completes:
+     * - cardData and moduleData are immediately available
+     * - Asset saving continues in the background
+     * - MUST call done() to wait for all assets to finish saving
+     *
+     * Usage:
+     * ```
+     * await reader.parse(data)
+     * const card = reader.cardData  // Available immediately
+     * await reader.done()           // Wait for assets
+     * await saveCharacter(card, reader.assets)
+     * ```
      */
     async parse(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
         alertInfo?:boolean

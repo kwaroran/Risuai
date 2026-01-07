@@ -194,7 +194,7 @@ class AssetSaveQueue {
                 this.totalCompleted++
                 this.completed.add(id)
 
-                // Notify progress
+                // Notify progress after each asset save
                 this.onProgress?.(this.totalCompleted, this.totalEnqueued)
 
                 // Check if all work is complete
@@ -326,9 +326,8 @@ export class CharXImporter{
             (done, total) => {
                 if(this.alertInfo){
                     alertStore.set({
-                        type: 'progress',
-                        msg: `Loading...`,
-                        submsg: (done / total * 100).toFixed(2)
+                        type: 'wait',
+                        msg: `Loading... (Saving Assets ${done}/${total})`
                     })
                 }
             }

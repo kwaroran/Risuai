@@ -203,7 +203,10 @@ export class CharXImporter{
     private totalCompleted: number = 0
     private isFinalized: boolean = false
     private completionResolver?: () => void
+    private completionRejecter?: (error: Error) => void
     private completionPromise?: Promise<void>
+    private completionSettled: boolean = false
+    private errors: Error[] = []
     private onProgress?: (done: number, total: number) => void
 
     // Results: filename -> saved asset ID mapping
@@ -309,14 +312,25 @@ export class CharXImporter{
     }
 
     #awaitCompletion(): Promise<void> {
-        return new Promise<void>((resolve) => {
+        return new Promise<void>((resolve, reject) => {
             this.completionResolver = resolve
+            this.completionRejecter = reject
+            this.completionSettled = false
+            this.errors = []
             this.#checkCompletion()
         })
     }
 
     #checkCompletion(): void {
-        if (this.isFinalized && this.totalCompleted >= this.totalEnqueued) {
+        if (!this.completionSettled && this.isFinalized && this.totalCompleted >= this.totalEnqueued) {
+            this.completionSettled = true
+            if (this.errors.length > 0) {
+                const error = this.errors.length === 1
+                    ? this.errors[0]
+                    : new AggregateError(this.errors, `Failed to save ${this.errors.length} assets`)
+                this.completionRejecter?.(error)
+                return
+            }
             this.completionResolver?.()
         }
     }
@@ -411,18 +425,24 @@ export class CharXImporter{
      */
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
         this.totalEnqueued += 1
-        await this.semaphore.acquire()
+        let acquired = false
         try {
+            await this.semaphore.acquire()
+            acquired = true
             const assetSaveId = this.skipSaving
                 ? `assets/${await hasher(asset.data)}.png`
                 : await saveAsset(asset.data)
 
             this.assets[asset.id] = assetSaveId
+        } catch (error) {
+            this.errors.push(error instanceof Error ? error : new Error(String(error)))
+        } finally {
+            if (acquired) {
+                this.semaphore.release()
+            }
             this.totalCompleted += 1
             this.onProgress?.(this.totalCompleted, this.totalEnqueued)
             this.#checkCompletion()
-        } finally {
-            this.semaphore.release()
         }
     }
 

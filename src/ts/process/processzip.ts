@@ -356,7 +356,6 @@ export class CharXReader{
                     break
                 }
             }
-            await this.feedChunk(new Uint8Array(0), true)
             return
         }
 

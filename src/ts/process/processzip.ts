@@ -6,15 +6,27 @@ import { hasher } from "../parser.svelte";
 import { hubURL } from "../characterCards";
 
 export async function processZip(dataArray: Uint8Array): Promise<string> {
-    const jszip = await import("jszip");
-    const blob = new Blob([asBuffer(dataArray)], { type: "application/zip" });
-    const zip = new jszip.default();
-    const zipData = await zip.loadAsync(blob);
+    const unzipped = await new Promise<fflate.Unzipped>((resolve, reject) => {
+        fflate.unzip(dataArray, (err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+        });
+    });
 
-    const imageFile = Object.keys(zipData.files).find(fileName => /\.(jpg|jpeg|png)$/.test(fileName));
+    const imageFile = Object.keys(unzipped).find(fileName => /\.(jpg|jpeg|png)$/i.test(fileName));
     if (imageFile) {
-        const imageData = await zipData.files[imageFile].async("base64");
-        return `data:image/png;base64,${imageData}`;
+        const imageData = unzipped[imageFile];
+        const blob = new Blob([asBuffer(imageData)], { type: 'image/png' });
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result as string;
+                resolve(result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+        return base64;
     } else {
         throw new Error("No image found in ZIP file");
     }

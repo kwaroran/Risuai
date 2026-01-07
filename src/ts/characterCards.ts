@@ -126,18 +126,18 @@ export async function importCharacterProcess(f:{
             }
         }
         
-        const reader = new CharXImporter()
-        reader.alertInfo = true
+        const importer = new CharXImporter()
+        importer.alertInfo = true
         if(charXMode === 'skippable'){
-            reader.skipSaving = true
+            importer.skipSaving = true
         }
         if(charXMode === 'signal'){
-            reader.hashSignal = signal
+            importer.hashSignal = signal
         }
-        await reader.parse(f.data, {
+        await importer.parse(f.data, {
             alertInfo: true
         })
-        const cardData = reader.cardData
+        const cardData = importer.cardData
         if(!cardData){
             alertError(language.errors.noData)
             return
@@ -148,8 +148,8 @@ export async function importCharacterProcess(f:{
             return
         }
         let lorebook:loreBook[] = null
-        if(reader.moduleData){
-            const md = await readModule(Buffer.from(reader.moduleData))
+        if(importer.moduleData){
+            const md = await readModule(Buffer.from(importer.moduleData))
             card.data.extensions ??= {}
             card.data.extensions.risuai ??= {}
             card.data.extensions.risuai.triggerscript = md.trigger ?? []
@@ -158,8 +158,8 @@ export async function importCharacterProcess(f:{
                 lorebook = md.lorebook
             }
         }
-        await reader.done()
-        await importCharacterCardSpec(card, undefined, 'normal', reader.assets, lorebook)
+        await importer.done()
+        await importCharacterCardSpec(card, undefined, 'normal', importer.assets, lorebook)
         let db = getDatabase()
         return db.characters.length - 1
     }

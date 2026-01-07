@@ -273,15 +273,17 @@ class AssetSaveQueue {
 }
 
 /**
- * Streaming reader for CharX (character export) files.
+ * Streaming importer for CharX (character export) files.
  *
  * CharX files are ZIP archives containing:
  * - card.json: Character card data (CCv3 format)
  * - module.risum: Optional module data (scripts, lorebook)
  * - assets/*: Image and other asset files
  *
- * This class processes ZIP streams incrementally to handle large files efficiently,
- * with concurrent asset saving limited to prevent memory exhaustion.
+ * This class reads and imports character data by:
+ * - Processing ZIP streams incrementally to handle large files efficiently
+ * - Parsing metadata (card.json, module.risum) synchronously
+ * - Saving assets to storage concurrently (limited to prevent memory exhaustion)
  */
 export class CharXImporter{
     // ZIP streaming parser
@@ -348,10 +350,10 @@ export class CharXImporter{
      *
      * Usage:
      * ```
-     * await reader.parse(data)
-     * const card = reader.cardData  // Available immediately
-     * await reader.done()           // Wait for assets
-     * await saveCharacter(card, reader.assets)
+     * await importer.parse(data)
+     * const card = importer.cardData  // Available immediately
+     * await importer.done()           // Wait for assets
+     * await saveCharacter(card, importer.assets)
      * ```
      */
     async parse(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{

@@ -350,15 +350,16 @@ export class CharXImporter{
         }
 
         // Convert Uint8Array to stream, chunked to prevent blocking
+        let offset = 0
         return new ReadableStream({
-            start(controller) {
-                let offset = 0
-                while(offset < data.byteLength){
-                    const chunk = data.slice(offset, offset + CHUNK_SIZE_BYTES)
-                    controller.enqueue(chunk)
-                    offset += CHUNK_SIZE_BYTES
+            pull(controller) {
+                if (offset >= data.byteLength) {
+                    controller.close()
+                    return
                 }
-                controller.close()
+                const end = Math.min(offset + CHUNK_SIZE_BYTES, data.byteLength)
+                controller.enqueue(data.subarray(offset, end))
+                offset = end
             }
         })
     }

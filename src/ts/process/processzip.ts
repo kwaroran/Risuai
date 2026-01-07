@@ -283,7 +283,7 @@ class AssetSaveQueue {
  * This class processes ZIP streams incrementally to handle large files efficiently,
  * with concurrent asset saving limited to prevent memory exhaustion.
  */
-export class CharXReader{
+export class CharXImporter{
     // ZIP streaming parser
     unzip:fflate.Unzip
 

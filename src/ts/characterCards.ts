@@ -13,7 +13,7 @@ import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
 import type { OnnxModelFiles } from "./process/transformers"
-import { CharXReader, CharXSkippableChecker, CharXWriter } from "./process/processzip"
+import { CharXImporter, CharXSkippableChecker, CharXWriter } from "./process/processzip"
 import { exportModule, readModule, type RisuModule } from "./process/modules"
 import { readFile } from "@tauri-apps/plugin-fs"
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
@@ -126,7 +126,7 @@ export async function importCharacterProcess(f:{
             }
         }
         
-        const reader = new CharXReader()
+        const reader = new CharXImporter()
         reader.alertInfo = true
         if(charXMode === 'skippable'){
             reader.skipSaving = true

@@ -148,75 +148,149 @@ export class CharXWriter{
     }
 }
 
+/**
+ * Streaming reader for CharX (character export) files.
+ *
+ * CharX files are ZIP archives containing:
+ * - card.json: Character card data (CCv3 format)
+ * - module.risum: Optional module data (scripts, lorebook)
+ * - assets/*: Image and other asset files
+ *
+ * This class processes ZIP streams incrementally to handle large files efficiently,
+ * with concurrent asset saving limited to prevent memory exhaustion.
+ */
 export class CharXReader{
+    // ZIP streaming parser
     unzip:fflate.Unzip
+
+    // Results: filename -> saved asset ID mapping
     assets:{[key:string]:string} = {}
+
+    // Temporary buffers for accumulating file chunks during streaming
     assetBuffers:{[key:string]:AppendableBuffer} = {}
+
+    // Concurrent asset save operations (limited to MAX_CONCURRENT_ASSET_SAVES)
     assetSavePromises:{
         id: string,
         promise: Promise<void>
     }[] = []
+
+    // Track completed assets to filter out finished promises
     assetQueueDone:Set<string> = new Set()
+
+    // Files excluded due to size limits (> MAX_ASSET_SIZE_BYTES)
     excludedFiles:string[] = []
+
+    // Extracted character card JSON content
     cardData:string|undefined
+
+    // Extracted module binary data
     moduleData:Uint8Array|undefined
-    allPushed:boolean = false
-    fullPromiseResolver:() => void = () => {}
-    alertInfo:boolean = false
-    assetQueueLength:number = 0
-    doneAssets:number = 0
-    onQueue: number = 0
-    expectedAssets:number = 0
-    hashSignal: string|undefined
-    skipSaving: boolean = false
+
+    // Flags for completion tracking
+    allPushed:boolean = false  // All input data has been pushed
+    fullPromiseResolver:() => void = () => {}  // Resolves when all processing is complete
+
+    // Configuration
+    alertInfo:boolean = false  // Show progress alerts to user
+    skipSaving: boolean = false  // If true, only compute hashes without saving
+    hashSignal: string|undefined  // Hash to signal server for sync (when skipSaving is false)
+
+    // Queue counters
+    assetQueueLength:number = 0  // Total assets discovered
+    doneAssets:number = 0  // Assets saved so far
+    onQueue: number = 0  // Assets currently being queued
+    expectedAssets:number = 0  // Reserved for future use
+
     constructor(){
         this.unzip = new fflate.Unzip()
         this.unzip.register(fflate.UnzipInflate)
-        this.unzip.onfile = (file) => {
-            const assetIndex = file.name
-            this.assetBuffers[assetIndex] = new AppendableBuffer()
+        this.unzip.onfile = (file) => this.#handleFile(file)
+    }
 
-            file.ondata = (err, dat, final) => {
-                this.assetBuffers[assetIndex].append(dat)
-                if(final){
-                    const assetData = this.assetBuffers[assetIndex].buffer
-                    if(assetData.byteLength > MAX_ASSET_SIZE_BYTES){
-                        this.excludedFiles.push(assetIndex)
-                    }
-                    else if(file.name === 'card.json'){
-                        this.cardData = new TextDecoder().decode(assetData)
-                    }
-                    else if(file.name === 'module.risum'){
-                        this.moduleData = assetData
-                    }
-                    else if(file.name.endsWith('.json')){
-                        //do nothing
-                    }
-                    else{
-                        this.#processAssetQueue({
-                            id: assetIndex,
-                            data: assetData
-                        })
-                    }
-                    delete this.assetBuffers[assetIndex]
-                }
-            }
+    /**
+     * Called when a new file is discovered in the ZIP archive.
+     * Sets up streaming handlers and starts processing if file size is acceptable.
+     */
+    #handleFile(file: fflate.UnzipFile) {
+        const assetIndex = file.name
+        this.assetBuffers[assetIndex] = new AppendableBuffer()
 
-            if(file.originalSize ?? 0 < MAX_ASSET_SIZE_BYTES){
-                file.start()
-            }
+        file.ondata = (_err, dat, final) => this.#handleFileData(assetIndex, dat, final)
+
+        // Only process files smaller than MAX_ASSET_SIZE_BYTES (50MB)
+        if(file.originalSize ?? 0 < MAX_ASSET_SIZE_BYTES){
+            file.start()
         }
     }
 
+    /**
+     * Called for each chunk of file data as it streams in.
+     * Accumulates chunks into buffer until file is complete.
+     */
+    #handleFileData(fileName: string, data: Uint8Array, final: boolean) {
+        this.assetBuffers[fileName].append(data)
+        if(final){
+            this.#handleFileComplete(fileName)
+        }
+    }
+
+    /**
+     * Called when a file has been completely read from the ZIP.
+     * Routes files to appropriate handlers based on filename/extension.
+     */
+    #handleFileComplete(fileName: string) {
+        const assetData = this.assetBuffers[fileName].buffer
+
+        if(assetData.byteLength > MAX_ASSET_SIZE_BYTES){
+            this.excludedFiles.push(fileName)
+        }
+        else if(fileName === 'card.json'){
+            this.cardData = new TextDecoder().decode(assetData)
+        }
+        else if(fileName === 'module.risum'){
+            this.moduleData = assetData
+        }
+        else if(fileName.endsWith('.json')){
+            // Ignore other JSON files
+        }
+        else{
+            // All other files are treated as assets (images, etc.)
+            this.#processAssetQueue({
+                id: fileName,
+                data: assetData
+            })
+        }
+
+        delete this.assetBuffers[fileName]
+    }
+
+    /**
+     * Creates a promise that resolves when all assets have been processed.
+     * Call this before starting to read, then await it after reading is complete.
+     */
     async makePromise(){
         return new Promise<void>((res, rej) => {
             this.fullPromiseResolver = res
         })
     }
 
+    /**
+     * Queues an asset for saving with concurrency control.
+     *
+     * This method:
+     * 1. Limits concurrent saves to MAX_CONCURRENT_ASSET_SAVES (10)
+     * 2. Updates progress if alertInfo is enabled
+     * 3. Saves asset (or only computes hash if skipSaving is true)
+     * 4. Checks if all processing is complete and resolves promise if so
+     *
+     * Recursively retries if queue is still full after cleanup.
+     */
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
         this.assetQueueLength++
         this.onQueue++
+
+        // Update progress UI
         if(this.alertInfo){
             alertStore.set({
                 type: 'progress',
@@ -224,21 +298,34 @@ export class CharXReader{
                 submsg: (this.doneAssets / this.assetQueueLength * 100).toFixed(2)
             })
         }
+
+        // Wait for at least one slot to free up if queue is full
         if(this.assetSavePromises.length >= MAX_CONCURRENT_ASSET_SAVES){
             await Promise.any(this.assetSavePromises.map(a => a.promise))
         }
+
+        // Remove completed promises from queue
         this.assetSavePromises = this.assetSavePromises.filter(a => !this.assetQueueDone.has(a.id))
         this.onQueue--
+
+        // If still full after cleanup, retry recursively
         if(this.assetSavePromises.length > MAX_CONCURRENT_ASSET_SAVES){
             this.assetQueueLength--
             return this.#processAssetQueue(asset)
         }
+
+        // Start saving asset
         const savePromise = (async () => {
-            const assetSaveId = this.skipSaving ? `assets/${await hasher(asset.data)}.png` : (await saveAsset(asset.data))
+            // Either save to storage or just compute hash
+            const assetSaveId = this.skipSaving
+                ? `assets/${await hasher(asset.data)}.png`
+                : (await saveAsset(asset.data))
             this.assets[asset.id] = assetSaveId
 
             this.doneAssets++
             this.assetQueueDone.add(asset.id)
+
+            // Update progress UI
             if(this.alertInfo){
                 alertStore.set({
                     type: 'progress',
@@ -247,28 +334,43 @@ export class CharXReader{
                 })
             }
 
+            // Check if all processing is complete
             if(this.allPushed && this.doneAssets >= this.assetQueueLength){
+                // Save hash signal for server sync if needed
                 if(this.hashSignal){
                     const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
                 }
                 this.fullPromiseResolver?.()
             }
         })()
+
         this.assetSavePromises.push({
             id: asset.id,
             promise: savePromise
         })
     }
 
+    /**
+     * Waits until the queue has space available.
+     * Prevents overwhelming the system with too many concurrent operations.
+     */
     async waitForQueue(){
-
         while(this.assetSavePromises.length + this.onQueue >= MAX_QUEUE_SIZE){
             await sleep(QUEUE_WAIT_INTERVAL_MS)
         }
     }
 
+    /**
+     * Pushes a chunk of ZIP data to the streaming parser.
+     *
+     * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
+     * When final=true, marks input as complete and resolves promise if all assets are done.
+     *
+     * Race condition handling: If all assets finish before final chunk arrives,
+     * completion is triggered here instead of in #processAssetQueue.
+     */
     async push(data:Uint8Array, final:boolean = false){
-
+        // Split large chunks to prevent blocking
         if(data.byteLength > CHUNK_SIZE_BYTES){
             let pointer = 0
             while(true){
@@ -290,9 +392,11 @@ export class CharXReader{
         await this.waitForQueue()
         this.unzip.push(data, final)
         this.allPushed = final
+
         if(final){
-            // Check if assets are already done (race condition fix)
+            // Race condition fix: Assets might have already finished processing
             if(this.doneAssets >= this.assetQueueLength){
+                // Save hash signal for server sync if needed
                 if(this.hashSignal){
                     const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
                 }
@@ -301,10 +405,20 @@ export class CharXReader{
         }
     }
 
+    /**
+     * High-level method to read ZIP data from various sources.
+     *
+     * Handles three input types:
+     * - ReadableStream: Streams data chunks as they arrive
+     * - Uint8Array: Splits into CHUNK_SIZE_BYTES chunks
+     * - File: Reads in CHUNK_SIZE_BYTES chunks
+     *
+     * All data is pushed through push() for processing.
+     */
     async read(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
         alertInfo?:boolean
     } = {}){
-
+        // Handle streaming data (e.g., from fetch response)
         if(data instanceof ReadableStream){
             const reader = data.getReader()
             while(true){
@@ -321,6 +435,7 @@ export class CharXReader{
             return
         }
 
+        // Helper to get slice based on data type
         const getSlice = async (start:number, end:number) => {
             if(data instanceof Uint8Array){
                 return data.slice(start, end)
@@ -330,6 +445,7 @@ export class CharXReader{
             }
         }
 
+        // Helper to get total length
         const getLength = () => {
             if(data instanceof Uint8Array){
                 return data.byteLength
@@ -339,6 +455,7 @@ export class CharXReader{
             }
         }
 
+        // Process in CHUNK_SIZE_BYTES chunks
         let pointer = 0
         while(true){
             const chunk = await getSlice(pointer, pointer + CHUNK_SIZE_BYTES)
@@ -354,6 +471,18 @@ export class CharXReader{
 }
 
 
+/**
+ * Checks if a CharX file's assets already exist on the server.
+ *
+ * This optimization allows skipping asset uploads when importing from the hub:
+ * 1. Hashes the entire file
+ * 2. Double-hashes the hash (for privacy/security)
+ * 3. Checks if server has this hash registered
+ *
+ * If successful, the importer can skip saving assets and just reference server copies.
+ *
+ * @returns {success: boolean, hash: string} - Whether assets exist on server, and the file hash
+ */
 export async function CharXSkippableChecker(data:Uint8Array){
     const hashed = await hasher(data)
     const reHashed = await hasher(new TextEncoder().encode(hashed))

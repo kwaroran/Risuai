@@ -134,7 +134,6 @@ export async function importCharacterProcess(f:{
         if(charXMode === 'signal'){
             reader.hashSignal = signal
         }
-        const promise = reader.done()
         await reader.parse(f.data, {
             alertInfo: true
         })
@@ -159,7 +158,7 @@ export async function importCharacterProcess(f:{
                 lorebook = md.lorebook
             }
         }
-        await promise
+        await reader.done()
         await importCharacterCardSpec(card, undefined, 'normal', reader.assets, lorebook)
         let db = getDatabase()
         return db.characters.length - 1

@@ -290,6 +290,9 @@ export class CharXReader{
     // Asset save queue manager
     private saveQueue: AssetSaveQueue
 
+    // Promise that resolves when all assets are saved
+    private completionPromise?: Promise<void>
+
     // Results: filename -> saved asset ID mapping
     assets:{[key:string]:string} = {}
 
@@ -339,10 +342,14 @@ export class CharXReader{
      * - File: Reads in CHUNK_SIZE_BYTES chunks
      *
      * All data is fed through feedChunk() for processing.
+     * Creates a completion promise that can be awaited with done().
      */
     async parse(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
         alertInfo?:boolean
     } = {}){
+        // Create completion promise at the start of parsing
+        this.completionPromise = this.saveQueue.awaitCompletion()
+
         // Handle streaming data (e.g., from fetch response)
         if(data instanceof ReadableStream){
             const reader = data.getReader()
@@ -430,10 +437,13 @@ export class CharXReader{
 
     /**
      * Returns a promise that resolves when all assets have been processed.
-     * Should be called before starting to parse, then awaited after parsing is complete.
+     * Must be called after parse() has been invoked.
      */
     async done(){
-        return this.saveQueue.awaitCompletion()
+        if (!this.completionPromise) {
+            throw new Error('parse() must be called before done()')
+        }
+        return this.completionPromise
     }
 
     /**

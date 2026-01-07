@@ -631,14 +631,40 @@
             }
             catch (e) {
                 alertClear()
-                window.navigator.clipboard.writeText(msgDisplay).then(() => {
+                // Try clipboard API first, with execCommand fallback for iOS
+                try {
+                    await window.navigator.clipboard.writeText(msgDisplay)
                     setStatusMessage(language.copied)
-                })
+                } catch {
+                    // Fallback for iOS Safari where clipboard API may fail
+                    const textarea = document.createElement('textarea')
+                    textarea.value = msgDisplay
+                    textarea.style.position = 'fixed'
+                    textarea.style.left = '-9999px'
+                    document.body.appendChild(textarea)
+                    textarea.select()
+                    document.execCommand('copy')
+                    document.body.removeChild(textarea)
+                    setStatusMessage(language.copied)
+                }
             }
         }
-        window.navigator.clipboard.writeText(msgDisplay).then(() => {
+        // Try clipboard API first, with execCommand fallback for iOS
+        try {
+            await window.navigator.clipboard.writeText(msgDisplay)
             setStatusMessage(language.copied)
-        })
+        } catch {
+            // Fallback for iOS Safari where clipboard API may fail
+            const textarea = document.createElement('textarea')
+            textarea.value = msgDisplay
+            textarea.style.position = 'fixed'
+            textarea.style.left = '-9999px'
+            document.body.appendChild(textarea)
+            textarea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textarea)
+            setStatusMessage(language.copied)
+        }
     }}>
         <CopyIcon size={20}/>
         {#if showNames}

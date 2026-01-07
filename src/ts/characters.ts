@@ -349,7 +349,19 @@ export async function exportChat(page:number){
                 'text/html': new Blob([template], { type: 'text/html' }),
                 'text/plain': new Blob([template], { type: 'text/plain' })
             })
-            await navigator.clipboard.write([item])
+            try {
+                await navigator.clipboard.write([item])
+            } catch {
+                // Fallback for iOS Safari - copy as plain text
+                const textarea = document.createElement('textarea')
+                textarea.value = template
+                textarea.style.position = 'fixed'
+                textarea.style.left = '-9999px'
+                document.body.appendChild(textarea)
+                textarea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textarea)
+            }
 
             alertNormal(language.clipboardSuccess)
             return

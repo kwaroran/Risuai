@@ -331,151 +331,6 @@ export class CharXReader{
     }
 
     /**
-     * Called when a new file is discovered in the ZIP archive.
-     * Sets up streaming handlers and starts processing if file size is acceptable.
-     */
-    #handleFile(file: fflate.UnzipFile) {
-        const assetIndex = file.name
-        this.assetBuffers[assetIndex] = new AppendableBuffer()
-
-        file.ondata = (_err, dat, final) => this.#handleFileData(assetIndex, dat, final)
-
-        // Only process files smaller than MAX_ASSET_SIZE_BYTES (50MB)
-        if(file.originalSize ?? 0 < MAX_ASSET_SIZE_BYTES){
-            file.start()
-        }
-    }
-
-    /**
-     * Called for each chunk of file data as it streams in.
-     * Accumulates chunks into buffer until file is complete.
-     */
-    #handleFileData(fileName: string, data: Uint8Array, final: boolean) {
-        this.assetBuffers[fileName].append(data)
-        if(final){
-            this.#handleFileComplete(fileName)
-        }
-    }
-
-    /**
-     * Called when a file has been completely read from the ZIP.
-     * Routes files to appropriate handlers based on filename/extension.
-     */
-    #handleFileComplete(fileName: string) {
-        const assetData = this.assetBuffers[fileName].buffer
-
-        if(assetData.byteLength > MAX_ASSET_SIZE_BYTES){
-            this.excludedFiles.push(fileName)
-        }
-        else if(fileName === 'card.json'){
-            this.cardData = new TextDecoder().decode(assetData)
-        }
-        else if(fileName === 'module.risum'){
-            this.moduleData = assetData
-        }
-        else if(fileName.endsWith('.json')){
-            // Ignore other JSON files
-        }
-        else{
-            // All other files are treated as assets (images, etc.)
-            this.#processAssetQueue({
-                id: fileName,
-                data: assetData
-            })
-        }
-
-        delete this.assetBuffers[fileName]
-    }
-
-    /**
-     * Creates a promise that resolves when all assets have been processed.
-     * Call this before starting to read, then await it after reading is complete.
-     */
-    async makePromise(){
-        return this.saveQueue.awaitCompletion()
-    }
-
-    /**
-     * Queues an asset for saving with concurrency control.
-     * Delegates to AssetSaveQueue for all queue management.
-     */
-    async #processAssetQueue(asset:{id:string, data:Uint8Array}){
-        // Queue the asset save operation
-        const assetSaveId = await this.saveQueue.enqueue(
-            asset.id,
-            async () => {
-                // Either save to storage or just compute hash
-                if(this.skipSaving){
-                    return `assets/${await hasher(asset.data)}.png`
-                } else {
-                    return await saveAsset(asset.data)
-                }
-            }
-        )
-
-        // Store the result
-        this.assets[asset.id] = assetSaveId
-    }
-
-    /**
-     * Waits until the queue has space available.
-     * Prevents overwhelming the system with too many concurrent operations.
-     */
-    async waitForQueue(){
-        while(!this.saveQueue.hasSpace(MAX_QUEUE_SIZE)){
-            await sleep(QUEUE_WAIT_INTERVAL_MS)
-        }
-    }
-
-    /**
-     * Pushes a chunk of ZIP data to the streaming parser.
-     *
-     * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
-     * When final=true, marks input as complete and finalizes the save queue.
-     */
-    async push(data:Uint8Array, final:boolean = false){
-        // Split large chunks to prevent blocking
-        if(data.byteLength > CHUNK_SIZE_BYTES){
-            let pointer = 0
-            while(true){
-                const chunk = data.slice(pointer, pointer + CHUNK_SIZE_BYTES)
-                await this.waitForQueue()
-                this.unzip.push(chunk, false)
-                if(pointer + CHUNK_SIZE_BYTES >= data.byteLength){
-                    if(final){
-                        this.unzip.push(new Uint8Array(0), final)
-                        await this.#finalize()
-                    }
-                    break
-                }
-                pointer += CHUNK_SIZE_BYTES
-            }
-            return
-        }
-
-        await this.waitForQueue()
-        this.unzip.push(data, final)
-
-        if(final){
-            await this.#finalize()
-        }
-    }
-
-    /**
-     * Finalizes processing when all ZIP data has been pushed.
-     * Saves hash signal if needed and marks the queue as complete.
-     */
-    async #finalize(){
-        // Save hash signal for server sync if needed
-        if(this.hashSignal){
-            await saveAsset(new TextEncoder().encode(this.hashSignal))
-        }
-
-        // Mark queue as finalized (no more assets will be added)
-        this.saveQueue.finalize()
-    }
-
-    /**
      * High-level method to read ZIP data from various sources.
      *
      * Handles three input types:
@@ -537,6 +392,152 @@ export class CharXReader{
             pointer += CHUNK_SIZE_BYTES
         }
         await sleep(QUEUE_WAIT_INTERVAL_MS)
+    }
+
+    
+    /**
+     * Pushes a chunk of ZIP data to the streaming parser.
+     *
+     * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
+     * When final=true, marks input as complete and finalizes the save queue.
+     */
+    async push(data:Uint8Array, final:boolean = false){
+        // Split large chunks to prevent blocking
+        if(data.byteLength > CHUNK_SIZE_BYTES){
+            let pointer = 0
+            while(true){
+                const chunk = data.slice(pointer, pointer + CHUNK_SIZE_BYTES)
+                await this.#waitForQueue()
+                this.unzip.push(chunk, false)
+                if(pointer + CHUNK_SIZE_BYTES >= data.byteLength){
+                    if(final){
+                        this.unzip.push(new Uint8Array(0), final)
+                        await this.#finalize()
+                    }
+                    break
+                }
+                pointer += CHUNK_SIZE_BYTES
+            }
+            return
+        }
+
+        await this.#waitForQueue()
+        this.unzip.push(data, final)
+
+        if(final){
+            await this.#finalize()
+        }
+    }
+
+    /**
+     * Creates a promise that resolves when all assets have been processed.
+     * Call this before starting to read, then await it after reading is complete.
+     */
+    async makePromise(){
+        return this.saveQueue.awaitCompletion()
+    }
+
+    /**
+     * Called when a new file is discovered in the ZIP archive.
+     * Sets up streaming handlers and starts processing if file size is acceptable.
+     */
+    #handleFile(file: fflate.UnzipFile) {
+        const assetIndex = file.name
+        this.assetBuffers[assetIndex] = new AppendableBuffer()
+
+        file.ondata = (_err, dat, final) => this.#handleFileData(assetIndex, dat, final)
+
+        // Only process files smaller than MAX_ASSET_SIZE_BYTES (50MB)
+        if(file.originalSize ?? 0 < MAX_ASSET_SIZE_BYTES){
+            file.start()
+        }
+    }
+
+    /**
+     * Called for each chunk of file data as it streams in.
+     * Accumulates chunks into buffer until file is complete.
+     */
+    #handleFileData(fileName: string, data: Uint8Array, final: boolean) {
+        this.assetBuffers[fileName].append(data)
+        if(final){
+            this.#handleFileComplete(fileName)
+        }
+    }
+
+    /**
+     * Called when a file has been completely read from the ZIP.
+     * Routes files to appropriate handlers based on filename/extension.
+     */
+    #handleFileComplete(fileName: string) {
+        const assetData = this.assetBuffers[fileName].buffer
+
+        if(assetData.byteLength > MAX_ASSET_SIZE_BYTES){
+            this.excludedFiles.push(fileName)
+        }
+        else if(fileName === 'card.json'){
+            this.cardData = new TextDecoder().decode(assetData)
+        }
+        else if(fileName === 'module.risum'){
+            this.moduleData = assetData
+        }
+        else if(fileName.endsWith('.json')){
+            // Ignore other JSON files
+        }
+        else{
+            // All other files are treated as assets (images, etc.)
+            this.#processAssetQueue({
+                id: fileName,
+                data: assetData
+            })
+        }
+
+        delete this.assetBuffers[fileName]
+    }
+
+    /**
+     * Queues an asset for saving with concurrency control.
+     * Delegates to AssetSaveQueue for all queue management.
+     */
+    async #processAssetQueue(asset:{id:string, data:Uint8Array}){
+        // Queue the asset save operation
+        const assetSaveId = await this.saveQueue.enqueue(
+            asset.id,
+            async () => {
+                // Either save to storage or just compute hash
+                if(this.skipSaving){
+                    return `assets/${await hasher(asset.data)}.png`
+                } else {
+                    return await saveAsset(asset.data)
+                }
+            }
+        )
+
+        // Store the result
+        this.assets[asset.id] = assetSaveId
+    }
+
+    /**
+     * Waits until the queue has space available.
+     * Prevents overwhelming the system with too many concurrent operations.
+     */
+    async #waitForQueue(){
+        while(!this.saveQueue.hasSpace(MAX_QUEUE_SIZE)){
+            await sleep(QUEUE_WAIT_INTERVAL_MS)
+        }
+    }
+
+    /**
+     * Finalizes processing when all ZIP data has been pushed.
+     * Saves hash signal if needed and marks the queue as complete.
+     */
+    async #finalize(){
+        // Save hash signal for server sync if needed
+        if(this.hashSignal){
+            await saveAsset(new TextEncoder().encode(this.hashSignal))
+        }
+
+        // Mark queue as finalized (no more assets will be added)
+        this.saveQueue.finalize()
     }
 }
 

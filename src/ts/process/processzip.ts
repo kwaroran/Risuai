@@ -149,6 +149,130 @@ export class CharXWriter{
 }
 
 /**
+ * Manages concurrent asset save operations with a queue.
+ *
+ * Responsibilities:
+ * - Limits concurrent save operations to prevent memory exhaustion
+ * - Tracks progress (completed/total)
+ * - Detects completion and triggers callbacks
+ * - Handles finalization when no more assets will be added
+ */
+class AssetSaveQueue {
+    private queue: Array<{id: string, promise: Promise<void>}> = []
+    private completed: Set<string> = new Set()
+    private totalEnqueued: number = 0
+    private totalCompleted: number = 0
+    private isFinalized: boolean = false
+    private completionResolver?: () => void
+
+    constructor(
+        private maxConcurrent: number,
+        private onProgress?: (done: number, total: number) => void
+    ) {}
+
+    /**
+     * Adds an asset save operation to the queue.
+     * Waits for a free slot if queue is full.
+     *
+     * @param id - Unique identifier for this asset
+     * @param saveFn - Async function that performs the save and returns the saved ID
+     * @returns Promise that resolves to the saved asset ID
+     */
+    async enqueue(
+        id: string,
+        saveFn: () => Promise<string>
+    ): Promise<string> {
+        this.totalEnqueued++
+
+        // Wait for a free slot if queue is full
+        await this.waitForSlot()
+
+        let resolvedId: string
+        const promise = (async () => {
+            try {
+                resolvedId = await saveFn()
+                this.totalCompleted++
+                this.completed.add(id)
+
+                // Notify progress
+                this.onProgress?.(this.totalCompleted, this.totalEnqueued)
+
+                // Check if all work is complete
+                this.checkCompletion()
+            } finally {
+                // Remove self from queue
+                this.queue = this.queue.filter(item => item.id !== id)
+            }
+        })()
+
+        this.queue.push({ id, promise })
+        await promise
+        return resolvedId!
+    }
+
+    /**
+     * Waits until a slot becomes available in the queue.
+     */
+    private async waitForSlot(): Promise<void> {
+        while (this.queue.length >= this.maxConcurrent) {
+            await Promise.race(this.queue.map(q => q.promise))
+            // Clean up completed items
+            this.queue = this.queue.filter(q => !this.completed.has(q.id))
+        }
+    }
+
+    /**
+     * Marks the queue as finalized (no more items will be added).
+     * If all items are already complete, triggers completion immediately.
+     */
+    finalize(): void {
+        this.isFinalized = true
+        this.checkCompletion()
+    }
+
+    /**
+     * Checks if all work is complete and triggers completion callback if so.
+     */
+    private checkCompletion(): void {
+        if (this.isFinalized && this.totalCompleted >= this.totalEnqueued) {
+            this.completionResolver?.()
+        }
+    }
+
+    /**
+     * Returns a promise that resolves when all queued work is complete.
+     * Must call finalize() before awaiting this promise.
+     */
+    async awaitCompletion(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.completionResolver = resolve
+            // Check immediately in case already complete
+            this.checkCompletion()
+        })
+    }
+
+    /**
+     * Returns current progress statistics.
+     */
+    getProgress() {
+        return {
+            done: this.totalCompleted,
+            total: this.totalEnqueued,
+            percentage: this.totalEnqueued > 0
+                ? (this.totalCompleted / this.totalEnqueued * 100)
+                : 0
+        }
+    }
+
+    /**
+     * Returns whether the queue has space for more work.
+     */
+    hasSpace(maxQueueSize: number): boolean {
+        return this.queue.length < maxQueueSize
+    }
+}
+
+/**
  * Streaming reader for CharX (character export) files.
  *
  * CharX files are ZIP archives containing:
@@ -163,20 +287,14 @@ export class CharXReader{
     // ZIP streaming parser
     unzip:fflate.Unzip
 
+    // Asset save queue manager
+    private saveQueue: AssetSaveQueue
+
     // Results: filename -> saved asset ID mapping
     assets:{[key:string]:string} = {}
 
     // Temporary buffers for accumulating file chunks during streaming
     assetBuffers:{[key:string]:AppendableBuffer} = {}
-
-    // Concurrent asset save operations (limited to MAX_CONCURRENT_ASSET_SAVES)
-    assetSavePromises:{
-        id: string,
-        promise: Promise<void>
-    }[] = []
-
-    // Track completed assets to filter out finished promises
-    assetQueueDone:Set<string> = new Set()
 
     // Files excluded due to size limits (> MAX_ASSET_SIZE_BYTES)
     excludedFiles:string[] = []
@@ -187,25 +305,29 @@ export class CharXReader{
     // Extracted module binary data
     moduleData:Uint8Array|undefined
 
-    // Flags for completion tracking
-    allPushed:boolean = false  // All input data has been pushed
-    fullPromiseResolver:() => void = () => {}  // Resolves when all processing is complete
-
     // Configuration
     alertInfo:boolean = false  // Show progress alerts to user
     skipSaving: boolean = false  // If true, only compute hashes without saving
     hashSignal: string|undefined  // Hash to signal server for sync (when skipSaving is false)
 
-    // Queue counters
-    assetQueueLength:number = 0  // Total assets discovered
-    doneAssets:number = 0  // Assets saved so far
-    onQueue: number = 0  // Assets currently being queued
-    expectedAssets:number = 0  // Reserved for future use
-
     constructor(){
         this.unzip = new fflate.Unzip()
         this.unzip.register(fflate.UnzipInflate)
         this.unzip.onfile = (file) => this.#handleFile(file)
+
+        // Initialize queue with progress callback
+        this.saveQueue = new AssetSaveQueue(
+            MAX_CONCURRENT_ASSET_SAVES,
+            (done, total) => {
+                if(this.alertInfo){
+                    alertStore.set({
+                        type: 'progress',
+                        msg: `Loading...`,
+                        submsg: (done / total * 100).toFixed(2)
+                    })
+                }
+            }
+        )
     }
 
     /**
@@ -270,84 +392,29 @@ export class CharXReader{
      * Call this before starting to read, then await it after reading is complete.
      */
     async makePromise(){
-        return new Promise<void>((res, rej) => {
-            this.fullPromiseResolver = res
-        })
+        return this.saveQueue.awaitCompletion()
     }
 
     /**
      * Queues an asset for saving with concurrency control.
-     *
-     * This method:
-     * 1. Limits concurrent saves to MAX_CONCURRENT_ASSET_SAVES (10)
-     * 2. Updates progress if alertInfo is enabled
-     * 3. Saves asset (or only computes hash if skipSaving is true)
-     * 4. Checks if all processing is complete and resolves promise if so
-     *
-     * Recursively retries if queue is still full after cleanup.
+     * Delegates to AssetSaveQueue for all queue management.
      */
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
-        this.assetQueueLength++
-        this.onQueue++
-
-        // Update progress UI
-        if(this.alertInfo){
-            alertStore.set({
-                type: 'progress',
-                msg: `Loading...`,
-                submsg: (this.doneAssets / this.assetQueueLength * 100).toFixed(2)
-            })
-        }
-
-        // Wait for at least one slot to free up if queue is full
-        if(this.assetSavePromises.length >= MAX_CONCURRENT_ASSET_SAVES){
-            await Promise.any(this.assetSavePromises.map(a => a.promise))
-        }
-
-        // Remove completed promises from queue
-        this.assetSavePromises = this.assetSavePromises.filter(a => !this.assetQueueDone.has(a.id))
-        this.onQueue--
-
-        // If still full after cleanup, retry recursively
-        if(this.assetSavePromises.length > MAX_CONCURRENT_ASSET_SAVES){
-            this.assetQueueLength--
-            return this.#processAssetQueue(asset)
-        }
-
-        // Start saving asset
-        const savePromise = (async () => {
-            // Either save to storage or just compute hash
-            const assetSaveId = this.skipSaving
-                ? `assets/${await hasher(asset.data)}.png`
-                : (await saveAsset(asset.data))
-            this.assets[asset.id] = assetSaveId
-
-            this.doneAssets++
-            this.assetQueueDone.add(asset.id)
-
-            // Update progress UI
-            if(this.alertInfo){
-                alertStore.set({
-                    type: 'progress',
-                    msg: `Loading...`,
-                    submsg: (this.doneAssets / this.assetQueueLength * 100).toFixed(2)
-                })
-            }
-
-            // Check if all processing is complete
-            if(this.allPushed && this.doneAssets >= this.assetQueueLength){
-                // Save hash signal for server sync if needed
-                if(this.hashSignal){
-                    const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
+        // Queue the asset save operation
+        const assetSaveId = await this.saveQueue.enqueue(
+            asset.id,
+            async () => {
+                // Either save to storage or just compute hash
+                if(this.skipSaving){
+                    return `assets/${await hasher(asset.data)}.png`
+                } else {
+                    return await saveAsset(asset.data)
                 }
-                this.fullPromiseResolver?.()
             }
-        })()
+        )
 
-        this.assetSavePromises.push({
-            id: asset.id,
-            promise: savePromise
-        })
+        // Store the result
+        this.assets[asset.id] = assetSaveId
     }
 
     /**
@@ -355,7 +422,7 @@ export class CharXReader{
      * Prevents overwhelming the system with too many concurrent operations.
      */
     async waitForQueue(){
-        while(this.assetSavePromises.length + this.onQueue >= MAX_QUEUE_SIZE){
+        while(!this.saveQueue.hasSpace(MAX_QUEUE_SIZE)){
             await sleep(QUEUE_WAIT_INTERVAL_MS)
         }
     }
@@ -364,10 +431,7 @@ export class CharXReader{
      * Pushes a chunk of ZIP data to the streaming parser.
      *
      * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
-     * When final=true, marks input as complete and resolves promise if all assets are done.
-     *
-     * Race condition handling: If all assets finish before final chunk arrives,
-     * completion is triggered here instead of in #processAssetQueue.
+     * When final=true, marks input as complete and finalizes the save queue.
      */
     async push(data:Uint8Array, final:boolean = false){
         // Split large chunks to prevent blocking
@@ -380,7 +444,7 @@ export class CharXReader{
                 if(pointer + CHUNK_SIZE_BYTES >= data.byteLength){
                     if(final){
                         this.unzip.push(new Uint8Array(0), final)
-                        this.allPushed = final
+                        await this.#finalize()
                     }
                     break
                 }
@@ -391,18 +455,24 @@ export class CharXReader{
 
         await this.waitForQueue()
         this.unzip.push(data, final)
-        this.allPushed = final
 
         if(final){
-            // Race condition fix: Assets might have already finished processing
-            if(this.doneAssets >= this.assetQueueLength){
-                // Save hash signal for server sync if needed
-                if(this.hashSignal){
-                    const signalId = await saveAsset(new TextEncoder().encode(this.hashSignal ?? ""))
-                }
-                this.fullPromiseResolver?.()
-            }
+            await this.#finalize()
         }
+    }
+
+    /**
+     * Finalizes processing when all ZIP data has been pushed.
+     * Saves hash signal if needed and marks the queue as complete.
+     */
+    async #finalize(){
+        // Save hash signal for server sync if needed
+        if(this.hashSignal){
+            await saveAsset(new TextEncoder().encode(this.hashSignal))
+        }
+
+        // Mark queue as finalized (no more assets will be added)
+        this.saveQueue.finalize()
     }
 
     /**

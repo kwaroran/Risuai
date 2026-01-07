@@ -11,10 +11,6 @@ const CHUNK_SIZE_BYTES = 1024 * 1024; // 1MB
 
 // Queue management constants
 const MAX_CONCURRENT_ASSET_SAVES = 10;
-const MAX_QUEUE_SIZE = 30;
-
-// Timing constants
-const QUEUE_WAIT_INTERVAL_MS = 100;
 
 // HTTP status code ranges
 const HTTP_STATUS_OK_MIN = 200;
@@ -148,6 +144,15 @@ export class CharXWriter{
     }
 }
 
+/**
+ * Semaphore: Concurrency control mechanism
+ *
+ * Limits the number of operations that can run simultaneously.
+ * When max concurrent operations are running, new operations wait in queue.
+ *
+ * Example: If max=3, only 3 asset saves can run at once.
+ * The 4th save waits until one of the first 3 completes.
+ */
 class Semaphore {
     private available: number
     private readonly max: number
@@ -266,9 +271,7 @@ export class CharXImporter{
      * await saveCharacter(card, importer.assets)
      * ```
      */
-    async parse(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
-        alertInfo?:boolean
-    } = {}){
+    async parse(data:Uint8Array|File|ReadableStream<Uint8Array>){
         // Create completion promise at the start of parsing
         this.completionPromise = this.#awaitCompletion()
 
@@ -335,7 +338,7 @@ export class CharXImporter{
         }
     }
 
-        /**
+    /**
      * Converts various data types to ReadableStream for uniform processing.
      */
     #toStream(data: Uint8Array|File|ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {

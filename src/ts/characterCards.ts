@@ -134,9 +134,7 @@ export async function importCharacterProcess(f:{
         if(charXMode === 'signal'){
             importer.hashSignal = signal
         }
-        await importer.parse(f.data, {
-            alertInfo: true
-        })
+        await importer.parse(f.data)
         const cardData = importer.cardData
         if(!cardData){
             alertError(language.errors.noData)

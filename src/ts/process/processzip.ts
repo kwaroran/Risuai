@@ -279,10 +279,10 @@ export class CharXImporter{
         while(true){
             const {done, value} = await reader.read()
             if(value){
-                await this.feedChunk(value, false)
+                await this.#feedChunk(value, false)
             }
             if(done){
-                await this.feedChunk(new Uint8Array(0), true)
+                await this.#feedChunk(new Uint8Array(0), true)
                 break
             }
         }
@@ -292,7 +292,7 @@ export class CharXImporter{
      * Feeds a chunk of ZIP data to the streaming parser.
      * When final=true, marks input as complete and finalizes the save queue.
      */
-    async feedChunk(data:Uint8Array, final:boolean = false){
+    async #feedChunk(data:Uint8Array, final:boolean = false){
         this.unzip.push(data, final)
 
         if(final){

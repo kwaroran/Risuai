@@ -134,8 +134,8 @@ export async function importCharacterProcess(f:{
         if(charXMode === 'signal'){
             reader.hashSignal = signal
         }
-        const promise = reader.makePromise()
-        await reader.read(f.data, {
+        const promise = reader.done()
+        await reader.parse(f.data, {
             alertInfo: true
         })
         const cardData = reader.cardData

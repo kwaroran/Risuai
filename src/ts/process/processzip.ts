@@ -339,8 +339,8 @@ export class CharXImporter{
      *
      * Handles three input types:
      * - ReadableStream: Streams data chunks as they arrive
-     * - Uint8Array: Splits into CHUNK_SIZE_BYTES chunks
-     * - File: Reads in CHUNK_SIZE_BYTES chunks
+     * - Uint8Array: Automatically converted to stream
+     * - File: Uses built-in stream() method
      *
      * After parse() completes:
      * - cardData and moduleData are immediately available
@@ -361,84 +361,27 @@ export class CharXImporter{
         // Create completion promise at the start of parsing
         this.completionPromise = this.saveQueue.awaitCompletion()
 
-        // Handle streaming data (e.g., from fetch response)
-        if(data instanceof ReadableStream){
-            const reader = data.getReader()
-            while(true){
-                const {done, value} = await reader.read()
-                if(value){
-                    await this.feedChunk(value, false)
-                }
-                if(done){
-                    await this.feedChunk(new Uint8Array(0), true)
-                    break
-                }
-            }
-            return
-        }
+        // Convert all input types to ReadableStream for uniform processing
+        const stream = this.#toStream(data)
 
-        // Helper to get slice based on data type
-        const getSlice = async (start:number, end:number) => {
-            if(data instanceof Uint8Array){
-                return data.slice(start, end)
-            }
-            if(data instanceof File){
-                return new Uint8Array(await data.slice(start, end).arrayBuffer())
-            }
-        }
-
-        // Helper to get total length
-        const getLength = () => {
-            if(data instanceof Uint8Array){
-                return data.byteLength
-            }
-            if(data instanceof File){
-                return data.size
-            }
-        }
-
-        // Process in CHUNK_SIZE_BYTES chunks
-        let pointer = 0
+        const reader = stream.getReader()
         while(true){
-            const chunk = await getSlice(pointer, pointer + CHUNK_SIZE_BYTES)
-            await this.feedChunk(chunk, false)
-            if(pointer + CHUNK_SIZE_BYTES >= getLength()){
+            const {done, value} = await reader.read()
+            if(value){
+                await this.feedChunk(value, false)
+            }
+            if(done){
                 await this.feedChunk(new Uint8Array(0), true)
                 break
             }
-            pointer += CHUNK_SIZE_BYTES
         }
-        await sleep(QUEUE_WAIT_INTERVAL_MS)
     }
-
 
     /**
      * Feeds a chunk of ZIP data to the streaming parser.
-     *
-     * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
      * When final=true, marks input as complete and finalizes the save queue.
      */
     async feedChunk(data:Uint8Array, final:boolean = false){
-        // Split large chunks to prevent blocking
-        if(data.byteLength > CHUNK_SIZE_BYTES){
-            let pointer = 0
-            while(true){
-                const chunk = data.slice(pointer, pointer + CHUNK_SIZE_BYTES)
-                await this.#waitForQueue()
-                this.unzip.push(chunk, false)
-                if(pointer + CHUNK_SIZE_BYTES >= data.byteLength){
-                    if(final){
-                        this.unzip.push(new Uint8Array(0), final)
-                        await this.#finalize()
-                    }
-                    break
-                }
-                pointer += CHUNK_SIZE_BYTES
-            }
-            return
-        }
-
-        await this.#waitForQueue()
         this.unzip.push(data, final)
 
         if(final){
@@ -455,6 +398,34 @@ export class CharXImporter{
             throw new Error('parse() must be called before done()')
         }
         return this.completionPromise
+    }
+
+        /**
+     * Converts various data types to ReadableStream for uniform processing.
+     */
+    #toStream(data: Uint8Array|File|ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+        // Already a stream - return as-is
+        if(data instanceof ReadableStream){
+            return data
+        }
+
+        // File has built-in stream() method
+        if(data instanceof File){
+            return data.stream()
+        }
+
+        // Convert Uint8Array to stream, chunked to prevent blocking
+        return new ReadableStream({
+            start(controller) {
+                let offset = 0
+                while(offset < data.byteLength){
+                    const chunk = data.slice(offset, offset + CHUNK_SIZE_BYTES)
+                    controller.enqueue(chunk)
+                    offset += CHUNK_SIZE_BYTES
+                }
+                controller.close()
+            }
+        })
     }
 
     /**
@@ -534,16 +505,6 @@ export class CharXImporter{
 
         // Store the result
         this.assets[asset.id] = assetSaveId
-    }
-
-    /**
-     * Waits until the queue has space available.
-     * Prevents overwhelming the system with too many concurrent operations.
-     */
-    async #waitForQueue(){
-        while(!this.saveQueue.hasSpace(MAX_QUEUE_SIZE)){
-            await sleep(QUEUE_WAIT_INTERVAL_MS)
-        }
     }
 
     /**

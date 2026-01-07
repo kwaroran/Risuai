@@ -5,6 +5,21 @@ import { alertStore } from "../alert";
 import { hasher } from "../parser.svelte";
 import { hubURL } from "../characterCards";
 
+// File size and chunk size constants
+const MAX_ASSET_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+const CHUNK_SIZE_BYTES = 1024 * 1024; // 1MB
+
+// Queue management constants
+const MAX_CONCURRENT_ASSET_SAVES = 10;
+const MAX_QUEUE_SIZE = 30;
+
+// Timing constants
+const QUEUE_WAIT_INTERVAL_MS = 100;
+
+// HTTP status code ranges
+const HTTP_STATUS_OK_MIN = 200;
+const HTTP_STATUS_OK_MAX = 300;
+
 export async function processZip(dataArray: Uint8Array): Promise<string> {
     const unzipped = await new Promise<fflate.Unzipped>((resolve, reject) => {
         fflate.unzip(dataArray, (err, data) => {
@@ -165,7 +180,7 @@ export class CharXReader{
                 this.assetBuffers[assetIndex].append(dat)
                 if(final){
                     const assetData = this.assetBuffers[assetIndex].buffer
-                    if(assetData.byteLength > 50 * 1024 * 1024){
+                    if(assetData.byteLength > MAX_ASSET_SIZE_BYTES){
                         this.excludedFiles.push(assetIndex)
                     }
                     else if(file.name === 'card.json'){
@@ -186,8 +201,8 @@ export class CharXReader{
                     delete this.assetBuffers[assetIndex]
                 }
             }
-            
-            if(file.originalSize ?? 0 < 50 * 1024 * 1024){
+
+            if(file.originalSize ?? 0 < MAX_ASSET_SIZE_BYTES){
                 file.start()
             }
         }
@@ -216,13 +231,13 @@ export class CharXReader{
                 submsg: (this.doneAssets / this.assetQueueLength * 100).toFixed(2)
             })
         }
-        if(this.assetSavePromises.length >= 10){
-            console.log('[CharX] Waiting for promises (>=10)...')
+        if(this.assetSavePromises.length >= MAX_CONCURRENT_ASSET_SAVES){
+            console.log(`[CharX] Waiting for promises (>=${MAX_CONCURRENT_ASSET_SAVES})...`)
             await Promise.any(this.assetSavePromises.map(a => a.promise))
         }
         this.assetSavePromises = this.assetSavePromises.filter(a => !this.assetQueueDone.has(a.id))
         this.onQueue--
-        if(this.assetSavePromises.length > 10){
+        if(this.assetSavePromises.length > MAX_CONCURRENT_ASSET_SAVES){
             this.assetQueueLength--
             console.log('[CharX] ⚠️ RECURSION! queueLength decreased to:', this.assetQueueLength)
             return this.#processAssetQueue(asset)
@@ -274,28 +289,28 @@ export class CharXReader{
     }
 
     async waitForQueue(){
-        
-        while(this.assetSavePromises.length + this.onQueue >= 30){
-            await sleep(100)
+
+        while(this.assetSavePromises.length + this.onQueue >= MAX_QUEUE_SIZE){
+            await sleep(QUEUE_WAIT_INTERVAL_MS)
         }
     }
 
     async push(data:Uint8Array, final:boolean = false){
 
-        if(data.byteLength > 1024 * 1024){
+        if(data.byteLength > CHUNK_SIZE_BYTES){
             let pointer = 0
             while(true){
-                const chunk = data.slice(pointer, pointer + 1024 * 1024)
+                const chunk = data.slice(pointer, pointer + CHUNK_SIZE_BYTES)
                 await this.waitForQueue()
                 this.unzip.push(chunk, false)
-                if(pointer + 1024 * 1024 >= data.byteLength){
+                if(pointer + CHUNK_SIZE_BYTES >= data.byteLength){
                     if(final){
                         this.unzip.push(new Uint8Array(0), final)
                         this.allPushed = final
                     }
                     break
                 }
-                pointer += 1024 * 1024
+                pointer += CHUNK_SIZE_BYTES
             }
             return
         }
@@ -359,15 +374,15 @@ export class CharXReader{
 
         let pointer = 0
         while(true){
-            const chunk = await getSlice(pointer, pointer + 1024 * 1024)
+            const chunk = await getSlice(pointer, pointer + CHUNK_SIZE_BYTES)
             await this.push(chunk, false)
-            if(pointer + 1024 * 1024 >= getLength()){
+            if(pointer + CHUNK_SIZE_BYTES >= getLength()){
                 await this.push(new Uint8Array(0), true)
                 break
             }
-            pointer += 1024 * 1024
+            pointer += CHUNK_SIZE_BYTES
         }
-        await sleep(100)
+        await sleep(QUEUE_WAIT_INTERVAL_MS)
     }
 }
 
@@ -377,7 +392,7 @@ export async function CharXSkippableChecker(data:Uint8Array){
     const reHashed = await hasher(new TextEncoder().encode(hashed))
     const x = await fetch(hubURL + '/rs/assets/' + reHashed + '.png')
     return {
-        success: x.status >= 200 && x.status < 300,
+        success: x.status >= HTTP_STATUS_OK_MIN && x.status < HTTP_STATUS_OK_MAX,
         hash: hashed
     }
 }

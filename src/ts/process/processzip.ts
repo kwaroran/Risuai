@@ -331,16 +331,16 @@ export class CharXReader{
     }
 
     /**
-     * High-level method to read ZIP data from various sources.
+     * High-level method to parse ZIP data from various sources.
      *
      * Handles three input types:
      * - ReadableStream: Streams data chunks as they arrive
      * - Uint8Array: Splits into CHUNK_SIZE_BYTES chunks
      * - File: Reads in CHUNK_SIZE_BYTES chunks
      *
-     * All data is pushed through push() for processing.
+     * All data is fed through feedChunk() for processing.
      */
-    async read(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
+    async parse(data:Uint8Array|File|ReadableStream<Uint8Array>, arg:{
         alertInfo?:boolean
     } = {}){
         // Handle streaming data (e.g., from fetch response)
@@ -349,14 +349,14 @@ export class CharXReader{
             while(true){
                 const {done, value} = await reader.read()
                 if(value){
-                    await this.push(value, false)
+                    await this.feedChunk(value, false)
                 }
                 if(done){
-                    await this.push(new Uint8Array(0), true)
+                    await this.feedChunk(new Uint8Array(0), true)
                     break
                 }
             }
-            await this.push(new Uint8Array(0), true)
+            await this.feedChunk(new Uint8Array(0), true)
             return
         }
 
@@ -384,9 +384,9 @@ export class CharXReader{
         let pointer = 0
         while(true){
             const chunk = await getSlice(pointer, pointer + CHUNK_SIZE_BYTES)
-            await this.push(chunk, false)
+            await this.feedChunk(chunk, false)
             if(pointer + CHUNK_SIZE_BYTES >= getLength()){
-                await this.push(new Uint8Array(0), true)
+                await this.feedChunk(new Uint8Array(0), true)
                 break
             }
             pointer += CHUNK_SIZE_BYTES
@@ -394,14 +394,14 @@ export class CharXReader{
         await sleep(QUEUE_WAIT_INTERVAL_MS)
     }
 
-    
+
     /**
-     * Pushes a chunk of ZIP data to the streaming parser.
+     * Feeds a chunk of ZIP data to the streaming parser.
      *
      * Large chunks (> CHUNK_SIZE_BYTES) are automatically split to prevent blocking.
      * When final=true, marks input as complete and finalizes the save queue.
      */
-    async push(data:Uint8Array, final:boolean = false){
+    async feedChunk(data:Uint8Array, final:boolean = false){
         // Split large chunks to prevent blocking
         if(data.byteLength > CHUNK_SIZE_BYTES){
             let pointer = 0
@@ -430,10 +430,10 @@ export class CharXReader{
     }
 
     /**
-     * Creates a promise that resolves when all assets have been processed.
-     * Call this before starting to read, then await it after reading is complete.
+     * Returns a promise that resolves when all assets have been processed.
+     * Should be called before starting to parse, then awaited after parsing is complete.
      */
-    async makePromise(){
+    async done(){
         return this.saveQueue.awaitCompletion()
     }
 

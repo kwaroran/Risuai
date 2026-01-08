@@ -1,8 +1,8 @@
-import { type MCPTool, MCPToolHandler, type RPCToolCallContent } from '../mcplib'
+import { language } from 'src/lang'
+import { alertConfirm } from 'src/ts/alert'
 import { DBState } from 'src/ts/stores.svelte'
 import { pickHashRand } from 'src/ts/util'
-import { alertConfirm } from 'src/ts/alert'
-import { language } from 'src/lang'
+import { type MCPTool, MCPToolHandler, type RPCToolCallContent } from '../mcplib'
 
 export class ModuleHandler extends MCPToolHandler {
   private promptAccess(tool: string, action: string) {
@@ -93,16 +93,16 @@ export class ModuleHandler extends MCPToolHandler {
           properties: {
             count: {
               default: 100,
-              description: 'The maximum number of lorebook entries to return.',
+              description: 'The maximum number of lorebooks to return.',
               maximum: 100,
               type: 'integer',
             },
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
             offset: {
-              description: 'The number of entries to skip for pagination.',
+              description: 'The number of lorebooks to skip for pagination.',
               type: 'integer',
             },
           },
@@ -112,15 +112,15 @@ export class ModuleHandler extends MCPToolHandler {
         name: 'risu-list-module-lorebooks',
       },
       {
-        description: 'Get all lorebook entries with specific names from a Risuai module.',
+        description: 'Get lorebooks with specific names from a Risuai module.',
         inputSchema: {
           properties: {
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
             names: {
-              description: 'The unique names of the lorebook entries to retrieve.',
+              description: 'The names of the lorebooks to retrieve.',
               items: { type: 'string' },
               type: 'array',
             },
@@ -131,12 +131,12 @@ export class ModuleHandler extends MCPToolHandler {
         name: 'risu-get-module-lorebook',
       },
       {
-        description: 'Update an existing lorebook entry in a Risuai module, or create a new one if it does not exist.',
+        description: 'Update an existing lorebook of a Risuai module, or create a new one if it does not exist.',
         inputSchema: {
           properties: {
             alwaysActive: {
               default: false,
-              description: 'If true, the entry is always active regardless of keywords.',
+              description: 'If true, the lorebook is always active regardless of keywords.',
               type: 'boolean',
             },
             content: {
@@ -144,7 +144,7 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'string',
             },
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
             keys: {
@@ -153,21 +153,43 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'array',
             },
             name: {
-              description: 'The unique name of the lorebook to update.',
+              description: 'The name of the lorebook to update.',
+              type: 'string',
+            },
+            newName: {
+              description: 'Optional new name for the lorebook.',
               type: 'string',
             },
           },
-          required: ['content', 'id', 'keys', 'name'],
+          required: ['id', 'name'],
           type: 'object',
         },
         name: 'risu-set-module-lorebook',
+      },
+      {
+        description: 'Delete a lorebook from a Risuai module.',
+        inputSchema: {
+          properties: {
+            id: {
+              description: 'The ID of the module.',
+              type: 'string',
+            },
+            name: {
+              description: 'The name of the lorebook to delete.',
+              type: 'string',
+            },
+          },
+          required: ['id', 'name'],
+          type: 'object',
+        },
+        name: 'risu-delete-module-lorebook',
       },
       {
         description: 'Get regex scripts from a Risuai module.',
         inputSchema: {
           properties: {
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
           },
@@ -190,7 +212,7 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'string',
             },
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
             in: {
@@ -198,7 +220,11 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'string',
             },
             name: {
-              description: 'The unique name of the script to update.',
+              description: 'The name of the script to update.',
+              type: 'string',
+            },
+            newName: {
+              description: 'Optional new name for the script.',
               type: 'string',
             },
             out: {
@@ -211,17 +237,35 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'string',
             },
           },
-          required: ['id', 'in', 'name', 'out', 'type'],
+          required: ['id', 'name'],
           type: 'object',
         },
         name: 'risu-set-module-regex-script',
+      },
+      {
+        description: 'Delete a regex script from a Risuai module.',
+        inputSchema: {
+          properties: {
+            id: {
+              description: 'The ID of the module.',
+              type: 'string',
+            },
+            name: {
+              description: 'The name of the regex script to delete.',
+              type: 'string',
+            },
+          },
+          required: ['id', 'name'],
+          type: 'object',
+        },
+        name: 'risu-delete-module-regex-script',
       },
       {
         description: 'Get the Lua script from a Risuai module trigger.',
         inputSchema: {
           properties: {
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
           },
@@ -239,7 +283,7 @@ export class ModuleHandler extends MCPToolHandler {
               type: 'string',
             },
             id: {
-              description: 'The ID of the Risuai module.',
+              description: 'The ID of the module.',
               type: 'string',
             },
           },
@@ -264,19 +308,24 @@ export class ModuleHandler extends MCPToolHandler {
       case 'risu-get-module-lorebook':
         return await this.getModuleLorebook(args.id, args.names)
       case 'risu-set-module-lorebook':
-        return await this.setModuleLorebook(args.id, args.name, args.content, args.keys, args.alwaysActive)
+        return await this.setModuleLorebook(args.id, args.name, args.content, args.keys, args.newName, args.alwaysActive)
+      case 'risu-delete-module-lorebook':
+        return await this.deleteModuleLorebook(args.id, args.name)
       case 'risu-get-module-regex-scripts':
         return await this.getModuleRegexScripts(args.id)
       case 'risu-set-module-regex-script':
         return await this.setModuleRegexScript(
           args.id,
           args.name,
+          args.newName,
           args.in,
           args.out,
           args.type,
           args.flag,
           args.ableFlag
         )
+      case 'risu-delete-module-regex-script':
+        return await this.deleteModuleRegexScript(args.id, args.name)
       case 'risu-get-module-lua-script':
         return await this.getModuleLuaScript(args.id)
       case 'risu-set-module-lua-script':
@@ -489,9 +538,10 @@ export class ModuleHandler extends MCPToolHandler {
   async setModuleLorebook(
     id: string,
     name: string,
-    content: string,
-    keys: string[],
-    alwaysActive: boolean = false
+    content?: string,
+    keys?: string[],
+    newName?: string,
+    alwaysActive?: boolean
   ): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
@@ -516,35 +566,103 @@ export class ModuleHandler extends MCPToolHandler {
       module.lorebook = []
     }
 
-    const index = module.lorebook.findIndex((l) => l.comment === name)
-    const entryData = {
-      key: alwaysActive ? '' : keys.join(','),
-      content: content,
-      comment: name,
-      alwaysActive: alwaysActive,
-      secondkey: '',
-      selective: false,
-      insertorder: 100,
-      mode: 'normal' as const,
+    const index = module.lorebook.findIndex((l) => {
+      const displayName = l.comment || 'Unnamed ' + pickHashRand(5515, l.content)
+      return displayName === name
+    })
+
+    if (index === -1) {
+      const newEntry = {
+        key: alwaysActive ? '' : keys?.join(',') || '',
+        content: content || '',
+        comment: newName || name,
+        alwaysActive: alwaysActive || false,
+        secondkey: '',
+        selective: false,
+        insertorder: 100,
+        mode: 'normal' as const,
+      }
+      module.lorebook.push(newEntry)
+      return [
+        {
+          type: 'text',
+          text: `Successfully added lorebook entry "${newName || name}" to module ${module.name}`,
+        },
+      ]
     }
 
-    if (index >= 0) {
-      module.lorebook[index] = { ...module.lorebook[index], ...entryData }
+    const entry = module.lorebook[index]
+
+    if (content !== undefined) {
+      entry.content = content
+    }
+    if (keys !== undefined) {
+      entry.key = alwaysActive ? '' : keys.join(',')
+    }
+    if (newName !== undefined) {
+      entry.comment = newName
+    }
+    if (alwaysActive !== undefined) {
+      entry.alwaysActive = alwaysActive
+      if (alwaysActive) {
+        entry.key = ''
+      }
+    }
+
+    return [
+      {
+        type: 'text',
+        text: `Successfully updated lorebook entry "${name}" in module ${module.name}`,
+      },
+    ]
+  }
+
+  async deleteModuleLorebook(id: string, name: string): Promise<RPCToolCallContent[]> {
+    const module = DBState.db.modules.find((m) => m.id === id)
+    if (!module || module.mcp) {
       return [
         {
           type: 'text',
-          text: `Successfully updated lorebook entry "${name}" in module ${module.name}`,
-        },
-      ]
-    } else {
-      module.lorebook.push(entryData)
-      return [
-        {
-          type: 'text',
-          text: `Successfully added lorebook entry "${name}" to module ${module.name}`,
+          text: `Error: Module with ID ${id} not found.`,
         },
       ]
     }
+
+    if (!(await this.promptAccess('risu-delete-module-lorebook', `delete module (${module.name}) lorebook (${name})`))) {
+      return [
+        {
+          type: 'text',
+          text: 'Access denied by user.',
+        },
+      ]
+    }
+
+    if (!module.lorebook) {
+      module.lorebook = []
+    }
+
+    const index = module.lorebook.findIndex((l) => {
+      const displayName = l.comment || 'Unnamed ' + pickHashRand(5515, l.content)
+      return displayName === name
+    })
+
+    if (index === -1) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Lorebook entry with name "${name}" not found.`,
+        },
+      ]
+    }
+
+    module.lorebook.splice(index, 1)
+
+    return [
+      {
+        type: 'text',
+        text: `Successfully deleted lorebook entry "${name}" from module ${module.name}`,
+      },
+    ]
   }
 
   async getModuleRegexScripts(id: string): Promise<RPCToolCallContent[]> {
@@ -581,11 +699,12 @@ export class ModuleHandler extends MCPToolHandler {
   async setModuleRegexScript(
     id: string,
     name: string,
-    regexIn: string,
-    regexOut: string,
-    type: string,
+    newName?: string,
+    regexIn?: string,
+    regexOut?: string,
+    type?: string,
     flag?: string,
-    ableFlag: boolean = true
+    ableFlag?: boolean
   ): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
@@ -597,7 +716,7 @@ export class ModuleHandler extends MCPToolHandler {
       ]
     }
 
-    if (!(await this.promptAccess('risu-set-module-regex-script', `add/modify module (${module.name}) regex script`))) {
+    if (!(await this.promptAccess('risu-set-module-regex-script', `add/modify module (${module.name}) regex script (${name})`))) {
       return [
         {
           type: 'text',
@@ -610,33 +729,92 @@ export class ModuleHandler extends MCPToolHandler {
       module.regex = []
     }
 
-    const index = module.regex.findIndex((r) => r.comment === name)
-    const scriptData = {
-      comment: name,
-      in: regexIn,
-      out: regexOut,
-      type: type,
-      flag: flag || '',
-      ableFlag: ableFlag,
+    const index = module.regex.findIndex((r) => {
+      const displayName = r.comment || 'Unnamed ' + pickHashRand(5515, r.in + r.out)
+      return displayName === name
+    })
+
+    if (index === -1) {
+      const newScript = {
+        comment: newName || name,
+        in: regexIn || '',
+        out: regexOut || '',
+        type: type || 'editdisplay',
+        flag: flag || '',
+        ableFlag: ableFlag !== undefined ? ableFlag : true,
+      }
+      module.regex.push(newScript)
+      return [
+        {
+          type: 'text',
+          text: `Successfully added regex script "${newName || name}" to module ${module.name}`,
+        },
+      ]
     }
 
-    if (index >= 0) {
-      module.regex[index] = { ...module.regex[index], ...scriptData }
+    const script = module.regex[index]
+
+    if (newName !== undefined) script.comment = newName
+    if (regexIn !== undefined) script.in = regexIn
+    if (regexOut !== undefined) script.out = regexOut
+    if (type !== undefined) script.type = type
+    if (flag !== undefined) script.flag = flag
+    if (ableFlag !== undefined) script.ableFlag = ableFlag
+
+    return [
+      {
+        type: 'text',
+        text: `Successfully updated regex script "${name}" in module ${module.name}`,
+      },
+    ]
+  }
+
+  async deleteModuleRegexScript(id: string, name: string): Promise<RPCToolCallContent[]> {
+    const module = DBState.db.modules.find((m) => m.id === id)
+    if (!module || module.mcp) {
       return [
         {
           type: 'text',
-          text: `Successfully updated regex script "${name}" in module ${module.name}`,
-        },
-      ]
-    } else {
-      module.regex.push(scriptData)
-      return [
-        {
-          type: 'text',
-          text: `Successfully added regex script "${name}" to module ${module.name}`,
+          text: `Error: Module with ID ${id} not found.`,
         },
       ]
     }
+
+    if (!(await this.promptAccess('risu-delete-module-regex-script', `delete module (${module.name}) regex script (${name})`))) {
+      return [
+        {
+          type: 'text',
+          text: 'Access denied by user.',
+        },
+      ]
+    }
+
+    if (!module.regex) {
+      module.regex = []
+    }
+
+    const index = module.regex.findIndex((r) => {
+      const displayName = r.comment || 'Unnamed ' + pickHashRand(5515, r.in + r.out)
+      return displayName === name
+    })
+
+    if (index === -1) {
+      return [
+        {
+          type: 'text',
+          text: `Error: Regex script with name "${name}" not found.`,
+        },
+      ]
+    }
+
+    module.regex.splice(index, 1)
+
+    return [
+      {
+        type: 'text',
+        text: `Successfully deleted regex script "${name}" from module ${module.name}`,
+      },
+    ]
   }
 
   async getModuleLuaScript(id: string): Promise<RPCToolCallContent[]> {

@@ -295,7 +295,7 @@ class SafeElement {
             const modifiedListener = (event: any) => {
                 let delay = 0;
                 try {
-                    delay = crypto.getRandomValues(new Uint32Array(1))[0];                    
+                    delay = (crypto.getRandomValues(new Uint32Array(1))[0] / 100) % 100; //0-99 ms              
                 } catch (error) {}
                 setTimeout(() => {
                     listener(trimEvent(event));

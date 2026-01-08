@@ -112,6 +112,14 @@ interface OpenAIChat {
 }
 
 /**
+ * Returned response for UI part registration
+ */
+
+interface UIPartResponse {
+    id: string;
+}
+
+/**
  * Container display mode
  */
 type ContainerMode = 'fullscreen';
@@ -1177,7 +1185,7 @@ interface RisuaiPluginAPI {
         callback: () => void | Promise<void>,
         icon?: string,
         iconType?: IconType
-    ): Promise<void>;
+    ): Promise<UIPartResponse>;
 
 
     /**
@@ -1206,7 +1214,13 @@ interface RisuaiPluginAPI {
         icon: string,
         iconType: 'html'|'img'|'none',
         location?: 'action'|'chat'|'hamburger'
-    }, callback: () => void): Promise<void>;
+    }, callback: () => void): Promise<UIPartResponse>;
+
+    /**
+     * Unregisters a UI part
+     * @param id - UI part ID returned during registration
+     */
+    unregisterUIPart(id: string): Promise<void>;
 
     // ========== Provider APIs ==========
 

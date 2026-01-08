@@ -643,6 +643,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 plugin.name,
                 makeMenuUnloadCallback(id, additionalSettingsMenu)
             )
+            return {id:id};
         },
         registerButton: (
             arg: {
@@ -703,6 +704,20 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     throw new Error("Invalid location for button")
                 }
             }
+            return {id:id};
+        },
+        unregisterUIPart: (id: string) => {
+            const removeFromMenuStore = (menuStore: MenuDef[]) => {
+                const index = menuStore.findIndex(item => item.id === id);
+                if(index !== -1){
+                    menuStore.splice(index, 1);
+                }
+            }
+
+            removeFromMenuStore(additionalSettingsMenu);
+            removeFromMenuStore(additionalFloatingActionButtons);
+            removeFromMenuStore(additionalHamburgerMenu);
+            removeFromMenuStore(additionalChatMenu);
         },
         log: (message:string) => {
             console.log(`[RisuAI Plugin: ${plugin.name}] ${message}`);

@@ -9,6 +9,7 @@
     "tauribuild": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
     "tauri": "tauri",
     "buildsite": "vite build --outDir dist",
     "runserver": "node server/node/server.cjs",
@@ -110,6 +111,8 @@
     "@types/uuid": "^9.0.8",
     "@types/wicg-file-system-access": "^2020.9.8",
     "autoprefixer": "^10.4.23",
+    "fast-check": "^4.5.3",
+    "happy-dom": "^20.1.0",
     "internal-ip": "^7.0.0",
     "postcss": "^8.5.6",
     "source-map": "^0.7.6",
@@ -119,7 +122,8 @@
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
-    "vite-plugin-wasm": "3.5.0"
+    "vite-plugin-wasm": "3.5.0",
+    "vitest": "^4.0.16"
   },
   "pnpm": {
     "neverBuiltDependencies": [

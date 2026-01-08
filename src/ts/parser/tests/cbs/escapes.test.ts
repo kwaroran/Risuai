@@ -1,0 +1,127 @@
+import fc from 'fast-check'
+import { writable } from 'svelte/store'
+import { expect, test, vi } from 'vitest'
+import { risuChatParser, risuUnescape } from '../../../parser.svelte'
+import { trimVarPrefix } from './lib'
+
+//#region module mocks
+
+// Suppress warning
+vi.mock(import('katex'), () => ({}))
+
+vi.mock(
+  import('../../../storage/database.svelte'),
+  () =>
+    ({
+      appVer: '1234.5.67',
+      getCurrentCharacter: () => ({}),
+      getDatabase: () => ({}),
+    } as typeof import('../../../storage/database.svelte'))
+)
+
+vi.mock(import('../../../globalApi.svelte'), () => ({
+  aiWatermarkingLawApplies: () => false,
+  getFileSrc: () => Promise.resolve(''),
+}))
+
+/** Returns accessed key as the value. */
+const varStorage = vi.hoisted(
+  () =>
+    new Proxy(
+      {},
+      {
+        get(_, prop) {
+          return trimVarPrefix(prop)
+        },
+      }
+    )
+)
+
+vi.mock(import('../../../stores.svelte'), () => {
+  // @ts-expect-error Minimal mock
+  return {
+    DBState: {
+      db: {
+        characters: {
+          char: {
+            chatPage: 0,
+            chats: [
+              {
+                scriptstate: varStorage,
+              },
+            ],
+            defaultVariables: '',
+          },
+        },
+        globalChatVariables: varStorage,
+        templateDefaultVariables: '',
+      },
+    },
+    selectedCharID: writable('char'),
+  } as typeof import('../../../stores.svelte')
+})
+
+//#endregion
+
+const parse = (s: string): string => risuUnescape(risuChatParser(s))
+
+test('bo, bc', () => {
+  expect(parse('{{bo}}')).toBe('{{')
+  expect(parse('{{bc}}')).toBe('}}')
+})
+
+test('cbr', () => {
+  expect(parse('{{cbr}}')).toBe('\\n')
+  // FIXME: Broken => cbr::3cbr::3cbr::3
+  // expect(parse('{{cbr::3}}')).toBe('\\n\\n\\n')
+})
+
+test('decbo, decbc', () => {
+  expect(parse('{{decbo}}')).toBe('{')
+  expect(parse('{{decbc}}')).toBe('}')
+})
+
+test(';', () => {
+  expect(parse('{{;}}')).toBe(';')
+})
+
+test(':', () => {
+  expect(parse('{{;}}')).toBe(';')
+})
+
+test('()', () => {
+  expect(parse('{{(}}')).toBe('(')
+  expect(parse('{{)}}')).toBe(')')
+})
+
+test('<>', () => {
+  expect(parse('{{<}}')).toBe('&lt;')
+  expect(parse('{{>}}')).toBe('&gt;')
+})
+
+/** Any string but not `{{/...}} */
+const anythingNotClosing = fc
+  .string()
+  .filter(
+    (s) => !/{{\/.*}}/.test(s) && /* FIXME opening curly without its pair causes '<' prepended */ !s.includes('{')
+  )
+
+test('#pure', () => {
+  fc.assert(
+    fc.property(anythingNotClosing, (a) => {
+      expect(parse(`{{#pure}}${a}{{/}}`)).toBe(a.trim())
+    })
+  )
+})
+
+test('#puredisplay', () => {
+  console.log(parse('{{#puredisplay}}{{/}}'))
+  fc.assert(
+    fc.property(anythingNotClosing, (a) => {
+      expect(parse(`{{#puredisplay}}${a}{{/}}`)).toBe(
+        // reparsing prevention kicks in for #puredisplay
+        a.trim().replaceAll('{{', '\\{\\{').replaceAll('}}', '\\}\\}')
+      )
+    })
+  )
+})

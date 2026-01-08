@@ -1124,7 +1124,7 @@ interface RisuaiPluginAPI {
      * pluginV2, personas, plugins, pluginCustomStorage, temperature, askRemoval,
      * maxContext, maxResponse, frequencyPenalty, PresensePenalty, theme,
      * textTheme, lineHeight, seperateModelsForAxModels, seperateModels,
-     * customCSS, guiHTML, colorSchemeName
+     * customCSS, guiHTML, colorSchemeName, characterOrder, selectedPersona
      *
      * @example
      * ```typescript

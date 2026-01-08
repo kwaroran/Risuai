@@ -822,6 +822,13 @@ export async function loadV3Plugins(plugins:RisuPlugin[]){
 }
 
 export async function executePluginV3(plugin:RisuPlugin){
+
+    const alreadyRunning = v3PluginInstances.find(p => p.name === plugin.name);
+    if(alreadyRunning){
+        console.log(`[RisuAI Plugin: ${plugin.name}] Plugin is already running. Skipping load.`);
+        return;
+    }
+
     const iframe = document.createElement('iframe');
     iframe.style.display = "none";
     document.body.appendChild(iframe);

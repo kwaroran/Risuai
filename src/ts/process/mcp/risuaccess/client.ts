@@ -26,7 +26,7 @@ Modules are independant packages of lorebooks and scripts. Fields:
 - 'backgroundEmbedding': See below.
 - 'mcp': Optional MCP server URL.
 - 'lowLevelAccess': Must be true to allow LLM or network requests in Lua scripts.
-- 'customModuleToggle': User settings configuration. Format: key=label=type=options
+- 'customModuleToggle': User settings configuration, simply called "toggles". Format: key=label=type=options
   - Types:
     - (omit): Checkbox, '0'|'1'.
     - select: Dropdown. Index of the selected option.

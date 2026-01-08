@@ -530,7 +530,8 @@ export const allowedDbKeys = [
     'customCSS',
     'guiHTML',
     'colorSchemeName',
-
+    'selectedPersona',
+    'characterOrder'
 ]
 
 export const getV2PluginAPIs = () => {

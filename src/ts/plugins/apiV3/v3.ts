@@ -295,7 +295,7 @@ class SafeElement {
             const modifiedListener = (event: any) => {
                 let delay = 0;
                 try {
-                    delay = crypto.getRandomValues(new Uint32Array(1))[0];                    
+                    delay = (crypto.getRandomValues(new Uint32Array(1))[0] / 100) % 100; //0-99 ms              
                 } catch (error) {}
                 setTimeout(() => {
                     listener(trimEvent(event));
@@ -310,7 +310,7 @@ class SafeElement {
         }        
     }
 
-    removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {
+    public removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {
         const listener = this.#eventIdMap.get(id);
         if(listener){
             const realOptions = typeof options === 'boolean' ? { capture: options } : options || {};
@@ -319,7 +319,7 @@ class SafeElement {
         }
     }
 
-    matches: (selector: string) => boolean = (selector: string) => {
+    public matches (selector: string): boolean {
         return this.#element.matches(selector);
     }
 }
@@ -643,6 +643,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 plugin.name,
                 makeMenuUnloadCallback(id, additionalSettingsMenu)
             )
+            return {id:id};
         },
         registerButton: (
             arg: {
@@ -703,6 +704,20 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     throw new Error("Invalid location for button")
                 }
             }
+            return {id:id};
+        },
+        unregisterUIPart: (id: string) => {
+            const removeFromMenuStore = (menuStore: MenuDef[]) => {
+                const index = menuStore.findIndex(item => item.id === id);
+                if(index !== -1){
+                    menuStore.splice(index, 1);
+                }
+            }
+
+            removeFromMenuStore(additionalSettingsMenu);
+            removeFromMenuStore(additionalFloatingActionButtons);
+            removeFromMenuStore(additionalHamburgerMenu);
+            removeFromMenuStore(additionalChatMenu);
         },
         log: (message:string) => {
             console.log(`[RisuAI Plugin: ${plugin.name}] ${message}`);
@@ -807,6 +822,13 @@ export async function loadV3Plugins(plugins:RisuPlugin[]){
 }
 
 export async function executePluginV3(plugin:RisuPlugin){
+
+    const alreadyRunning = v3PluginInstances.find(p => p.name === plugin.name);
+    if(alreadyRunning){
+        console.log(`[RisuAI Plugin: ${plugin.name}] Plugin is already running. Skipping load.`);
+        return;
+    }
+
     const iframe = document.createElement('iframe');
     iframe.style.display = "none";
     document.body.appendChild(iframe);

@@ -653,6 +653,12 @@ interface SafeElement {
     ): Promise<void>;
 
     /**
+     * Scrolls the element into view
+     * @param options - Scroll options or boolean for alignment
+     */
+    scrollIntoView(options?: boolean | ScrollIntoViewOptions): Promise<void>;
+
+    /**
      * Unwraps a SafeClassArray into a standard array
      * @param safeArray - The SafeClassArray to unwrap
      * @returns Standard array of items

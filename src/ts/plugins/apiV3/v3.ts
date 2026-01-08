@@ -210,7 +210,9 @@ class SafeElement {
         const san = DOMPurify.sanitize(value);
         this.#element.outerHTML = san;
     }
-
+    public scrollIntoView(options?: boolean | ScrollIntoViewOptions) {
+        this.#element.scrollIntoView(options);
+    }
     #eventIdMap = new Map<string, Function>()
 
     public async addEventListener(type:string, listener: (event: any) => void, options?: boolean | AddEventListenerOptions):Promise<string> {

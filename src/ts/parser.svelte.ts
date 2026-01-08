@@ -69,8 +69,6 @@ DOMPurify.addHook("uponSanitizeElement", (node: HTMLElement, data) => {
         if(!decoding){
             node.setAttribute("decoding", "async")
         }
-
-        const src = node.getAttribute("src") || "";
     }
 });
 
@@ -744,10 +742,6 @@ export function trimMarkdown(data:string){
     }))
 }
 
-const placeToPutMetadata = new Set([
-    ' ', '\n'
-])
-
 const metaCodes = [
     '\u200B', //zero width space
     '\u200C', //zero width non-joiner
@@ -983,47 +977,6 @@ export function checkImageType(arr:Uint8Array):ImageType {
     return "Unknown";
 }
 
-function wppParser(data:string){
-    const lines = data.split('\n');
-    let characterDetails:{[key:string]:string[]} = {};
-
-    lines.forEach(line => {
-
-        // Check for "{" and "}" indicator of object start and end
-        if(line.includes('{')) return;
-        if(line.includes('}')) return;
-
-        // Extract key and value within brackets
-        let keyBracketStartIndex = line.indexOf('(');
-        let keyBracketEndIndex = line.indexOf(')');
-    
-       if(keyBracketStartIndex === -1 || keyBracketEndIndex === -1) 
-            throw new Error(`Invalid syntax ${line}`);
-        
-       let key = line.substring(0, keyBracketStartIndex).trim();
-
-         // Validate Key    
-         if(!key) throw new Error(`Missing Key in ${line}`);
-
-      const valueArray=line.substring(keyBracketStartIndex + 1, keyBracketEndIndex)
-          .split(',')
-          .map(str => str.trim());
-      
-      // Validate Values
-      for(let i=0;i<valueArray.length ;i++){
-           if(!valueArray[i])
-               throw new Error(`Empty Value in ${line}`);
-              
-     }
-      characterDetails[key] = valueArray;
-   });
-
-   return characterDetails;
-}
-
-
-const rgx = /(?:{{|<)(.+?)(?:}}|>)/gm
-
 export type CbsConditions = {
     firstmsg?:boolean
     chatRole?:string
@@ -1145,43 +1098,6 @@ const dateTimeFormat = (main:string, time = 0) => {
         .replace(/x/g, date.getTime().toString())
         .replace(/A/g, date.getHours() >= 12 ? 'PM' : 'AM')
 
-}
-
-const smMatcher = (p1:string,matcherArg:matcherArg) => {
-    if(!p1){
-        return null
-    }
-    const lowerCased = p1.toLocaleLowerCase()
-    const db = matcherArg.db
-    const chara = matcherArg.chara
-    switch(lowerCased){
-        case 'char':
-        case 'bot':{
-            if(matcherArg.consistantChar){
-                return 'botname'
-            }
-            let selectedChar = get(selectedCharID)
-            let currentChar = db.characters[selectedChar]
-            if(currentChar && currentChar.type !== 'group'){
-                return currentChar.nickname || currentChar.name
-            }
-            if(chara){
-                if(typeof(chara) === 'string'){
-                    return chara
-                }
-                else{
-                    return chara.name
-                }
-            }
-            return currentChar.nickname || currentChar.name
-        }
-        case 'user':{
-            if(matcherArg.consistantChar){
-                return 'username'
-            }
-            return getUserName()
-        }
-    }
 }
 
 const legacyBlockMatcher = (p1:string,matcherArg:matcherArg) => {
@@ -1642,7 +1558,6 @@ export function risuChatParser(da:string, arg:{
     const chatID = arg.chatID ?? -1
     const db = arg.db ?? DBState.db
     const aChara = arg.chara
-    const visualize = arg.visualize ?? false
     let chara:character|string = null
 
     if(aChara){
@@ -1938,23 +1853,6 @@ export function setChatVar(key:string, value:string){
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate = {}
     }
     DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate['$' + key] = value
-}
-
-
-function editDisplay(text){
-    let rt = ""
-    if(!text.includes("<obs>")){
-        return text
-    }
-
-    for(let i=0;i<text.length;i++){
-        const obfiEffect = "!@#$%^&*"
-        if(Math.random() < 0.4){
-            rt += obfiEffect[Math.floor(Math.random() * obfiEffect.length)]
-        }
-        rt += text[i]
-    }
-    return rt
 }
 
 export type PromptParsed ={[key:string]:string|PromptParsed}

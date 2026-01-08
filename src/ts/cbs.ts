@@ -2413,10 +2413,10 @@ Advanced operators:
 {{#when::legacy::A}}...{{/when}} - legacy whitespace handling, so it will handle like deprecated #if.
 {{#when::var::A}}...{{/when}} - checks if variable A is truthy.
 {{#when::A::vis::B}}...{{/when}} - checks if variable A is equal to literal B.
-{{#when::A::vnotis::B}}...{{/when}} - checks if variable A is not equal to literal B.
+{{#when::A::visnot::B}}...{{/when}} - checks if variable A is not equal to literal B.
 {{#when::toggle::togglename}}...{{/when}} - checks if toggle is enabled.
 {{#when::A::tis::B}}...{{/when}} - checks if toggle A is equal to literal B.
-{{#when::A::tnotis::B}}...{{/when}} - checks if toggle A is not equal to literal B.
+{{#when::A::tisnot::B}}...{{/when}} - checks if toggle A is not equal to literal B.
 
 operators can be combined like:
 {{#when::keep::not::condition}}...{{/when}}

@@ -70,6 +70,10 @@ test('bo, bc', () => {
   expect(parse('{{bc}}')).toBe('}}')
 })
 
+test('br', () => {
+  expect(parse('{{br}}')).toBe('\n')
+})
+
 test('cbr', () => {
   expect(parse('{{cbr}}')).toBe('\\n')
   // FIXME: Broken => cbr::3cbr::3cbr::3

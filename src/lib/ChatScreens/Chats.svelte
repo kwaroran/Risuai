@@ -159,7 +159,7 @@
         hasNewUnreadMessage = false;
         const element = chatBody.firstElementChild;
         if(element){
-             element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+             element.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
     }
 
@@ -183,7 +183,7 @@
                     const element = chatBody.firstElementChild;
                     if(element){
                         setTimeout(() => {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            element.scrollIntoView({ behavior: 'instant', block: 'start' });
                         }, 700);
                     }
                 } else {

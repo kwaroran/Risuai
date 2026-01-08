@@ -13,7 +13,7 @@ import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
 import type { OnnxModelFiles } from "./process/transformers"
-import { CharXReader, CharXSkippableChecker, CharXWriter } from "./process/processzip"
+import { CharXImporter, CharXSkippableChecker, CharXWriter } from "./process/processzip"
 import { exportModule, readModule, type RisuModule } from "./process/modules"
 import { readFile } from "@tauri-apps/plugin-fs"
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
@@ -126,19 +126,16 @@ export async function importCharacterProcess(f:{
             }
         }
         
-        const reader = new CharXReader()
-        reader.alertInfo = true
+        const importer = new CharXImporter()
+        importer.alertInfo = true
         if(charXMode === 'skippable'){
-            reader.skipSaving = true
+            importer.skipSaving = true
         }
         if(charXMode === 'signal'){
-            reader.hashSignal = signal
+            importer.hashSignal = signal
         }
-        const promise = reader.makePromise()
-        await reader.read(f.data, {
-            alertInfo: true
-        })
-        const cardData = reader.cardData
+        await importer.parse(f.data)
+        const cardData = importer.cardData
         if(!cardData){
             alertError(language.errors.noData)
             return
@@ -149,8 +146,8 @@ export async function importCharacterProcess(f:{
             return
         }
         let lorebook:loreBook[] = null
-        if(reader.moduleData){
-            const md = await readModule(Buffer.from(reader.moduleData))
+        if(importer.moduleData){
+            const md = await readModule(Buffer.from(importer.moduleData))
             card.data.extensions ??= {}
             card.data.extensions.risuai ??= {}
             card.data.extensions.risuai.triggerscript = md.trigger ?? []
@@ -159,8 +156,8 @@ export async function importCharacterProcess(f:{
                 lorebook = md.lorebook
             }
         }
-        await promise
-        await importCharacterCardSpec(card, undefined, 'normal', reader.assets, lorebook)
+        await importer.done()
+        await importCharacterCardSpec(card, undefined, 'normal', importer.assets, lorebook)
         let db = getDatabase()
         return db.characters.length - 1
     }

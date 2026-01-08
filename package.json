@@ -61,7 +61,6 @@
     "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
-    "jszip": "^3.10.1",
     "katex": "^0.16.27",
     "libsodium-wrappers-sumo": "^0.7.15",
     "localforage": "^1.10.0",

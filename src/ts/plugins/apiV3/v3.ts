@@ -310,7 +310,7 @@ class SafeElement {
         }        
     }
 
-    removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {
+    public removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {
         const listener = this.#eventIdMap.get(id);
         if(listener){
             const realOptions = typeof options === 'boolean' ? { capture: options } : options || {};
@@ -319,7 +319,7 @@ class SafeElement {
         }
     }
 
-    matches: (selector: string) => boolean = (selector: string) => {
+    public matches (selector: string): boolean {
         return this.#element.matches(selector);
     }
 }

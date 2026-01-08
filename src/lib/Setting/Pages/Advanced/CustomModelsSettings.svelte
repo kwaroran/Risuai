@@ -3,6 +3,7 @@
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
+    import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
@@ -124,7 +125,12 @@
             <span class="text-textcolor">{language.proxyAPIKey}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].key}/>
             <span class="text-textcolor">{language.additionalParams}</span>
-            <TextInput size={"sm"} bind:value={DBState.db.customModels[index].params}/>
+            <TextAreaInput bind:value={DBState.db.customModels[index].params} placeholder={`temperature=0.7
+max_tokens=2000
+reasoning_effort="high"
+header::anthropic-dangerous-direct-browser-access=true
+stop=json::["</s>", "\\n\\n"]
+frequency_penalty={{none}}`}/>
             <Accordion styled name={language.flags}>
                 {@render CustomFlagButton(index,'hasImageInput', 0)}
                 {@render CustomFlagButton(index,'hasImageOutput', 1)}

@@ -3,9 +3,9 @@
     import { mount, onDestroy, unmount } from 'svelte';
     import Chat from './Chat.svelte';
     import { getCharImage } from 'src/ts/characters';
-    import { createSimpleCharacter, DBState, selectedCharID } from 'src/ts/stores.svelte';
+    import { createSimpleCharacter, DBState, selectedCharID, ReloadGUIPointer  } from 'src/ts/stores.svelte';
     import { chatFoldedStateMessageIndex } from 'src/ts/globalApi.svelte';
-    import { get } from 'svelte/store';
+    import { get } from "svelte/store";
     
     const getCurrentChatRoomId = () => {
         const charId = get(selectedCharID);
@@ -73,7 +73,7 @@
             if(i < 0) break; // Prevent out of bounds
             const message = messages[i];
             const messageLargePortrait = message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false);
-            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString();
+            let hashd = message.data + (message.chatId ?? "") + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + get(ReloadGUIPointer).toString();
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
             if(!hashes.has(currentHash)){
@@ -165,6 +165,7 @@
 
     $effect(() => {
         console.log('Updating Chats');
+        $ReloadGUIPointer; 
         const wasAtBottom = checkIfAtBottom();
         updateChatBody()
         

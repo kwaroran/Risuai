@@ -1,3 +1,4 @@
+import { parseChatML } from "src/ts/parser/chatML";
 import {
     getDatabase,
     type Chat,
@@ -10,7 +11,6 @@ import { requestChatData } from "../request/request";
 import { HypaProcesser } from "./hypamemory";
 import { globalFetch } from "src/ts/globalApi.svelte";
 import { runSummarizer } from "../transformers";
-import { parseChatML } from "src/ts/parser.svelte";
 
 export interface HypaV2Data {
     lastMainChunkID: number; // can be removed, but exists to more readability of the code.

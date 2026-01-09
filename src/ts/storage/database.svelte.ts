@@ -586,7 +586,23 @@ export function setDatabase(data:Database){
     }
     data.doNotChangeSeperateModels ??= false
     data.modelTools ??= []
-    data.hotkeys ??= safeStructuredClone(defaultHotkeys)
+    
+    // Merge existing hotkeys with new default hotkeys
+    if (!data.hotkeys) {
+        data.hotkeys = safeStructuredClone(defaultHotkeys)
+    } else {
+        const existingActions = new Set(data.hotkeys.map(h => h.action))
+        const newHotkeys = defaultHotkeys.filter(h => !existingActions.has(h.action))
+        if (newHotkeys.length > 0) {
+            data.hotkeys.push(...safeStructuredClone(newHotkeys))
+        }
+    }
+    
+    // Remove scrollToActiveChar hotkey if feature is disabled
+    if (data.enableScrollToActiveChar === false) {
+        data.hotkeys = data.hotkeys.filter(h => h.action !== 'scrollToActiveChar')
+    }
+    
     data.fallbackModels ??= {
         memory: [],
         emotion: [],
@@ -1137,6 +1153,7 @@ export interface Database{
     ImagenImageSize:string
     ImagenAspectRatio:string
     ImagenPersonGeneration:string,
+    enableScrollToActiveChar:boolean
     openaiCompatImage: {
         url: string
         key: string

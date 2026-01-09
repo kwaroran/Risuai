@@ -14,6 +14,7 @@
     oncontextmenu?: (event: MouseEvent & {
         currentTarget: EventTarget & HTMLDivElement;
     }) => any
+    chaId?: string;
   }
 
   let {
@@ -26,7 +27,8 @@
     color = '',
     backgroundimg = '',
     children,
-    oncontextmenu
+    oncontextmenu,
+    chaId
   }: Props = $props();
 </script>
 
@@ -39,6 +41,7 @@
       onclick={onClick} use:tooltipRight={name}
       role="button"
       tabindex="0"
+      data-char-id={chaId}
 >
   {#if src}
     {#if src === "slot"}

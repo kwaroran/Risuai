@@ -220,6 +220,50 @@
     return -1
   }
 
+  function scrollToActiveCharacter() {
+    const selectedId = $selectedCharID
+    if (selectedId === -1) return
+    
+    const characterId = DBState.db.characters[selectedId].chaId
+    
+    let targetFolderId: string | null = null
+    
+    for (const item of charImages) {
+      if (item.type === 'folder') {
+        const foundChar = item.folder.find(c => 
+          DBState.db.characters[c.index].chaId === characterId
+        )
+        if (foundChar) {
+          targetFolderId = item.id
+          break
+        }
+      }
+    }
+    
+    if (targetFolderId && !openFolders.includes(targetFolderId)) {
+      openFolders.push(targetFolderId)
+      openFolders = openFolders
+    }
+    
+    setTimeout(() => {
+      const activeElement = document.querySelector(`[data-char-id="${characterId}"]`)
+      if (activeElement) {
+        activeElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        })
+      }
+    }, 100)
+  }
+
+  if (typeof window !== 'undefined') {
+    const handler = () => {
+      scrollToActiveCharacter()
+    }
+    window.addEventListener('scrollToActiveCharacter', handler)
+  }
+
+
   const createFolder = (mainIndex:DragData, targetIndex:DragData) => {
     if(mainIndex.index === targetIndex.index && mainIndex.folder === targetIndex.folder){
       return
@@ -487,7 +531,13 @@
             }}
           >
           {#if char.type === 'normal'}
-            <SidebarAvatar src={char.img ? getCharImage(char.img, "plain") : "/none.webp"} size="56" rounded={IconRounded} name={char.name} />
+            <SidebarAvatar 
+              src={char.img ? getCharImage(char.img, "plain") : "/none.webp"} 
+              size="56" 
+              rounded={IconRounded} 
+              name={char.name}
+              chaId={DBState.db.characters[char.index]?.chaId}
+            />
           {:else if char.type === "folder"}
             {#key char.color}
             {#key char.name}
@@ -637,7 +687,13 @@
                     }
                   }}
                 >
-                <SidebarAvatar src={char2.img ? getCharImage(char2.img, "plain") : "/none.webp"} size="56" rounded={IconRounded} name={char2.name}/>
+                <SidebarAvatar 
+                  src={char2.img ? getCharImage(char2.img, "plain") : "/none.webp"} 
+                  size="56" 
+                  rounded={IconRounded} 
+                  name={char2.name}
+                  chaId={DBState.db.characters[char2.index]?.chaId}
+                />
               </div>
             </div>
             <div class="h-4 min-h-4 w-14 relative z-20" role="listitem" ondragover={(e) => {

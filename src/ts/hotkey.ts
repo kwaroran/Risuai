@@ -9,7 +9,6 @@ import { doingChat, previewBody, sendChat } from "./process/index.svelte"
 
 export function initHotkey(){
     document.addEventListener('keydown', async (ev) => {
-        console.log(document.activeElement)
         if(
             !ev.ctrlKey &&
             !ev.altKey &&
@@ -34,12 +33,6 @@ export function initHotkey(){
             hotkey.alt = hotkey.alt ?? false
             hotkey.shift = hotkey.shift ?? false
 
-            if(hotkey.key === ev.key){
-             
-                console.log(`Hotkey: "${hotkey.key}" ${hotkey.ctrl} ${hotkey.alt} ${hotkey.shift}`)
-                console.log(`Event: "${ev.key}" ${ev.ctrlKey} ${ev.altKey} ${ev.shiftKey}`)
-                
-            }
             if(hotkey.ctrl !== ev.ctrlKey){
                 continue
             }
@@ -49,7 +42,7 @@ export function initHotkey(){
             if(hotkey.shift !== ev.shiftKey){
                 continue
             }
-            if(hotkey.key !== ev.key){
+            if(hotkey.key.toLowerCase() !== ev.key.toLowerCase()){
                 continue
             }
             if(!hotkey.ctrl && !hotkey.alt && !hotkey.shift){
@@ -177,6 +170,12 @@ export function initHotkey(){
                     QuickSettings.index = 0
                     break
                 }
+                case 'scrollToActiveChar':{
+                    if(database.enableScrollToActiveChar !== false){
+                        window.dispatchEvent(new CustomEvent('scrollToActiveCharacter'))
+                    }
+                    break
+                }
                 default:{
                     hotKeyRanThisTime = false
                 }
@@ -296,6 +295,27 @@ export function initHotkey(){
     document.addEventListener('touchend', (ev) => {
         touchs = 0
     })
+    
+    let lastScrollTime = 0
+    const SCROLL_COOLDOWN = 500
+    
+    document.addEventListener('dragover', (ev) => {
+        if (ev.ctrlKey && !ev.shiftKey && !ev.altKey) {
+            const types = ev.dataTransfer?.types || []
+            const isCharacterDrag = types.includes('application/x-risu-internal')
+            
+            if (isCharacterDrag) {
+                const db = getDatabase()
+                if(db.enableScrollToActiveChar !== false){
+                    const now = Date.now()
+                    if (now - lastScrollTime > SCROLL_COOLDOWN) {
+                        lastScrollTime = now
+                        window.dispatchEvent(new CustomEvent('scrollToActiveCharacter'))
+                    }
+                }
+            }
+        }
+    }, true)
 }
 
 async function quickMenu(){
@@ -331,6 +351,7 @@ function focusQuery(query:string){
 
 
 export function initMobileGesture(){
+    console.log('🚀 initMobileGesture called!')
 
     let pressingPointers = new Map<number, {x:number, y:number}>()
 

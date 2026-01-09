@@ -670,7 +670,7 @@ const t0 = performance.now();
                     }
                     }
                     else {
-                        const pairs = alignByDP(leftLines, rightLines)
+                        const pairs = alignByDP(leftLines, rightLines, 15)
                         const replaceBlockPairs = buildAlignmentFromAnchorPair(leftLines.length, rightLines.length, pairs)
 
                         for (const pair of replaceBlockPairs) {
@@ -910,7 +910,7 @@ const t0 = performance.now();
     const DIR_LEFT = 2
     const DIR_DIAG = 3
     
-    function alignByDP(leftOrig: PromptLine[], rightOrig: PromptLine[]): Pair[] {
+    function alignByDP(leftOrig: PromptLine[], rightOrig: PromptLine[], bandWidth: number | null): Pair[] {
         const left = prepareLines(leftOrig)
         const right = prepareLines(rightOrig)
 
@@ -925,8 +925,19 @@ const t0 = performance.now();
 
         const SIM_THRESHOLD = 0.35
 
+        const useBand = bandWidth !== null && bandWidth >= 0 && bandWidth < Math.max(n, m)
+        const diagSlope = n > 0 ? m / n : 0
+
         for (let i = 1; i <= n; i++) {
-            for (let j = 1; j <= m; j++) {
+            let jStart = 1
+            let jEnd = m
+            if (useBand) {
+                const center = Math.round(i * diagSlope)
+                jStart = Math.max(1, center - bandWidth)
+                jEnd = Math.min(m, center + bandWidth)
+            }
+
+            for (let j = jStart; j <= jEnd; j++) {
                 const upIdx = idx(i - 1, j)
                 const leftIdx = idx(i, j - 1)
                 const diagIdx = idx(i - 1, j - 1)
@@ -962,7 +973,7 @@ const t0 = performance.now();
         let i = n
         let j = m
 
-        while (i > 0 && j > 0) {
+        outer: while (i > 0 && j > 0) {
             const d = dirs[idx(i, j)]
             switch (d) {
                 case DIR_DIAG:
@@ -976,7 +987,7 @@ const t0 = performance.now();
                     j--
                     break
                 default:
-                    break
+                    break outer
             }
         }
 

@@ -215,7 +215,7 @@ export function applyParameters(data: { [key: string]: any }, parameters: Parame
                 }
             }
 
-            if(value === -1000 || value === undefined){
+            if(value === -1000 || value === undefined || value === null || (typeof value === 'number' && isNaN(value))){
                 continue
             }
 

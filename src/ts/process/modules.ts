@@ -1,5 +1,5 @@
 import { language } from "src/lang"
-import { alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore } from "../alert"
+import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore, alertWait } from "../alert"
 import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, setDatabase, type customscript, type loreBook, type triggerscript } from "../storage/database.svelte"
 import { AppendableBuffer, downloadFile, forageStorage, readImage, saveAsset } from "../globalApi.svelte"
 import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
@@ -141,6 +141,54 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
 
     let module = main.module
 
+    const maxConcurrentAssetSaves = 10
+    const retryDelayMs = 5000
+    const maxRetries = 3
+    const totalAssets = module.assets?.length ?? 0
+    let completed = 0
+
+    type AssetTask = {
+        index: number
+        data: Uint8Array
+    }
+
+    const runAssetTasks = async (tasks: AssetTask[]) => {
+        if (tasks.length === 0) {
+            return []
+        }
+        const inFlight = new Set<Promise<void>>()
+        const failed: AssetTask[] = []
+        const runTask = (task: AssetTask) => {
+            const promise = (async () => {
+                try {
+                    const decoded = await decodeRPack(task.data)
+                    if (!module.assets?.[task.index]) {
+                        throw new Error(`Missing asset metadata for index ${task.index}`)
+                    }
+                    module.assets[task.index][1] = await saveAsset(decoded)
+                    completed += 1
+                } catch (error) {
+                    failed.push(task)
+                } finally {
+                    alertWait(`Loading... (Adding Assets ${completed} / ${totalAssets})`)
+                }
+            })()
+            inFlight.add(promise)
+            promise.finally(() => inFlight.delete(promise))
+        }
+
+        for (const task of tasks) {
+            while (inFlight.size >= maxConcurrentAssetSaves) {
+                await Promise.race(inFlight)
+            }
+            runTask(task)
+        }
+
+        await Promise.all(inFlight)
+        return failed
+    }
+
+    const tasks: AssetTask[] = []
     let i = 0
     while(true){
         const mark = readByte()
@@ -153,17 +201,27 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
         }
         const len = readLength()
         const data = readData(len)
-        module.assets[i][1] = await saveAsset(Buffer.from(await decodeRPack(data)))
-        alertStore.set({
-            type: 'wait',
-            msg: `Loading... (Adding Assets ${i} / ${module.assets.length})`
+        tasks.push({
+            index: i,
+            data
         })
         i++
     }
-    alertStore.set({
-        type: 'none',
-        msg: ''
-    })
+
+    try {
+        let failed = await runAssetTasks(tasks)
+        let retryCount = 0
+        while (failed.length > 0 && retryCount < maxRetries) {
+            await sleep(retryDelayMs)
+            retryCount += 1
+            failed = await runAssetTasks(failed)
+        }
+        if (failed.length > 0) {
+            throw new Error(`Failed to save ${failed.length} assets`)
+        }
+    } finally {
+        alertClear()
+    }
 
     module.id = v4()
     return module

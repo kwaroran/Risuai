@@ -1,8 +1,9 @@
 import fc from 'fast-check'
 import { writable } from 'svelte/store'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { risuChatParser } from '../../../parser.svelte'
 import type { character } from '../../../storage/database.svelte'
+import { trimVarPrefix } from './lib'
 
 //#region module mocks
 
@@ -14,11 +15,7 @@ vi.mock(
   () =>
     ({
       appVer: '1234.5.67',
-      getCurrentCharacter: () =>
-        ({
-          name: '',
-          // @ts-expect-error Only fields needed in the current test suite
-        } satisfies character),
+      getCurrentCharacter: () => ({}),
       getDatabase: () => ({}),
     } as typeof import('../../../storage/database.svelte'))
 )
@@ -28,24 +25,14 @@ vi.mock(import('../../../globalApi.svelte'), () => ({
   getFileSrc: () => Promise.resolve(''),
 }))
 
-/** Returns accessed key as its value. */
-const varMapProxy = vi.hoisted(
+/** Returns accessed key as the value. */
+const varStorage = vi.hoisted(
   () =>
     new Proxy(
       {},
       {
         get(_, prop) {
-          if (typeof prop !== 'string') {
-            return 'null'
-          }
-
-          if (prop.startsWith('$')) {
-            return prop.slice(1)
-          }
-
-          if (prop.startsWith('toggle_')) {
-            return prop.slice('toggle_'.length)
-          }
+          return trimVarPrefix(prop)
         },
       }
     )
@@ -61,21 +48,19 @@ vi.mock(import('../../../stores.svelte'), () => {
             chatPage: 0,
             chats: [
               {
-                scriptstate: varMapProxy,
+                scriptstate: varStorage,
               },
             ],
             defaultVariables: '',
           },
         },
-        globalChatVariables: varMapProxy,
+        globalChatVariables: varStorage,
         templateDefaultVariables: '',
       },
     },
     selectedCharID: writable('char'),
   } as typeof import('../../../stores.svelte')
 })
-
-vi.stubGlobal('safeStructuredClone', (v: unknown) => JSON.parse(JSON.stringify(v)))
 
 //#endregion
 

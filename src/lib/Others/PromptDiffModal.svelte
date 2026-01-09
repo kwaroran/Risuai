@@ -11,6 +11,11 @@ import { tick } from 'svelte';
     }
     let { firstPresetId, secondPresetId, onClose = () => {} }: Props = $props();
 
+// Config / constants
+// -----------------------------------------------------------------------------
+    const SIM_THRESHOLD = 0.35
+    const DEFAULT_BAND_MIN = 15
+    const DEFAULT_BAND_RATIO = 0.15
 
 // Types
 // -----------------------------------------------------------------------------
@@ -670,7 +675,8 @@ const t0 = performance.now();
                     }
                     }
                     else {
-                        const pairs = alignByDP(leftLines, rightLines, 15)
+                        const band = Math.max(DEFAULT_BAND_MIN, Math.floor(Math.max(leftLines.length, rightLines.length) * DEFAULT_BAND_RATIO))
+                        const pairs = alignByDP(leftLines, rightLines, SIM_THRESHOLD, band)
                         const replaceBlockPairs = buildAlignmentFromAnchorPair(leftLines.length, rightLines.length, pairs)
 
                         for (const pair of replaceBlockPairs) {
@@ -910,7 +916,7 @@ const t0 = performance.now();
     const DIR_LEFT = 2
     const DIR_DIAG = 3
     
-    function alignByDP(leftOrig: PromptLine[], rightOrig: PromptLine[], bandWidth: number | null): Pair[] {
+    function alignByDP(leftOrig: PromptLine[], rightOrig: PromptLine[], threshold:number, bandWidth: number | null): Pair[] {
         const left = prepareLines(leftOrig)
         const right = prepareLines(rightOrig)
 
@@ -922,8 +928,6 @@ const t0 = performance.now();
         const dirs = new Uint8Array(size)
 
         const idx = (i: number, j: number) => i * (m + 1) + j
-
-        const SIM_THRESHOLD = 0.35
 
         const useBand = bandWidth !== null && bandWidth >= 0 && bandWidth < Math.max(n, m)
         const diagSlope = n > 0 ? m / n : 0
@@ -953,8 +957,8 @@ const t0 = performance.now();
                 const aLine = left[i - 1]
                 const bLine = right[j - 1]
 
-                const sim = lineSimilarity(aLine, bLine, SIM_THRESHOLD)
-                if (sim >= SIM_THRESHOLD) {
+                const sim = lineSimilarity(aLine, bLine, threshold)
+                if (sim >= threshold) {
                     const cand = scores[diagIdx] + sim
                     if (cand > best) {
                         best = cand

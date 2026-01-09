@@ -6,13 +6,13 @@ on:
     branches:
       - main
   workflow_dispatch:
-permissions:
-  contents: read
 
 jobs:
   ci:
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,10 +92,12 @@ jobs:
             const description = `Lines: ${total}% | Statements: ${summary.total.statements.pct}%`;
 
             // 3. Github PR checklist update
+            const sha = context.payload.pull_request ? context.payload.pull_request.head.sha : context.sha;
+
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: context.sha,
+              sha: sha,
               state: color, // Build is success
               context: 'Vitest Coverage', // List name
               description: description, // e.g. "Lines: 85%"

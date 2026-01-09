@@ -351,8 +351,6 @@ function focusQuery(query:string){
 
 
 export function initMobileGesture(){
-    console.log('🚀 initMobileGesture called!')
-
     let pressingPointers = new Map<number, {x:number, y:number}>()
 
     document.addEventListener('touchstart', (ev) => {

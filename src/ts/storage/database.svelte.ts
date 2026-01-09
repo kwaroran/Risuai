@@ -586,6 +586,7 @@ export function setDatabase(data:Database){
     }
     data.doNotChangeSeperateModels ??= false
     data.modelTools ??= []
+    data.enableScrollToActiveChar ??= true
     
     // Merge existing hotkeys with new default hotkeys
     if (!data.hotkeys) {

@@ -73,6 +73,7 @@ jobs:
       - name: Update Coverage Status
         if: always()
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             // 1. read coverage summary

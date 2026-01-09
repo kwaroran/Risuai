@@ -256,12 +256,19 @@
     }, 100)
   }
 
-  if (typeof window !== 'undefined') {
+  $effect(() => {
+    if (typeof window === 'undefined') return
+    
     const handler = () => {
       scrollToActiveCharacter()
     }
+    
     window.addEventListener('scrollToActiveCharacter', handler)
-  }
+    
+    return () => {
+      window.removeEventListener('scrollToActiveCharacter', handler)
+    }
+  })
 
 
   const createFolder = (mainIndex:DragData, targetIndex:DragData) => {

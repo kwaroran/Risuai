@@ -224,14 +224,15 @@
     const selectedId = $selectedCharID
     if (selectedId === -1) return
     
-    const characterId = DBState.db.characters[selectedId].chaId
+    const characterId = DBState.db.characters[selectedId]?.chaId
+    if (!characterId) return
     
     let targetFolderId: string | null = null
     
     for (const item of charImages) {
       if (item.type === 'folder') {
         const foundChar = item.folder.find(c => 
-          DBState.db.characters[c.index].chaId === characterId
+          DBState.db.characters[c.index]?.chaId === characterId
         )
         if (foundChar) {
           targetFolderId = item.id
@@ -245,6 +246,7 @@
       openFolders = openFolders
     }
     
+    // Wait for folder open animation and DOM update before scrolling
     setTimeout(() => {
       const activeElement = document.querySelector(`[data-char-id="${characterId}"]`)
       if (activeElement) {

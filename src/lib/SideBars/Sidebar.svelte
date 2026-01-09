@@ -246,7 +246,6 @@
       openFolders = openFolders
     }
     
-    // Wait for folder open animation and DOM update before scrolling
     setTimeout(() => {
       const activeElement = document.querySelector(`[data-char-id="${characterId}"]`)
       if (activeElement) {

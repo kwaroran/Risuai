@@ -6,17 +6,22 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
 package-lock.json
+
 node_modules
 dist/
 save/
 dist-web/
 dist-ssr
+coverage/
 *.local
 test/test.ts
 xplugin/
 src-others/
 /memo.txt
+
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

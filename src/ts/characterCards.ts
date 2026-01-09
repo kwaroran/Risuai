@@ -1338,6 +1338,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
         }
         else if(spec === 'v3'){
             const card = createBaseV3(char)
+            const seenPaths = new Set<string>()
             if(card.data.assets && card.data.assets.length > 0){
                 for(let i=0;i<card.data.assets.length;i++){
                     alertStore.set({
@@ -1432,15 +1433,24 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         if(name.length > 100){
                             name = name.substring(0,100)
                         }
-                        if(card.data.assets[i].ext === 'unknown'){
-                            path = `assets/${type}/image/${name}.png`
+                        const ext = card.data.assets[i].ext === 'unknown' ? 'png' : card.data.assets[i].ext
+                        const baseDir = card.data.assets[i].ext === 'unknown'
+                            ? `assets/${type}/image`
+                            : `assets/${type}/${itype}`
+
+                        // Generate unique path to avoid duplicate filenames
+                        let uniqueName = name
+                        let suffix = 0
+                        while(seenPaths.has(`${baseDir}/${uniqueName}.${ext}`)){
+                            suffix++
+                            uniqueName = `${name}_${suffix}`
                         }
-                        else{
-                            path = `assets/${type}/${itype}/${name}.${card.data.assets[i].ext}`
-                        }
+                        path = `${baseDir}/${uniqueName}.${ext}`
+                        seenPaths.add(path)
+
                         card.data.assets[i].uri = 'embeded://' + path
                         const imageType = checkImageType(rData)
-                        const metaPath = `x_meta/${name}.json`
+                        const metaPath = `x_meta/${uniqueName}.json`
                         if(imageType === 'PNG' && writer instanceof CharXWriter){
                             const metadatas:Record<string,string> = {}
                             const gen = PngChunk.readGenerator(rData)

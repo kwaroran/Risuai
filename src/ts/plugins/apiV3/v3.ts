@@ -8,7 +8,7 @@ import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
-import { getFetchLogs } from "src/ts/globalApi.svelte";
+import { checkCharOrder, getFetchLogs } from "src/ts/globalApi.svelte";
 
 /*
     V3 API for RisuAI Plugins
@@ -755,6 +755,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         alertError: (msg:string) => {
             return alertError(msg)
         },
+        checkCharOrder: checkCharOrder,
         //Internal use APIs
         _getOldKeys: () => {
             return Object.keys(oldApis)

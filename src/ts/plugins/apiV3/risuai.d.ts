@@ -1381,6 +1381,11 @@ interface RisuaiPluginAPI {
     }[]|null>;
 
     /**
+     * Checks and corrects character order in the database
+     */
+    checkCharOrder(): Promise<void>;
+
+    /**
      * Unwraps a SafeClassArray into a standard array
      * @param safeArray - The SafeClassArray to unwrap
      * @returns Standard array of items

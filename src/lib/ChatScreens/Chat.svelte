@@ -658,6 +658,29 @@
         </button>
     {/if}
     {#if !$ConnectionOpenStore}
+        <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove" onclick={(e) => rm(e, false)} use:longpress={(e) => rm(e, true)}>
+            <TrashIcon size={20}/>
+
+            {#if showNames}
+                <span class="ml-1">{language.remove}</span>
+            {/if}
+        </button>
+    {/if}
+{/if}
+{/snippet}
+
+{#snippet translationButton(showNames = false)}
+    {#if DBState.db.translator !== '' && !blankMessage}
+        <button class={"flex items-center cursor-pointer hover:text-blue-500 transition-colors button-icon-translate " + (translated ? 'text-blue-400':'')} class:translating={translating} onclick={async () => {
+            translated = !translated
+        }}>
+            <LanguagesIcon />
+            {#if showNames}
+                <span class="ml-1">{language.translate}</span>
+            {/if}
+        </button>
+    {/if}
+    {#if idx > -1}
         <button class={"flex items-center hover:text-blue-500 transition-colors button-icon-edit "+(editMode?'text-blue-400':'')} onclick={() => {
             if(!editMode){
                 editMode = true
@@ -672,24 +695,6 @@
             {#if showNames}
                 <span class="ml-1">{language.edit}</span>
             {/if}
-        </button>
-        <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove" onclick={(e) => rm(e, false)} use:longpress={(e) => rm(e, true)}>
-            <TrashIcon size={20}/>
-
-            {#if showNames}
-                <span class="ml-1">{language.remove}</span>
-            {/if}
-        </button>
-    {/if}
-{/if}
-{/snippet}
-
-{#snippet translationButton()}
-    {#if DBState.db.translator !== '' && !blankMessage}
-        <button class={"flex items-center cursor-pointer hover:text-blue-500 transition-colors button-icon-translate " + (translated ? 'text-blue-400':'')} class:translating={translating} onclick={async () => {
-            translated = !translated
-        }}>
-            <LanguagesIcon />
         </button>
     {/if}
 {/snippet}

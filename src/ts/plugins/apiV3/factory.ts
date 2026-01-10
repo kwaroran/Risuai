@@ -67,6 +67,16 @@ await (async function() {
             proxyRefRegistry.set(proxy, val.id);
             return proxy;
         }
+        if (val && typeof val === 'object' && val.__type === 'CALLBACK_STREAMS') {
+            //specialType, one of
+            - Response
+            - none
+            const specialType = val.__specialType;
+            if (specialType === 'Response') {
+                return new Response(val.value, val.init);
+            }
+            return val.value;
+        }
         return val;
     }
 
@@ -268,6 +278,9 @@ export class SandboxHost {
         if (obj instanceof ArrayBuffer ||
             obj instanceof MessagePort ||
             obj instanceof ImageBitmap ||
+            obj instanceof ReadableStream ||
+            obj instanceof WritableStream ||
+            obj instanceof TransformStream ||
             (typeof OffscreenCanvas !== 'undefined' && obj instanceof OffscreenCanvas)) {
             transferables.push(obj);
         }
@@ -298,6 +311,31 @@ export class SandboxHost {
             const id = 'ref_' + Math.random().toString(36).substring(2);
             this.instanceRegistry.set(id, val);
             return { __type: 'REMOTE_REF', id } as RemoteRef;
+        }
+
+        if(val instanceof Response) {
+            return {
+                __type: 'CALLBACK_STREAMS',
+                __specialType: 'Response',
+                value: val.body,
+                init: {
+                    status: val.status,
+                    statusText: val.statusText,
+                    headers: Array.from(val.headers.entries())
+                }
+            };
+        }
+
+        if(
+            val instanceof ReadableStream
+            || val instanceof WritableStream
+            || val instanceof TransformStream
+        ) {
+            return {
+                __type: 'CALLBACK_STREAMS',
+                __specialType: 'none',
+                value: val
+            };
         }
         return val;
     }

@@ -1386,6 +1386,16 @@ interface RisuaiPluginAPI {
     checkCharOrder(): Promise<void>;
 
     /**
+     * Gets runtime information about Risuai environment
+     * @returns Object containing apiVersion, platform, and saveMethod
+     */
+    getRuntimeInfo(): Promise<{
+        apiVersion: string;
+        platform: string;
+        saveMethod: string;
+    }>
+
+    /**
      * Unwraps a SafeClassArray into a standard array
      * @param safeArray - The SafeClassArray to unwrap
      * @returns Standard array of items

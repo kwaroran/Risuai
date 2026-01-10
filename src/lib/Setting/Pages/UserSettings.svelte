@@ -10,7 +10,7 @@
     import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
     import { unMigrationAccount } from "src/ts/storage/accountStorage";
     import { checkDriver } from "src/ts/drive/drive";
-    import { LoadLocalBackup, SaveLocalBackup, SaveEssentialLocalBackup } from "src/ts/drive/backuplocal";
+    import { LoadLocalBackup, SaveLocalBackup, SavePartialLocalBackup } from "src/ts/drive/backuplocal";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { exportAsDataset } from "src/ts/storage/exportAsDataset";
     import { loginToSionyw, testSionywLogin } from "src/ts/sionyw";
@@ -55,10 +55,10 @@
 <Button
     onclick={async () => {
         if(await alertConfirm(language.backupConfirm)){
-            SaveEssentialLocalBackup()
+            SavePartialLocalBackup()
         }
     }} className="mt-2">
-    {language.saveEssentialLocalBackup}
+    {language.savePartialLocalBackup}
 </Button>
 
 <Button

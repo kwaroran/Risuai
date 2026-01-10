@@ -163,7 +163,7 @@ export async function SaveLocalBackup(){
 }
 
 /**
- * Saves an essential local backup with only critical assets.
+ * Saves a partial local backup with only critical assets.
  * 
  * Differences from SaveLocalBackup:
  * - Only includes profile images for characters/groups (excludes emotion images, additional assets, VITS files, CC assets)
@@ -172,22 +172,22 @@ export async function SaveLocalBackup(){
  * - Faster and more efficient for quick backups
  * - Ideal for backing up core visual identity without bulk data
  */
-export async function SaveEssentialLocalBackup(){
+export async function SavePartialLocalBackup(){
     // First confirmation: Explain the difference from regular backup
-    const firstConfirm = await alertConfirm(language.essentialBackupFirstConfirm)
+    const firstConfirm = await alertConfirm(language.partialBackupFirstConfirm)
     
     if (!firstConfirm) {
         return
     }
     
     // Second confirmation: Final warning about not saving assets
-    const secondConfirm = await alertConfirm(language.essentialBackupSecondConfirm)
+    const secondConfirm = await alertConfirm(language.partialBackupSecondConfirm)
     
     if (!secondConfirm) {
         return
     }
     
-    alertWait("Saving essential local backup...")
+    alertWait("Saving partial local backup...")
     const writer = new LocalWriter()
     const r = await writer.init()
     if(!r){
@@ -205,7 +205,7 @@ export async function SaveEssentialLocalBackup(){
             const charName = char.name ?? 'Unknown Character'
             
             // Save the main profile image (supports both character and group types)
-            // Note: emotionImages are intentionally excluded from essential backup
+            // Note: emotionImages are intentionally excluded from partial backup
             if (char.image) {
                 assetMap.set(char.image, { charName: charName, assetName: 'Profile Image' })
             }
@@ -269,7 +269,7 @@ export async function SaveEssentialLocalBackup(){
             }
             
             i += 1;
-            let message = `Saving essential local backup... (${i} / ${assetMap.size})`
+            let message = `Saving partial local backup... (${i} / ${assetMap.size})`
             if (missingAssets.length > 0) {
                 const skippedItems = missingAssets.map(key => {
                     const assetInfo = assetMap.get(key);
@@ -293,7 +293,7 @@ export async function SaveEssentialLocalBackup(){
 
         for(let i=0;i<assetKeys.length;i++){
             const key = assetKeys[i]
-            let message = `Saving essential local backup... (${i + 1} / ${assetKeys.length})`
+            let message = `Saving partial local backup... (${i + 1} / ${assetKeys.length})`
             if (missingAssets.length > 0) {
                 const skippedItems = missingAssets.map(key => {
                     const assetInfo = assetMap.get(key);
@@ -334,13 +334,13 @@ export async function SaveEssentialLocalBackup(){
 
     const dbData = encodeRisuSaveLegacy(getDatabase(), 'compression')
 
-    alertWait(`Saving essential local backup... (Saving database)`) 
+    alertWait(`Saving partial local backup... (Saving database)`) 
 
     await writer.writeBackup('database.risudat', dbData)
     await writer.close()
 
     if (missingAssets.length > 0) {
-        let message = 'Essential backup successful, but the following profile images were missing and skipped:\n\n'
+        let message = 'Partial backup successful, but the following profile images were missing and skipped:\n\n'
         for (const key of missingAssets) {
             const assetInfo = assetMap.get(key)
             if (assetInfo) {

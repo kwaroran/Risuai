@@ -10,6 +10,14 @@
     }
     let { firstPresetId, secondPresetId, onClose = () => {} }: Props = $props();
 
+
+// Lazy-loaded diff module
+// -----------------------------------------------------------------------------
+    let diffModulePromise: Promise<typeof import("diff")> | null = null
+    function loadDiffModule() {
+        return (diffModulePromise ??= import("diff"))
+    }
+
 // Config / constants
 // -----------------------------------------------------------------------------
     const SIM_THRESHOLD = 0.35
@@ -542,8 +550,8 @@
     }
 
     async function computeDiffCardLine(prompt1: PromptCard[], prompt2: PromptCard[], style: DiffStyle): Promise<CardDiffSummary> {
-        const { diffArrays } = await import('diff')
-        const arrayDiffs = diffArrays(prompt1, prompt2, {
+        const diff = await loadDiffModule()
+        const arrayDiffs = diff.diffArrays(prompt1, prompt2, {
             comparator: (x, y) => x.body === y.body && x.header === y.header && x.kind === y.kind && x.name === y.name
         })
 
@@ -612,8 +620,8 @@
     }
 
     async function computeDiffLineByLine(prompt1: PromptLine[], prompt2: PromptLine[], style: DiffStyle): Promise<DiffResult> {
-        const { diffArrays } = await import('diff')
-        const arrayDiffs = diffArrays(prompt1, prompt2, {
+        const diff = await loadDiffModule()
+        const arrayDiffs = diff.diffArrays(prompt1, prompt2, {
             comparator: (x, y) => x.text === y.text && x.lineRole === y.lineRole
         })
 
@@ -720,8 +728,8 @@
     }
 
     async function computeDiffFlat(prompt1: string, prompt2: string, style: DiffStyle): Promise<DiffResult> {
-        const { diffLines } = await import('diff')
-        const lineDiffs = diffLines(prompt1, prompt2)
+        const diff = await loadDiffModule()
+        const lineDiffs = diff.diffLines(prompt1, prompt2)
 
         const parts: DiffPart[] = []
         let modifiedCount = 0, addedCount = 0, removedCount = 0
@@ -767,8 +775,8 @@
     }
 
     async function diffIntralineTokens(string1: string, string2: string): Promise<WordToken[]> {
-        const { diffWordsWithSpace } = await import('diff')
-        const charDiffs = diffWordsWithSpace(string1, string2)
+        const diff = await loadDiffModule()
+        const charDiffs = diff.diffWordsWithSpace(string1, string2)
 
         return charDiffs.map(charPart => {
             if (charPart.added) return { t: 'add', v: charPart.value }

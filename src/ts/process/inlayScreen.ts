@@ -26,7 +26,7 @@ export function runInlayScreen(char:character, data:string):{text:string, promis
                                 const imgHTML = new Image()
                                 imgHTML.src = v
                                 const inlay = await writeInlayImage(imgHTML)
-                                return `{{inlay::${inlay}}}`
+                                return `{{inlayed::${inlay}}}`
                             })())
                             return match
                         })

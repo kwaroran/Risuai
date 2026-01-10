@@ -15,6 +15,8 @@
     const SIM_THRESHOLD = 0.35
     const DEFAULT_BAND_MIN = 15
     const DEFAULT_BAND_RATIO = 0.15
+    const FULL_DP_LIMIT = 100
+    const BANDED_DP_LIMIT = 1000
 
 // Types
 // -----------------------------------------------------------------------------
@@ -627,8 +629,8 @@
                 if (nextPart?.added) {
                     const leftLines = linePart.value
                     const rightLines = nextPart.value
-
-                    if (0) {
+                    const maxLen = Math.max(leftLines.length, rightLines.length)
+                    if (maxLen > BANDED_DP_LIMIT) {
                     const n = Math.min(leftLines.length, rightLines.length)
 
                     for (let j = 0; j < n; j++) {
@@ -655,7 +657,10 @@
                     }
                     }
                     else {
-                        const band = Math.max(DEFAULT_BAND_MIN, Math.floor(Math.max(leftLines.length, rightLines.length) * DEFAULT_BAND_RATIO))
+                        const band =
+                            maxLen <= FULL_DP_LIMIT
+                            ? null
+                            : Math.max(DEFAULT_BAND_MIN, Math.floor(maxLen * DEFAULT_BAND_RATIO))
                         const pairs = alignByDP(leftLines, rightLines, SIM_THRESHOLD, band)
                         const replaceBlockPairs = buildAlignmentFromAnchorPair(leftLines.length, rightLines.length, pairs)
 

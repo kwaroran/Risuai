@@ -1381,5 +1381,8 @@ export const languageKorean = {
     "branchedText": "이 채팅은 {}에서 분기되었습니다.",
     "disableMessage": "메시지 비활성화",
     "bookmark": "북마크",
-    "branch": "분기점"
+    "branch": "분기점",
+    "essentialBackupFirstConfirm": "필수 로컬 백업은 일반 로컬 백업과 다릅니다.\n\n필수 백업에 포함되는 것:\n- 데이터베이스 (채팅 기록, 캐릭터, 모듈, 플러그인, 프롬프트, 설정 등)\n- 프로필 이미지만 (감정 이미지, 추가 에셋, VITS 파일 등은 제외)\n- 사용자 아이콘 및 커스텀 배경\n- 페르소나 아이콘\n- 폴더 이미지\n- 봇 프리셋 이미지\n\n이 백업은 더 빠르고 작지만, 대부분의 캐릭터 에셋은 포함되지 않습니다.\n\n계속하시겠습니까?",
+    "essentialBackupSecondConfirm": "⚠️ 최종 확인 ⚠️\n\n이 백업은 다음을 저장하지 않습니다:\n- 감정 이미지\n- 추가 캐릭터 에셋\n- VITS 음성 파일\n\n오직 데이터베이스, 프로필 이미지와 필수 UI 에셋만 저장됩니다.\n\n필수 백업을 진행하시겠습니까?",
+    "saveEssentialLocalBackup": "필수 로컬 백업 저장 (최소한의 이미지)"
 };

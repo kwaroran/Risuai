@@ -1491,4 +1491,7 @@ export const languageEnglish = {
     mainDomAccessConsent: "Plugin {} is requesting to access the main Document, which may expose sensitive information. Do you want to allow this?",
     pluginV2Warning: "Plugin V2 and V2.1 is considered unsafe and will stop working in future versions. **Please do not use these versions of plugins.**. If you are the developer of this plugin, please update to V3 as soon as possible.",
     createFolderOnBranch: "Create Folder on Branch",
+    essentialBackupFirstConfirm: "Essential Local Backup is different from Regular Local Backup.\n\nEssential Backup includes:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Profile images only (no emotion images, additional assets, VITS files, etc.)\n- User icon and custom background\n- Persona icons\n- Folder images\n- Bot preset images\n\nThis backup is faster and smaller, but does NOT include most character assets.\n\nDo you want to continue?",
+    essentialBackupSecondConfirm: "⚠️ FINAL CONFIRMATION ⚠️\n\nThis backup will NOT save:\n- Emotion images\n- Additional character assets\n- VITS voice files\n\nOnly database, profile images and essential UI assets will be saved.\n\nAre you sure you want to proceed with Essential Backup?",
+    saveEssentialLocalBackup: "Save Essential Local Backup (Minimal Images)",
 }

@@ -1,6 +1,6 @@
 import { BaseDirectory, readFile, readDir, writeFile } from "@tauri-apps/plugin-fs";
 import localforage from "localforage";
-import { alertError, alertNormal, alertStore, alertWait, alertMd } from "../alert";
+import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
@@ -8,6 +8,7 @@ import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { sleep } from "../util";
 import { hubURL } from "../characterCards";
+import { language } from "src/lang";
 
 function getBasename(data:string){
     const baseNameRegex = /\\/g
@@ -147,6 +148,199 @@ export async function SaveLocalBackup(){
 
     if (missingAssets.length > 0) {
         let message = 'Backup Successful, but the following assets were missing and skipped:\n\n'
+        for (const key of missingAssets) {
+            const assetInfo = assetMap.get(key)
+            if (assetInfo) {
+                message += `* **${assetInfo.assetName}** (from *${assetInfo.charName}*)  \n  *File: ${key}*\n`
+            } else {
+                message += `* **Unknown Asset**  \n  *File: ${key}*\n`
+            }
+        }
+        alertMd(message)
+    } else {
+        alertNormal('Success')
+    }
+}
+
+/**
+ * Saves an essential local backup with only critical assets.
+ * 
+ * Differences from SaveLocalBackup:
+ * - Only includes profile images for characters/groups (excludes emotion images, additional assets, VITS files, CC assets)
+ * - Additionally includes: persona icons, folder images, bot preset images
+ * - Processes only assets in assetMap (selective) instead of all .png files in assets folder
+ * - Faster and more efficient for quick backups
+ * - Ideal for backing up core visual identity without bulk data
+ */
+export async function SaveEssentialLocalBackup(){
+    // First confirmation: Explain the difference from regular backup
+    const firstConfirm = await alertConfirm(language.essentialBackupFirstConfirm)
+    
+    if (!firstConfirm) {
+        return
+    }
+    
+    // Second confirmation: Final warning about not saving assets
+    const secondConfirm = await alertConfirm(language.essentialBackupSecondConfirm)
+    
+    if (!secondConfirm) {
+        return
+    }
+    
+    alertWait("Saving essential local backup...")
+    const writer = new LocalWriter()
+    const r = await writer.init()
+    if(!r){
+        alertError('Failed')
+        return
+    }
+
+    const db = getDatabase()
+    const assetMap = new Map<string, { charName: string, assetName: string }>()
+    
+    // Only collect main profile images for both characters and groups
+    if (db.characters) {
+        for (const char of db.characters) {
+            if (!char) continue
+            const charName = char.name ?? 'Unknown Character'
+            
+            // Save the main profile image (supports both character and group types)
+            // Note: emotionImages are intentionally excluded from essential backup
+            if (char.image) {
+                assetMap.set(char.image, { charName: charName, assetName: 'Profile Image' })
+            }
+        }
+    }
+    
+    // User icon
+    if (db.userIcon) {
+        assetMap.set(db.userIcon, { charName: 'User Settings', assetName: 'User Icon' })
+    }
+    
+    // Persona icons
+    if (db.personas) {
+        for (const persona of db.personas) {
+            if (persona && persona.icon) {
+                assetMap.set(persona.icon, { charName: 'Persona', assetName: `${persona.name} Icon` })
+            }
+        }
+    }
+    
+    // Custom background
+    if (db.customBackground) {
+        assetMap.set(db.customBackground, { charName: 'User Settings', assetName: 'Custom Background' })
+    }
+    
+    // Folder images in characterOrder
+    if (db.characterOrder) {
+        for (const item of db.characterOrder) {
+            if (typeof item !== 'string' && item.img) {
+                assetMap.set(item.img, { charName: 'Folder', assetName: `${item.name} Folder Image` })
+            }
+            if (typeof item !== 'string' && item.imgFile) {
+                assetMap.set(item.imgFile, { charName: 'Folder', assetName: `${item.name} Folder Image File` })
+            }
+        }
+    }
+    
+    // Bot preset images
+    if (db.botPresets) {
+        for (const preset of db.botPresets) {
+            if (preset && preset.image) {
+                assetMap.set(preset.image, { charName: 'Preset', assetName: `${preset.name} Preset Image` })
+            }
+        }
+    }
+    
+    const missingAssets: string[] = []
+
+    if(isTauri){
+        const assets = await readDir('assets', {baseDir: BaseDirectory.AppData})
+        let i = 0;
+        for(let asset of assets){
+            const key = asset.name
+            if(!key || !key.endsWith('.png')){
+                continue
+            }
+            
+            // Only process if this asset is in our map (profile images only)
+            if(!assetMap.has(key)){
+                continue
+            }
+            
+            i += 1;
+            let message = `Saving essential local backup... (${i} / ${assetMap.size})`
+            if (missingAssets.length > 0) {
+                const skippedItems = missingAssets.map(key => {
+                    const assetInfo = assetMap.get(key);
+                    return assetInfo ? `'${assetInfo.assetName}' from ${assetInfo.charName}` : `'${key}'`;
+                }).join(', ');
+                message += `\n(Skipping... ${skippedItems})`;
+            }
+            alertWait(message)
+
+            const data = await readFile('assets/' + asset.name, {baseDir: BaseDirectory.AppData})
+            if (data) {
+                await writer.writeBackup(key, data)
+            } else {
+                missingAssets.push(key)
+            }
+        }
+    }
+    else{
+        const keys = await forageStorage.keys()
+        const assetKeys = Array.from(assetMap.keys())
+
+        for(let i=0;i<assetKeys.length;i++){
+            const key = assetKeys[i]
+            let message = `Saving essential local backup... (${i + 1} / ${assetKeys.length})`
+            if (missingAssets.length > 0) {
+                const skippedItems = missingAssets.map(key => {
+                    const assetInfo = assetMap.get(key);
+                    return assetInfo ? `'${assetInfo.assetName}' from ${assetInfo.charName}` : `'${key}'`;
+                }).join(', ');
+                message += `\n(Skipping... ${skippedItems})`;
+            }
+            alertWait(message)
+
+            if(!key || !key.endsWith('.png')){
+                continue
+            }
+            
+            let data: Uint8Array | undefined;
+            let isCached = false;
+            if(forageStorage.isAccount && key.startsWith('assets/')){
+                const cached = await localforage.getItem(key) as ArrayBuffer;
+                if(cached) {
+                    isCached = true;
+                    data = new Uint8Array(cached);
+                }
+            }
+            
+            if (!data) {
+                data = await forageStorage.getItem(key) as unknown as Uint8Array
+            }
+
+            if (data) {
+                await writer.writeBackup(key, data)
+            } else {
+                missingAssets.push(key)
+            }
+            if(forageStorage.isAccount && !isCached){
+                await sleep(100)
+            }
+        }
+    }
+
+    const dbData = encodeRisuSaveLegacy(getDatabase(), 'compression')
+
+    alertWait(`Saving essential local backup... (Saving database)`) 
+
+    await writer.writeBackup('database.risudat', dbData)
+    await writer.close()
+
+    if (missingAssets.length > 0) {
+        let message = 'Essential backup successful, but the following profile images were missing and skipped:\n\n'
         for (const key of missingAssets) {
             const assetInfo = assetMap.get(key)
             if (assetInfo) {

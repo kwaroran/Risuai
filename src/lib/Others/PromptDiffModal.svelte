@@ -2,7 +2,6 @@
     import { XIcon } from "@lucide/svelte"
     import { getDatabase, type PromptDiffPrefs } from "../../ts/storage/database.svelte"
     import type { PromptItem, PromptItemPlain, PromptItemChatML, PromptItemTyped, PromptItemAuthorNote, PromptItemChat } from "src/ts/process/prompt.ts";
-import { tick } from 'svelte';
 
     interface Props {
         firstPresetId: number;
@@ -87,11 +86,6 @@ import { tick } from 'svelte';
     type DiffSegment =
         | { kind: 'context' | 'changes'; parts: DiffPart[] }
         | { kind: 'divider'; pos: 'start' | 'between' | 'end'; omitted: number; id: string; from: number; to: number }
-
-    type DPCell = {
-        score: number
-        from: "none" | "up" | "left" | "diag"
-    }
 
     type Pair = {
         leftIndex: number
@@ -460,7 +454,7 @@ import { tick } from 'svelte';
     async function recomputeDiff(firstCards: PromptCard[], secondCards: PromptCard[]) {
         if (!firstCards || !secondCards) return
         const runId = ++diffRunId
-const t0 = performance.now();
+
         if (isFlatText) {
             const r = await computeDiffFlat(renderRaw(firstCards), renderRaw(secondCards), diffStyle)
             if (runId !== diffRunId) return
@@ -471,22 +465,8 @@ const t0 = performance.now();
 
         const cr = await computeCardViewDiff(firstCards, secondCards, diffStyle)
         if (runId !== diffRunId) return
-            const t1 = performance.now();
         cardDiffResult = cr
-            const t2 = performance.now();
         diffResult = null
-            await tick(); // 여기까지 오면 Svelte가 DOM 패치 완료한 시점
-    const t3 = performance.now();
-
-        requestAnimationFrame(() => {
-      const t4 = performance.now();
-      alert(
-        `compute: ${(t1 - t0).toFixed(2)}ms\n` +
-        `assign: ${(t2 - t1).toFixed(2)}ms\n` +
-        `svelte DOM flush: ${(t3 - t2).toFixed(2)}ms\n` +
-        `paint latency (rAF): ${(t4 - t3).toFixed(2)}ms`
-      );
-    });
     }
 
     async function computeCardViewDiff(prompt1: PromptCard[], prompt2: PromptCard[], style: DiffStyle): Promise<CardDiffResult> {

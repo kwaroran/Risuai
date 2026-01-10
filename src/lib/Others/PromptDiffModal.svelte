@@ -786,7 +786,7 @@
     }
 
 
-// Similarity helpers
+// Line alignment (similarity + DP + pairing)
 // -----------------------------------------------------------------------------
     function normalizeText(s: string): string {
         return s.trim().replace(/^[\s>*\-•]+/, "").replace(/\s+/g, " ").replace(/[!?.,]+$/, "").toLowerCase()

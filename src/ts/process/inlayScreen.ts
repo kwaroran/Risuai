@@ -19,14 +19,20 @@ export function runInlayScreen(char:character, data:string):{text:string, promis
                         data.replace(regex, (match, p1) => {
                             const prompt = char.newGenData.prompt.replaceAll('{{slot}}', p1)
                             promises.push((async () => {
-                                const v = await generateAIImage(prompt, char, neg, 'inlay')
-                                if(!v){
-                                    return ''
+                                try{
+                                    const v = await generateAIImage(prompt, char, neg, 'inlay')
+                                    if(!v){
+                                        return ''
+                                    }
+                                    const imgHTML = new Image()
+                                    imgHTML.src = v
+                                    const inlay = await writeInlayImage(imgHTML)
+                                    return `{{inlayed::${inlay}}}`
                                 }
-                                const imgHTML = new Image()
-                                imgHTML.src = v
-                                const inlay = await writeInlayImage(imgHTML)
-                                return `{{inlayed::${inlay}}}`
+                                catch(error){
+                                    console.error(error)
+                                    return '[Image failed]'
+                                }
                             })())
                             return match
                         })

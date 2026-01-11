@@ -649,6 +649,28 @@ function trimmer(str:string){
 }
 
 const blobUrlCache = new Map<string, string>()
+const inlayTokenRegex = /{{(inlay|inlayed|inlayeddata)::.+?}}/g
+let warnedHideAllImagesInlay = false
+
+function preserveInlayTokens(data:string){
+    const tokens:string[] = []
+    const replaced = data.replace(inlayTokenRegex, (match) => {
+        const key = `__RISU_INLAY_TOKEN_${tokens.length}__`
+        tokens.push(match)
+        return key
+    })
+    return { data: replaced, tokens }
+}
+
+function restoreInlayTokens(data:string, tokens:string[]){
+    if(tokens.length === 0){
+        return data
+    }
+    return data.replace(/__RISU_INLAY_TOKEN_(\d+)__/g, (match, index) => {
+        const token = tokens[Number(index)]
+        return token ?? match
+    })
+}
 
 async function parseInlayAssets(data:string){
     const inlayMatch = data.match(/{{(inlay|inlayed|inlayeddata)::(.+?)}}/g)
@@ -669,6 +691,10 @@ async function parseInlayAssets(data:string){
                 case 'image':
                     // Hide inlay images when hideAllImages is enabled
                     if(DBState.db.hideAllImages){
+                        if(!warnedHideAllImagesInlay){
+                            console.warn('Inlay images are hidden because hideAllImages is enabled.')
+                            warnedHideAllImagesInlay = true
+                        }
                         data = data.replace(inlay, '')
                         break
                     }
@@ -739,7 +765,9 @@ export async function ParseMarkdown(
     }
 
     if(char){
-        data = (await processScriptFull(char, data, 'editdisplay', chatID, cbsConditions)).data
+        const preserved = preserveInlayTokens(data)
+        data = (await processScriptFull(char, preserved.data, 'editdisplay', chatID, cbsConditions)).data
+        data = restoreInlayTokens(data, preserved.tokens)
     }
 
     if(firstParsed !== data && char && char.type !== 'group'){

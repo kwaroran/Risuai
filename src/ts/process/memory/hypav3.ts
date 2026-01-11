@@ -6,6 +6,7 @@ import {
   HypaProcessorV2,
 } from "./hypamemoryv2";
 import { type DisplayMode as ModalDisplayMode } from "src/lib/Others/HypaV3Modal/types";
+import { parseChatML } from "src/ts/parser/chatML";
 import {
   type Chat,
   type character,
@@ -15,7 +16,6 @@ import {
 import { type OpenAIChat } from "../index.svelte";
 import { requestChatData } from "../request/request";
 import { chatCompletion, unloadEngine } from "../webllm";
-import { parseChatML } from "src/ts/parser.svelte";
 import { hypaV3ProgressStore } from "src/ts/stores.svelte";
 import { type ChatTokenizer } from "src/ts/tokenizer";
 

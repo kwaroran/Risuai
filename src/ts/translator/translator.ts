@@ -1,11 +1,12 @@
 import { get } from "svelte/store"
+import { parseChatML } from "../parser/chatML";
 import { getDatabase, type character, type customscript, type groupChat } from "../storage/database.svelte"
 import { globalFetch } from "../globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { alertError } from "../alert"
 import { requestChatData } from "../process/request/request"
 import { doingChat, type OpenAIChat } from "../process/index.svelte"
-import { applyMarkdownToNode, parseChatML, type simpleCharacterArgument } from "../parser.svelte"
+import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser.svelte"
 import { selectedCharID } from "../stores.svelte"
 import { getModuleRegexScripts } from "../process/modules"
 import { getNodetextToSentence, sleep } from "../util"

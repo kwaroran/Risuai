@@ -11,6 +11,21 @@
     let { firstPresetId, secondPresetId, onClose = () => {} }: Props = $props();
 
 
+// Lazy-loaded diff module
+// -----------------------------------------------------------------------------
+    let diffModulePromise: Promise<typeof import("diff")> | null = null
+    function loadDiffModule() {
+        return (diffModulePromise ??= import("diff"))
+    }
+
+// Config / constants
+// -----------------------------------------------------------------------------
+    const SIM_THRESHOLD = 0.35
+    const DEFAULT_BAND_MIN = 15
+    const DEFAULT_BAND_RATIO = 0.15
+    const FULL_DP_LIMIT = 100
+    const BANDED_DP_LIMIT = 1000
+
 // Types
 // -----------------------------------------------------------------------------
     type DiffCounts = { modifiedCount: number; addedCount: number; removedCount: number }
@@ -81,6 +96,30 @@
     type DiffSegment =
         | { kind: 'context' | 'changes'; parts: DiffPart[] }
         | { kind: 'divider'; pos: 'start' | 'between' | 'end'; omitted: number; id: string; from: number; to: number }
+
+    type Pair = {
+        leftIndex: number
+        rightIndex: number
+    }
+
+    type PairCell = {
+        leftIndex: number | null
+        rightIndex: number | null
+    }
+
+    type BigramProfile = {
+        counts: Map<number, number>
+        total: number  // total: number of bigrams (len - 1), NOT string length
+    }
+
+    type PreparedLine = {
+        raw: string
+        norm: string
+        rawLen: number
+        normLen: number
+        trimmedLen: number
+        profile: BigramProfile
+    }
 
     type ExpandedRange = { scope: string; from: number; to: number }
     type SegmentOptions = {
@@ -511,8 +550,8 @@
     }
 
     async function computeDiffCardLine(prompt1: PromptCard[], prompt2: PromptCard[], style: DiffStyle): Promise<CardDiffSummary> {
-        const { diffArrays } = await import('diff')
-        const arrayDiffs = diffArrays(prompt1, prompt2, {
+        const diff = await loadDiffModule()
+        const arrayDiffs = diff.diffArrays(prompt1, prompt2, {
             comparator: (x, y) => x.body === y.body && x.header === y.header && x.kind === y.kind && x.name === y.name
         })
 
@@ -581,8 +620,8 @@
     }
 
     async function computeDiffLineByLine(prompt1: PromptLine[], prompt2: PromptLine[], style: DiffStyle): Promise<DiffResult> {
-        const { diffArrays } = await import('diff')
-        const arrayDiffs = diffArrays(prompt1, prompt2, {
+        const diff = await loadDiffModule()
+        const arrayDiffs = diff.diffArrays(prompt1, prompt2, {
             comparator: (x, y) => x.text === y.text && x.lineRole === y.lineRole
         })
 
@@ -598,14 +637,17 @@
                 if (nextPart?.added) {
                     const leftLines = linePart.value
                     const rightLines = nextPart.value
+                    const maxLen = Math.max(leftLines.length, rightLines.length)
+                    if (maxLen > BANDED_DP_LIMIT) {
                     const n = Math.min(leftLines.length, rightLines.length)
 
                     for (let j = 0; j < n; j++) {
                         const left = leftLines[j]
                         const right = rightLines[j]
+                        
                         const tokens = await diffIntralineTokens(left.text, right.text)
                         parts.push({ k: 'modify', src: 'linebyline', left, right, tokens })
-                        
+
                         if (style === 'intraline') {
                             modifiedCount++
                         } else {
@@ -620,6 +662,40 @@
                     for (let j = n; j < rightLines.length; j++) {
                         parts.push({ k: 'add', src: 'linebyline', line: rightLines[j] })
                         addedCount++
+                    }
+                    }
+                    else {
+                        const band =
+                            maxLen <= FULL_DP_LIMIT
+                            ? null
+                            : Math.max(DEFAULT_BAND_MIN, Math.floor(maxLen * DEFAULT_BAND_RATIO))
+                        const pairs = alignByDP(leftLines, rightLines, SIM_THRESHOLD, band)
+                        const replaceBlockPairs = buildAlignmentFromAnchorPair(leftLines.length, rightLines.length, pairs)
+
+                        for (const pair of replaceBlockPairs) {
+                            const left = pair.leftIndex != null ? leftLines[pair.leftIndex] : null
+                            const right = pair.rightIndex != null ? rightLines[pair.rightIndex] : null
+
+                            if (left && right) {
+                                const tokens = await diffIntralineTokens(left.text, right.text)
+                                parts.push({ k: 'modify', src: 'linebyline', left, right, tokens })
+
+                                if (style === 'intraline') {
+                                    modifiedCount++
+                                } else {
+                                    removedCount++
+                                    addedCount++       
+                                }
+                            }
+                            else if (left && !right) {
+                                parts.push({ k: 'remove', src: 'linebyline', line: left })
+                                removedCount++
+                            }
+                            else if (!left && right) {
+                                parts.push({ k: 'add', src: 'linebyline', line: right })
+                                addedCount++
+                            }
+                        }
                     }
 
                     i++
@@ -652,8 +728,8 @@
     }
 
     async function computeDiffFlat(prompt1: string, prompt2: string, style: DiffStyle): Promise<DiffResult> {
-        const { diffLines } = await import('diff')
-        const lineDiffs = diffLines(prompt1, prompt2)
+        const diff = await loadDiffModule()
+        const lineDiffs = diff.diffLines(prompt1, prompt2)
 
         const parts: DiffPart[] = []
         let modifiedCount = 0, addedCount = 0, removedCount = 0
@@ -699,14 +775,258 @@
     }
 
     async function diffIntralineTokens(string1: string, string2: string): Promise<WordToken[]> {
-        const { diffWordsWithSpace } = await import('diff')
-        const charDiffs = diffWordsWithSpace(string1, string2)
+        const diff = await loadDiffModule()
+        const charDiffs = diff.diffWordsWithSpace(string1, string2)
 
         return charDiffs.map(charPart => {
             if (charPart.added) return { t: 'add', v: charPart.value }
             if (charPart.removed) return { t: 'remove', v: charPart.value }
             return { t: 'same', v: charPart.value }
         })
+    }
+
+
+// Line alignment (similarity + DP + pairing)
+// -----------------------------------------------------------------------------
+    function normalizeText(s: string): string {
+        return s.trim().replace(/^[\s>*\-•]+/, "").replace(/\s+/g, " ").replace(/[!?.,]+$/, "").toLowerCase()
+    }
+
+    function buildBigramProfile(s: string): BigramProfile {
+        const len = s.length
+        const counts = new Map<number, number>()
+
+        for (let i = 0; i < len - 1; i++) {
+            const k = (s.charCodeAt(i) << 16) | s.charCodeAt(i + 1)
+            counts.set(k, (counts.get(k) ?? 0) + 1)
+        }
+
+        return { counts, total: Math.max(0, len - 1) }
+    }
+
+    function prepareLines(lines: PromptLine[]): PreparedLine[] {
+        return lines.map(l => {
+            const norm = normalizeText(l.text)
+            const profile = buildBigramProfile(norm)
+            return {
+                raw: l.text,
+                norm,
+                rawLen: l.text.length,
+                normLen: norm.length,
+                trimmedLen: l.text.trim().length,
+                profile,
+            }
+        })
+    }
+
+    function diceFromProfiles(a: BigramProfile, b: BigramProfile): number {
+        if (a.total === 0 || b.total === 0) return 0
+
+        let small = a, large = b
+        if (a.counts.size > b.counts.size) {
+            small = b
+            large = a
+        }
+
+        let inter = 0
+        for (const [k, ca] of small.counts) {
+            const cb = large.counts.get(k)
+            if (cb) inter += Math.min(ca, cb)
+        }
+
+        return (2 * inter) / (a.total + b.total)
+    }
+
+    function prefixSuffixScore(a: string, b: string): number {
+        const la = a.length
+        const lb = b.length
+        const minLen = Math.min(la, lb)
+        if (!minLen) return la === lb ? 1 : 0
+
+        let prefix = 0
+        while (prefix < minLen && a.charCodeAt(prefix) === b.charCodeAt(prefix)) prefix++
+
+        let suffix = 0
+        while (suffix + prefix < minLen && a.charCodeAt(la - 1 - suffix) === b.charCodeAt(lb - 1 - suffix)) {
+            suffix++
+        }
+
+        const maxLen = Math.max(la, lb)
+        const edgeMatchCount = prefix + suffix  // Matching characters at both ends (prefix + suffix). 0 <= edgeMatchCount <= minLen
+        const sMax = edgeMatchCount / maxLen    // Overlap relative to the longer string
+        const sMin = edgeMatchCount / minLen    // Overlap relative to the shorter string
+        const lengthRatio = minLen / maxLen     // How similar the lengths of the two strings are (1 = same length, 0 = very different)
+        // Interpolate between sMax and sMin based on length similarity:
+        // - When lengths are similar, the score is closer to sMin
+        //   (rewarding full coverage of the shorter string).
+        // - When lengths differ a lot (lengthRatio small), the score is closer to sMax
+        //   (penalizing big length mismatches).
+        const boosted = sMax + (sMin - sMax) * lengthRatio
+        return boosted
+    }
+
+    const PS_WEIGHT = 0.4
+    const DICE_WEIGHT = 0.6
+
+    function mixScore(ps: number, dice: number): number {
+        return PS_WEIGHT * ps + DICE_WEIGHT * dice
+    }
+
+    function lineSimilarity(a: PreparedLine, b: PreparedLine, threshold: number): number {
+        if (a.trimmedLen === 0 || b.trimmedLen === 0) return 0
+        if (a.raw === b.raw) return 1
+        if (a.normLen === 0 || b.normLen === 0) return 0
+
+        const minRaw = Math.min(a.rawLen, b.rawLen)
+        const maxRaw = Math.max(a.rawLen, b.rawLen)
+        const r = maxRaw > 0 ? (minRaw / maxRaw) : 1
+        const psUpperBound = 2 * r - r * r
+
+        const na = a.profile.total
+        const nb = b.profile.total
+        const hasBigrams = na > 0 && nb > 0
+        const diceUpperBound = hasBigrams ? (2 * Math.min(na, nb)) / (na + nb) : 0
+
+        if (mixScore(psUpperBound, diceUpperBound) < threshold) return 0
+
+        const ps = prefixSuffixScore(a.raw, b.raw)
+
+        if (a.norm === b.norm) {
+            const sim = mixScore(ps, 1)
+            return sim >= threshold ? sim : 0
+        }
+
+        const maxSim = mixScore(ps, diceUpperBound)
+        if (maxSim < threshold) return 0
+        const dice = hasBigrams ? diceFromProfiles(a.profile, b.profile) : 0
+
+        return mixScore(ps, dice)
+    }
+
+    // 0: none, 1: up, 2: left, 3: diag
+    // const DIR_NONE = 0
+    const DIR_UP = 1
+    const DIR_LEFT = 2
+    const DIR_DIAG = 3
+    
+    function alignByDP(leftOrig: PromptLine[], rightOrig: PromptLine[], threshold:number, bandWidth: number | null): Pair[] {
+        const left = prepareLines(leftOrig)
+        const right = prepareLines(rightOrig)
+
+        const n = left.length
+        const m = right.length
+        const size = (n + 1) * (m + 1)
+
+        const scores = new Float32Array(size)
+        const dirs = new Uint8Array(size)
+
+        const idx = (i: number, j: number) => i * (m + 1) + j
+
+        const useBand = bandWidth !== null && bandWidth >= 0 && bandWidth < Math.max(n, m)
+        const diagSlope = n > 0 ? m / n : 0
+
+        for (let i = 1; i <= n; i++) {
+            let jStart = 1
+            let jEnd = m
+            if (useBand) {
+                const center = Math.round(i * diagSlope)
+                jStart = Math.max(1, center - bandWidth)
+                jEnd = Math.min(m, center + bandWidth)
+            }
+
+            for (let j = jStart; j <= jEnd; j++) {
+                const upIdx = idx(i - 1, j)
+                const leftIdx = idx(i, j - 1)
+                const diagIdx = idx(i - 1, j - 1)
+
+                let best = scores[upIdx]
+                let from = DIR_UP
+
+                if (scores[leftIdx] > best) {
+                    best = scores[leftIdx]
+                    from = DIR_LEFT
+                }
+
+                const aLine = left[i - 1]
+                const bLine = right[j - 1]
+
+                const sim = lineSimilarity(aLine, bLine, threshold)
+                if (sim >= threshold) {
+                    const cand = scores[diagIdx] + sim
+                    if (cand > best) {
+                        best = cand
+                        from = DIR_DIAG
+                    }
+                }
+
+                const curIdx = idx(i, j)
+                scores[curIdx] = best
+                dirs[curIdx] = from
+            }
+        }
+
+        // backtrack
+        const pairs: Pair[] = []
+        let i = n
+        let j = m
+
+        outer: while (i > 0 && j > 0) {
+            const d = dirs[idx(i, j)]
+            switch (d) {
+                case DIR_DIAG:
+                    pairs.push({ leftIndex: i - 1, rightIndex: j - 1 })
+                    i--; j--
+                    break
+                case DIR_UP:
+                    i--
+                    break
+                case DIR_LEFT:
+                    j--
+                    break
+                default:
+                    break outer
+            }
+        }
+
+        return pairs.reverse()
+    }
+
+    function buildAlignmentFromAnchorPair(nLeft: number, nRight: number, pairs: Pair[]): PairCell[] {
+        const cells: PairCell[] = []
+        const extPairs: Pair[] = [
+            { leftIndex: -1, rightIndex: -1 },        // start sentinel
+            ...pairs,                                 // anchor pairs selected by DP
+            { leftIndex: nLeft, rightIndex: nRight }, // end sentinel
+        ]
+
+        for (let k = 0; k < extPairs.length - 1; k++) {
+            const curr = extPairs[k]         // current anchor pair or sentinel
+            const next = extPairs[k + 1]    // next next anchor pair or sentinel
+
+            let i = curr.leftIndex + 1
+            let j = curr.rightIndex + 1
+
+            while (i < next.leftIndex && j < next.rightIndex) {
+                cells.push({ leftIndex: i, rightIndex: j })
+                i++; j++;
+            }
+
+            while (i < next.leftIndex) {
+                cells.push({ leftIndex: i, rightIndex: null })
+                i++
+            }
+
+            while (j < next.rightIndex) {
+                cells.push({ leftIndex: null, rightIndex: j })
+                j++
+            }
+
+            if (next.leftIndex < nLeft && next.rightIndex < nRight) {
+                cells.push({ leftIndex: next.leftIndex, rightIndex: next.rightIndex })
+            }
+        }
+
+        return cells
     }
 
 // View helpers

@@ -8,7 +8,8 @@ import { characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
 import { SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
-import { checkImageType, convertImage, hasher } from "./parser.svelte"
+import { hasher } from "./parser.svelte"
+import { checkImageType, convertImage, convertImageWithMeta } from "./util/imageConvert"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
@@ -1369,6 +1370,15 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         card.data.assets[i].uri = `data:application/octet-stream;base64,${b64encoded}`
                     }
                     else{
+                        const originalExt = card.data.assets[i].ext === 'unknown'
+                            ? key.split('.').at(-1)
+                            : card.data.assets[i].ext
+                        const converted = await convertImageWithMeta(rData, {
+                            originalExt: originalExt?.toLowerCase()
+                        })
+                        const resolvedExt = converted.ext || (card.data.assets[i].ext === 'unknown' ? 'png' : card.data.assets[i].ext)
+                        card.data.assets[i].ext = resolvedExt
+
                         let type = 'other'
                         let itype = 'other'
                         switch(card.data.assets[i].type){
@@ -1385,7 +1395,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                                 type = 'icon'
                                 break
                         }
-                        switch(card.data.assets[i].ext){
+                        switch(resolvedExt){
                             case 'png':
                             case 'jpg':
                             case 'jpeg':
@@ -1433,10 +1443,8 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         if(name.length > 100){
                             name = name.substring(0,100)
                         }
-                        const ext = card.data.assets[i].ext === 'unknown' ? 'png' : card.data.assets[i].ext
-                        const baseDir = card.data.assets[i].ext === 'unknown'
-                            ? `assets/${type}/image`
-                            : `assets/${type}/${itype}`
+                        const ext = resolvedExt || 'png'
+                        const baseDir = `assets/${type}/${itype}`
 
                         // Generate unique path to avoid duplicate filenames
                         let uniqueName = name
@@ -1474,7 +1482,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                                 'type': imageType
                             }), 'utf-8'), 6)
                         }
-                        await writer.write(path, Buffer.from(await convertImage(rData)))
+                        await writer.write(path, Buffer.from(converted.data))
                     }
                 }
             }

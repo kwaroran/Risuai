@@ -247,6 +247,6 @@ Language files are located in `/src/lang/`.
 ## Contribution Guidelines
 
 1. Follow the existing coding style and conventions
-2. Run `pnpm check` before submitting a pull request
+2. Run `pnpm check` and `pnpm test` before committing to ensure code quality and avoid CI failures
 3. Ensure your code is well-tested
 4. Format code with Prettier before committing

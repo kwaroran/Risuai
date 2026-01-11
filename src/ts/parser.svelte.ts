@@ -650,6 +650,8 @@ function trimmer(str:string){
 
 const blobUrlCache = new Map<string, string>()
 const inlayTokenRegex = /{{(inlay|inlayed|inlayeddata)::.+?}}/g
+const codeFenceRegex = /```[\s\S]*?```/g
+const inlineCodeRegex = /`[^`\n]+`/g
 let warnedHideAllImagesInlay = false
 
 function preserveInlayTokens(data:string){
@@ -669,6 +671,29 @@ function restoreInlayTokens(data:string, tokens:string[]){
     return data.replace(/__RISU_INLAY_TOKEN_(\d+)__/g, (match, index) => {
         const token = tokens[Number(index)]
         return token ?? match
+    })
+}
+
+function preserveCodeBlocks(data:string){
+    const blocks:string[] = []
+    const replaceWithToken = (match:string) => {
+        const key = `__RISU_CODE_BLOCK_${blocks.length}__`
+        blocks.push(match)
+        return key
+    }
+
+    let replaced = data.replace(codeFenceRegex, replaceWithToken)
+    replaced = replaced.replace(inlineCodeRegex, replaceWithToken)
+    return { data: replaced, blocks }
+}
+
+function restoreCodeBlocks(data:string, blocks:string[]){
+    if(blocks.length === 0){
+        return data
+    }
+    return data.replace(/__RISU_CODE_BLOCK_(\d+)__/g, (match, index) => {
+        const block = blocks[Number(index)]
+        return block ?? match
     })
 }
 
@@ -776,7 +801,9 @@ export async function ParseMarkdown(
         })
     }
 
-    data = await parseInlayAssets(data ?? '')
+    const preservedCode = preserveCodeBlocks(data ?? '')
+    data = await parseInlayAssets(preservedCode.data)
+    data = restoreCodeBlocks(data, preservedCode.blocks)
 
     data = parseThoughtsAndTools(data)
 

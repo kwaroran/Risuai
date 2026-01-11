@@ -9,6 +9,7 @@
     import { findCharacterbyId } from "../../ts/util";
     import TextInput from "../UI/GUI/TextInput.svelte";
     import { changeChatTo } from "src/ts/globalApi.svelte";
+    import { removeInlayAssetsForMessages } from "src/ts/process/files/inlays";
 
     let editMode = $state(false)
     /** @type {{close?: any}} */
@@ -54,10 +55,12 @@
                         }
                         const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
                         if(d){
+                            const removedMessages = chat.message ?? []
                             changeChatTo(0)
                             let chats = DBState.db.characters[$selectedCharID].chats
                             chats.splice(i, 1)
                             DBState.db.characters[$selectedCharID].chats = chats
+                            await removeInlayAssetsForMessages(removedMessages)
                         }
                     }} onkeydown={() => {
                         

@@ -4,7 +4,7 @@ import { getDatabase, setDatabase, type InlayAssetMeta } from "../../storage/dat
 import { checkImageType, encodeCanvasToImage, mimeFromExt } from "../../util/imageConvert";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
-import { saveAsset } from "../../globalApi.svelte";
+import { loadAsset, saveAsset } from "../../globalApi.svelte";
 
 const inlayImageExts = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'
@@ -491,4 +491,53 @@ export async function reencodeImage(img:Uint8Array){
     const b64 = canvas.toDataURL('image/png').split(',')[1]
     const b = Buffer.from(b64, 'base64')
     return b
+}
+
+function collectInlayIdsFromDatabase(db = getDatabase()){
+    const ids = new Set<string>()
+    for(const char of db.characters ?? []){
+        for(const chat of char.chats ?? []){
+            const chatIds = extractInlayIdsFromMessages(chat.message ?? [])
+            for(const id of chatIds){
+                ids.add(id)
+            }
+        }
+    }
+    return ids
+}
+
+export async function removeOrphanInlayAssets(candidateIds: Iterable<string>, db = getDatabase()){
+    const candidates = new Set(candidateIds)
+    if(candidates.size === 0){
+        return
+    }
+    const referenced = collectInlayIdsFromDatabase(db)
+    let changed = false
+    for(const id of candidates){
+        if(referenced.has(id)){
+            continue
+        }
+        const meta = db.inlayAssets?.[id]
+        if(meta){
+            const path = resolveInlayPath(id, meta)
+            await removeAsset(path)
+            delete db.inlayAssets[id]
+            changed = true
+        }
+        else if(id.startsWith('assets/')){
+            await removeAsset(id)
+        }
+        await inlayStorage.removeItem(id)
+    }
+    if(changed){
+        setDatabase(db)
+    }
+}
+
+export async function removeInlayAssetsForMessages(messages: Array<{ data: string }>, db = getDatabase()){
+    const ids = extractInlayIdsFromMessages(messages)
+    if(ids.size === 0){
+        return
+    }
+    await removeOrphanInlayAssets(ids, db)
 }

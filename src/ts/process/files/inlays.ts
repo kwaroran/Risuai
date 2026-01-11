@@ -76,8 +76,11 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
     let drawWidth = 0
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
-    await new Promise((resolve) => {
-        imgObj.onload = () => {
+    if(!ctx){
+        throw new Error('Canvas context unavailable for inlay image.')
+    }
+    await new Promise<void>((resolve, reject) => {
+        const handleLoad = () => {
             drawHeight = imgObj.height
             drawWidth = imgObj.width
 
@@ -94,10 +97,30 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
             canvas.width = drawWidth
             canvas.height = drawHeight
             ctx.drawImage(imgObj, 0, 0, drawWidth, drawHeight)
-            resolve(null)
+            resolve()
         }
+
+        const handleError = () => {
+            reject(new Error('Failed to load inlay image.'))
+        }
+
+        if(imgObj.complete && imgObj.naturalWidth > 0){
+            handleLoad()
+            return
+        }
+
+        imgObj.onload = handleLoad
+        imgObj.onerror = handleError
     })
-    const imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const imageBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if(!blob){
+                reject(new Error('Failed to encode inlay image.'))
+                return
+            }
+            resolve(blob)
+        }, 'image/png')
+    })
 
 
     const imgid = arg.id ?? v4()

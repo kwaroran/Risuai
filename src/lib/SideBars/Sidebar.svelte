@@ -61,6 +61,13 @@
     sideBarMode = 0;
     editMode = false;
     settingsOpen.set(false);
+    if(DBState.db.characters.some((char) => (
+      char.type !== 'group' &&
+      (char.viewScreen === 'emotion' || char.viewScreen === 'imggen') &&
+      !char.inlayViewScreen
+    ))){
+      console.warn('Resetting CharEmotion clears floating screen images.')
+    }
     CharEmotion.set({});
   }
 

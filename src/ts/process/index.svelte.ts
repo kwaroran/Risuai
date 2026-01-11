@@ -1540,8 +1540,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         currentChat.message[msgIndex].data = inlayr.text
         DBState.db.characters[selectedChar].chats[selectedChat] = currentChat
         if(inlayr.promise){
-            const t = await inlayr.promise
-            currentChat.message[msgIndex].data = t
+            try{
+                const t = await inlayr.promise
+                currentChat.message[msgIndex].data = t
+            }
+            catch (error){
+                console.error(error)
+                currentChat.message[msgIndex].data = currentChat.message[msgIndex].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+            }
             DBState.db.characters[selectedChar].chats[selectedChat] = currentChat
         }
         if(DBState.db.ttsAutoSpeech){
@@ -1581,8 +1587,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     chatId: generationId,
                 }       
                 if(inlayResult.promise){
-                    const p = await inlayResult.promise
-                    DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = p
+                    try{
+                        const p = await inlayResult.promise
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = p
+                    }
+                    catch (error){
+                        console.error(error)
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                    }
                 }
             }
             else if(i===0){
@@ -1597,8 +1609,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 })
                 const ind = DBState.db.characters[selectedChar].chats[selectedChat].message.length - 1
                 if(inlayResult.promise){
-                    const p = await inlayResult.promise
-                    DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = p
+                    try{
+                        const p = await inlayResult.promise
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = p
+                    }
+                    catch (error){
+                        console.error(error)
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                    }
                 }
                 mrerolls.push(result)
             }

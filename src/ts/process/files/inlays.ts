@@ -1,7 +1,7 @@
 import localforage from "localforage";
 import { v4 } from "uuid";
 import { getDatabase } from "../../storage/database.svelte";
-import { checkImageType } from "../../parser.svelte";
+import { checkImageType } from "../../util/imageConvert";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
 

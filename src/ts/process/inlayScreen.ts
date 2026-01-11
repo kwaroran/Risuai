@@ -1,17 +1,24 @@
+import { get } from "svelte/store";
 import { writeInlayImage } from "./files/inlays";
 import type { character } from "../storage/database.svelte";
 import { generateAIImage } from "./stableDiff";
+import { CharEmotion } from "../stores.svelte";
 
 const imggenRegex = [/<ImgGen="(.+?)">/gi, /{{ImgGen="(.+?)"}}/gi] as const
 
-export function runInlayScreen(char:character, data:string):{text:string, promise?:Promise<string>} {
+export function runInlayScreen(char:character, data:string):{text:string, promise?:Promise<string>, hasImgGen?:boolean} {
     if(char.inlayViewScreen){      
         if(char.viewScreen === 'emotion'){
             return {text: data.replace(/<Emotion="(.+?)">/gi, '{{emotion::$1}}')}
         }
         if(char.viewScreen === 'imggen'){
+            const hasImgGen = imggenRegex.some((regex) => regex.test(data))
+            imggenRegex.forEach((regex) => {
+                regex.lastIndex = 0
+            })
             return {
                 text: data.replace(imggenRegex[0],'[Generating...]').replace(imggenRegex[1],'[Generating...]'),
+                hasImgGen,
                 promise : (async () => {
                     for(const regex of imggenRegex){
                         const promises:Promise<string|false>[] = [];
@@ -24,6 +31,9 @@ export function runInlayScreen(char:character, data:string):{text:string, promis
                                     if(!v){
                                         return ''
                                     }
+                                    const charemotions = get(CharEmotion)
+                                    charemotions[char.chaId] = [[v, v, Date.now()]]
+                                    CharEmotion.set(charemotions)
                                     const imgHTML = new Image()
                                     imgHTML.src = v
                                     const inlay = await writeInlayImage(imgHTML)

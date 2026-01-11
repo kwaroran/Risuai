@@ -252,6 +252,12 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
     return `${imgid}`
 }
 
+export async function writeInlayImageFromDataUrl(dataUrl: string, arg:{name?:string, ext?:string, id?:string} = {}) {
+    const imgObj = new Image()
+    imgObj.src = dataUrl
+    return await writeInlayImage(imgObj, arg)
+}
+
 function base64ToBlob(b64: string): Blob {
     const splitDataURI = b64.split(',');
     const byteString = atob(splitDataURI[1]);

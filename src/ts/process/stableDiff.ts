@@ -9,7 +9,7 @@ import { processZip } from "./processzip"
 import { keiServerURL } from "../kei/kei"
 import random from "lodash/random"
 
-export async function stableDiff(currentChar:character,prompt:string){
+export async function stableDiff(currentChar:character,prompt:string, returnSdData: '' | 'inlay' = ''){
     let db = getDatabase()
 
     if(db.sdProvider === ''){
@@ -58,7 +58,7 @@ export async function stableDiff(currentChar:character,prompt:string){
     const genPrompt = currentChar.newGenData.prompt.replaceAll('{{slot}}', r)
     const neg = currentChar.newGenData.negative
 
-    return await generateAIImage(genPrompt, currentChar, neg, '')
+    return await generateAIImage(genPrompt, currentChar, neg, returnSdData)
 }
 
 export async function generateAIImage(genPrompt:string, currentChar:character, neg:string, returnSdData:string):Promise<string|false>{

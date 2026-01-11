@@ -136,7 +136,7 @@ async function backupDrive(ACCESS_TOKEN:string) {
                 msg: `Uploading Backup... (${i} / ${assets.length})`
             })
             const key = asset.name
-            if(!key || !key.endsWith('.png')){
+            if(!key || !isBackupAsset(key)){
                 continue
             }
             const formatedKey = newFormatKeys(key)
@@ -154,7 +154,7 @@ async function backupDrive(ACCESS_TOKEN:string) {
                 msg: `Uploading Backup... (${i} / ${keys.length})`
             })
             const key = keys[i]
-            if(!key.endsWith('.png')){
+            if(!isBackupAsset(key)){
                 continue
             }
             const formatedKey = newFormatKeys(key)
@@ -181,6 +181,16 @@ type DriveFile = {
     mimeType:string
     name:string
     id: string
+}
+
+const backupAssetExts = [
+    '.png', '.webp', '.jpg', '.jpeg', '.gif', '.avif',
+    '.mp3', '.wav', '.ogg', '.flac',
+    '.webm', '.mp4', '.mkv'
+]
+
+function isBackupAsset(name:string){
+    return backupAssetExts.some((ext) => name.endsWith(ext))
 }
 
 async function loadDrive(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise<void|"noSync"> {

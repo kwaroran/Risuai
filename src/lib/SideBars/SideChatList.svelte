@@ -20,6 +20,7 @@
     import { language } from "src/lang";
     import Toggles from "./Toggles.svelte";
     import { changeChatTo, createChatCopyName } from "src/ts/globalApi.svelte";
+    import { removeInlayAssetsForMessages } from "src/ts/process/files/inlays";
 
     interface Props {
         chara: character|groupChat;
@@ -332,11 +333,13 @@
                                 }
                                 const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
                                 if(d){
+                                    const removedMessages = chat.message ?? []
                                     changeChatTo(0)
                                     $ReloadGUIPointer += 1
                                     let chats = chara.chats
                                     chats.splice(chara.chats.indexOf(chat), 1)
                                     chara.chats = chats
+                                    await removeInlayAssetsForMessages(removedMessages)
                                 }
                             }}>
                                 <TrashIcon size={18}/>
@@ -444,11 +447,13 @@
                         }
                         const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
                         if(d){
+                            const removedMessages = chat.message ?? []
                             changeChatTo(0)
                             $ReloadGUIPointer += 1
                             let chats = chara.chats
                             chats.splice(i, 1)
                             chara.chats = chats
+                            await removeInlayAssetsForMessages(removedMessages)
                         }
                     }}>
                         <TrashIcon size={18}/>

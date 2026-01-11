@@ -7,7 +7,7 @@ import { ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.s
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage } from "./stableDiff";
-import { writeInlayImage, getInlayAsset } from "./files/inlays";
+import { writeInlayImage, getInlayAsset, removeInlayAssetsForMessages } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
 import { requestChatData } from "./request/request";
 import { v4 } from "uuid";
@@ -181,17 +181,23 @@ export async function runScripted(code:string, arg:{
                     message.role = value === 'user' ? 'user' : 'char'
                 }
             })
-            declareAPI('cutChat', (id:string, start:number, end:number) => {
+            declareAPI('cutChat', async (id:string, start:number, end:number) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                ScriptingEngineState.chat.message = ScriptingEngineState.chat.message.slice(start,end)
+                const originalMessages = ScriptingEngineState.chat.message ?? []
+                const removedMessages = originalMessages.filter((_msg, index) => index < start || index >= end)
+                ScriptingEngineState.chat.message = originalMessages.slice(start,end)
+                await removeInlayAssetsForMessages(removedMessages)
             })
-            declareAPI('removeChat', (id:string, index:number) => {
+            declareAPI('removeChat', async (id:string, index:number) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
+                const originalMessages = ScriptingEngineState.chat.message ?? []
+                const removedMessages = originalMessages.slice(index, index + 1)
                 ScriptingEngineState.chat.message.splice(index, 1)
+                await removeInlayAssetsForMessages(removedMessages)
             })
             declareAPI('addChat', (id:string, role:string, value:string) => {
                 if(!ScriptingSafeIds.has(id)){

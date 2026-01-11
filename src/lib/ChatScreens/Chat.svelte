@@ -17,6 +17,7 @@
     import { language } from "../../lang"
     import { alertClear, alertConfirm, alertInput, alertNormal, alertRequestData, alertWait } from "../../ts/alert"
     import { ParseMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser.svelte"
+    import { removeInlayAssetsForMessages } from "../../ts/process/files/inlays"
     import { getCurrentCharacter, getCurrentChat, setCurrentChat, type MessageGenerationInfo } from "../../ts/storage/database.svelte"
     import { selectedCharID } from "../../ts/stores.svelte"
     import { HideIconStore, ReloadGUIPointer, selIdState } from "../../ts/stores.svelte"
@@ -78,9 +79,11 @@
 
     async function rm(e:MouseEvent, rec?:boolean){
         if(e.shiftKey){
-            let msg = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message
-            msg = msg.slice(0, idx)
-            DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+            const chat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
+            const originalMessages = chat.message ?? []
+            const removedMessages = originalMessages.slice(idx)
+            chat.message = originalMessages.slice(0, idx)
+            await removeInlayAssetsForMessages(removedMessages)
             return
         }
 
@@ -88,19 +91,30 @@
         if(rm){
             if(DBState.db.instantRemove || rec){
                 const r = await alertConfirm(language.instantRemoveConfirm)
-                let msg = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message
+                const chat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
+                const originalMessages = chat.message ?? []
+                let removedMessages: typeof originalMessages = []
+                let nextMessages = originalMessages
                 if(!r){
-                    msg = msg.slice(0, idx)
+                    removedMessages = originalMessages.slice(idx)
+                    nextMessages = originalMessages.slice(0, idx)
                 }
                 else{
-                    msg.splice(idx, 1)
+                    removedMessages = originalMessages.slice(idx, idx + 1)
+                    nextMessages = originalMessages.slice()
+                    nextMessages.splice(idx, 1)
                 }
-                DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+                chat.message = nextMessages
+                await removeInlayAssetsForMessages(removedMessages)
             }
             else{
-                let msg = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message
-                msg.splice(idx, 1)
-                DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+                const chat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
+                const originalMessages = chat.message ?? []
+                const removedMessages = originalMessages.slice(idx, idx + 1)
+                const nextMessages = originalMessages.slice()
+                nextMessages.splice(idx, 1)
+                chat.message = nextMessages
+                await removeInlayAssetsForMessages(removedMessages)
             }
         }
     }

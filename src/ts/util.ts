@@ -1219,3 +1219,42 @@ export function asBuffer(arr: Uint8Array<ArrayBufferLike> | ArrayBufferLike): Ui
         return arr as unknown as ArrayBuffer
     }
 }
+
+/**
+ * Semaphore: Concurrency control mechanism
+ *
+ * Limits the number of operations that can run simultaneously.
+ * When max concurrent operations are running, new operations wait in queue.
+ *
+ * Example: If max=3, only 3 asset saves can run at once.
+ * The 4th save waits until one of the first 3 completes.
+ */
+export class Semaphore {
+    private available: number
+    private readonly max: number
+    private waiting: Array<() => void> = []
+
+    constructor(max: number) {
+        this.available = max
+        this.max = max
+    }
+
+    async acquire(): Promise<void> {
+        if (this.available > 0) {
+            this.available -= 1
+            return
+        }
+        await new Promise<void>(resolve => this.waiting.push(resolve))
+    }
+
+    release(): void {
+        const next = this.waiting.shift()
+        if (next) {
+            next()
+            return
+        }
+        if (this.available < this.max) {
+            this.available += 1
+        }
+    }
+}

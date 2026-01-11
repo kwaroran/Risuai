@@ -500,7 +500,7 @@ const unloadV3Plugin = async (pluginName: string) => {
 
 const permissionGivenPlugins: Set<string> = new Set();
 
-const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom') => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
@@ -509,6 +509,9 @@ const checkPluginPermission = async (pluginName: string, permissionDesc: 'fetchL
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
         : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
         : `Error`
+    if(alertTitle === 'Error'){
+        return false;
+    }
     const conf = await alertConfirm(alertTitle)
     if(conf){
         permissionGivenPlugins.add(pluginName);
@@ -540,7 +543,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
         //Same functionality, but new implementation
         getDatabase: async () => {
-            const conf = await checkPluginPermission(plugin.name, 'db');
+            const conf = await getPluginPermission(plugin.name, 'db');
             if(!conf){
                 return null;
             }
@@ -614,7 +617,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             iframe.style.display = "none";
         },
         getRootDocument: async () => {
-            const conf = await checkPluginPermission(plugin.name, 'mainDom');
+            const conf = await getPluginPermission(plugin.name, 'mainDom');
             if(!conf){
                 return null;
             }
@@ -731,7 +734,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         getFetchLogs: async () => {
             const unsafeFetchLog = getFetchLogs()
-            const conf = await checkPluginPermission(plugin.name, 'fetchLogs');
+            const conf = await getPluginPermission(plugin.name, 'fetchLogs');
             if(!conf){
                 return null;
             }
@@ -770,6 +773,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
         },
         checkCharOrder: checkCharOrder,
+        requestPluginPermission: (permission:string) => {
+            return getPluginPermission(plugin.name, permission as any);
+        },
         //Internal use APIs
         _getOldKeys: () => {
             return Object.keys(oldApis)

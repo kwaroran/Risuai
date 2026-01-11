@@ -1396,6 +1396,13 @@ interface RisuaiPluginAPI {
     }>
 
     /**
+     * Requests permission for a specific action
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'mainDom')
+     * @returns True if permission granted, false otherwise
+     */
+    requestPluginPermission(permission: string): Promise<boolean>;
+
+    /**
      * Unwraps a SafeClassArray into a standard array
      * @param safeArray - The SafeClassArray to unwrap
      * @returns Standard array of items

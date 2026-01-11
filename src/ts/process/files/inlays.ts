@@ -1,9 +1,10 @@
 import localforage from "localforage";
 import { v4 } from "uuid";
-import { getDatabase } from "../../storage/database.svelte";
-import { checkImageType } from "../../util/imageConvert";
+import { getDatabase, setDatabase, type InlayAssetMeta } from "../../storage/database.svelte";
+import { checkImageType, encodeCanvasToImage } from "../../util/imageConvert";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
+import { saveAsset } from "../../globalApi.svelte";
 
 export type InlayAsset = {
     data: string | Blob,
@@ -31,12 +32,61 @@ const inlayStorage = localforage.createInstance({
     storeName: 'inlay'
 })
 
+type InlayAssetType = 'image'|'video'|'audio'
+
+function normalizeExt(ext?:string){
+    return (ext ?? '').toLowerCase()
+}
+
+function getInlayTypeFromExt(ext:string):InlayAssetType|null{
+    const lowered = normalizeExt(ext)
+    if(inlayImageExts.includes(lowered)){
+        return 'image'
+    }
+    if(inlayAudioExts.includes(lowered)){
+        return 'audio'
+    }
+    if(inlayVideoExts.includes(lowered)){
+        return 'video'
+    }
+    return null
+}
+
+function ensureInlayAssets(db = getDatabase()){
+    db.inlayAssets ??= {}
+    return db
+}
+
+async function registerInlayMeta(id:string, meta:InlayAssetMeta){
+    const db = ensureInlayAssets(getDatabase())
+    db.inlayAssets[id] = meta
+    setDatabase(db)
+    return meta
+}
+
+async function dataToUint8Array(data: string | Blob | Uint8Array){
+    if(data instanceof Uint8Array){
+        return data
+    }
+    if(data instanceof Blob){
+        return new Uint8Array(await data.arrayBuffer())
+    }
+    if(typeof data === 'string'){
+        if(data.startsWith('data:')){
+            const blob = base64ToBlob(data)
+            return new Uint8Array(await blob.arrayBuffer())
+        }
+        return new Uint8Array(Buffer.from(data, 'base64'))
+    }
+    return new Uint8Array()
+}
+
 export async function postInlayAsset(img:{
     name:string,
     data:Uint8Array
 }){
 
-    const extention = img.name.split('.').at(-1)
+    const extention = normalizeExt(img.name.split('.').at(-1))
     const imgObj = new Image()
 
     if(inlayImageExts.includes(extention)){
@@ -48,31 +98,20 @@ export async function postInlayAsset(img:{
         })
     }
 
-    if(inlayAudioExts.includes(extention)){
-        const audioBlob = new Blob([asBuffer(img.data)], {type: `audio/${extention}`})
+    if(inlayAudioExts.includes(extention) || inlayVideoExts.includes(extention)){
+        const type = getInlayTypeFromExt(extention)
+        if(!type){
+            return null
+        }
         const imgid = v4()
-
-        await inlayStorage.setItem(imgid, {
+        await setInlayAsset(imgid, {
             name: img.name,
-            data: audioBlob,
+            data: img.data,
             ext: extention,
-            type: 'audio'
+            type,
+            height: 0,
+            width: 0
         })
-
-        return `${imgid}`
-    }
-
-    if(inlayVideoExts.includes(extention)){
-        const videoBlob = new Blob([asBuffer(img.data)], {type: `video/${extention}`})
-        const imgid = v4()
-
-        await inlayStorage.setItem(imgid, {
-            name: img.name,
-            data: videoBlob,
-            ext: extention,
-            type: 'video'
-        })
-
         return `${imgid}`
     }
 
@@ -121,26 +160,22 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
         imgObj.onload = handleLoad
         imgObj.onerror = handleError
     })
-    const imageBlob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if(!blob){
-                reject(new Error('Failed to encode inlay image.'))
-                return
-            }
-            resolve(blob)
-        }, 'image/png')
+    const encoded = await encodeCanvasToImage(canvas, {
+        preferWebp: true,
+        fallback: 'jpeg'
     })
 
-
     const imgid = arg.id ?? v4()
-
-    await inlayStorage.setItem(imgid, {
-        name: arg.name ?? imgid,
-        data: imageBlob,
-        ext: 'png',
-        height: drawHeight,
+    const name = arg.name ?? imgid
+    const baseName = name.replace(/\.[^/.]+$/, '')
+    const path = await saveAsset(encoded.data, imgid, `${baseName}.${encoded.ext}`)
+    await registerInlayMeta(imgid, {
+        path,
+        ext: encoded.ext,
+        type: 'image',
         width: drawWidth,
-        type: 'image'
+        height: drawHeight,
+        name
     })
 
     return `${imgid}`
@@ -216,8 +251,27 @@ export async function listInlayAssets(): Promise<[id: string, InlayAsset][]> {
     return assets
 }
 
-export async function setInlayAsset(id: string, img: InlayAsset){
-    await inlayStorage.setItem(id, img)
+export async function setInlayAsset(id: string, img:{
+    name: string,
+    data: string | Blob | Uint8Array,
+    ext: string,
+    height: number,
+    width: number,
+    type: InlayAssetType
+}){
+    const ext = normalizeExt(img.ext) || 'png'
+    const type = img.type ?? getInlayTypeFromExt(ext) ?? 'image'
+    const bytes = await dataToUint8Array(img.data)
+    const baseName = (img.name || id).replace(/\.[^/.]+$/, '')
+    const path = await saveAsset(bytes, id, `${baseName}.${ext}`)
+    await registerInlayMeta(id, {
+        path,
+        ext,
+        type,
+        width: img.width ?? 0,
+        height: img.height ?? 0,
+        name: img.name ?? id
+    })
 }
 
 export async function removeInlayAsset(id: string){

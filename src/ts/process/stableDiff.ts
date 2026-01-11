@@ -554,6 +554,9 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 await new Promise(r => setTimeout(r, 1000))
             } // Check history until the generation is complete.
             const genImgInfo = Object.values(item.outputs).flatMap((output: any) => output.images)[0];
+            if(!genImgInfo){
+                throw new Error('ComfyUI returned no images from the workflow output.')
+            }
 
             const imgResponse = await fetchNative(createUrl('/view', {
                 filename: genImgInfo.filename,
@@ -563,14 +566,21 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 headers: { 'Content-Type': 'application/json' }, 
                 method: 'GET'
             })
+            if(!imgResponse.ok){
+                const errorText = await imgResponse.text()
+                throw new Error(errorText || `ComfyUI image fetch failed (${imgResponse.status}).`)
+            }
+            const contentType = imgResponse.headers.get('content-type') ?? 'image/png'
+            const mimeType = contentType.split(';')[0].trim() || 'image/png'
             const img64 = Buffer.from(await imgResponse.arrayBuffer()).toString('base64')
+            const dataUrl = `data:${mimeType};base64,${img64}`
 
             if(returnSdData === 'inlay'){
-                return `data:image/png;base64,${img64}`
+                return dataUrl
             }
             else {
                 let charemotions = get(CharEmotion)
-                const img = `data:image/png;base64,${img64}`
+                const img = dataUrl
                 const emos:[string, string,number][] = [[img, img, Date.now()]]
                 charemotions[currentChar.chaId] = emos
                 CharEmotion.set(charemotions)

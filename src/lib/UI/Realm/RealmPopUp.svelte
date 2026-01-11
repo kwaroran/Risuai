@@ -115,7 +115,20 @@
             {/if}
             <button class="text-textcolor2 hover:text-green-500" onclick={(async (e) => {
                 e.stopPropagation()
-                await navigator.clipboard.writeText(`https://realm.risuai.net/character/${openedData.id}`)
+                const url = `https://realm.risuai.net/character/${openedData.id}`
+                try {
+                    await navigator.clipboard.writeText(url)
+                } catch {
+                    // Fallback for iOS Safari
+                    const textarea = document.createElement('textarea')
+                    textarea.value = url
+                    textarea.style.position = 'fixed'
+                    textarea.style.left = '-9999px'
+                    document.body.appendChild(textarea)
+                    textarea.select()
+                    document.execCommand('copy')
+                    document.body.removeChild(textarea)
+                }
                 alertNormal(language.clipboardSuccess)
             })}>
                 <PaperclipIcon />

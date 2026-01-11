@@ -23,8 +23,20 @@ function nodeObserve(node:HTMLElement){
             const copyOption = document.createElement('div')
             copyOption.textContent = 'Copy'
             copyOption.setAttribute('class', 'px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 cursor-pointer')
-            copyOption.addEventListener('click', ()=>{
-                navigator.clipboard.writeText(node.textContent)
+            copyOption.addEventListener('click', async ()=>{
+                try {
+                    await navigator.clipboard.writeText(node.textContent)
+                } catch {
+                    // Fallback for iOS Safari
+                    const textarea = document.createElement('textarea')
+                    textarea.value = node.textContent
+                    textarea.style.position = 'fixed'
+                    textarea.style.left = '-9999px'
+                    document.body.appendChild(textarea)
+                    textarea.select()
+                    document.execCommand('copy')
+                    document.body.removeChild(textarea)
+                }
                 menu.remove()
             })
 

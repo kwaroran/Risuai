@@ -255,16 +255,21 @@ export async function SavePartialLocalBackup(){
     const missingAssets: string[] = []
 
     if(isTauri){
+        // readDir returns entries without 'assets/' prefix, unlike forageStorage.keys()
         const assets = await readDir('assets', {baseDir: BaseDirectory.AppData})
         let i = 0;
         for(let asset of assets){
-            const key = asset.name
-            if(!key || !key.endsWith('.png')){
+            if(!asset.name){
+                continue
+            }
+
+            const keyWithPrefix = 'assets/' + asset.name;
+            if(!keyWithPrefix.endsWith('.png')){
                 continue
             }
             
             // Only process if this asset is in our map (profile images only)
-            if(!assetMap.has(key)){
+            if(!assetMap.has(keyWithPrefix)){
                 continue
             }
             
@@ -279,11 +284,11 @@ export async function SavePartialLocalBackup(){
             }
             alertWait(message)
 
-            const data = await readFile('assets/' + asset.name, {baseDir: BaseDirectory.AppData})
+            const data = await readFile(keyWithPrefix, {baseDir: BaseDirectory.AppData})
             if (data) {
-                await writer.writeBackup(key, data)
+                await writer.writeBackup(keyWithPrefix, data)
             } else {
-                missingAssets.push(key)
+                missingAssets.push(keyWithPrefix)
             }
         }
     }

@@ -128,4 +128,9 @@ export const defaultHotkeys: Hotkey[] = [
         key: ' ',
         action: 'focusInput'
     },
+    {
+        key: 'g',
+        ctrl: true,
+        action: 'scrollToActiveChar'
+    },
 ]

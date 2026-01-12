@@ -414,6 +414,7 @@ function getEmoSrc(emoArr: string[][], emoPaths: AssetPaths) {
 }
 
 const fileSrcCache = new Map<string, string>()
+
 async function getFileSrcCached(path:string){
     let cached = fileSrcCache.get(path)
     if(cached){
@@ -429,25 +430,55 @@ type AssetPaths = {[key:string]:{
     ext?:string
 }}
 
+let charAssetsCache = new WeakMap<object, AssetPaths>()
+let emoAssetsCache = new WeakMap<object, AssetPaths>()
+let moduleAssetsCache: AssetPaths | null = null
+
+export function resetAssetsCache() {
+    charAssetsCache = new WeakMap()
+    emoAssetsCache = new WeakMap()
+    moduleAssetsCache = null
+}
+
+const imageCBS = ['img', 'image', 'emotion', 'asset', 'bg', 'raw', 'path']
+const videoExtensions = ['mp4', 'webm', 'avi', 'm4p', 'm4v']
+
 async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|character, mode:'normal'|'back', arg:{ch:number}){
     const assetWidthString = (DBState.db.assetWidth && DBState.db.assetWidth !== -1 || DBState.db.assetWidth === 0) ? `max-width:${DBState.db.assetWidth}rem;` : ''
 
-    let assetPaths:AssetPaths = {}
-    let emoPaths:AssetPaths = {}
-
-    if (char.emotionImages) getEmoSrc(char.emotionImages, emoPaths)
-
-    const videoExtention = ['mp4', 'webm', 'avi', 'm4p', 'm4v']
-    let needsSourceAccess = false
-
-    const moduleAssets = getModuleAssets()
-
+    let charAssetPaths: AssetPaths | undefined
     if (char.additionalAssets) {
-        getAssetSrc(char.additionalAssets, assetPaths)
+        charAssetPaths = charAssetsCache.get(char.additionalAssets)
+        if (!charAssetPaths) {
+            charAssetPaths = {}
+            getAssetSrc(char.additionalAssets, charAssetPaths)
+            charAssetsCache.set(char.additionalAssets, charAssetPaths)
+        }
     }
-    if (moduleAssets.length > 0) {
-        getAssetSrc(moduleAssets, assetPaths)
+
+    let emoPaths: AssetPaths | undefined
+    if (char.emotionImages) {
+        emoPaths = emoAssetsCache.get(char.emotionImages)
+        if (!emoPaths) {
+            emoPaths = {}
+            getEmoSrc(char.emotionImages, emoPaths)
+            emoAssetsCache.set(char.emotionImages, emoPaths)
+        }
     }
+
+    let moduleAssetPaths: AssetPaths | undefined
+    if (moduleAssetsCache) {
+        moduleAssetPaths = moduleAssetsCache
+    } else {
+        const moduleAssets = getModuleAssets()
+        if (moduleAssets.length > 0) {
+            moduleAssetPaths = {}
+            getAssetSrc(moduleAssets, moduleAssetPaths)
+            moduleAssetsCache = moduleAssetPaths
+        }
+    }
+
+    let needsSourceAccess = false
 
     let cx:number|null = null
 
@@ -456,13 +487,12 @@ async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|c
 
         // Skip image-related assets when hideAllImages is enabled
         // raw and path are also included as they're used in CSS background-image
-        const imageTypes = ['img', 'image', 'emotion', 'asset', 'bg', 'raw', 'path']
-        if(DBState.db.hideAllImages && imageTypes.includes(type)){
+        if(DBState.db.hideAllImages && imageCBS.includes(type)){
             return ''  // Hide the image asset
         }
 
         if(type === 'emotion'){
-            const srcPath = emoPaths[name]?.srcPaths?.[0]
+            const srcPath = emoPaths?.[name]?.srcPaths?.[0]
             const path = srcPath ? await getFileSrcCached(srcPath) : null
             if(!path){
                 return ''
@@ -482,14 +512,16 @@ async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|c
             }
         }
 
-        let match = assetPaths[name]
+        let match = charAssetPaths?.[name] || moduleAssetPaths?.[name]
 
         if(!match){
             if(DBState.db.legacyMediaFindings){
                 return ''
             }
 
-            match = getClosestMatch(char, name, assetPaths)
+            if(charAssetPaths){
+                match = getClosestMatch(char, name, charAssetPaths)
+            }
 
             if(!match){
                 return ''
@@ -528,7 +560,7 @@ async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|c
                 }
                 break
             case 'asset':{
-                if(match.ext && videoExtention.includes(match.ext)){
+                if(match.ext && videoExtensions.includes(match.ext)){
                     return `<video autoplay muted loop><source src="${p}" type="video/mp4"></video>\n`
                 }
                 return `<img src="${p}" alt="${p}" style="${assetWidthString} "/>\n`

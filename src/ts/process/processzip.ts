@@ -1,6 +1,6 @@
 import { AppendableBuffer, saveAsset, type LocalWriter, type VirtualWriter } from "../globalApi.svelte";
 import * as fflate from "fflate";
-import { asBuffer, sleep } from "../util";
+import { asBuffer, Semaphore, sleep } from "../util";
 import { alertStore } from "../alert";
 import { hasher } from "../parser.svelte";
 import { hubURL } from "../characterCards";
@@ -140,45 +140,6 @@ export class CharXWriter{
         this.apb.clear()
         if(this.writeEnd){
             await this.writer.close()
-        }
-    }
-}
-
-/**
- * Semaphore: Concurrency control mechanism
- *
- * Limits the number of operations that can run simultaneously.
- * When max concurrent operations are running, new operations wait in queue.
- *
- * Example: If max=3, only 3 asset saves can run at once.
- * The 4th save waits until one of the first 3 completes.
- */
-class Semaphore {
-    private available: number
-    private readonly max: number
-    private waiting: Array<() => void> = []
-
-    constructor(max: number) {
-        this.available = max
-        this.max = max
-    }
-
-    async acquire(): Promise<void> {
-        if (this.available > 0) {
-            this.available -= 1
-            return
-        }
-        await new Promise<void>(resolve => this.waiting.push(resolve))
-    }
-
-    release(): void {
-        const next = this.waiting.shift()
-        if (next) {
-            next()
-            return
-        }
-        if (this.available < this.max) {
-            this.available += 1
         }
     }
 }

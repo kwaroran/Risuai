@@ -621,6 +621,53 @@ function trimmer(str:string){
 }
 
 const blobUrlCache = new Map<string, string>()
+const inlayTokenRegex = /{{(inlay|inlayed|inlayeddata)::.+?}}/g
+const codeFenceRegex = /```[\s\S]*?```/g
+const inlineCodeRegex = /`[^`\n]+`/g
+let warnedHideAllImagesInlay = false
+
+function preserveInlayTokens(data:string){
+    const tokens:string[] = []
+    const replaced = data.replace(inlayTokenRegex, (match) => {
+        const key = `__RISU_INLAY_TOKEN_${tokens.length}__`
+        tokens.push(match)
+        return key
+    })
+    return { data: replaced, tokens }
+}
+
+function restoreInlayTokens(data:string, tokens:string[]){
+    if(tokens.length === 0){
+        return data
+    }
+    return data.replace(/__RISU_INLAY_TOKEN_(\d+)__/g, (match, index) => {
+        const token = tokens[Number(index)]
+        return token ?? match
+    })
+}
+
+function preserveCodeBlocks(data:string){
+    const blocks:string[] = []
+    const replaceWithToken = (match:string) => {
+        const key = `__RISU_CODE_BLOCK_${blocks.length}__`
+        blocks.push(match)
+        return key
+    }
+
+    let replaced = data.replace(codeFenceRegex, replaceWithToken)
+    replaced = replaced.replace(inlineCodeRegex, replaceWithToken)
+    return { data: replaced, blocks }
+}
+
+function restoreCodeBlocks(data:string, blocks:string[]){
+    if(blocks.length === 0){
+        return data
+    }
+    return data.replace(/__RISU_CODE_BLOCK_(\d+)__/g, (match, index) => {
+        const block = blocks[Number(index)]
+        return block ?? match
+    })
+}
 
 async function parseInlayAssets(data:string){
     const inlayMatch = data.match(/{{(inlay|inlayed|inlayeddata)::(.+?)}}/g)
@@ -641,6 +688,10 @@ async function parseInlayAssets(data:string){
                 case 'image':
                     // Hide inlay images when hideAllImages is enabled
                     if(DBState.db.hideAllImages){
+                        if(!warnedHideAllImagesInlay){
+                            console.warn('Inlay images are hidden because hideAllImages is enabled.')
+                            warnedHideAllImagesInlay = true
+                        }
                         data = data.replace(inlay, '')
                         break
                     }
@@ -711,7 +762,9 @@ export async function ParseMarkdown(
     }
 
     if(char){
-        data = (await processScriptFull(char, data, 'editdisplay', chatID, cbsConditions)).data
+        const preserved = preserveInlayTokens(data)
+        data = (await processScriptFull(char, preserved.data, 'editdisplay', chatID, cbsConditions)).data
+        data = restoreInlayTokens(data, preserved.tokens)
     }
 
     if(firstParsed !== data && char && char.type !== 'group'){
@@ -720,7 +773,9 @@ export async function ParseMarkdown(
         })
     }
 
-    data = await parseInlayAssets(data ?? '')
+    const preservedCode = preserveCodeBlocks(data ?? '')
+    data = await parseInlayAssets(preservedCode.data)
+    data = restoreCodeBlocks(data, preservedCode.blocks)
 
     data = parseThoughtsAndTools(data)
 
@@ -897,84 +952,6 @@ function decodeStyle(text:string){
 
 export async function hasher(data:Uint8Array){
     return Buffer.from(await crypto.subtle.digest("SHA-256", data as any)).toString('hex');
-}
-
-export async function convertImage(data:Uint8Array) {
-    if(!DBState.db.imageCompression){
-        return data
-    }
-    const type = checkImageType(data)
-    if(type !== 'Unknown' && type !== 'WEBP' && type !== 'AVIF'){
-        return await resizeAndConvert(data)
-    }
-    return data
-}
-
-async function resizeAndConvert(imageData: Uint8Array): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        const base64Image = 'data:image/png;base64,' + Buffer.from(imageData).toString('base64');
-        const image = new Image();
-        image.onload = () => {
-            URL.revokeObjectURL(base64Image);
-
-            // Create a canvas
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            if (!context) {
-                throw new Error('Unable to get 2D context');
-            }
-
-            // Compute the new dimensions while maintaining aspect ratio
-            let { width, height } = image;
-            if (width > 3000 || height > 3000) {
-                const aspectRatio = width / height;
-                if (width > height) {
-                    width = 3000;
-                    height = Math.round(width / aspectRatio);
-                } else {
-                    height = 3000;
-                    width = Math.round(height * aspectRatio);
-                }
-            }
-
-            // Resize and draw the image to the canvas
-            canvas.width = width;
-            canvas.height = height;
-            context.drawImage(image, 0, 0, width, height);
-
-            // Try to convert to WebP
-            let base64 = canvas.toDataURL('image/webp', 75);
-
-            // If WebP is not supported, convert to JPEG
-            if (base64.indexOf('data:image/webp') != 0) {
-                base64 = canvas.toDataURL('image/jpeg', 75);
-            }
-
-            // Convert it to Uint8Array
-            const array = Buffer.from(base64.split(',')[1], 'base64');
-            resolve(array);
-        };
-        image.src = base64Image;
-    });
-}
-
-type ImageType = 'JPEG' | 'PNG' | 'GIF' | 'BMP' | 'AVIF' | 'WEBP' | 'Unknown';
-
-export function checkImageType(arr:Uint8Array):ImageType {
-    const isJPEG = arr[0] === 0xFF && arr[1] === 0xD8 && arr[arr.length-2] === 0xFF && arr[arr.length-1] === 0xD9;
-    const isPNG = arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47 && arr[4] === 0x0D && arr[5] === 0x0A && arr[6] === 0x1A && arr[7] === 0x0A;
-    const isGIF = arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38 && (arr[4] === 0x37 || arr[4] === 0x39) && arr[5] === 0x61;
-    const isBMP = arr[0] === 0x42 && arr[1] === 0x4D;
-    const isAVIF = arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70 && arr[8] === 0x61 && arr[9] === 0x76 && arr[10] === 0x69 && arr[11] === 0x66;
-    const isWEBP = arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 && arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50;
-
-    if (isJPEG) return "JPEG";
-    if (isPNG) return "PNG";
-    if (isGIF) return "GIF";
-    if (isBMP) return "BMP";
-    if (isAVIF) return "AVIF";
-    if (isWEBP) return "WEBP";
-    return "Unknown";
 }
 
 export type CbsConditions = {

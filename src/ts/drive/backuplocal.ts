@@ -17,6 +17,16 @@ function getBasename(data:string){
     return lasts
 }
 
+const backupAssetExts = [
+    '.png', '.webp', '.jpg', '.jpeg', '.gif', '.avif',
+    '.mp3', '.wav', '.ogg', '.flac',
+    '.webm', '.mp4', '.mkv'
+]
+
+function isBackupAsset(name:string){
+    return backupAssetExts.some((ext) => name.endsWith(ext))
+}
+
 export async function SaveLocalBackup(){
     alertWait("Saving local backup...")
     const writer = new LocalWriter()
@@ -85,7 +95,7 @@ export async function SaveLocalBackup(){
             alertWait(message)
 
             const key = asset.name
-            if(!key || !key.endsWith('.png')){
+            if(!key || !isBackupAsset(key)){
                 continue
             }
             const data = await readFile('assets/' + asset.name, {baseDir: BaseDirectory.AppData})
@@ -111,7 +121,7 @@ export async function SaveLocalBackup(){
             }
             alertWait(message)
 
-            if(!key || !key.endsWith('.png')){
+            if(!key || !isBackupAsset(key)){
                 continue
             }
             let data: Uint8Array | undefined;

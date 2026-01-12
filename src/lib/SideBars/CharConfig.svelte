@@ -1,9 +1,10 @@
 <script lang="ts">
+    import { get } from "svelte/store";
     import { language } from "../../lang";
     import { tokenizeAccurate } from "../../ts/tokenizer";
     import { saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
-    import { CharConfigSubMenu, MobileGUI, ShowRealmFrameStore, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
+    import { CharConfigSubMenu, CharEmotion, MobileGUI, ShowRealmFrameStore, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
     import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, User, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, makeGroupImage, removeChar, changeCharImage } from "../../ts/characters";
@@ -26,12 +27,14 @@
     import TriggerList from "./Scripts/TriggerList.svelte";
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import { updateInlayScreen } from "src/ts/process/inlayScreen";
+    import { writeInlayImageFromDataUrl } from "src/ts/process/files/inlays";
     import { registerOnnxModel } from "src/ts/process/transformers";
     import MultiLangInput from "../UI/GUI/MultiLangInput.svelte";
     import { applyModule } from "src/ts/process/modules";
     import { exportRegex, importRegex } from "src/ts/process/scripts";
     import SliderInput from "../UI/GUI/SliderInput.svelte";
     import Toggles from "./Toggles.svelte";
+    import { inlayTokenRegex } from "src/ts/util/inlayTokens";
 
     let iconRemoveMode = $state(false)
     let viewSubMenu = $state(0)
@@ -71,6 +74,60 @@
         
         }
 
+    }
+
+    async function syncFloatingImggenToInlay() {
+        const char = DBState.db.characters[$selectedCharID] as character
+        if(!char || char.type !== 'character'){
+            return
+        }
+        if(!char.inlayViewScreen || char.viewScreen !== 'imggen'){
+            return
+        }
+        const charemotions = get(CharEmotion)
+        const lastEmotion = charemotions[char.chaId]?.at(-1)
+        const lastImage = lastEmotion?.[1]
+        if(!lastImage || !lastImage.startsWith('data:')){
+            return
+        }
+        const chat = char.chats[char.chatPage]
+        const messages = chat.message ?? []
+        let targetIndex = -1
+        for(let i = messages.length - 1;i >= 0;i--){
+            if(messages[i].role === 'char'){
+                targetIndex = i
+                break
+            }
+        }
+        if(targetIndex < 0){
+            return
+        }
+        const targetMessage = messages[targetIndex]
+        const hasInlayToken = !!(targetMessage?.data ?? '').match(inlayTokenRegex)
+        if(hasInlayToken){
+            return
+        }
+        try{
+            const inlayId = await writeInlayImageFromDataUrl(lastImage)
+            const base = (targetMessage.data ?? '').trimEnd()
+            targetMessage.data = `${base}\n\n{{inlayed::${inlayId}}}`
+        }
+        catch (error){
+            console.warn('Failed to migrate floating image to inlay.', error)
+        }
+    }
+
+    async function handleInlayViewScreenChange() {
+        if(DBState.db.characters[$selectedCharID].type === 'character'){
+            const char = DBState.db.characters[$selectedCharID] as character
+            if(char.inlayViewScreen && char.additionalAssets === undefined){
+                char.additionalAssets = []
+            }else if(!char.inlayViewScreen && char.additionalAssets?.length === 0){
+                char.additionalAssets = undefined
+            }
+            DBState.db.characters[$selectedCharID] = updateInlayScreen(char)
+            await syncFloatingImggenToInlay()
+        }
     }
 
 
@@ -531,17 +588,7 @@
                 <TextAreaInput highlight bind:value={(DBState.db.characters[$selectedCharID] as character).newGenData.emotionInstructions} />
             {/if}
 
-            <CheckInput bind:check={(DBState.db.characters[$selectedCharID] as character).inlayViewScreen} name={language.inlayViewScreen} onChange={() => {
-                if(DBState.db.characters[$selectedCharID].type === 'character'){
-                    if((DBState.db.characters[$selectedCharID] as character).inlayViewScreen && (DBState.db.characters[$selectedCharID] as character).additionalAssets === undefined){
-                        (DBState.db.characters[$selectedCharID] as character).additionalAssets = []
-                    }else if(!(DBState.db.characters[$selectedCharID] as character).inlayViewScreen && (DBState.db.characters[$selectedCharID] as character).additionalAssets.length === 0){
-                        (DBState.db.characters[$selectedCharID] as character).additionalAssets = undefined
-                    }
-                    
-                    DBState.db.characters[$selectedCharID] = updateInlayScreen((DBState.db.characters[$selectedCharID] as character))
-                }
-            }}/>
+            <CheckInput bind:check={(DBState.db.characters[$selectedCharID] as character).inlayViewScreen} name={language.inlayViewScreen} onChange={handleInlayViewScreenChange}/>
         {/if}
         {#if DBState.db.characters[$selectedCharID].viewScreen === 'imggen'}
             <span class="text-textcolor mt-6">{language.imageGeneration} <Help key="imggen"/></span>
@@ -554,11 +601,7 @@
             <span class="text-textcolor mt-2">{language.imgGenInstructions}</span>
             <TextAreaInput highlight bind:value={(DBState.db.characters[$selectedCharID] as character).newGenData.instructions} />
 
-            <CheckInput bind:check={(DBState.db.characters[$selectedCharID] as character).inlayViewScreen} name={language.inlayViewScreen} onChange={() => {
-                if((DBState.db.characters[$selectedCharID] as character).type === 'character'){
-                    (DBState.db.characters[$selectedCharID] as character) = updateInlayScreen((DBState.db.characters[$selectedCharID] as character))
-                }
-            }}/>
+            <CheckInput bind:check={(DBState.db.characters[$selectedCharID] as character).inlayViewScreen} name={language.inlayViewScreen} onChange={handleInlayViewScreenChange}/>
         {/if}
     {:else if viewSubMenu === 2}
 

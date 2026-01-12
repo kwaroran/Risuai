@@ -18,7 +18,7 @@ import { groupOrder } from "./group";
 import { runTrigger } from "./triggers";
 import { HypaProcesser } from "./memory/hypamemory";
 import { additionalInformations } from "./embedding/addinfo";
-import { getInlayAsset } from "./files/inlays";
+import { getInlayAsset, writeInlayImageFromDataUrl } from "./files/inlays";
 import { getGenerationModelString } from "./models/modelString";
 import { connectionOpen, peerRevertChat, peerSafeCheck, peerSync } from "../sync/multiuser";
 import { runInlayScreen } from "./inlayScreen";
@@ -29,6 +29,7 @@ import { hypaMemoryV2 } from "./memory/hypav2";
 import { runLuaEditTrigger } from "./scriptings";
 import { parseChatML } from "../parser.svelte";
 import { getModelInfo, LLMFlags } from "../model/modellist";
+import { inlayTokenRegex } from "../util/inlayTokens";
 import { hypaMemoryV3 } from "./memory/hypav3";
 import { getModuleAssets, getModuleToggles } from "./modules";
 import { readImage } from "../globalApi.svelte";
@@ -101,6 +102,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         stage3Duration: 0,
         stage4Duration: 0
     }
+
+    let lastCharMessageIndex = -1
+    let hadImgGenTag = false
 
     let isAborted = false
     let findCharCache:{[key:string]:character} = {}
@@ -1538,10 +1542,20 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
         const inlayr = runInlayScreen(currentChar, currentChat.message[msgIndex].data)
         currentChat.message[msgIndex].data = inlayr.text
+        lastCharMessageIndex = msgIndex
+        if(inlayr.hasImgGen){
+            hadImgGenTag = true
+        }
         DBState.db.characters[selectedChar].chats[selectedChat] = currentChat
         if(inlayr.promise){
-            const t = await inlayr.promise
-            currentChat.message[msgIndex].data = t
+            try{
+                const t = await inlayr.promise
+                currentChat.message[msgIndex].data = t
+            }
+            catch (error){
+                console.error(error)
+                currentChat.message[msgIndex].data = currentChat.message[msgIndex].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+            }
             DBState.db.characters[selectedChar].chats[selectedChat] = currentChat
         }
         if(DBState.db.ttsAutoSpeech){
@@ -1569,6 +1583,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             result = result2.data
             const inlayResult = runInlayScreen(currentChar, result)
             result = inlayResult.text
+            if(inlayResult.hasImgGen){
+                hadImgGenTag = true
+            }
             emoChanged = result2.emoChanged
             if(i === 0 && arg.continue){
                 DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex] = {
@@ -1580,9 +1597,16 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     promptInfo,
                     chatId: generationId,
                 }       
+                lastCharMessageIndex = msgIndex
                 if(inlayResult.promise){
-                    const p = await inlayResult.promise
-                    DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = p
+                    try{
+                        const p = await inlayResult.promise
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = p
+                    }
+                    catch (error){
+                        console.error(error)
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                    }
                 }
             }
             else if(i===0){
@@ -1596,9 +1620,16 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     chatId: generationId,
                 })
                 const ind = DBState.db.characters[selectedChar].chats[selectedChat].message.length - 1
+                lastCharMessageIndex = ind
                 if(inlayResult.promise){
-                    const p = await inlayResult.promise
-                    DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = p
+                    try{
+                        const p = await inlayResult.promise
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = p
+                    }
+                    catch (error){
+                        console.error(error)
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data = DBState.db.characters[selectedChar].chats[selectedChat].message[ind].data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                    }
                 }
                 mrerolls.push(result)
             }
@@ -1731,6 +1762,21 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
             }
         }
+    }
+
+    const buildImgGenPrompt = () => {
+        const msgs = DBState.db.characters[selectedChar].chats[selectedChat].message
+        let msgStr = ''
+        for(let i = (msgs.length - 1);i>=0;i--){
+            if(msgs[i].role === 'char'){
+                msgStr = `character: ${msgs[i].data.replace(/\n/g, ' ')} \n` + msgStr
+            }
+            else{
+                msgStr = `user: ${msgs[i].data.replace(/\n/g, ' ')} \n` + msgStr
+                break
+            }
+        }
+        return msgStr
     }
 
     if(!currentChar.inlayViewScreen){
@@ -1918,20 +1964,59 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 throwError("Stable diffusion in group chat is not supported")
             }
 
-            const msgs = DBState.db.characters[selectedChar].chats[selectedChat].message
-            let msgStr = ''
-            for(let i = (msgs.length - 1);i>=0;i--){
-                if(msgs[i].role === 'char'){
-                    msgStr = `character: ${msgs[i].data.replace(/\n/g, ' ')} \n` + msgStr
-                }
-                else{
-                    msgStr = `user: ${msgs[i].data.replace(/\n/g, ' ')} \n` + msgStr
+            const msgStr = buildImgGenPrompt()
+            await stableDiff(currentChar, msgStr)
+        }
+    }
+    else if(currentChar.viewScreen === 'imggen' && (!hadImgGenTag) && (abortSignal.aborted === false)){
+        if(chatProcessIndex !== -1){
+            throwError("Stable diffusion in group chat is not supported")
+        }
+
+        const messages = DBState.db.characters[selectedChar].chats[selectedChat].message
+        let targetIndex = lastCharMessageIndex
+        if(targetIndex < 0){
+            for(let i = messages.length - 1;i >= 0;i--){
+                if(messages[i].role === 'char'){
+                    targetIndex = i
                     break
                 }
             }
+        }
 
-
-            await stableDiff(currentChar, msgStr)
+        if(targetIndex >= 0){
+            const targetMessage = messages[targetIndex]
+            targetMessage.data = targetMessage.data ?? ''
+            const hasInlayToken = !!(targetMessage?.data ?? '').match(inlayTokenRegex)
+            if(!hasInlayToken){
+                const msgStr = buildImgGenPrompt()
+                if(!targetMessage.data.includes('[Generating...]')){
+                    targetMessage.data = `${targetMessage.data.trimEnd()}\n\n[Generating...]`
+                }
+                try{
+                    const generated = await stableDiff(currentChar, msgStr, 'inlay')
+                    if(!generated){
+                        targetMessage.data = targetMessage.data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                    }
+                    else{
+                        const inlayId = await writeInlayImageFromDataUrl(generated)
+                        const inlayToken = `{{inlayed::${inlayId}}}`
+                        if(targetMessage.data.includes('[Generating...]')){
+                            targetMessage.data = targetMessage.data.replace(/\[Generating\.\.\.\]/g, inlayToken)
+                        }
+                        else{
+                            targetMessage.data = `${targetMessage.data.trimEnd()}\n\n${inlayToken}`
+                        }
+                        const charemotions = get(CharEmotion)
+                        charemotions[currentChar.chaId] = [[generated, generated, Date.now()]]
+                        CharEmotion.set(charemotions)
+                    }
+                }
+                catch (error){
+                    console.error(error)
+                    targetMessage.data = targetMessage.data.replace(/\[Generating\.\.\.\]/g, '[Image failed]')
+                }
+            }
         }
     }
 

@@ -625,6 +625,7 @@ export function setDatabase(data:Database){
     data.newMessageButtonStyle ??= 'bottom-center'
     data.echoMessage ??= "Echo Message"
     data.echoDelay ??= 0
+    data.inlayAssets ??= {}
     if(!isNodeServer && !isTauri){
         //this is intended to forcely reduce the size of the database in web
         data.promptInfoInsideChat = false
@@ -971,6 +972,7 @@ export interface Database{
     combineTranslation:boolean
     dynamicAssets:boolean
     dynamicAssetsEditDisplay:boolean
+    inlayAssets?:{[id:string]:InlayAssetMeta}
     customPromptTemplateToggle:string
     globalChatVariables:{[key:string]:string}
     templateDefaultVariables:string
@@ -1677,6 +1679,15 @@ export interface Chat{
     lastDate?:number
     bookmarks?: string[];
     bookmarkNames?: { [chatId: string]: string };
+}
+
+export interface InlayAssetMeta{
+    path: string
+    ext: string
+    type: 'image'|'video'|'audio'
+    width?: number
+    height?: number
+    name?: string
 }
 
 export interface ChatFolder{

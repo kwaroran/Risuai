@@ -4,6 +4,13 @@ import { DBState } from 'src/ts/stores.svelte'
 import { pickHashRand } from 'src/ts/util'
 import { type MCPTool, MCPToolHandler, type RPCToolCallContent } from '../mcplib'
 
+const moduleNotFound = (id: string): RPCToolCallContent[] => [
+  {
+    type: 'text',
+    text: `Error: Module with ID ${id} not found.`,
+  }
+]
+
 export class ModuleHandler extends MCPToolHandler {
   private promptAccess(tool: string, action: string) {
     return alertConfirm(language.mcpAccessPrompt.replace('{{tool}}', tool).replace('{{action}}', action))
@@ -295,7 +302,7 @@ export class ModuleHandler extends MCPToolHandler {
     ]
   }
 
-  async handle(toolName: string, args: any): Promise<RPCToolCallContent[] | null> {
+  async handle(toolName: string, args: Record<string, any>): Promise<RPCToolCallContent[] | null> {
     switch (toolName) {
       case 'risu-list-modules':
         return await this.listModules(args.count, args.offset)
@@ -304,7 +311,7 @@ export class ModuleHandler extends MCPToolHandler {
       case 'risu-set-module-info':
         return await this.setModuleInfo(args.id, args.data)
       case 'risu-list-module-lorebooks':
-        return await this.getModuleLorebooks(args.id, args.count, args.offset)
+        return await this.listModuleLorebooks(args.id, args.count, args.offset)
       case 'risu-get-module-lorebook':
         return await this.getModuleLorebook(args.id, args.names)
       case 'risu-set-module-lorebook':
@@ -363,12 +370,7 @@ export class ModuleHandler extends MCPToolHandler {
     const module = DBState.db.modules.find((m) => m.id === id)
 
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     const enabledModules = new Set(DBState.db.enabledModules || [])
@@ -387,6 +389,7 @@ export class ModuleHandler extends MCPToolHandler {
 
     const obj: any = {}
     for (const field of targetFields) {
+      // TODO: Guard against field
       if (!allowedFields.has(field)) continue
 
       if (field === 'enabled') {
@@ -461,16 +464,10 @@ export class ModuleHandler extends MCPToolHandler {
     ]
   }
 
-  async getModuleLorebooks(id: string, count: number = 100, offset: number = 0): Promise<RPCToolCallContent[]> {
+  async listModuleLorebooks(id: string, count: number = 100, offset: number = 0): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
-
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (count > 100) count = 100
@@ -496,14 +493,8 @@ export class ModuleHandler extends MCPToolHandler {
 
   async getModuleLorebook(id: string, names: string[]): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
-
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     const entries = (module.lorebook || []).filter((l) => {
@@ -545,12 +536,7 @@ export class ModuleHandler extends MCPToolHandler {
   ): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (!(await this.promptAccess('risu-set-module-lorebook', `add/modify module (${module.name}) lorebook (${name})`))) {
@@ -620,12 +606,7 @@ export class ModuleHandler extends MCPToolHandler {
   async deleteModuleLorebook(id: string, name: string): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (!(await this.promptAccess('risu-delete-module-lorebook', `delete module (${module.name}) lorebook (${name})`))) {
@@ -669,12 +650,7 @@ export class ModuleHandler extends MCPToolHandler {
     const module = DBState.db.modules.find((m) => m.id === id)
 
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     const organized = (module.regex || []).map((script) => {
@@ -708,12 +684,7 @@ export class ModuleHandler extends MCPToolHandler {
   ): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (!(await this.promptAccess('risu-set-module-regex-script', `add/modify module (${module.name}) regex script (${name})`))) {
@@ -772,12 +743,7 @@ export class ModuleHandler extends MCPToolHandler {
   async deleteModuleRegexScript(id: string, name: string): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (!(await this.promptAccess('risu-delete-module-regex-script', `delete module (${module.name}) regex script (${name})`))) {
@@ -819,14 +785,8 @@ export class ModuleHandler extends MCPToolHandler {
 
   async getModuleLuaScript(id: string): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
-
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     const firstTrigger = module.trigger?.[0]
@@ -850,12 +810,7 @@ export class ModuleHandler extends MCPToolHandler {
   async setModuleLuaScript(id: string, code: string): Promise<RPCToolCallContent[]> {
     const module = DBState.db.modules.find((m) => m.id === id)
     if (!module || module.mcp) {
-      return [
-        {
-          type: 'text',
-          text: `Error: Module with ID ${id} not found.`,
-        },
-      ]
+      return moduleNotFound(id)
     }
 
     if (!(await this.promptAccess('risu-set-module-lua-script', `modify module (${module.name}) lua script`))) {

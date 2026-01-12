@@ -120,6 +120,7 @@ export const languageKorean = {
         "moduleIntergration": "모듈 통합 섹션에 모듈 네임스페이스를 입력하여 모듈을 활성화할 수 있습니다. 여러 모듈을 활성화하려면 쉼표로 구분하세요. 예: `module1,module2,module3`. 프리셋에 따라 모듈 사용을 다르게 하고 싶은 고급 사용자를 위한 기능입니다.",
         "customCSS": "스타일링을 위한 커스텀 CSS입니다. 문제가 발생하면 (Ctrl + .)을 눌러 비활성화/활성화할 수 있습니다.",
         "betaMobileGUI": "활성화되면 작은 화면(800px 미만)에서 베타 모바일 GUI를 사용합니다. 새로고침이 필요합니다.",
+        "enableScrollToActiveChar": "활성화되면 단축키를 누르거나 캐릭터를 드래그하는 동안 Ctrl을 누르면 현재 활성 캐릭터로 스크롤합니다. 폴더가 닫혀있으면 자동으로 열립니다.",
         "unrecommended": "비권장 설정입니다. 이 설정을 사용하는 것은 권장되지 않습니다.",
         "jsonSchema": "AI 모델이 JSON 스키마를 지원하는 경우 AI 모델로 전송될 JSON 스키마입니다.\n\n하지만 JSON 스키마는 배우기 어렵기 때문에, Risuai에서는 JSON 스키마 대신 TypeScript 인터페이스의 하위 집합을 사용할 수 있습니다. Risuai가 런타임에 이를 변환합니다. 예를 들어 다음과 같은 JSON을 보내고 싶다면:\n\n```js\n{\n  \"name\": \"Risuai\", //이름은 Risuai여야 함,\n  \"age\": 1, //나이는 숫자여야 함,\n  \"icon\": \"slim\", //아이콘은 'slim' 또는 'rounded'여야 함\n  \"thoughts\": [\"Good View!\", \"Lorem\"] //생각은 문자열 배열이어야 함\n}\n```\n\n다음과 같이 TypeScript 인터페이스를 입력할 수 있습니다:\n\n```typescript\ninterface Schema {\n  name: string;\n  age: number;\n  icon: 'slim'|'rounded'\n  thoughts: string[]\n}\n```\n\n인터페이스의 이름은 중요하지 않습니다. 자세한 내용은 TypeScript 문서를 참조하세요. (https://www.typescriptlang.org/docs/handbook/interfaces.html), 지원되는 TypeScript 하위 집합을 확인하려면 아래를 참조하세요.<details><summary>지원되는 TypeScript 하위 집합</summary>\n\n지원되는 타입은 `boolean`, `number`, `string`, `Array`입니다. 유닛 타입, 교차 타입, 유니온 타입, 옵셔널, 리터럴 타입 등 고급 타이핑은 다음 경우를 제외하고 지원되지 않습니다:\n\n        - 원시 타입의 배열: (예: `string[]`, `Array<boolean>)`\n        - 문자열 간의 유닛 타입: (예: `'slim'|'rounded'`).\n\n        속성은 한 줄에 하나씩 있어야 합니다. 한 줄에 여러 속성이 있으면 오류가 발생합니다. 속성 이름과 인터페이스 이름은 ASCII 범위 내의 라틴 문자만 사용해야 합니다. 속성 이름은 따옴표나 큰따옴표로 감싸지 않아야 합니다. 인터페이스 내부 중첩은 지원되지 않습니다. 속성이 정의된 줄에 `{` 또는 `}`를 넣을 수 없습니다. 더 고급 타입을 사용하려면 대신 JSON 스키마를 사용하세요.\n        </details>",
         "strictJsonSchema": "활성화되면 일부 모델에서 제공된 JSON 스키마를 엄격하게 따릅니다. 비활성화되면 JSON 스키마를 무시할 수도 있습니다.",
@@ -1079,6 +1080,7 @@ export const languageKorean = {
     "convertionStep1": "프롬프트와 관련된 모든 파일을 선택하세요 (컨텍스트, 인스트럭트, 샘플러 JSON을 지원합니다)",
     "customCSS": "커스텀 CSS",
     "betaMobileGUI": "베타 모바일 GUI",
+    "enableScrollToActiveChar": "활성 캐릭터로 스크롤 활성화",
     "menu": "메뉴",
     "connectionOpen": "연결 열기",
     "connectionOpenInfo": "멀티유저 룸이 열렸습니다. 다른 사용자에게 룸 코드를 공유할 수 있습니다. 다른 사용자는 플레이그라운드 > 멀티유저 룸 참가에서 코드를 사용하여 룸에 참가할 수 있습니다.",
@@ -1282,7 +1284,8 @@ export const languageKorean = {
         "import": "가져오기",
         "export": "내보내기",
         "webcam": "웹캠 토글",
-        "focusInput": "입력창 포커스"
+        "focusInput": "입력창 포커스",
+        "scrollToActiveChar": "활성 캐릭터로 스크롤"
     },
     "screenTooSmall": "화면이 너무 작아서 인터페이스를 표시할 수 없습니다.",
     "advancedModelSettings": "고급 모델 설정",

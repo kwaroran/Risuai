@@ -13,6 +13,7 @@ import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
 import { PngChunk } from "./pngChunk";
+import { removeInlayAssetsForMessages } from "./process/files/inlays";
 
 export function createNewCharacter() {
     let db = getDatabase()
@@ -827,6 +828,7 @@ function dataURLtoBuffer(string:string){
 
 export async function removeChar(index:number,name:string, type:'normal'|'permanent'|'permanentForce' = 'normal'){
     const db = getDatabase()
+    const removedMessages: Array<{ data: string }> = []
     if(type !== 'permanentForce'){
         const conf = await alertConfirm(language.removeConfirm + name)
         if(!conf){
@@ -842,10 +844,22 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
         chars[index].trashTime = Date.now()
     }
     else{
+        // Clean up inlay assets when permanently removing a character.
+        const removedChar = chars[index]
+        if(removedChar?.chats){
+            for(const chat of removedChar.chats){
+                if(chat?.message?.length){
+                    removedMessages.push(...chat.message)
+                }
+            }
+        }
         chars.splice(index, 1)
     }
     checkCharOrder()
     db.characters = chars
+    if(removedMessages.length > 0){
+        await removeInlayAssetsForMessages(removedMessages, db)
+    }
     requiresFullEncoderReload.state = true
     setDatabase(db)
     selectedCharID.set(-1)

@@ -32,6 +32,7 @@ import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
+import { removeInlayAssetsForMessages } from "./process/files/inlays";
 import {
     forageStorage,
     saveDb,
@@ -432,13 +433,26 @@ async function checkNewFormat(): Promise<void> {
     if (db.mainPrompt === oldJailbreak) {
         db.mainPrompt = defaultJailbreak;
     }
+    // Purge inlay assets for characters auto-removed from trash.
+    const trashedMessages: Array<{ data: string }> = []
     for (let i = 0; i < db.characters.length; i++) {
         const trashTime = db.characters[i].trashTime;
         const targetTrashTime = trashTime ? trashTime + 1000 * 60 * 60 * 24 * 3 : 0;
         if (trashTime && targetTrashTime < Date.now()) {
+            const removedChar = db.characters[i]
+            if(removedChar?.chats){
+                for(const chat of removedChar.chats){
+                    if(chat?.message?.length){
+                        trashedMessages.push(...chat.message)
+                    }
+                }
+            }
             db.characters.splice(i, 1);
             i--;
         }
+    }
+    if(trashedMessages.length > 0){
+        await removeInlayAssetsForMessages(trashedMessages, db)
     }
     setDatabase(db);
     checkCharOrder();

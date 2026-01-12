@@ -2,8 +2,7 @@ import fc from 'fast-check'
 import { writable } from 'svelte/store'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { risuChatParser } from '../../../parser.svelte'
-import type { character } from '../../../storage/database.svelte'
-import { trimVarPrefix } from './lib'
+import { trimVarPrefix, validCBSArgProp } from './lib'
 
 //#region module mocks
 
@@ -63,9 +62,6 @@ vi.mock(import('../../../stores.svelte'), () => {
 })
 
 //#endregion
-
-/** No hashes, colons, curly braces, line breaks */
-const validCBSArgProp = fc.stringMatching(/^[^#:{}\r\n]+$/)
 
 const template = (op: string, body: string) => `0 {{${op}}}${body}{{/}} 9`
 const quickParse = (...args: Parameters<typeof template>) => risuChatParser(template(...args))

@@ -263,7 +263,7 @@ export async function SavePartialLocalBackup(){
                 continue
             }
 
-            const keyWithPrefix = 'assets/' + asset.name;
+            const keyWithPrefix = asset.name.startsWith('assets/') ? asset.name : `assets/${asset.name}`
             if(!keyWithPrefix.endsWith('.png')){
                 continue
             }

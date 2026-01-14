@@ -18,7 +18,7 @@
     "hono:build": "vite build --sourcemap && node server/hono/src/utils/postbuild.js"
   },
   "dependencies": {
-    "@adobe/css-tools": "4.3.2",
+    "@adobe/css-tools": "4.4.4",
     "@aws-crypto/sha256-js": "^5.2.0",
     "@breezystack/lamejs": "^1.2.7",
     "@browsermt/bergamot-translator": "^0.4.9",

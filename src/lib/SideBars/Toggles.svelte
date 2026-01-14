@@ -8,6 +8,7 @@
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
+    import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
     import TextInput from "../UI/GUI/TextInput.svelte";
 
     interface Props {
@@ -59,6 +60,15 @@
             <div class="w-full flex gap-2 mt-2 items-center" class:justify-end={$MobileGUI}>
                 <span>{toggle.value}</span>
                 <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+            </div>
+        {:else if toggle.type === 'textarea'}
+            <div class="w-full flex gap-2 mt-2 items-start" class:justify-end={$MobileGUI}>
+                <span class="mt-1.5">{toggle.value}</span>
+                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+            </div>
+        {:else if toggle.type === 'caption'}
+            <div class="w-full mt-1 text-xs text-textcolor2">
+                {toggle.value}
             </div>
         {:else if toggle.type === 'divider'}
             <!-- Prevent multiple dividers appearing in a row -->

@@ -33,7 +33,7 @@ Risuai, or Risu for short, is a cross platform AI chatting software / web applic
 - **Powerful Prompting**: Change the prompting order easily, Impersonate inside prompts, Use conditions, variables... and more!
 - **Customizable, Friendly UI**: Great Accessibility and mobile friendly
 - **TTS**: Use TTS to make the output text into voice.
-- **Additonal Assets**: Embed your images, audios and videos to bot, and make it display at chat or background!
+- **Additional Assets**: Embed your images, audios and videos to bot, and make it display at chat or background!
 - **Long-term Memory**: Advanced memory systems including HypaMemoryV2/V3 memory compression, SupaMemory for context management to maintain long-term conversation context.
 - And More!
 

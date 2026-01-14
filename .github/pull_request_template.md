@@ -1,4 +1,4 @@
-# PR Checklist
+## PR Checklist
 
 - Required Checks
     - [ ] Have you added type definitions?
@@ -17,4 +17,21 @@
 [^1]: Modifies the behavior of prompting, requesting or handling responses from ai models.
 [^2]: Almost over 80% of the code is ai generated.
 
-# Description
+## Summary
+
+Please provide a brief summary of the changes made in this pull request.
+
+## Related Issues
+
+Please list any related issues or pull requests that this PR addresses.
+If there are none, please write "None".
+
+## Changes
+
+Please describe the changes made in this pull request in detail.
+
+## Impact
+
+Please describe any potential impacts this PR may have on existing functionality or users.
+
+## Additional Notes

@@ -102,7 +102,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         stage4Duration: 0
     }
 
-    const generationInfo: MessageGenerationInfo = {}
+    const generationInfo: MessageGenerationInfo = {
+        model: getGenerationModelString()
+    }
     let isAborted = false
     let findCharCache:{[key:string]:character} = {}
     function findCharacterbyIdwithCache(id:string){

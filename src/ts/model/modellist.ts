@@ -531,9 +531,23 @@ for(let i=0; i<LLMModels.length; i++){
     }
 }
 
-export function getModelInfo(id: string): LLMModel{
+export function getModelInfo(id?: string | null): LLMModel{
 
     const db = getDatabase()
+    if(!id){
+        return {
+            id: '',
+            name: 'Unknown',
+            shortName: 'Unknown',
+            fullName: 'Unknown',
+            internalID: '',
+            provider: LLMProvider.AsIs,
+            format: LLMFormat.OpenAICompatible,
+            flags: [],
+            parameters: OpenAIParameters,
+            tokenizer: LLMTokenizer.Unknown
+        }
+    }
     const found:LLMModel = safeStructuredClone(LLMModels.find(model => model.id === id))
 
     if(found){

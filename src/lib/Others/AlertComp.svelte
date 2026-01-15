@@ -300,7 +300,7 @@
                     })
                 }}>OK</Button>
             {:else if $alertStore.type === 'input'}
-                <TextInput value="" id="alert-input" autocomplete="off" marginTop list="alert-input-list" />
+                <TextInput value={$alertStore.defaultValue} id="alert-input" autocomplete="off" marginTop list="alert-input-list" />
                 <Button className="mt-4" onclick={() => {
                     alertStore.set({
                         type: 'none',

@@ -554,7 +554,7 @@
                 e.preventDefault()
                 const sel = parseInt(await alertSelect([language.renameFolder,language.changeFolderColor,language.changeFolderImage,language.cancel]))
                 if(sel === 0){
-                  const v = await alertInput(language.changeFolderName)
+                  const v = await alertInput(language.changeFolderName, [], char.name)
                   const db = DBState.db
                   if(v){
                     const oder = db.characterOrder[ind]

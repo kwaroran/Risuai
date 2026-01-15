@@ -6,9 +6,6 @@ import { cbs, trimVarPrefix, validCBSArgProp } from './lib'
 
 //#region module mocks
 
-// Suppress warning
-vi.mock(import('katex'), () => ({}))
-
 vi.mock(
   import('../../../storage/database.svelte'),
   () =>

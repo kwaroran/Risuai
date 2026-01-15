@@ -61,7 +61,6 @@
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
     "katex": "^0.16.27",
-    "libsodium-wrappers-sumo": "^0.7.15",
     "localforage": "^1.10.0",
     "lodash": "^4.17.21",
     "markdown-it": "^14.1.0",

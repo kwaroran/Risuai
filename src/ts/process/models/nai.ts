@@ -1,8 +1,6 @@
-import { getDatabase, setDatabase } from "src/ts/storage/database.svelte"
+import { getDatabase } from "src/ts/storage/database.svelte"
+import { getUserName } from "src/ts/util"
 import type { OpenAIChat } from "../index.svelte"
-import { globalFetch } from "src/ts/globalApi.svelte"
-import { alertError, alertInput, alertNormal, alertWait } from "src/ts/alert"
-import { getUserName, sleep } from "src/ts/util"
 
 export function stringlizeNAIChat(formated:OpenAIChat[], char:string, continued: boolean){
     const db = getDatabase()
@@ -52,80 +50,6 @@ export function stringlizeNAIChat(formated:OpenAIChat[], char:string, continued:
     return res
 }
 
-export const novelLogin = async () => {
-    try {
-        const username = await alertInput("NovelAI Email")
-
-        const password = await alertInput("NovelAI Password")
-
-
-        alertWait('Logging in to NovelAI')
-
-        let tries = 0
-        let error = ''
-        while (tries < 3) {
-            try {
-
-                const _sodium = await import('libsodium-wrappers-sumo')
-                await sleep(1000)
-                await _sodium.ready
-                const sodium = _sodium;
-
-                // I don't know why, but this is needed to make it work
-                console.log(sodium)
-                await sleep(1000)
-
-                const key = sodium
-                .crypto_pwhash(
-                    64,
-                    new Uint8Array(Buffer.from(password)),
-                    sodium.crypto_generichash(
-                    sodium.crypto_pwhash_SALTBYTES,
-                    password.slice(0, 6) + username + 'novelai_data_access_key'
-                    ),
-                    2,
-                    2e6,
-                    sodium.crypto_pwhash_ALG_ARGON2ID13,
-                    'base64'
-                )
-                .slice(0, 64)
-            
-                const r = await globalFetch('https://api.novelai.net/user/login', {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    body:{
-                        key: key
-                    }
-                })
-            
-                if ((!r.ok) || (!r.data?.accessToken)) {
-                    alertError(`Failed to authenticate with NovelAI: ${r.data?.message ?? r.data}`)
-                    return
-                }
-
-                const data = r.data?.accessToken
-
-                const db = getDatabase()
-                db.novelai.token = data
-
-                alertNormal('Logged in to NovelAI')
-                setDatabase(db)
-                return
-            }
-            catch (e) {
-                error = `Failed to authenticate with NovelAI: ${e}`
-                tries++
-            }
-        }
-        alertError(error)
-    } catch (error) {
-        alertError(`Failed to authenticate with NovelAI: ${error}`)
-    }
-}
-
 export interface NAISettings{
     topK: number
     topP: number
@@ -144,17 +68,6 @@ export interface NAISettings{
     mirostat_tau?:number
     cfg_scale?:number
 }
-
-export const NovelAIROrder = [
-    "",
-    "",
-    "",
-    "",
-    "",
-
-
-
-]
 
 export const NovelAIBadWordIds = [
     [60],

@@ -4,12 +4,13 @@ import { appVer, getCurrentCharacter, getDatabase, type Database, type character
 import { DBState } from './stores.svelte';
 import { aiWatermarkingLawApplies, getFileSrc } from './globalApi.svelte';
 import { isTauri, isNodeServer } from "src/ts/platform"
+import { getChatVar, setChatVar, getGlobalChatVar } from './parser/chatVar.svelte';
 import { processScriptFull } from './process/scripts';
 import { get } from 'svelte/store';
 import css, { type CssAtRuleAST } from '@adobe/css-tools'
 import { selectedCharID } from './stores.svelte';
 import { calcString } from './process/infunctions';
-import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, parseKeyValue, pickHashRand, replaceAsync} from './util';
+import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from './util';
 import { getInlayAssetBlob } from './process/files/inlays';
 import { getModuleAssets, getModuleLorebooks, getModules } from './process/modules';
 import hljs from 'highlight.js/lib/core'
@@ -1810,46 +1811,6 @@ export function risuChatParser(da:string, arg:{
         result = dat + result
     }
     return nested[0] + result
-}
-
-
-
-export function getChatVar(key:string){
-    const selectedChar = get(selectedCharID)
-    const char = DBState.db.characters[selectedChar]
-    if(!char){
-        return 'null'
-    }
-    const chat = char.chats[char.chatPage]
-    chat.scriptstate ??= {}
-    const state = (chat.scriptstate['$' + key])
-    if(state === undefined || state === null){
-        const defaultVariables = parseKeyValue(char.defaultVariables).concat(parseKeyValue(DBState.db.templateDefaultVariables))
-        const findResult = defaultVariables.find((f) => {
-            return f[0] === key
-        })
-        if(findResult){
-            return findResult[1]
-        }
-        return 'null'
-    }
-    return state.toString()
-}
-
-export function getGlobalChatVar(key:string){
-    return DBState.db.globalChatVariables[key] ?? 'null'
-}
-
-export function setGlobalChatVar(key:string, value:string){ 
-    DBState.db.globalChatVariables[key] = value // String to String Map(dictionary)
-}
-
-export function setChatVar(key:string, value:string){
-    const selectedChar = get(selectedCharID)
-    if(!DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate){
-        DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate = {}
-    }
-    DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate['$' + key] = value
 }
 
 export function applyMarkdownToNode(node: Node) {

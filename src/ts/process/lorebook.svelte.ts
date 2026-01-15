@@ -1,4 +1,5 @@
 import { get } from "svelte/store";
+import { getChatVar, setChatVar } from '../parser/chatVar.svelte';
 import {selectedCharID} from '../stores.svelte'
 import { type Message, type loreBook } from "../storage/database.svelte";
 import { DBState } from '../stores.svelte';
@@ -9,7 +10,6 @@ import { language } from "../../lang";
 import { downloadFile } from "../globalApi.svelte";
 import { getModuleLorebooks } from "./modules";
 import { CCardLib } from "@risuai/ccardlib";
-import { getChatVar, setChatVar } from "../parser.svelte";
 import { v4 } from "uuid";
 
 export function addLorebook(type:number) {

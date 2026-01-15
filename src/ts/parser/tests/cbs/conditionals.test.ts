@@ -257,6 +257,24 @@ describe('#when', () => {
       expect(quickParse('#when::0::or::0', 'CBS')).toBe(`0  9`)
       expect(quickParse('#when::0::or::not::false', 'CBS')).toBe(`0 CBS 9`)
     })
+
+    test('right-to-left evaluation', () => {
+      expect(quickParse('#when::1::or::0::and::0', 'CBS')).toBe(`0 CBS 9`)
+      expect(quickParse('#when::0::or::1::and::0', 'CBS')).toBe(`0  9`)
+      expect(quickParse('#when::0::or::0::and::1', 'CBS')).toBe(`0  9`)
+
+      expect(quickParse('#when::1::and::1::or::0', 'CBS')).toBe(`0 CBS 9`)
+      expect(quickParse('#when::1::and::0::or::1', 'CBS')).toBe(`0 CBS 9`)
+      expect(quickParse('#when::0::and::1::or::1', 'CBS')).toBe(`0  9`)
+    })
+
+    test.skip('Lower precedence than other operators', () => {
+      // FIXME: left-hand/right-hand must be evaluated first, then or
+      // Given #when::a::tis::3::or::b::tis::7
+      //   AS-IS: a::tis::3 -> 1, 1::or::7 -> 1, 1::tis::7 -> 0
+      //   TO-BE: a::tis::3 -> 1, b::tis::7 -> 1, 1::or::1 -> 1
+      expect(quickParse('#when::3::tis::3::or::7::tis::7', 'CBS')).toBe(`0 CBS 9`)
+    })
   })
 
   describe('Operators: whitespaces', () => {
@@ -285,7 +303,7 @@ describe('#when', () => {
       )
     })
 
-    test('::vis, visnot', () => {
+    test('::vis, visnot, tis, tisnot', () => {
       fc.assert(
         fc.property(validCBSArgProp, validCBSArgProp, (a, b) => {
           fc.pre(a !== b)

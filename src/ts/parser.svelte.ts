@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import markdownit from 'markdown-it'
 import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from './storage/database.svelte';
-import { DBState } from './stores.svelte';
+import { DBState, selIdState } from './stores.svelte';
 import { aiWatermarkingLawApplies, getFileSrc } from './globalApi.svelte';
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { processScriptFull } from './process/scripts';
@@ -430,15 +430,36 @@ type AssetPaths = {[key:string]:{
     ext?:string
 }}
 
-let charAssetsCache = new WeakMap<object, AssetPaths>()
-let emoAssetsCache = new WeakMap<object, AssetPaths>()
-let moduleAssetsCache: AssetPaths | null = null
+let assetsCache: AssetPaths | null = null
+let emoAssetsCache: AssetPaths | null = null
 
-export function resetAssetsCache() {
-    charAssetsCache = new WeakMap()
-    emoAssetsCache = new WeakMap()
-    moduleAssetsCache = null
+export function resetAssetsCache(charAssets: string[][], emoAssets: string[][], moduleAssets: string[][]) {
+    const assetPaths: AssetPaths = {}
+    const charEmoPaths: AssetPaths = {}
+
+    getAssetSrc(charAssets, assetPaths)
+    getAssetSrc(moduleAssets, assetPaths)
+    getEmoSrc(emoAssets, charEmoPaths)
+
+    assetsCache = assetPaths
+    emoAssetsCache = charEmoPaths
 }
+
+$effect.root(() => {
+    $effect(() => {
+        const charId = selIdState.selId
+        const char = DBState.db.characters?.[charId]
+        if (!char || char.type !== 'character') {
+            return
+        }
+
+        const charAssets = char.additionalAssets ?? []
+        const emoAssets = char.emotionImages ?? []
+        const moduleAssets = getModuleAssets()
+
+        resetAssetsCache(charAssets, emoAssets, moduleAssets)
+    })
+})
 
 const imageCBS = ['img', 'image', 'emotion', 'asset', 'bg', 'raw', 'path']
 const videoExtensions = ['mp4', 'webm', 'avi', 'm4p', 'm4v']
@@ -446,41 +467,15 @@ const videoExtensions = ['mp4', 'webm', 'avi', 'm4p', 'm4v']
 async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|character, mode:'normal'|'back', arg:{ch:number}){
     const assetWidthString = (DBState.db.assetWidth && DBState.db.assetWidth !== -1 || DBState.db.assetWidth === 0) ? `max-width:${DBState.db.assetWidth}rem;` : ''
 
-    let charAssetPaths: AssetPaths | undefined
-    if (char.additionalAssets) {
-        charAssetPaths = charAssetsCache.get(char.additionalAssets)
-        if (!charAssetPaths) {
-            charAssetPaths = {}
-            getAssetSrc(char.additionalAssets, charAssetPaths)
-            charAssetsCache.set(char.additionalAssets, charAssetPaths)
-        }
+    if (char.type === 'character' && (!assetsCache || !emoAssetsCache)) {
+        resetAssetsCache(char.additionalAssets ?? [], char.emotionImages, getModuleAssets())
     }
 
-    let emoPaths: AssetPaths | undefined
-    if (char.emotionImages) {
-        emoPaths = emoAssetsCache.get(char.emotionImages)
-        if (!emoPaths) {
-            emoPaths = {}
-            getEmoSrc(char.emotionImages, emoPaths)
-            emoAssetsCache.set(char.emotionImages, emoPaths)
-        }
-    }
-
-    let moduleAssetPaths: AssetPaths | undefined
-    if (moduleAssetsCache) {
-        moduleAssetPaths = moduleAssetsCache
-    } else {
-        const moduleAssets = getModuleAssets()
-        if (moduleAssets.length > 0) {
-            moduleAssetPaths = {}
-            getAssetSrc(moduleAssets, moduleAssetPaths)
-            moduleAssetsCache = moduleAssetPaths
-        }
-    }
+    const assetPaths = assetsCache ?? {}
+    const emoPaths = emoAssetsCache ?? {}
 
     let needsSourceAccess = false
-
-    let cx:number|null = null
+    let cx: number|null = null
 
     data = await replaceAsync(data, assetRegex, async (full:string, type:string, name:string) => {
         name = name.toLocaleLowerCase()
@@ -512,15 +507,15 @@ async function parseAdditionalAssets(data:string, char:simpleCharacterArgument|c
             }
         }
 
-        let match = charAssetPaths?.[name] || moduleAssetPaths?.[name]
+        let match = assetPaths?.[name]
 
         if(!match){
             if(DBState.db.legacyMediaFindings){
                 return ''
             }
 
-            if(charAssetPaths){
-                match = getClosestMatch(char, name, charAssetPaths)
+            if(assetPaths){
+                match = getClosestMatch(char, name, assetPaths)
             }
 
             if(!match){

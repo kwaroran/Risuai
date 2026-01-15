@@ -46,25 +46,74 @@ vi.mock(import('../../stores.svelte'), () => {
 
 //#endregion
 
+const anyValidDefaultVarKey = fc.string({ minLength: 1, unit: 'grapheme' }).filter((s) => !/[=\n]/.test(s))
+const anyValidDefaultVarValue = fc
+  .anything()
+  .map(JSON.stringify)
+  .filter((s) => s !== undefined && !/[=\n]/.test(s))
+
 beforeEach(() => {
   vi.resetAllMocks()
 })
 
-test('can get and set a chat variable', () => {
+test('can get a character default variable', () => {
   fc.assert(
-    fc.property(fc.string({ unit: 'grapheme' }), fc.anything().filter((v) => v !== undefined).map(JSON.stringify), (key, value) => {
-      setChatVar(key, value)
+    fc.property(anyValidDefaultVarKey, anyValidDefaultVarValue, (key, value) => {
+      DBState.db.characters[0].defaultVariables = `${key}=${value}`
       expect(getChatVar(key)).toBe(value)
-    }),
+    })
   )
+})
+
+test('can get a template default variable', () => {
+  fc.assert(
+    fc.property(anyValidDefaultVarKey, anyValidDefaultVarValue, (key, value) => {
+      DBState.db.templateDefaultVariables = `${key}=${value}`
+      expect(getChatVar(key)).toBe(value)
+    })
+  )
+})
+
+test('can set and get a chat variable', () => {
+  fc.assert(
+    fc.property(
+      fc.string({ unit: 'grapheme' }),
+      fc
+        .anything()
+        .filter((v) => v !== undefined)
+        .map(JSON.stringify),
+      (key, value) => {
+        setChatVar(key, value)
+        expect(getChatVar(key)).toBe(value)
+      }
+    )
+  )
+})
+
+test('can set a chat variable over its default value', () => {
+  DBState.db.characters[0].defaultVariables = 'char=default'
+  DBState.db.templateDefaultVariables = 'template=default'
+
+  setChatVar('char', 'overridden')
+  setChatVar('template', 'overridden')
+
+  expect(getChatVar('char')).toBe('overridden')
+  expect(getChatVar('template')).toBe('overridden')
 })
 
 test('can get a global chat variable', () => {
   fc.assert(
-    fc.property(fc.string({ unit: 'grapheme' }), fc.anything().filter((v) => v !== undefined).map(JSON.stringify), (key, value) => {
-      DBState.db.globalChatVariables[`toggle_${key}`] = value
-      expect(getGlobalChatVar(`toggle_${key}`)).toBe(value)
-    }),
+    fc.property(
+      fc.string({ unit: 'grapheme' }),
+      fc
+        .anything()
+        .filter((v) => v !== undefined)
+        .map(JSON.stringify),
+      (key, value) => {
+        DBState.db.globalChatVariables[`toggle_${key}`] = value
+        expect(getGlobalChatVar(`toggle_${key}`)).toBe(value)
+      }
+    )
   )
 })
 
@@ -73,6 +122,6 @@ test('returns "null" for undefined variables', () => {
     fc.property(fc.string({ unit: 'grapheme' }), (key) => {
       expect(getChatVar(key)).toBe('null')
       expect(getGlobalChatVar(`toggle_${key}`)).toBe('null')
-    }),
+    })
   )
 })

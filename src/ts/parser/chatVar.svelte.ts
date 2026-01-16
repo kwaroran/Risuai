@@ -32,6 +32,12 @@ export function setChatVar(key:string, value:string): void {
     DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].scriptstate['$' + key] = value
 }
 
-export function getGlobalChatVar(key:string): string {
-    return DBState.db.globalChatVariables[key] ?? 'null'
+/**
+ * Retrieves a global variable ("toggle value") by its key.
+ * 
+ * @param key The key. Must start with `'toggle_'`, or it will be prepended automatically.
+ */
+export function getGlobalChatVar(key: string): string {
+    const key_ = key.startsWith('toggle_') ? key : `toggle_${key}`
+    return DBState.db.globalChatVariables[key_] ?? 'null'
 }

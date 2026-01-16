@@ -38,7 +38,6 @@ export enum LLMProvider{
     WebLLM,
     Horde,
     AWS,
-    AI21,
     DeepSeek,
     DeepInfra,
     Echo

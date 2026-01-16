@@ -637,6 +637,14 @@ export function setDatabase(data:Database){
         size: '1024x1024',
         quality: 'auto'
     }
+    data.wavespeedImage ??= {
+        key: '',
+        model: '',
+        loras: [],
+        reference_mode: '',
+        reference_image: '',
+        reference_base64image: ''
+    }
     data.autoScrollToNewMessage ??= true
     data.alwaysScrollToNewMessage ??= false
     data.newMessageButtonStyle ??= 'bottom-center'
@@ -1161,6 +1169,14 @@ export interface Database{
         model: string
         size: string
         quality: string
+    }
+    wavespeedImage: {
+        key: string
+        model: string
+        loras: Array<{path: string, scale: number}>,
+        reference_mode: string
+        reference_image: string
+        reference_base64image: string
     }
     sourcemapTranslate:boolean
     settingsCloseButtonSize:number

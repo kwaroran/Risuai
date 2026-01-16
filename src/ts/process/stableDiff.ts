@@ -782,5 +782,164 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
         }
         return returnSdData
     }
+    if(db.sdProvider === 'wavespeed'){
+        const config = db.wavespeedImage
+        if (!config.key) {
+            alertError('Please enter wavespeed API key')
+            return false
+        }
+        const body: {[key:string]: any} = {}
+
+        // Prompt
+        body.prompt = genPrompt
+
+        // reference image
+        let base64img = ''
+        if (config.reference_mode === 'image') {
+            // reference: uploaded image
+            base64img = config.reference_base64image
+        }
+        else if (config.reference_mode === 'character') {
+            // reference: auto use the character's default image
+            const charimg = currentChar.image;
+            const img = await readImage(charimg)
+            if (img) {
+                base64img = Buffer.from(img).toString('base64')
+            }
+        }
+        if(base64img){
+            body.images = [base64img]
+        }
+
+        // LoRAs
+        if (config.loras && Array.isArray(config.loras)) {
+            body.loras = config.loras
+                .filter((lora: any) => lora && lora.path && lora.path.trim() !== "")
+                .map((lora: any) => ({
+                    path: lora.path,
+                    scale: typeof lora.scale === 'number' ? lora.scale : 1.0
+                }));
+        }
+
+        // Request
+        try {
+            // First: submit task
+            const requestEndpoint = `https://api.wavespeed.ai/api/v3/${config.model}`
+            const requestResponse = await globalFetch(requestEndpoint, {
+                body: body,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + config.key
+                }
+            })
+            let requestId: string;
+            if (requestResponse.ok) {
+                /*
+                * submit response:
+                * {
+                *   code: number = HTTP status code (e.g., 200 for success)
+                *   message: string = Status message (e.g., “success”)
+                *   data: {
+                *     id: string = Unique identifier for the prediction, Task Id
+                *   }
+                * }
+                * */
+                requestId = requestResponse.data.data.id
+            }
+            else {
+                alertError(`Submit task failed ${requestResponse.status}: ${requestResponse.data}`)
+                return false
+            }
+
+            // Second: monitor task
+            const taskEndpoint = `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`
+            let resultEndpoint: string;
+            const POLL_INTERVAL = 3000; // monitor every 3 seconds
+            const MAX_WAIT_TIME = 10 * 60 * 1000; // 10 minutes absolute timeout
+            const startTime = Date.now();
+            while (true) {
+                const elapsedTime = Date.now() - startTime;
+                if (elapsedTime > MAX_WAIT_TIME) {
+                    alertError(`Task timeout after ${MAX_WAIT_TIME / 1000}s`);
+                    break;
+                }
+                const taskResponse = await globalFetch(taskEndpoint, {
+                    method: 'GET',
+                    headers: {
+                        "Authorization": "Bearer " + config.key
+                    }
+                })
+                if (taskResponse.ok) {
+                    /*
+                    * monitor response:
+                    * {
+                    *   code: number = HTTP status code (e.g., 200 for success)
+                    *   message: string = Status message (e.g., “success”)
+                    *   data: {
+                    *     status: string = Status of the task: created, processing, completed, or failed
+                    *     outputs: string[] = Array of URLs to the generated content (empty when status is not completed)
+                    *   }
+                    * }
+                    * */
+                    if (taskResponse.data.data.status === 'completed') {
+                        resultEndpoint = taskResponse.data.data.outputs[0]
+                        break
+                    }
+                    else if (taskResponse.data.data.status === 'failed') {
+                        alertError(JSON.stringify(taskResponse.data))
+                        break
+                    }
+                    // else keep loop
+                    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+                }
+                else {
+                    alertError(JSON.stringify(taskResponse.data))
+                    break
+                }
+            }
+            if (!resultEndpoint) {
+                alertError('Task finished but no result URL')
+                return false
+            }
+
+            // Third: get result
+            const resultResponse = await globalFetch(resultEndpoint, {
+                method: 'GET',
+                headers: {
+                    "Authorization": "Bearer " + config.key
+                },
+                rawResponse: true
+            })
+            if (resultResponse.ok) {
+                // mime-type: jpeg (default), png, webp
+                const contentType = resultResponse.headers?.['content-type'] || 'image/jpeg'
+                const mimeType = contentType.split(';')[0] // resolve "image/png; charset=utf-8"
+
+                // binary image file, need to convert to base64
+                const binary = resultResponse.data
+                const res = Buffer.from(binary).toString('base64');
+                const img = `data:${mimeType};base64,${res}`
+
+                // inlay mode
+                if(returnSdData === 'inlay'){
+                    return img
+                }
+                // default mode
+                else {
+                    let charemotions = get(CharEmotion)
+                    charemotions[currentChar.chaId] = [[img, img, Date.now()]]
+                    CharEmotion.set(charemotions)
+                    return returnSdData
+                }
+            }
+            else {
+                alertError(JSON.stringify(resultResponse.data))
+                return false
+            }
+        } catch (error) {
+            alertError(error)
+            return false
+        }
+    }
     return ''
 }

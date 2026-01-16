@@ -14,7 +14,6 @@ import { pluginCodeTranspiler } from "./apiV3/transpiler";
 
 export const customProviderStore = writable([] as string[])
 
-
 interface ProviderPlugin {
     name: string
     displayName?: string
@@ -347,54 +346,8 @@ export async function importPlugin(code:string|null = null, argu:{
             apiInternalVersion = '2.1'
         }
         else if(apiVersion === '2.0'){
-            const mediaRegex = /(https?):\/\/[^\s\'\"]+\.(?:png|jpg|jpeg|gif|webp|svg|mp3|wav|ogg|mp4|webm)/gi;
-            const hasExternalMedia = mediaRegex.test(jsFile);
-            const jsRegex = /(https?):\/\/[^\s\'\"]+\.js/gi;
-            const hasExternalJS = jsRegex.test(jsFile);
-
-            let confirmMessage = `${name}`;
-            if (hasExternalMedia) {
-                confirmMessage += `\n${language.pluginContainsExternalMedia}`;
-            }
-            if (hasExternalJS) {
-                confirmMessage += `\n${language.pluginContainsExternalJS}`;
-            }
-            confirmMessage += `\n\n${language.pluginConfirm}`;
-
-            if (!await alertPluginConfirm(confirmMessage)) {
-                return
-            }
-
-            const depMessage =
-                'This plugin is using 2.0 API, which is unsafe, alerting all safety errors rather than checking. ' +
-                'If you are developer and this error appear even if you are developing in 2.1 or above, ' +
-                'please check your //@api declaration at the top of your plugin script. (e.g. //@api 3.0)'
-            
-            pluginAlertModalStore.errors = [
-                {
-                    message: depMessage,
-                    userAlertKey: 'eval'
-                },
-                {
-                    message: depMessage,
-                    userAlertKey: 'globalAccess'
-                },
-                {
-                    message: depMessage,
-                    userAlertKey: 'storageAccess'
-                }
-            ]
-            pluginAlertModalStore.open = true
-
-            //I can use event but lazy
-            while(pluginAlertModalStore.open){
-                await sleep(100)
-            }
-            if(pluginAlertModalStore.errors.length > 0){
-                return
-            }
-
-            apiInternalVersion = 2
+            showError('Your code does not include //@api or specifies API version 2.0, which is outdated. Please update your plugin to use at least API version 2.1.')
+            return
         }
         else if(apiVersion === '3.0'){
             apiInternalVersion = '3.0'
@@ -899,18 +852,8 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loaded V2.1 Plugin', plugin.name)
         }
         else{
-            data = plugin.script
-            console.log('Loading V2.0 Plugin', plugin.name)
-
-            try {
-                eval(createRealScript(data))
-            } catch (error) {
-                console.error(error)
-            }
-            console.log('Loaded V2.0 Plugin', plugin.name)
+            
         }
-
-
     }
 }
 
@@ -928,7 +871,7 @@ export async function pluginProcess(arg: {
 } | {}) {
     return {
         success: false,
-        content: "Plugin V1 is not supported anymore, please use V2 plugin instead."
+        content: language.pluginProviderNotFound
     }
 }
 

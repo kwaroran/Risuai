@@ -5,6 +5,7 @@ import { DBState } from 'src/ts/stores.svelte'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { RPCToolCallTextContent } from '../../mcplib'
 import { ModuleHandler } from '../modules'
+import { writable } from 'svelte/store'
 
 //#region module mocks
 
@@ -20,10 +21,25 @@ vi.mock(import('src/ts/stores.svelte'), () => {
   return {
     DBState: {
       db: {
-        enabledModules: [],
-        modules: [],
+        characters: [
+          {
+            chatPage: 0,
+            chats: [
+              {
+                scriptstate: {},
+              },
+            ],
+            defaultVariables: '',
+          },
+        ],
+        globalChatVariables: {},
+        templateDefaultVariables: '',
       },
     },
+    selIdState: {
+      selId: 0,
+    },
+    selectedCharID: writable(0),
   } as typeof import('src/ts/stores.svelte')
 })
 

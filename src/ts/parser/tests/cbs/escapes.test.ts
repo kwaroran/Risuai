@@ -35,12 +35,11 @@ const varStorage = vi.hoisted(
 )
 
 vi.mock(import('../../../stores.svelte'), () => {
-  // @ts-expect-error Minimal mock
   return {
     DBState: {
       db: {
-        characters: {
-          char: {
+        characters: [
+          {
             chatPage: 0,
             chats: [
               {
@@ -49,12 +48,15 @@ vi.mock(import('../../../stores.svelte'), () => {
             ],
             defaultVariables: '',
           },
-        },
+        ],
         globalChatVariables: varStorage,
         templateDefaultVariables: '',
       },
     },
-    selectedCharID: writable('char'),
+    selIdState: {
+      selId: 0,
+    },
+    selectedCharID: writable(0),
   } as typeof import('../../../stores.svelte')
 })
 

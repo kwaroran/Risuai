@@ -9,6 +9,6 @@
     }
 </script>
 
-<button class="flex items-center hover:text-blue-500 transition-colors button-icon-copy" onclick={onclick}>
+<button class="flex items-center hover:text-blue-500 transition-colors" onclick={onclick}>
     {@render children?.()}
 </button>

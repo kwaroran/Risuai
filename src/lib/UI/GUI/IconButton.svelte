@@ -7,12 +7,17 @@
         children: Snippet;
         onclick: (e: MouseEvent) => void;
         name?: string
+        className?: string;
+        id?: string;
     }
 
-    const { children, onclick, name }: Props = $props();
+    const { children, onclick, name, className }: Props = $props();
 </script>
 
-<button class="flex items-center hover:text-blue-500 transition-colors" onclick={onclick}>
+<button class={{
+    "flex items-center hover:text-blue-500 transition-colors": true,
+    [className]: !!className
+}} id={id} onclick={onclick}>
     {@render children?.()}
 
     {#if name}

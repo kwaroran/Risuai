@@ -1,0 +1,170 @@
+diff --git a/esm/browser.js b/esm/browser.js
+index e1a21e982fefc2021cce24909764661ac6e0fd37..3401fcf1fed44e24d2046a0e8ee529e2499ae275 100644
+--- a/esm/browser.js
++++ b/esm/browser.js
+@@ -1927,10 +1927,17 @@ var ZipPassThrough = /*#__PURE__*/ (function () {
+     ZipPassThrough.prototype.push = function (chunk, final) {
+         if (!this.ondata)
+             err(5);
++        var presetCrc = this.crc;
++        var presetSize = this.size;
+         this.c.p(chunk);
+-        this.size += chunk.length;
+-        if (final)
+-            this.crc = this.c.d();
++        if (presetSize === 0) {
++            this.size += chunk.length;
++        }
++        if (final) {
++            if (presetCrc == null) {
++                this.crc = this.c.d();
++            }
++        }
+         this.process(chunk, final || false);
+     };
+     return ZipPassThrough;
+@@ -2046,7 +2053,7 @@ var Zip = /*#__PURE__*/ (function () {
+             if (fl_1 > 65535)
+                 this.ondata(err(11, 0, 1), null, false);
+             var header = new u8(hl_1);
+-            wzh(header, 0, file, f, u, -1);
++            wzh(header, 0, file, f, u, file.csize != null ? file.csize : -1);
+             var chks_1 = [header];
+             var pAll_1 = function () {
+                 for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+diff --git a/esm/index.mjs b/esm/index.mjs
+index 87c11c68699d8cbea29ddb24d240b162932f64bd..bbd3d72078cb144973da85d268809ccbef65e8fd 100644
+--- a/esm/index.mjs
++++ b/esm/index.mjs
+@@ -1941,10 +1941,17 @@ var ZipPassThrough = /*#__PURE__*/ (function () {
+     ZipPassThrough.prototype.push = function (chunk, final) {
+         if (!this.ondata)
+             err(5);
++        var presetCrc = this.crc;
++        var presetSize = this.size;
+         this.c.p(chunk);
+-        this.size += chunk.length;
+-        if (final)
+-            this.crc = this.c.d();
++        if (presetSize === 0) {
++            this.size += chunk.length;
++        }
++        if (final) {
++            if (presetCrc == null) {
++                this.crc = this.c.d();
++            }
++        }
+         this.process(chunk, final || false);
+     };
+     return ZipPassThrough;
+@@ -2060,7 +2067,7 @@ var Zip = /*#__PURE__*/ (function () {
+             if (fl_1 > 65535)
+                 this.ondata(err(11, 0, 1), null, false);
+             var header = new u8(hl_1);
+-            wzh(header, 0, file, f, u, -1);
++            wzh(header, 0, file, f, u, file.csize != null ? file.csize : -1);
+             var chks_1 = [header];
+             var pAll_1 = function () {
+                 for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+diff --git a/lib/browser.cjs b/lib/browser.cjs
+index c7fe934a7490994c7989e6c427006ef6eeae123c..93faf3f63d28153a42016844c67526191b1a394f 100644
+--- a/lib/browser.cjs
++++ b/lib/browser.cjs
+@@ -1946,10 +1946,17 @@ var ZipPassThrough = /*#__PURE__*/ (function () {
+     ZipPassThrough.prototype.push = function (chunk, final) {
+         if (!this.ondata)
+             err(5);
++        var presetCrc = this.crc;
++        var presetSize = this.size;
+         this.c.p(chunk);
+-        this.size += chunk.length;
+-        if (final)
+-            this.crc = this.c.d();
++        if (presetSize === 0) {
++            this.size += chunk.length;
++        }
++        if (final) {
++            if (presetCrc == null) {
++                this.crc = this.c.d();
++            }
++        }
+         this.process(chunk, final || false);
+     };
+     return ZipPassThrough;
+@@ -2065,7 +2072,7 @@ var Zip = /*#__PURE__*/ (function () {
+             if (fl_1 > 65535)
+                 this.ondata(err(11, 0, 1), null, false);
+             var header = new u8(hl_1);
+-            wzh(header, 0, file, f, u, -1);
++            wzh(header, 0, file, f, u, file.csize != null ? file.csize : -1);
+             var chks_1 = [header];
+             var pAll_1 = function () {
+                 for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+diff --git a/lib/index.cjs b/lib/index.cjs
+index 56e09c6de374646a25466b3391eed18686342543..2c00fa5c7ea7e93cac31c1514f1b79bad4f75feb 100644
+--- a/lib/index.cjs
++++ b/lib/index.cjs
+@@ -1926,10 +1926,17 @@ var ZipPassThrough = /*#__PURE__*/ (function () {
+     ZipPassThrough.prototype.push = function (chunk, final) {
+         if (!this.ondata)
+             err(5);
++        var presetCrc = this.crc;
++        var presetSize = this.size;
+         this.c.p(chunk);
+-        this.size += chunk.length;
+-        if (final)
+-            this.crc = this.c.d();
++        if (presetSize === 0) {
++            this.size += chunk.length;
++        }
++        if (final) {
++            if (presetCrc == null) {
++                this.crc = this.c.d();
++            }
++        }
+         this.process(chunk, final || false);
+     };
+     return ZipPassThrough;
+@@ -2045,7 +2052,7 @@ var Zip = /*#__PURE__*/ (function () {
+             if (fl_1 > 65535)
+                 this.ondata(err(11, 0, 1), null, false);
+             var header = new u8(hl_1);
+-            wzh(header, 0, file, f, u, -1);
++            wzh(header, 0, file, f, u, file.csize != null ? file.csize : -1);
+             var chks_1 = [header];
+             var pAll_1 = function () {
+                 for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+diff --git a/lib/node.cjs b/lib/node.cjs
+index 3ff05cde0dc4a31864b3cb0ee9708101565eb217..cfe3962c0e0ad0abd30a579febc314681e2efdf6 100644
+--- a/lib/node.cjs
++++ b/lib/node.cjs
+@@ -1958,10 +1958,17 @@ var ZipPassThrough = /*#__PURE__*/ (function () {
+     ZipPassThrough.prototype.push = function (chunk, final) {
+         if (!this.ondata)
+             err(5);
++        var presetCrc = this.crc;
++        var presetSize = this.size;
+         this.c.p(chunk);
+-        this.size += chunk.length;
+-        if (final)
+-            this.crc = this.c.d();
++        if (presetSize === 0) {
++            this.size += chunk.length;
++        }
++        if (final) {
++            if (presetCrc == null) {
++                this.crc = this.c.d();
++            }
++        }
+         this.process(chunk, final || false);
+     };
+     return ZipPassThrough;
+@@ -2077,7 +2084,7 @@ var Zip = /*#__PURE__*/ (function () {
+             if (fl_1 > 65535)
+                 this.ondata(err(11, 0, 1), null, false);
+             var header = new u8(hl_1);
+-            wzh(header, 0, file, f, u, -1);
++            wzh(header, 0, file, f, u, file.csize != null ? file.csize : -1);
+             var chks_1 = [header];
+             var pAll_1 = function () {
+                 for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {

@@ -16,6 +16,25 @@ const MAX_CONCURRENT_ASSET_SAVES = 10;
 const HTTP_STATUS_OK_MIN = 200;
 const HTTP_STATUS_OK_MAX = 300;
 
+// CRC32 lookup table (from fflate implementation)
+const crc32Table = (() => {
+    const t = new Int32Array(256);
+    for (let i = 0; i < 256; ++i) {
+        let c = i, k = 9;
+        while (--k) c = ((c & 1) && -306674912) ^ (c >>> 1);
+        t[i] = c;
+    }
+    return t;
+})();
+
+function crc32(data: Uint8Array): number {
+    let crc = -1;
+    for (let i = 0; i < data.length; ++i) {
+        crc = crc32Table[(crc & 255) ^ data[i]] ^ (crc >>> 8);
+    }
+    return ~crc >>> 0;  // Convert to unsigned
+}
+
 export async function processZip(dataArray: Uint8Array): Promise<string> {
     const unzipped = await new Promise<fflate.Unzipped>((resolve, reject) => {
         fflate.unzip(dataArray, (err, data) => {
@@ -96,17 +115,27 @@ export class CharXWriter{
             dat = data
         }
         this.writeEnd = false
-        const file = new fflate.ZipDeflate(key, {
-            level: level ?? 0
-        });
+
+        // Pre-compress to get size/crc for Local File Header (avoids Data Descriptor)
+        const compressionLevel = level ?? 0
+        const compressed = compressionLevel === 0
+            ? dat
+            : fflate.deflateSync(dat, { level: compressionLevel })
+        const crc = crc32(dat)
+
+        const file = new fflate.ZipPassThrough(key) as fflate.ZipPassThrough & {csize?: number}
+        file.size = dat.length
+        file.csize = compressed.length
+        file.crc = crc
+        file.compression = compressionLevel === 0 ? 0 : 8
+
         this.zip.add(file)
-        file.push(dat, true)
+        file.push(compressed, true)
         await this.writer.write(this.apb.buffer)
         this.apb.clear()
         if(this.writeEnd){
             await this.writer.close()
         }
-        
     }
 
     #sanitizeZipFilename(filename:string) {

@@ -113,10 +113,6 @@ export const advancedSettingsItems: SettingItem[] = [
 
     // Experimental Section (visible when useExperimental is true)
     {
-        id: 'adv.exp.randomUser', type: 'check', labelKey: 'oaiRandomUser', bindKey: 'putUserOpen',
-        condition: (ctx) => ctx.db.useExperimental, showExperimental: true, helpKey: 'oaiRandomUser', classes: 'mt-4'
-    },
-    {
         id: 'adv.exp.googleToken', type: 'check', labelKey: 'googleCloudTokenization', bindKey: 'googleClaudeTokenizing',
         condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'
     },

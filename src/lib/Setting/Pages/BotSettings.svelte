@@ -27,14 +27,13 @@
     import PromptSettings from "./PromptSettings.svelte";
     import { openPresetList } from "src/ts/stores.svelte";
     import { selectSingleFile } from "src/ts/util";
-  import { getModelInfo, LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist";
-  import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
-  import RegexList from "src/lib/SideBars/Scripts/RegexList.svelte";
+    import { getModelInfo, LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist";
+    import RegexList from "src/lib/SideBars/Scripts/RegexList.svelte";
     import SettingRenderer from "../SettingRenderer.svelte";
     import { allBasicParameterItems } from "src/ts/setting/botSettingsParamsData";
     import SeparateParametersSection from "./SeparateParametersSection.svelte";
     
-let tokens = $state({
+    let tokens = $state({
         mainPrompt: 0,
         jailbreak: 0,
         globalNote: 0,
@@ -299,7 +298,6 @@ let tokens = $state({
     {#if DBState.db.aiModel === "kobold" || DBState.db.subModel === "kobold"}
         <span class="text-textcolor">Kobold URL</span>
         <TextInput marginBottom={true} bind:value={DBState.db.koboldURL} />
-
     {/if}
 
     {#if DBState.db.aiModel === 'echo_model' || DBState.db.subModel === 'echo_model'}
@@ -308,7 +306,6 @@ let tokens = $state({
         <span class="text-textcolor mt-2">Echo Delay (Seconds)</span>
         <NumberInput marginBottom={true} bind:value={DBState.db.echoDelay} min={0}/>
     {/if}
-
 
     {#if DBState.db.aiModel.startsWith("horde") || DBState.db.subModel.startsWith("horde") }
         <span class="text-textcolor">Horde {language.apiKey}</span>
@@ -332,6 +329,31 @@ let tokens = $state({
     {/if}
     {#if DBState.db.aiModel.startsWith("horde") || DBState.db.aiModel === 'kobold' }
         <ChatFormatSettings />
+    {/if}
+
+    <div class="flex items-center mt-4">
+        <Check bind:check={DBState.db.seperateModelsForAxModels} name={language.seperateModelsForAxModels} />
+    </div>
+    {#if DBState.db.seperateModelsForAxModels}
+        <Check bind:check={DBState.db.doNotChangeSeperateModels} name={language.doNotChangeSeperateModels} />
+        <Accordion name={language.axModelsDef} styled>
+            <span class="text-textcolor mt-4">
+                Memory
+            </span>
+            <ModelList bind:value={DBState.db.seperateModels.memory} blankable />
+            <span class="text-textcolor mt-4">
+                Translations
+            </span>
+            <ModelList bind:value={DBState.db.seperateModels.translate} blankable />
+            <span class="text-textcolor mt-4">
+                Emotion
+            </span>
+            <ModelList bind:value={DBState.db.seperateModels.emotion} blankable />
+            <span class="text-textcolor mt-4">
+                OtherAx
+            </span>
+            <ModelList bind:value={DBState.db.seperateModels.otherAx} blankable />
+        </Accordion>
     {/if}
 {/if}
 
@@ -468,7 +490,6 @@ let tokens = $state({
 
     <!-- Separate Parameters - handled by custom component -->
     <SeparateParametersSection />
-
 {/if}
 
 {#if submenu === 3 || submenu === -1}

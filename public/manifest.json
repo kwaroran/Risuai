@@ -12,12 +12,14 @@
         {
             "src": "logo_512.png",
             "type": "image/png",
-            "sizes": "512x512"
+            "sizes": "512x512",
+            "purpose":"maskable"
         },
         {
             "src": "logo_192.png",
             "type": "image/png",
-            "sizes": "192x192"
+            "sizes": "192x192",
+            "purpose":"maskable"
         },
         {
             "src": "logo_16.png",
@@ -36,32 +38,32 @@
         }
     ],
     "share_target": {
-    "action": "/sw/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-        "files": [
-            {
-                "name": "character",
+        "action": "/sw/share",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "files": [
+                {
+                    "name": "character",
                 "accept": {
                     "application/octet-stream": [".charx"]
                 }
-            },
-            {
-                "name": "preset",
+                },
+                {
+                    "name": "preset",
                 "accept": {
                     "application/octet-stream": [".risup"]
                 }
-            },
-            {
-                "name": "module",
+                },
+                {
+                    "name": "module",
                 "accept": {
                     "application/octet-stream": [".risum"]
                 }
-            }
-        ]
-    }
-},
+                }
+            ]
+        }
+    },
     "file_handlers": [
         {
             "action": "/",

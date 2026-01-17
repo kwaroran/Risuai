@@ -3,6 +3,7 @@
     import { tokenizeAccurate } from "../../ts/tokenizer";
     import { saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
+    import { untrack } from 'svelte';
     import { CharConfigSubMenu, MobileGUI, ShowRealmFrameStore, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
     import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, User, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
@@ -51,26 +52,23 @@
         charaNote: ''
     }
 
-    async function loadTokenize(chara){
-        const cha = chara
-        if(cha.type !== 'group'){
-            if(lasttokens.desc !== cha.desc){
-                if(cha.desc){
-                    lasttokens.desc = cha.desc
-                    tokens.desc = await tokenizeAccurate(cha.desc)
-                }
-            }
-            if(lasttokens.firstMsg !==chara.firstMessage){
-                lasttokens.firstMsg = chara.firstMessage
-                tokens.firstMsg = await tokenizeAccurate(chara.firstMessage)
-            }
+    async function loadTokenize(
+        desc: string | null,
+        firstMsg: string | null,
+        localNote: string
+    ) {
+        if (desc !== null && lasttokens.desc !== desc) {
+            lasttokens.desc = desc
+            tokens.desc = await tokenizeAccurate(desc)
         }
-        if(lasttokens.localNote !== DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].note){
-            lasttokens.localNote = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].note
-            tokens.localNote = await tokenizeAccurate(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].note)
-        
+        if (firstMsg !== null && lasttokens.firstMsg !== firstMsg) {
+            lasttokens.firstMsg = firstMsg
+            tokens.firstMsg = await tokenizeAccurate(firstMsg)
         }
-
+        if (lasttokens.localNote !== localNote) {
+            lasttokens.localNote = localNote
+            tokens.localNote = await tokenizeAccurate(localNote)
+        }
     }
 
 
@@ -80,14 +78,26 @@
 
     $effect.pre(() => {
         emos = DBState.db.characters[$selectedCharID].emotionImages
-        loadTokenize(DBState.db.characters[$selectedCharID])
+    });
 
+    $effect.pre(() => {
+        const chara = DBState.db.characters[$selectedCharID]
+        const desc = chara.type !== 'group' ? (chara as character).desc : null
+        const firstMsg = chara.type !== 'group' ? chara.firstMessage : null
+        const localNote = chara.chats[chara.chatPage].note
+
+        untrack(() => {
+            loadTokenize(desc, firstMsg, localNote)
+        })
+    });
+
+    $effect.pre(() => {
         if(DBState.db.characters[$selectedCharID].type ==='character' && DBState.db.useAdditionalAssetsPreview){
             if((DBState.db.characters[$selectedCharID] as character).additionalAssets){
                 for(let i = 0; i < (DBState.db.characters[$selectedCharID] as character).additionalAssets.length; i++){
                     if((DBState.db.characters[$selectedCharID] as character).additionalAssets[i].length > 2 && (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][2]) {
                         assetFileExtensions[i] = (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][2]
-                    } else 
+                    } else
                         assetFileExtensions[i] = (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][1].split('.').pop()
                     getFileSrc((DBState.db.characters[$selectedCharID] as character).additionalAssets[i][1]).then((filePath) => {
                         assetFilePath[i] = filePath
@@ -95,7 +105,6 @@
                 }
             }
         }
-        
     });
 
     $effect.pre(() => {

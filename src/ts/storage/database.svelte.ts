@@ -2206,7 +2206,7 @@ export async function importPreset(f:{
     let db = getDatabase()
     if(pre.presetVersion && pre.presetVersion >= 3){
         //NAI preset
-        const pr = safeStructuredClone(prebuiltPresets.NAI2)
+        const pr = safeStructuredClone(prebuiltPresets.NAI)
         pr.temperature = pre.parameters.temperature * 100
         pr.maxResponse = pre.parameters.max_length
         pr.NAISettings.topK = pre.parameters.top_k

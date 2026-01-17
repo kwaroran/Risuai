@@ -1,8 +1,50 @@
 // @ts-nocheck
 
+// PWA Install Support
+self.addEventListener('install', (event) => {
+    console.log('[SW] Service Worker installing...');
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    console.log('[SW] Service Worker activated');
+    event.waitUntil(clients.claim());
+});
+
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url)
     const path = url.pathname.split('/')
+    
+    // Skip cross-origin requests
+    if (url.origin !== location.origin) {
+        return;
+    }
+    
+    // Handle navigation requests (Samsung Browser PWA requirement)
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            (async () => {
+                try {
+                    // Try network first
+                    return await fetch(event.request);
+                } catch (error) {
+                    // If network fails, try cache
+                    const cachedResponse = await caches.match('/index.html');
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                    // Last resort: return a basic offline page
+                    return new Response('Offline', {
+                        status: 503,
+                        statusText: 'Service Unavailable',
+                        headers: new Headers({ 'Content-Type': 'text/plain' })
+                    });
+                }
+            })()
+        );
+        return;
+    }
+    
     if(path[1] === 'sw'){
         try {
             switch (path[2]){

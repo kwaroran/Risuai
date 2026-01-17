@@ -1,5 +1,13 @@
 {
-    "name": "Risuai",
+    "name": "RisuAI",
+    "short_name": "RisuAI",
+    "description": "An AI frontend for both light and core users.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "fullscreen",
+    "background_color": "#111827",
+    "orientation": "any",
+    "prefer_related_applications": false,
     "icons": [
         {
             "src": "logo_512.png",
@@ -27,30 +35,33 @@
             "sizes": "256x256"
         }
     ],
-    "start_url": "/",
-    "display": "standalone",
-    "theme_color": "#4682B4",
     "share_target": {
-        "action": "/receive-files/",
-        "method": "POST",
-        "enctype": "multipart/form-data",
-        "params": {
-            "files": [
-                {
-                    "name": "character",
-                    "accept": [".charx"]
-                },
-                {
-                    "name": "preset",
-                    "accept": [".risup"]
-                },
-                {
-                    "name": "module",
-                    "accept": [".risum"]
+    "action": "/sw/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+        "files": [
+            {
+                "name": "character",
+                "accept": {
+                    "application/octet-stream": [".charx"]
                 }
-            ]
-        }
-    },
+            },
+            {
+                "name": "preset",
+                "accept": {
+                    "application/octet-stream": [".risup"]
+                }
+            },
+            {
+                "name": "module",
+                "accept": {
+                    "application/octet-stream": [".risum"]
+                }
+            }
+        ]
+    }
+},
     "file_handlers": [
         {
             "action": "/",
@@ -59,5 +70,4 @@
             }
         }
     ]
-      
 }

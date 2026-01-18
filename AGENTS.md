@@ -45,7 +45,6 @@ risuai-newest/
 | `translator/` | Translation system |
 | `model/` | Model definitions and integrations |
 | `sync/` | Multi-user synchronization |
-| `creation/` | Character creation tools |
 | `cbs.ts` | Callback system |
 | `characterCards.ts` | Character card import/export |
 | `parser.svelte.ts` | Message parsing |

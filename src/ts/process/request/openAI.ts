@@ -535,10 +535,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
-    if(aiModel.startsWith('jamba')){
-        headers['Authorization'] = 'Bearer ' + db.ai21Key
-        replacerURL = 'https://api.ai21.com/studio/v1/chat/completions'
-    }
     if(arg.multiGen){
         // Check if tools are enabled - multiGen with tools is not supported
         if(arg.tools && arg.tools.length > 0){

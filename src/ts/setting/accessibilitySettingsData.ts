@@ -67,13 +67,6 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['bot', 'setting', 'start', 'open']
     },
     {
-        id: 'acc.toggleConfirmRecommendedPreset',
-        type: 'check',
-        labelKey: 'toggleConfirmRecommendedPreset',
-        bindKey: 'toggleConfirmRecommendedPreset',
-        keywords: ['confirm', 'recommended', 'preset']
-    },
-    {
         id: 'acc.showMenuChatList',
         type: 'check',
         labelKey: 'showMenuChatList',

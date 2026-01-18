@@ -3,13 +3,14 @@ import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
-import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, type MenuDef } from "src/ts/stores.svelte";
+import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
 import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
 import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
 import { isNodeServer, isTauri } from "src/ts/platform";
+import { get } from "svelte/store";
 
 /*
     V3 API for RisuAI Plugins
@@ -591,7 +592,54 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 }
             }
         },
-
+        getCharacterFromIndex: (index:number) => {
+            const db = DBState.db
+            const charIds = Object.keys(db.characters);
+            const charId = charIds[index];
+            if(charId){
+                return $state.snapshot(db.characters[charId]);
+            }
+            return null;
+        },
+        setCharacterToIndex: (index:number, char:any) => {
+            const db = DBState.db
+            const charIds = Object.keys(db.characters);
+            const charId = charIds[index];
+            if(charId){
+                DBState.db.characters[charId] = char
+            }
+        },
+        getChatFromIndex: (characterIndex:number, chatIndex:number) => {
+            const db = DBState.db
+            const charIds = Object.keys(db.characters);
+            const charId = charIds[characterIndex];
+            if(charId){
+                const chats = db.characters[charId].chats;
+                if(chats && chats[chatIndex]){
+                    return $state.snapshot(chats[chatIndex]);
+                }
+            }
+            return null;
+        },
+        setChatToIndex: (characterIndex:number, chatIndex:number, chat:any) => {
+            const db = DBState.db
+            const charIds = Object.keys(db.characters);
+            const charId = charIds[characterIndex];
+            if(charId){
+                const chats = db.characters[charId].chats;
+                if(chats && chats[chatIndex]){
+                    DBState.db.characters[charId].chats[chatIndex] = chat
+                }
+            }
+        },
+        getCurrentCharacterIndex: () => {
+            return get(selectedCharID)
+        },
+        getCurrentChatIndex: () => {
+            const db = DBState.db
+            const charId = get(selectedCharID)
+            return db.characters[charId].chatPage
+        },
         //New names for character APIs, to match API naming conventions
         getCharacter: oldApis.getChar,
         setCharacter: oldApis.setChar,

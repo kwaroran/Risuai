@@ -581,9 +581,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         setArgument: async (key:string, value:string) => {
             const db = getDatabase();
-            for (const plugin of db.plugins) {
-                if (plugin.name === plugin.name) {
-                    plugin.realArg[key] = value;
+            for (const p of db.plugins) {
+                if (p.name === plugin.name) {
+                    p.realArg[key] = value;
                 }
             }
         },

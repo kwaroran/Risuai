@@ -495,7 +495,11 @@ const unloadV3Plugin = async (pluginName: string) => {
             sleep(1000) //timeout after 1 second
         ])
     }
-    instance.host.terminate();
+    try {
+        instance?.host?.terminate();        
+    } catch (error) {
+        console.error(`Error terminating plugin ${pluginName}:`, error);
+    }
 }
 
 const permissionGivenPlugins: Set<string> = new Set();

@@ -3,7 +3,7 @@ import { applyParameters, setObjectValue, type OpenAIChatExtra, type OpenAIConte
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
-import { getFreeOpenRouterModel } from "src/ts/model/openrouter"
+import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import type { OpenAIChatFull } from "../index.svelte"
@@ -222,7 +222,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     }
 
     if(aiModel === 'openrouter' && db.openrouterRequestModel === 'risu/free'){
-        openrouterRequestModel = await getFreeOpenRouterModel()
+        openrouterRequestModel = await getFreeOpenRouterModels()
     }
 
     if(arg.modelInfo.flags.includes(LLMFlags.DeveloperRole)){

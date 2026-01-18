@@ -543,15 +543,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         setDatabaseLite: oldApis.setDatabaseLite,
         setDatabase: oldApis.setDatabase,
         loadPlugins: oldApis.loadPlugins,
-        readImage: (path:string) => {
-            if(path.includes('/')){
-                throw new Error("readImage path cannot contain '/' for security reasons.");
-            }
-            return oldApis.readImage(path);
-        },
-        saveAsset: (data:Uint8Array) => {
-            return oldApis.saveAsset(data);
-        },
+        readImage: oldApis.readImage,
+        saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
         getDatabase: async (includeOnly:string[]|'all' = 'all') => {
             const conf = await getPluginPermission(plugin.name, 'db');

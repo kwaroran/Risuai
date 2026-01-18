@@ -544,7 +544,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return oldApis.readImage(path);
         },
-        saveAsset: (data:Uint8Array, unused:unknown) => {
+        saveAsset: (data:Uint8Array) => {
             return oldApis.saveAsset(data);
         },
         //Same functionality, but new implementation

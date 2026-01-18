@@ -771,8 +771,15 @@ export const getV2PluginAPIs = () => {
 
         }),
         loadPlugins: loadPlugins,
-        readImage: readImage,
-        saveAsset: saveAsset
+        readImage: (path:string) => {
+            if(path.includes('/') || path.includes('\\')){
+                throw new Error("readImage path cannot contain '/' or '\\' for security reasons.");
+            }
+            return readImage(path);
+        },
+        saveAsset: (data:Uint8Array) => {
+            return saveAsset(data);
+        },
 
     }
 }

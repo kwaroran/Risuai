@@ -9,7 +9,7 @@ import { assetRegex, type CbsConditions, risuChatParser as risuChatParserOrg, ty
 import { getModuleAssets, getModuleRegexScripts } from "./modules";
 import { HypaProcesser } from "./memory/hypamemory";
 import { runLuaEditTrigger } from "./scriptings";
-import { pluginV2 } from "../plugins/plugins";
+import { pluginV2 } from "../plugins/plugins.svelte";
 import { runTrigger } from "./triggers";
 
 const dreg = /{{data}}/g

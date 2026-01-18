@@ -7,7 +7,7 @@ import { risuChatParser } from "./parser.svelte";
 import { tokenizeGGUFModel } from "./process/models/local";
 import { globalFetch } from "./globalApi.svelte";
 import { getModelInfo, LLMTokenizer, type LLMModel } from "./model/modellist";
-import { pluginV2 } from "./plugins/plugins";
+import { pluginV2 } from "./plugins/plugins.svelte";
 import type { GemmaTokenizer } from "@huggingface/transformers";
 import { LRUMap } from 'mnemonist';
 

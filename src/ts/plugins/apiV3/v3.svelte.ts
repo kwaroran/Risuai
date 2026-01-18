@@ -1,4 +1,4 @@
-import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins";
+import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { tagWhitelist } from "../pluginSafeClass";

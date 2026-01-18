@@ -1354,8 +1354,9 @@ interface RisuaiPluginAPI {
     /**
      * Saves an asset
      * @param data - Asset data
+     * @returns Saved asset path
      */
-    saveAsset(data: any): Promise<void>;
+    saveAsset(data: any): Promise<string>;
 
     // ========== Plugin Management ==========
 

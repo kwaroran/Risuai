@@ -69,8 +69,8 @@ await (async function() {
         }
         if (val && typeof val === 'object' && val.__type === 'CALLBACK_STREAMS') {
             //specialType, one of
-            - Response
-            - none
+            // - Response
+            // - none
             const specialType = val.__specialType;
             if (specialType === 'Response') {
                 return new Response(val.value, val.init);

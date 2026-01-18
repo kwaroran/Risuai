@@ -167,7 +167,7 @@ export async function getInlayAsset(id: string){
 
 // Returns with Blob
 export async function getInlayAssetBlob(id: string){
-    const img: InlayAsset | null = await inlayStorage.getItem<InlayAsset | null>(id)
+    const img = await inlayStorage.getItem<InlayAsset | null>(id)
     if(img === null){
         return null
     }

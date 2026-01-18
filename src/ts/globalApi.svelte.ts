@@ -649,7 +649,6 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
     try {
         const db = getDatabase();
         const method = arg.method ?? "POST";
-        db.requestmet = "normal";
 
         if (arg.abortSignal?.aborted) { return { ok: false, data: 'aborted', headers: {}, status: 400 }; }
 

@@ -86,9 +86,6 @@ export function setDatabase(data:Database){
     if(checkNullish(data.forceReplaceUrl)){
         data.forceReplaceUrl = ''
     }
-    if(checkNullish(data.forceReplaceUrl2)){
-        data.forceReplaceUrl2 = ''
-    }
     if(checkNullish(data.language)){
         data.language = 'en'
     }
@@ -109,9 +106,6 @@ export function setDatabase(data:Database){
     }
     if(checkNullish(data.zoomsize)){
         data.zoomsize = 100
-    }
-    if(checkNullish(data.lastup)){
-        data.lastup = ''
     }
     if(checkNullish(data.customBackground)){
         data.customBackground = ''
@@ -140,9 +134,6 @@ export function setDatabase(data:Database){
     if(checkNullish(data.subModel)){
         data.subModel = 'gemini-3-flash-preview'
     }
-    if(checkNullish(data.timeOut)){
-        data.timeOut = 120
-    }
     if(checkNullish(data.waifuWidth)){
         data.waifuWidth = 100
     }
@@ -151,9 +142,6 @@ export function setDatabase(data:Database){
     }
     if(checkNullish(data.emotionPrompt)){
         data.emotionPrompt = ""
-    }
-    if(checkNullish(data.requester)){
-        data.requester = "new"
     }
     if(checkNullish(data.proxyKey)){
         data.proxyKey = ""
@@ -168,9 +156,6 @@ export function setDatabase(data:Database){
     }
     if(checkNullish(data.sdProvider)){
         data.sdProvider = ''
-    }
-    if(checkNullish(data.runpodKey)){
-        data.runpodKey = ''
     }
     if(checkNullish(data.webUiUrl)){
         data.webUiUrl = 'http://127.0.0.1:7860/'
@@ -210,12 +195,6 @@ export function setDatabase(data:Database){
     }
     if(checkNullish(data.bias)){
         data.bias = []
-    }
-    if(checkNullish(data.requestmet)){
-        data.requestmet = 'normal'
-    }
-    if(checkNullish(data.requestproxy)){
-        data.requestproxy = ''
     }
     if(checkNullish(data.showUnrecommended)){
         data.showUnrecommended = false
@@ -380,8 +359,6 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
-    data.toggleConfirmRecommendedPreset ??= true
-    data.officialplugins ??= {}
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -413,7 +390,6 @@ export function setDatabase(data:Database){
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
     data.fishSpeechKey ??= ''
-    data.statistics ??= {}
     data.presetRegex ??= []
     data.reverseProxyOobaArgs ??= {
         mode: 'instruct'
@@ -553,7 +529,6 @@ export function setDatabase(data:Database){
     data.showSavingIcon ??= false
     data.banCharacterset ??= []
     data.showPromptComparison ??= false
-    data.checkCorruption ??= true
     data.OaiCompAPIKeys ??= {}
     data.reasoningEffort ??= 0
     data.hypaV3Presets ??= [
@@ -722,7 +697,6 @@ export interface DynamicOutput {
 export interface Database{
     characters: (character|groupChat)[],
     apiType: string
-    forceReplaceUrl2:string
     openAIKey: string
     proxyKey:string
     mainPrompt: string
@@ -755,17 +729,8 @@ export interface Database{
     language: string
     translator: string
     plugins: RisuPlugin[]
-    officialplugins: {
-        automark?: boolean
-        romanizer?: boolean
-        metrica?: boolean
-        oaiFix?: boolean
-        oaiFixEmdash?: boolean
-        oaiFixLetters?: boolean
-    }
     currentPluginProvider: string
     zoomsize:number
-    lastup:string
     customBackground:string
     textgenWebUIStreamURL:string
     textgenWebUIBlockingURL:string
@@ -775,9 +740,7 @@ export interface Database{
     iconsize:number
     theme: string
     subModel:string
-    timeOut:number
     emotionPrompt: string,
-    requester:string
     formatversion:number
     waifuWidth:number
     waifuWidth2:number
@@ -795,7 +758,6 @@ export interface Database{
     NAIREF:boolean
     NAIImgConfig:NAIImgConfig
     ttsAutoSpeech?:boolean
-    runpodKey:string
     promptPreprocess:boolean
     bias: [string, number][]
     swipe:boolean
@@ -813,8 +775,6 @@ export interface Database{
     emotionPrompt2:string
     useSayNothing:boolean
     didFirstSetup: boolean
-    requestmet: string
-    requestproxy: string
     showUnrecommended:boolean
     elevenLabKey:string
     voicevoxUrl:string
@@ -822,7 +782,6 @@ export interface Database{
     showMemoryLimit:boolean
     roundIcons:boolean
     useStreaming:boolean
-    palmAPI:string,
     supaMemoryKey:string
     hypaMemoryKey:string
     supaModelType:string
@@ -832,7 +791,6 @@ export interface Database{
     textScreenBorder?:string
     characterOrder:(string|folder)[]
     hordeConfig:hordeConfig,
-    toggleConfirmRecommendedPreset:boolean,
     novelai:{
         token:string,
         model:string
@@ -842,7 +800,6 @@ export interface Database{
     fixedChatTextarea:boolean
     clickToEdit: boolean
     koboldURL:string
-    advancedBotSettings:boolean
     useAutoSuggestions:boolean
     autoSuggestPrompt:string
     autoSuggestPrefix:string
@@ -920,13 +877,10 @@ export interface Database{
     customProxyRequestModel:string
     generationSeed:number
     newOAIHandle:boolean
-    putUserOpen: boolean
-    inlayImage:boolean
     gptVisionQuality:string
     reverseProxyOobaMode:boolean
     reverseProxyOobaArgs: OobaChatCompletionRequestParams
     tpo?:boolean
-    automark?:boolean
     huggingfaceKey:string
     fishSpeechKey:string
     allowAllExtentionFiles?:boolean
@@ -942,12 +896,6 @@ export interface Database{
     genTime:number
     promptSettings: PromptSettings
     keiServerURL:string
-    statistics: {
-        newYear2024?: {
-            messages: number
-            chats: number
-        }
-    },
     top_k:number
     repetition_penalty:number
     min_p:number
@@ -1032,7 +980,6 @@ export interface Database{
     groupOtherBotRole?:string
     customGUI:string
     guiHTML:string
-    logShare:boolean
     OAIPrediction:string
     customAPIFormat:LLMFormat
     systemContentReplacement:string
@@ -1066,7 +1013,6 @@ export interface Database{
     presetRegex: customscript[]
     banCharacterset:string[]
     showPromptComparison:boolean
-    checkCorruption:boolean
     hypaV3:boolean
     hypaV3Settings: HypaV3Settings // legacy
     hypaV3Presets: HypaV3Preset[]
@@ -1515,7 +1461,6 @@ export interface botPreset{
     customAPIFormat?:LLMFormat
     systemContentReplacement?: string
     systemRoleReplacement?: 'user'|'assistant'
-    openAIPrediction?: string
     enableCustomFlags?: boolean
     customFlags?: LLMFlags[]
     image?:string
@@ -1911,7 +1856,6 @@ export function saveCurrentPreset(){
         textgenWebUIStreamURL: db.textgenWebUIStreamURL,
         textgenWebUIBlockingURL: db.textgenWebUIBlockingURL,
         forceReplaceUrl: db.forceReplaceUrl,
-        forceReplaceUrl2: db.forceReplaceUrl2,
         promptPreprocess: db.promptPreprocess,
         bias: db.bias,
         koboldURL: db.koboldURL,
@@ -1949,7 +1893,6 @@ export function saveCurrentPreset(){
         groupTemplate: db.groupTemplate ?? '',
         seperateParametersEnabled: db.seperateParametersEnabled ?? false,
         seperateParameters: safeStructuredClone(db.seperateParameters),
-        openAIPrediction: db.OAIPrediction,
         customAPIFormat: safeStructuredClone(db.customAPIFormat),
         systemContentReplacement: db.systemContentReplacement,
         systemRoleReplacement: db.systemRoleReplacement,
@@ -2023,7 +1966,6 @@ export function setPreset(db:Database, newPres: botPreset){
     db.textgenWebUIBlockingURL = newPres.textgenWebUIBlockingURL ?? db.textgenWebUIBlockingURL
     db.forceReplaceUrl = newPres.forceReplaceUrl ?? db.forceReplaceUrl
     db.promptPreprocess = newPres.promptPreprocess ?? db.promptPreprocess
-    db.forceReplaceUrl2 = newPres.forceReplaceUrl2 ?? db.forceReplaceUrl2
     db.bias = newPres.bias ?? db.bias
     db.koboldURL = newPres.koboldURL ?? db.koboldURL
     db.proxyKey = newPres.proxyKey ?? db.proxyKey
@@ -2079,7 +2021,6 @@ export function setPreset(db:Database, newPres: botPreset){
         translate: {},
         otherAx: {}
     }
-    db.OAIPrediction = newPres.openAIPrediction ?? ''
     db.customAPIFormat = safeStructuredClone(newPres.customAPIFormat) ?? LLMFormat.OpenAICompatible
     db.systemContentReplacement = newPres.systemContentReplacement ?? ''
     db.systemRoleReplacement = newPres.systemRoleReplacement ?? 'user'

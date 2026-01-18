@@ -1372,5 +1372,5 @@ export const languageGerman = {
     "alwaysScrollToNewMessage": "Immer zu neuen Nachrichten scrollen (Scrollposition ignorieren)",
     "disableAbove": "Nachrichten für KI kürzen",
     "autoScrollToNewMessage": "Automatisch zu neuen Nachrichten scrollen",
-    "newMessageButtonStyle": "Stil der Schaltfläche „Neue Nachricht“"
-};
+    "newMessageButtonStyle": "Stil der Schaltfläche „Neue Nachricht“",
+} satisfies DeepPartial<typeof import('./en').languageEnglish>

@@ -1372,5 +1372,5 @@ export const languageVietnamese = {
     "disableMessage": "Vô hiệu hóa tin nhắn",
     "newMessageButtonFloatingCircle": "Vòng tròn nổi (Góc dưới bên phải)",
     "newMessageButtonBottomLeft": "Phía dưới bên trái",
-    "newMessageButtonBottomCenter": "Dưới cùng ở giữa (Mặc định)"
-};
+    "newMessageButtonBottomCenter": "Dưới cùng ở giữa (Mặc định)",
+} satisfies DeepPartial<typeof import('./en').languageEnglish>

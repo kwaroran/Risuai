@@ -14,10 +14,10 @@
     import PlaygroundParser from "./PlaygroundParser.svelte";
     import ToolConversion from "./ToolConversion.svelte";
     import { joinMultiuserRoom } from "src/ts/sync/multiuser";
-  import PlaygroundSubtitle from "./PlaygroundSubtitle.svelte";
-  import PlaygroundImageTrans from "./PlaygroundImageTrans.svelte";
-  import PlaygroundTranslation from "./PlaygroundTranslation.svelte";
-  import PlaygroundMcp from "./PlaygroundMCP.svelte";
+    import PlaygroundSubtitle from "./PlaygroundSubtitle.svelte";
+    import PlaygroundImageTrans from "./PlaygroundImageTrans.svelte";
+    import PlaygroundTranslation from "./PlaygroundTranslation.svelte";
+    import PlaygroundMcp from "./PlaygroundMCP.svelte";
     import PlaygroundDocs from "./PlaygroundDocs.svelte";
 
     let easterEggTouch = $state(0)

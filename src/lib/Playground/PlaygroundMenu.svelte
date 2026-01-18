@@ -19,6 +19,7 @@
     import PlaygroundTranslation from "./PlaygroundTranslation.svelte";
     import PlaygroundMcp from "./PlaygroundMCP.svelte";
     import PlaygroundDocs from "./PlaygroundDocs.svelte";
+    import PlaygroundInlayExplorer from './PlaygroundInlayExplorer.svelte';
 
     let easterEggTouch = $state(0)
 
@@ -114,6 +115,11 @@
                 <h1 class="text-2xl font-bold text-start">MCP</h1>
             </button>
             <button class="bg-darkbg rounded-md p-6 flex flex-col transition-shadow hover:ring-1" onclick={() => {
+                PlaygroundStore.set(14)
+            }}>
+                <h1 class="text-2xl font-bold text-start">Inlay Assets Explorer</h1>
+            </button>
+            <button class="bg-darkbg rounded-md p-6 flex flex-col transition-shadow hover:ring-1" onclick={() => {
                 PlaygroundStore.set(101)
             }}>
                 <h1 class="text-2xl font-bold text-start">{language.promptConvertion}</h1>
@@ -183,6 +189,9 @@
             {/if}
             {#if $PlaygroundStore === 13}
                 <PlaygroundDocs/>
+            {/if}
+            {#if $PlaygroundStore === 14}
+                <PlaygroundInlayExplorer/>
             {/if}
             {#if $PlaygroundStore === 101}
                 <ToolConversion/>

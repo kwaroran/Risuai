@@ -551,7 +551,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(!conf){
                 return null;
             }
-            const db = getDatabase();
+            const db = DBState.db
             let liteDB = {}
             for(const key of allowedDbKeys){
                 if(includeOnly !== 'all' && !includeOnly.includes(key)){

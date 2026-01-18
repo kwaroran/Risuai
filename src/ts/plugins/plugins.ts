@@ -9,7 +9,7 @@ import { DBState, hotReloading, pluginAlertModalStore, selectedCharID } from "..
 import type { ScriptMode } from "../process/scripts";
 import { checkCodeSafety } from "./pluginSafety";
 import { SafeDocument, SafeIdbFactory, SafeLocalStorage } from "./pluginSafeClass";
-import { loadV3Plugins } from "./apiV3/v3";
+import { loadV3Plugins } from "./apiV3/v3.svelte";
 import { pluginCodeTranspiler } from "./apiV3/transpiler";
 
 export const customProviderStore = writable([] as string[])

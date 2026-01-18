@@ -26,13 +26,13 @@
     import { processMultiCommand } from 'src/ts/process/command';
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
-    import PlaygroundMenu from '../Playground/PlaygroundMenu.svelte';
     import { ConnectionOpenStore } from 'src/ts/sync/multiuser';
     import { coldStorageHeader, preLoadChat } from 'src/ts/process/coldstorage.svelte';
     import Chats from './Chats.svelte';
     import Button from '../UI/GUI/Button.svelte';
     import PluginDefinedIcon from '../Others/PluginDefinedIcon.svelte';
 
+    const loadPlaygroundMenu = () => import('../Playground/PlaygroundMenu.svelte').then(m => m.default);
     
     interface Props {
         openModuleList?: boolean;
@@ -563,7 +563,9 @@
         {#if $PlaygroundStore === 0}
             <MainMenu />
         {:else}
-            <PlaygroundMenu />
+            {#await loadPlaygroundMenu() then PlaygroundMenu}
+                <PlaygroundMenu />
+            {/await}
         {/if}
     {:else}
         <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {

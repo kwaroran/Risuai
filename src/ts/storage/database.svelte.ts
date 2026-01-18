@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { checkNullish, decryptBuffer, encryptBuffer, selectSingleFile } from '../util';
 import { changeLanguage, language } from '../../lang';
-import type { RisuPlugin } from '../plugins/plugins';
+import type { RisuPlugin } from '../plugins/plugins.svelte';
 import type {triggerscript as triggerscriptMain} from '../process/triggers';
 import { downloadFile, saveAsset as saveImageGlobal } from '../globalApi.svelte';
 import { defaultAutoSuggestPrompt, defaultJailbreak, defaultMainPrompt } from './defaultPrompts';
@@ -15,7 +15,7 @@ import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../p
 import { isTauri, isNodeServer } from "src/ts/platform"
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.1.180" //<APP_VERSION_POINT>
+export let appVer = "2026.1.183" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 

@@ -9,7 +9,7 @@ import { DBState, hotReloading, pluginAlertModalStore, selectedCharID } from "..
 import type { ScriptMode } from "../process/scripts";
 import { checkCodeSafety } from "./pluginSafety";
 import { SafeDocument, SafeIdbFactory, SafeLocalStorage } from "./pluginSafeClass";
-import { loadV3Plugins } from "./apiV3/v3";
+import { loadV3Plugins } from "./apiV3/v3.svelte";
 import { pluginCodeTranspiler } from "./apiV3/transpiler";
 
 export const customProviderStore = writable([] as string[])
@@ -346,6 +346,7 @@ export async function importPlugin(code:string|null = null, argu:{
             apiInternalVersion = '2.1'
         }
         else if(apiVersion === '2.0'){
+            //Only block installing
             showError('Your code does not include //@api or specifies API version 2.0, which is outdated. Please update your plugin to use at least API version 2.1.')
             return
         }
@@ -859,7 +860,15 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loaded V2.1 Plugin', plugin.name)
         }
         else{
-            
+            data = plugin.script
+            console.log('Loading V2.0 Plugin', plugin.name)
+
+            try {
+                eval(createRealScript(data))
+            } catch (error) {
+                console.error(error)
+            }
+            console.log('Loaded V2.0 Plugin', plugin.name)
         }
     }
 }

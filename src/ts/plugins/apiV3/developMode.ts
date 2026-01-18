@@ -1,5 +1,5 @@
 import { alertError } from "src/ts/alert"
-import { importPlugin } from "../plugins"
+import { importPlugin } from "../plugins.svelte"
 import { sleep } from "src/ts/util"
 
 export async function hotReloadPluginFiles(){

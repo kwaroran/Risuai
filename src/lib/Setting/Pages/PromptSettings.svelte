@@ -17,6 +17,7 @@
     import ModelList from "src/lib/UI/ModelList.svelte";
     import { onDestroy, onMount } from "svelte";
     import {defaultAutoSuggestPrompt} from "../../../ts/storage/defaultPrompts";
+    import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
 
     let sorted = 0
     let warns: string[] = $state([])
@@ -302,6 +303,10 @@
         <TextAreaInput bind:value={DBState.db.jsonSchema}/>
         <span class="text-textcolor mt-4">{language.extractJson} <Help key='extractJson' /></span>
         <TextInput bind:value={DBState.db.extractJson}/>
+    {/if}
+
+    {#if !DBState.db.auxModelUnderModelSettings}
+        <AuxModelSelectors />
     {/if}
 
     {#snippet fallbackModelList(arg:'model'|'memory'|'translate'|'emotion'|'otherAx')}

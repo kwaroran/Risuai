@@ -1244,6 +1244,7 @@ export const languageChinese = {
     "loadingChatData": "加载聊天数据",
     "outputImageModal": "输出图像模态框",
     "playMessageOnTranslateEnd": "翻译完成后播放音频",
+    "auxModelUnderModelSettings": "在模型设置中显示辅助模型分离",
     "seperateModelsForAxModels": "为辅助模型分离模型",
     "axModelsDef": "辅助模型定义",
     "doNotChangeSeperateModels": "预设更改时不要更改分离模型",

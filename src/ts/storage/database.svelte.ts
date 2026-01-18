@@ -1007,6 +1007,7 @@ export interface Database{
     legacyMediaFindings?:boolean
     geminiStream?:boolean
     assetMaxDifference:number
+    auxModelUnderModelSettings:boolean
     menuSideBar:boolean
     pluginV2: RisuPlugin[]
     showSavingIcon:boolean

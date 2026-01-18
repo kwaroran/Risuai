@@ -32,6 +32,7 @@
     import SettingRenderer from "../SettingRenderer.svelte";
     import { allBasicParameterItems } from "src/ts/setting/botSettingsParamsData";
     import SeparateParametersSection from "./SeparateParametersSection.svelte";
+    import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
     
     let tokens = $state({
         mainPrompt: 0,
@@ -331,29 +332,8 @@
         <ChatFormatSettings />
     {/if}
 
-    <div class="flex items-center mt-4">
-        <Check bind:check={DBState.db.seperateModelsForAxModels} name={language.seperateModelsForAxModels} />
-    </div>
-    {#if DBState.db.seperateModelsForAxModels}
-        <Check bind:check={DBState.db.doNotChangeSeperateModels} name={language.doNotChangeSeperateModels} />
-        <Accordion name={language.axModelsDef} styled>
-            <span class="text-textcolor mt-4">
-                Memory
-            </span>
-            <ModelList bind:value={DBState.db.seperateModels.memory} blankable />
-            <span class="text-textcolor mt-4">
-                Translations
-            </span>
-            <ModelList bind:value={DBState.db.seperateModels.translate} blankable />
-            <span class="text-textcolor mt-4">
-                Emotion
-            </span>
-            <ModelList bind:value={DBState.db.seperateModels.emotion} blankable />
-            <span class="text-textcolor mt-4">
-                OtherAx
-            </span>
-            <ModelList bind:value={DBState.db.seperateModels.otherAx} blankable />
-        </Accordion>
+    {#if DBState.db.auxModelUnderModelSettings}
+        <AuxModelSelectors />
     {/if}
 {/if}
 

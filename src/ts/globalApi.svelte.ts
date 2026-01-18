@@ -29,22 +29,18 @@ import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
 import { autoServerBackup, saveDbKei } from "./kei/backup";
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import * as CapFS from '@capacitor/filesystem'
 import { save } from "@tauri-apps/plugin-dialog";
 import { listen } from '@tauri-apps/api/event'
-import { registerPlugin } from '@capacitor/core';
 import { language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";
-import { encodeCapKeySafe } from "./storage/mobileStorage";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { fetch as TauriHTTPFetch } from '@tauri-apps/plugin-http';
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
-import { isTauri, isNodeServer, isCapacitor, isInStandaloneMode } from "./platform";
+import { isTauri, isNodeServer } from "./platform";
 
 export const forageStorage = new AutoStorage()
 
@@ -107,25 +103,6 @@ let pathCache: { [key: string]: string } = {}
 let checkedPaths: string[] = []
 
 /**
- * Checks if a file exists in the Capacitor filesystem.
- * 
- * @param {CapFS.GetUriOptions} getUriOptions - The options for getting the URI of the file.
- * @returns {Promise<boolean>} - A promise that resolves to true if the file exists, false otherwise.
- */
-async function checkCapFileExists(getUriOptions: CapFS.GetUriOptions): Promise<boolean> {
-    try {
-        await CapFS.Filesystem.stat(getUriOptions);
-        return true;
-    } catch (checkDirException) {
-        if (checkDirException.message === 'File does not exist') {
-            return false;
-        } else {
-            throw checkDirException;
-        }
-    }
-}
-
-/**
  * Gets the source URL of a file.
  * 
  * @param {string} loc - The location of the file.
@@ -151,19 +128,6 @@ export async function getFileSrc(loc: string) {
     }
     if (forageStorage.isAccount && loc.startsWith('assets')) {
         return hubURL + `/rs/` + loc
-    }
-    if (isCapacitor) {
-        if (!await checkCapFileExists({
-            path: encodeCapKeySafe(loc),
-            directory: CapFS.Directory.External
-        })) {
-            return ''
-        }
-        const uri = await CapFS.Filesystem.getUri({
-            path: encodeCapKeySafe(loc),
-            directory: CapFS.Directory.External
-        })
-        return Capacitor.convertFileSrc(uri.uri)
     }
     try {
         if (usingSw) {
@@ -669,9 +633,6 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
         if (isTauri) {
             return await fetchWithTauri(url, arg);
         }
-        if (isCapacitor) {
-            return await fetchWithCapacitor(url, arg);
-        }
         return await fetchWithProxy(url, arg);
 
     } catch (error) {
@@ -777,23 +738,6 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
     } catch (error) {
 
     }
-}
-
-// Decoupled globalFetch built-in function
-async function fetchWithCapacitor(url: string, arg: GlobalFetchArgs): Promise<GlobalFetchResult> {
-    const { body, headers = {}, rawResponse } = arg;
-    headers["Content-Type"] = body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json";
-
-    const res = await CapacitorHttp.request({ url, method: arg.method ?? "POST", headers, data: body, responseType: rawResponse ? "arraybuffer" : "json" });
-
-    addFetchLogInGlobalFetch(rawResponse ? "Uint8Array Response" : res.data, true, url, arg, res.status);
-
-    return {
-        ok: true,
-        data: rawResponse ? new Uint8Array(res.data as ArrayBuffer) : res.data,
-        headers: res.headers,
-        status: res.status
-    };
 }
 
 /**
@@ -1163,64 +1107,12 @@ export class TauriWriter {
     }
 }
 
-/**
- * A writer class for mobile environment.
- */
-class MobileWriter {
-    path: string
-    firstWrite: boolean = true
-
-    /**
-     * Creates an instance of MobileWriter.
-     * 
-     * @param {string} path - The file path to write to.
-     */
-    constructor(path: string) {
-        this.path = path
-    }
-
-    /**
-     * Writes data to the file.
-     * 
-     * @param {Uint8Array} data - The data to write.
-     */
-    async write(data: Uint8Array) {
-        if (this.firstWrite) {
-            if (!await CapFS.Filesystem.checkPermissions()) {
-                await CapFS.Filesystem.requestPermissions()
-            }
-            await CapFS.Filesystem.writeFile({
-                path: this.path,
-                data: Buffer.from(data).toString('base64'),
-                recursive: true,
-                directory: CapFS.Directory.Documents
-            })
-        }
-        else {
-            await CapFS.Filesystem.appendFile({
-                path: this.path,
-                data: Buffer.from(data).toString('base64'),
-                directory: CapFS.Directory.Documents
-            })
-        }
-
-        this.firstWrite = false
-    }
-
-    /**
-     * Closes the writer. (No operation for MobileWriter)
-     */
-    async close() {
-        // do nothing
-    }
-}
-
 
 /**
  * Class representing a local writer.
  */
 export class LocalWriter {
-    writer: WritableStreamDefaultWriter | TauriWriter | MobileWriter
+    writer: WritableStreamDefaultWriter | TauriWriter
 
     /**
      * Initializes the writer.
@@ -1241,10 +1133,6 @@ export class LocalWriter {
                 return false
             }
             this.writer = new TauriWriter(filePath)
-            return true
-        }
-        if (isCapacitor) {
-            this.writer = new MobileWriter(name + '.' + ext[0])
             return true
         }
         const streamSaver = await import('streamsaver')
@@ -1405,19 +1293,6 @@ if (isTauri) {
     }).then((v) => {
         streamedFetchListening = true
     })
-}
-
-if (isCapacitor) {
-    capStreamedFetch = registerPlugin<StreamedFetchPlugin>('CapacitorHttp', CapacitorHttp)
-
-    capStreamedFetch.addListener('streamed_fetch', (data) => {
-        try {
-            nativeFetchData[data.id]?.push(data)
-        } catch (error) {
-            console.error(error)
-        }
-    })
-    streamedFetchListening = true
 }
 
 /**

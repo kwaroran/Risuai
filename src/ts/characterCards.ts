@@ -6,7 +6,7 @@ import { language } from "src/lang"
 import { v4 as uuidv4, v4 } from 'uuid';
 import { characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
-import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
+import { isTauri, isNodeServer } from "src/ts/platform"
 import { SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { checkImageType, convertImage, hasher } from "./parser.svelte"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
@@ -1779,11 +1779,11 @@ export async function getRisuHub(arg:{
 }):Promise<hubType[]> {
     try {
         arg.search += ' __shared'
-        const stringArg = `search==${arg.search}&&page==${arg.page}&&nsfw==${arg.nsfw}&&sort==${arg.sort}&&web==${(!isNodeServer && !isCapacitor && !isTauri) ? 'web' : 'other'}`
+        const stringArg = `search==${arg.search}&&page==${arg.page}&&nsfw==${arg.nsfw}&&sort==${arg.sort}&&web==${(!isNodeServer && !isTauri) ? 'web' : 'other'}`
 
         const da = await fetch(hubURL + '/realm/' + encodeURIComponent(stringArg), {
             headers: {
-                "x-risuai-info": appVer + ';' + (isNodeServer ? 'node' : (isCapacitor ? 'capacitor' : isTauri ? 'tauri' : 'web'))
+                "x-risuai-info": appVer + ';' + (isNodeServer ? 'node' : (isTauri ? 'tauri' : 'web'))
             }
         })
         if(da.status !== 200){

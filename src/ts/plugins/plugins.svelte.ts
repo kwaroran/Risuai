@@ -807,10 +807,6 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         let data = ''
         let version = plugin.version || 2
 
-        if(import.meta.env.DEV){
-            version = 2
-        }
-
         const createRealScript = (data:string) => {
             return `(async () => {
                 const risuFetch = globalThis.__pluginApis__.risuFetch

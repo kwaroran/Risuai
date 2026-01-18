@@ -925,9 +925,16 @@ export function getV3PluginInstance(name: string) {
     return v3PluginInstances.find(p => p.name === name);
 }
 
-globalThis.__debugV3Plugin = (code: string|Function) => {
+globalThis.__debugV3Plugin = (code: string|Function, pluginName: string = '') => {
     if(code instanceof Function){
         code = `(${code.toString()})()`;
     }
-    return v3PluginInstances[0].host.executeInIframe(code);
+    if(pluginName === ''){
+        return v3PluginInstances[0].host.executeInIframe(code);
+    }
+    const instance = v3PluginInstances.find(p => p.name === pluginName);
+    if(!instance){
+        throw new Error(`Plugin ${pluginName} not found.`);
+    }
+    return instance.host.executeInIframe(code);
 };

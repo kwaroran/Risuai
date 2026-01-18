@@ -548,17 +548,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return oldApis.saveAsset(data);
         },
         //Same functionality, but new implementation
-        getDatabase: async () => {
+        getDatabase: async (includeOnly:string[]|'all' = 'all') => {
             const conf = await getPluginPermission(plugin.name, 'db');
             if(!conf){
                 return null;
             }
-            const db = getDatabase({
-                snapshot: true
-            });
+            const db = getDatabase();
             let liteDB = {}
             for(const key of allowedDbKeys){
-                (liteDB as any)[key] = (db as any)[key];
+                if(includeOnly !== 'all' && !includeOnly.includes(key)){
+                    continue;
+                }
+                (liteDB as any)[key] = $state.snapshot((db as any)[key]);
             }
             return liteDB;
         },

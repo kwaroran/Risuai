@@ -1118,6 +1118,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Gets the database with limited access
+     * @param includeOnly - Array of keys to include or 'all' for all allowed keys. defaults to 'all'.
      * @returns DatabaseSubset object (limited to allowed keys) or null if consent not given
      *
      * Allowed keys: characters, modules, enabledModules, moduleIntergration,
@@ -1126,6 +1127,8 @@ interface RisuaiPluginAPI {
      * textTheme, lineHeight, seperateModelsForAxModels, seperateModels,
      * customCSS, guiHTML, colorSchemeName, characterOrder, selectedPersona
      *
+     * Use includeOnly to limit which keys to retrieve for better performance.
+     * 
      * @example
      * ```typescript
      * const db = await risuai.getDatabase();
@@ -1134,7 +1137,7 @@ interface RisuaiPluginAPI {
      * }
      * ```
      */
-    getDatabase(): Promise<DatabaseSubset|null>;
+    getDatabase(includeOnly:string[]|'all' = 'all'): Promise<DatabaseSubset|null>;
 
     /**
      * Sets the database (lightweight save)

@@ -6,14 +6,14 @@
   import Button from '../UI/GUI/Button.svelte'
   import CheckInput from '../UI/GUI/CheckInput.svelte'
 
+  const PAGE_SIZE = 36
+
   let allAssets = $state<[string, InlayAsset][]>([])
-  let displayCount = $state(12)
+  let displayCount = $state(PAGE_SIZE)
   let loading = $state(true)
   // For revoking
   let previewURLs = $state<Map<string, string>>(new Map())
   let selection = $state<Set<string>>(new SvelteSet())
-
-  const PAGE_SIZE = 12
 
   const displayedAssets = $derived(allAssets.slice(0, displayCount))
   const hasMore = $derived(displayCount < allAssets.length)

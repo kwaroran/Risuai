@@ -1372,5 +1372,5 @@ export const languageChinese = {
     "newMessageButtonBottomRight": "右下角",
     "alwaysScrollToNewMessage": "始终滚动到新消息（忽略滚动位置）",
     "autoScrollToNewMessage": "自动滚动至新消息",
-    "disableAbove": "为 AI 剪裁的消息"
-};
+    "disableAbove": "为 AI 剪裁的消息",
+} satisfies DeepPartial<typeof import('./en').languageEnglish>

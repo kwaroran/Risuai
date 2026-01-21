@@ -1372,5 +1372,5 @@ export const languageChineseTraditional = {
     "alwaysScrollToNewMessage": "始終捲動至新訊息（忽略捲動位置）",
     "disableMessage": "停用訊息",
     "newMessageButtonBottomCenter": "底部置中 (預設)",
-    "disableAbove": "為 AI 剪裁訊息"
-};
+    "disableAbove": "為 AI 剪裁訊息",
+} satisfies DeepPartial<typeof import('./en').languageEnglish>

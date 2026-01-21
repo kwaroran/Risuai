@@ -1372,5 +1372,4 @@ export const languageSpanish = {
     "disableMessage": "Desactivar mensaje",
     "newMessageButtonStyle": "Estilo del botón de nuevo mensaje",
     "alwaysScrollToNewMessage": "Desplazarse siempre al nuevo mensaje (ignorar la posición de desplazamiento)",
-    "disableAbove": "Mensajes cortados para la IA"
-};
+} satisfies DeepPartial<typeof import('./en').languageEnglish>

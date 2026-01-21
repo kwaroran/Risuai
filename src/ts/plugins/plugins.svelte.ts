@@ -812,7 +812,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
                 createPolicy: (name, rules) => rules // Just return the rules object as the "policy"
             };
 
-            const policy = tt.createPolicy('default', {
+            const policy = tt.createPolicy('plugin-policy', {
                 createScript: (input) => {
                     return `(async () => {
                         const risuFetch = globalThis.__pluginApis__.risuFetch

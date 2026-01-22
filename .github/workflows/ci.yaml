@@ -1,0 +1,106 @@
+name: Check for project
+description: Check for type errors and linting errors in the project.
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ci:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: "package.json"
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type check
+        run: pnpm run check
+
+      - name: Run tests
+        run: pnpm run test --reporter=dot
+        timeout-minutes: 10
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: "package.json"
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run coverage check
+        run: pnpm run test:coverage --coverage.reporter=json-summary
+        timeout-minutes: 10
+
+      - name: Update Coverage Status
+        if: always()
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            // 1. read coverage summary
+            const fs = require('fs');
+            const summaryPath = './coverage/coverage-summary.json';
+            
+            if (!fs.existsSync(summaryPath)) {
+              console.log('No coverage summary found.');
+              return;
+            }
+
+            const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            
+            // 2. Total coverage % calc
+            const total = summary.total.lines.pct; 
+            const color = total >= 20 ? 'success' : 'failure'; // Green if >= 20%
+            const description = `Lines: ${total}% | Statements: ${summary.total.statements.pct}%`;
+
+            // 3. Github PR checklist update
+            const sha = context.payload.pull_request ? context.payload.pull_request.head.sha : context.sha;
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: color, // Build is success
+              context: 'Vitest Coverage', // List name
+              description: description, // e.g. "Lines: 85%"
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` // Click to see details
+            });

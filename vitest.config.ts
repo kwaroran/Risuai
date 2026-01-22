@@ -12,6 +12,11 @@ export default defineConfig({
     conditions: ['browser'],
   },
   test: {
+    coverage: {
+      provider: "v8",
+      reportOnFailure: true,
+      exclude: ["node_modules/", "dist/", "src/**/*.{test,spec}.ts"]
+    },
     environment: 'happy-dom',
     setupFiles: ['vitest.setup.ts'],
   },

@@ -46,6 +46,7 @@
     "@tauri-apps/plugin-shell": "2.3.3",
     "@tauri-apps/plugin-updater": "2.9.0",
     "@types/markdown-it": "^14.1.2",
+    "@types/trusted-types": "^2.0.7",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4",
     "astring": "^1.9.0",

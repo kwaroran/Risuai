@@ -1,6 +1,6 @@
 import fc from 'fast-check'
 import { writable } from 'svelte/store'
-import { expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { risuChatParser, risuUnescape } from '../../../parser.svelte'
 import { trimVarPrefix } from './lib'
 
@@ -13,7 +13,7 @@ vi.mock(
       appVer: '1234.5.67',
       getCurrentCharacter: () => ({}),
       getDatabase: () => ({}),
-    } as typeof import('../../../storage/database.svelte'))
+    }) as typeof import('../../../storage/database.svelte'),
 )
 
 vi.mock(import('../../../globalApi.svelte'), () => ({
@@ -30,8 +30,8 @@ const varStorage = vi.hoisted(
         get(_, prop) {
           return trimVarPrefix(prop)
         },
-      }
-    )
+      },
+    ),
 )
 
 vi.mock(import('../../../stores.svelte'), () => {
@@ -106,25 +106,42 @@ test('<>', () => {
 const anythingNotClosing = fc
   .string()
   .filter(
-    (s) => !/{{\/.*}}/.test(s) && /* FIXME opening curly without its pair causes '<' prepended */ !s.includes('{')
+    (s) => !/{{\/.*}}/.test(s) && /* FIXME opening curly without its pair causes '<' prepended */ !s.includes('{'),
   )
 
 test('#pure', () => {
   fc.assert(
     fc.property(anythingNotClosing, (a) => {
       expect(parse(`{{#pure}}${a}{{/}}`)).toBe(a.trim())
-    })
+    }),
   )
 })
 
 test('#puredisplay', () => {
-  console.log(parse('{{#puredisplay}}{{/}}'))
   fc.assert(
     fc.property(anythingNotClosing, (a) => {
       expect(parse(`{{#puredisplay}}${a}{{/}}`)).toBe(
         // reparsing prevention kicks in for #puredisplay
-        a.trim().replaceAll('{{', '\\{\\{').replaceAll('}}', '\\}\\}')
+        a.trim().replaceAll('{{', '\\{\\{').replaceAll('}}', '\\}\\}'),
       )
-    })
+    }),
   )
+})
+
+describe('#escape', () => {
+  test('escapes any curly braces or parenthesis, trims whitespaces', () => {
+    fc.assert(
+      fc.property(anythingNotClosing, (a) => {
+        expect(parse(`{{#escape}}\n${a}\n{{/}}`)).toBe(a.trim())
+      }),
+    )
+  })
+
+  test('::keep preserves all whitespaces', () => {
+    fc.assert(
+      fc.property(anythingNotClosing, (a) => {
+        expect(parse(`{{#escape::keep}}\n${a}\n{{/}}`)).toBe(`\n${a}\n`)
+      }),
+    )
+  })
 })

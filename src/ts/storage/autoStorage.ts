@@ -1,6 +1,6 @@
 import localforage from "localforage"
 import { replaceDbResources } from "../globalApi.svelte"
-import { isCapacitor, isNodeServer } from "src/ts/platform"
+import { isNodeServer } from "src/ts/platform"
 import { NodeStorage } from "./nodeStorage"
 import { OpfsStorage } from "./opfsStorage"
 import { alertInput, alertSelect, alertStore } from "../alert"
@@ -8,12 +8,11 @@ import { getDatabase, type Database } from "./database.svelte"
 import { AccountStorage } from "./accountStorage"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "./risuSave";
 import { language } from "src/lang"
-import { MobileStorage } from "./mobileStorage"
 
 export class AutoStorage{
     isAccount:boolean = false
 
-    realStorage:LocalForage|NodeStorage|OpfsStorage|AccountStorage|MobileStorage
+    realStorage:LocalForage|NodeStorage|OpfsStorage|AccountStorage
 
     async setItem(key:string, value:Uint8Array):Promise<string|null> {
         await this.Init()
@@ -122,10 +121,6 @@ export class AutoStorage{
             if(localStorage.getItem('accountst') === 'able'){
                 this.realStorage = new AccountStorage()
                 this.isAccount = true
-                return
-            }
-            if(isCapacitor){
-                this.realStorage = new MobileStorage()
                 return
             }
             if(isNodeServer){

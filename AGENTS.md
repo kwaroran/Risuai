@@ -3,7 +3,6 @@
 Risuai is a cross-platform AI chatting application built with:
 - **Frontend**: Svelte 5 + TypeScript
 - **Desktop**: Tauri 2.5 (Rust backend)
-- **Mobile**: Capacitor 5.7 (Android)
 - **Build Tool**: Vite 7
 - **Styling**: Tailwind CSS 4
 - **Package Manager**: pnpm
@@ -21,7 +20,6 @@ risuai-newest/
 │   ├── etc/                # Documentation and extras
 │   └── test/               # Test files
 ├── src-tauri/              # Tauri desktop backend (Rust)
-├── android/                # Capacitor Android project
 ├── server/                 # Self-hosting server implementations
 │   ├── node/               # Node.js server (current)
 │   └── hono/               # Hono framework server (future)
@@ -220,7 +218,6 @@ Language files are located in `/src/lang/`.
 
 - **Web**: Vite static site
 - **Desktop (Tauri)**: Windows (NSIS), macOS (DMG, APP), Linux (DEB, RPM, AppImage)
-- **Mobile (Capacitor)**: Android APK
 - **Docker**: Container (port 6001)
 - **Self-hosted**: Node.js or Hono server
 

@@ -4,14 +4,8 @@ import {
     check,
 } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
-import { isCapacitor } from "./platform";
 
 export async function checkRisuUpdate(){
-
-    if(isCapacitor){
-        return
-    }
-
     try {
         const checked = await check()     
         if(checked){
@@ -25,13 +19,4 @@ export async function checkRisuUpdate(){
     } catch (error) {
         console.error(error)
     }
-}
-
-function versionStringToNumber(versionString:string):number {
-    return Number(
-      versionString
-        .split(".")
-        .map((component) => component.padStart(4, "0"))
-        .join("")
-    );
 }

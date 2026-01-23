@@ -197,5 +197,4 @@ export const advancedSettingsItems: SettingItem[] = [
     { type: 'custom', id: 'adv.banChar', componentId: 'BanCharacterSetSettings' },
     { type: 'custom', id: 'adv.customModels', componentId: 'CustomModelsSettings' },
     { type: 'custom', id: 'adv.export', componentId: 'SettingsExportButtons' },
-    { type: 'custom', id: 'adv.storage', componentId: 'StorageInvestigationSettings' }
 ];

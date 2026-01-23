@@ -18,7 +18,6 @@ import type { Component } from 'svelte';
 import SeparateParametersSection from 'src/lib/Setting/Pages/SeparateParametersSection.svelte';
 import BanCharacterSetSettings from 'src/lib/Setting/Pages/Advanced/BanCharacterSetSettings.svelte';
 import CustomModelsSettings from 'src/lib/Setting/Pages/Advanced/CustomModelsSettings.svelte';
-import StorageInvestigationSettings from 'src/lib/Setting/Pages/Advanced/StorageInvestigationSettings.svelte';
 import SettingsExportButtons from 'src/lib/Setting/Pages/Advanced/SettingsExportButtons.svelte';
 
 /**
@@ -29,7 +28,6 @@ export const customComponents: Record<string, Component<any>> = {
     'SeparateParametersSection': SeparateParametersSection,
     'BanCharacterSetSettings': BanCharacterSetSettings,
     'CustomModelsSettings': CustomModelsSettings,
-    'StorageInvestigationSettings': StorageInvestigationSettings,
     'SettingsExportButtons': SettingsExportButtons,
     // Add more as we migrate complex settings
 } as const;

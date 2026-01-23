@@ -128,11 +128,19 @@ test('#puredisplay', () => {
   )
 })
 
-describe('#escape', () =>{
+describe('#escape', () => {
   test('escapes any curly braces or parenthesis, trims whitespaces', () => {
     fc.assert(
       fc.property(anythingNotClosing, (a) => {
         expect(parse(`{{#escape}}\n${a}\n{{/}}`)).toBe(a.trim())
+      }),
+    )
+  })
+
+  test('::keep preserves all whitespaces', () => {
+    fc.assert(
+      fc.property(anythingNotClosing, (a) => {
+        expect(parse(`{{#escape::keep}}\n${a}\n{{/}}`)).toBe(`\n${a}\n`)
       }),
     )
   })

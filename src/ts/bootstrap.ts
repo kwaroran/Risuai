@@ -36,7 +36,7 @@ import {
     forageStorage,
     saveDb,
     getDbBackups,
-    getUnpargeables,
+    getUncleanables,
     getBasename,
     setUsingSw,
     checkCharOrder
@@ -189,7 +189,7 @@ export async function loadData() {
             }
             LoadingStatusState.text = "Checking Unnecessary Files..."
             try {
-                await pargeChunks()
+                await cleanChunks()
             } catch (error) {
                 console.error(error)
             }
@@ -369,7 +369,7 @@ async function checkNewFormat(): Promise<void> {
     });
 
     if (!db.formatversion) {
-        function checkParge(data: string) {
+        function checkClean(data: string) {
 
             if (data.startsWith('assets') || (data.length < 3)) {
                 return data
@@ -383,17 +383,17 @@ async function checkNewFormat(): Promise<void> {
             }
         }
 
-        db.customBackground = checkParge(db.customBackground);
-        db.userIcon = checkParge(db.userIcon);
+        db.customBackground = checkClean(db.customBackground);
+        db.userIcon = checkClean(db.userIcon);
 
         for (let i = 0; i < db.characters.length; i++) {
             if (db.characters[i].image) {
-                db.characters[i].image = checkParge(db.characters[i].image);
+                db.characters[i].image = checkClean(db.characters[i].image);
             }
             if (db.characters[i].emotionImages) {
                 for (let i2 = 0; i2 < db.characters[i].emotionImages.length; i2++) {
                     if (db.characters[i].emotionImages[i2] && db.characters[i].emotionImages[i2].length >= 2) {
-                        db.characters[i].emotionImages[i2][1] = checkParge(db.characters[i].emotionImages[i2][1]);
+                        db.characters[i].emotionImages[i2][1] = checkClean(db.characters[i].emotionImages[i2][1]);
                     }
                 }
             }
@@ -447,24 +447,20 @@ async function checkNewFormat(): Promise<void> {
 /**
  * Purges chunks of data that are not needed.
  */
-async function pargeChunks() {
+async function cleanChunks() {
     const db = getDatabase()
     if (db.account?.useSync) {
         return
     }
 
-    const unpargeable = new Set(getUnpargeables(db))
+    const uncleanable = new Set(getUncleanables(db))
     if (isTauri) {
         const assets = await readDir('assets', { baseDir: BaseDirectory.AppData })
         console.log(assets)
         for (const asset of assets) {
             try {
                 const n = getBasename(asset.name)
-                if (unpargeable.has(n)) {
-                    console.log('unpargeable', n)
-                }
-                else {
-                    console.log('pargeable', n)
+                if (!uncleanable.has(n)) {
                     await remove('assets/' + asset.name, { baseDir: BaseDirectory.AppData })
                 }
             } catch (error) {
@@ -474,13 +470,13 @@ async function pargeChunks() {
 
         const remotes = await readDir('remotes', { baseDir: BaseDirectory.AppData })
 
-        const remoteUnpargeables = new Set<string>(
+        const remoteUncleanables = new Set<string>(
             db.characters.map((v) => v.chaId)
         )
         for (const remote of remotes) {
             try {
                 const name = getBasename(remote.name).slice(0, -10) //remove .local.bin
-                const exists = remoteUnpargeables.has(name)
+                const exists = remoteUncleanables.has(name)
                 if(!exists){
                     await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
                 }
@@ -497,7 +493,7 @@ async function pargeChunks() {
         for (const asset of indexes) {
             if (asset.startsWith('assets/')) {
                 const n = getBasename(asset)
-                if(!unpargeable.has(n)) {
+                if(!uncleanable.has(n)) {
                     await forageStorage.removeItem(asset)
                 }
             }

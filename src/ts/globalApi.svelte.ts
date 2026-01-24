@@ -814,21 +814,21 @@ export function getBasename(data: string) {
 }
 
 /**
- * Retrieves unpargeable resources from the database.
+ * Retrieves uncleanable resources from the database.
  * 
- * @param {Database} db - The database to retrieve unpargeable resources from.
- * @param {'basename'|'pure'} [uptype='basename'] - The type of unpargeable resources to retrieve.
- * @returns {string[]} - An array of unpargeable resources.
+ * @param {Database} db - The database to retrieve uncleanable resources from.
+ * @param {'basename'|'pure'} [uptype='basename'] - The type of uncleanable resources to retrieve.
+ * @returns {string[]} - An array of uncleanable resources.
  */
-export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
-    const unpargeable = new Set<string>();
+export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
+    const uncleanable = new Set<string>();
 
     /**
-     * Adds a resource to the unpargeable list if it is not already included.
+     * Adds a resource to the uncleanable list if it is not already included.
      * 
      * @param {string} data - The resource to add.
      */
-    function addUnparge(data: string) {
+    function addUncleanable(data: string) {
         if (!data) {
             return;
         }
@@ -836,37 +836,37 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
             return;
         }
         const bn = uptype === 'basename' ? getBasename(data) : data;
-        unpargeable.add(bn);
+        uncleanable.add(bn);
     }
 
-    addUnparge(db.customBackground);
-    addUnparge(db.userIcon);
+    addUncleanable(db.customBackground);
+    addUncleanable(db.userIcon);
 
     for (const cha of db.characters) {
         if (cha.image) {
-            addUnparge(cha.image);
+            addUncleanable(cha.image);
         }
         if (cha.emotionImages) {
             for (const em of cha.emotionImages) {
-                addUnparge(em[1]);
+                addUncleanable(em[1]);
             }
         }
         if (cha.type !== 'group') {
             if (cha.additionalAssets) {
                 for (const em of cha.additionalAssets) {
-                    addUnparge(em[1]);
+                    addUncleanable(em[1]);
                 }
             }
             if (cha.vits) {
                 const keys = Object.keys(cha.vits.files);
                 for (const key of keys) {
                     const vit = cha.vits.files[key];
-                    addUnparge(vit);
+                    addUncleanable(vit);
                 }
             }
             if (cha.ccAssets) {
                 for (const asset of cha.ccAssets) {
-                    addUnparge(asset.uri);
+                    addUncleanable(asset.uri);
                 }
             }
         }
@@ -877,7 +877,7 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
             const assets = module.assets
             if (assets) {
                 for (const asset of assets) {
-                    addUnparge(asset[1])
+                    addUncleanable(asset[1])
                 }
             }
         }
@@ -885,18 +885,18 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
 
     if (db.personas) {
         db.personas.map((v) => {
-            addUnparge(v.icon);
+            addUncleanable(v.icon);
         });
     }
 
     if (db.characterOrder) {
         db.characterOrder.forEach((item) => {
             if (typeof item === 'object' && 'imgFile' in item) {
-                addUnparge(item.imgFile);
+                addUncleanable(item.imgFile);
             }
         })
     }
-    return Array.from(unpargeable);
+    return Array.from(uncleanable);
 }
 
 
@@ -908,8 +908,6 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
  * @returns {Database} - The updated database object with replaced resources.
  */
 export function replaceDbResources(db: Database, replacer: { [key: string]: string }): Database {
-    let unpargeable: string[] = [];
-
     /**
      * Replaces a given data string with its corresponding value from the replacer object.
      * 

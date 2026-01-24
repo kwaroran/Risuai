@@ -585,8 +585,6 @@ export const getV2PluginAPIs = () => {
             //compatibility layer with old unsafe APIs
 
             //from PBV2
-            safeGlobal.readImage = readImage;
-            safeGlobal.saveAsset = saveAsset;
             safeGlobal.showDirectoryPicker = window.showDirectoryPicker
 
             safeGlobal.DBState = {

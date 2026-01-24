@@ -771,10 +771,15 @@ export const getV2PluginAPIs = () => {
         }),
         loadPlugins: loadPlugins,
         readImage: (path:string) => {
-            if(path.includes('/') || path.includes('\\')){
-                throw new Error("readImage path cannot contain '/' or '\\' for security reasons.");
+            if(path.startsWith('assets/')){
+                //trim assets/ prefix temporarily
+                path = path.slice(7);
             }
-            return readImage(path);
+            if(path.includes('/') || path.includes('\\')){
+                throw new Error("readImage path cannot contain '/' or '\\' for security reasons, except assets/ prefix.");
+            }
+            //re-add assets/ prefix
+            return readImage('assets/' + path);
         },
         saveAsset: (data:Uint8Array) => {
             return saveAsset(data);

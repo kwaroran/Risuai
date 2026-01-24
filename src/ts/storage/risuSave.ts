@@ -94,6 +94,7 @@ type EncodeBlockArg = {
     type:RisuSaveType
     name:string
     cache?:boolean
+    skipRemoteSaving?:boolean
 }
 
 type EncodeBlockOption = {
@@ -143,7 +144,8 @@ export class RisuSaveEncoder {
                 compression,
                 data: JSON.stringify(character),
                 type: RisuSaveType.CHARACTER_WITH_CHAT,
-                name: character.chaId
+                name: character.chaId,
+                skipRemoteSaving: true
             }, {
                 remote: 'prefer'
             });
@@ -306,14 +308,16 @@ export class RisuSaveEncoder {
     async encodeRemoteBlock(arg:EncodeBlockArg){
         const encoded = new TextEncoder().encode(arg.data);
         const fileName = `remotes/${arg.name}.local.bin`
-        if(isTauri){
-            if(!(await exists('remotes', { baseDir: BaseDirectory.AppData }))){
-                await mkdir('remotes', { recursive: true, baseDir: BaseDirectory.AppData });
+        if(!arg.skipRemoteSaving){
+            if(isTauri){
+                if(!(await exists('remotes', { baseDir: BaseDirectory.AppData }))){
+                    await mkdir('remotes', { recursive: true, baseDir: BaseDirectory.AppData });
+                }
+                await writeFile(fileName, encoded!, { baseDir: BaseDirectory.AppData });
             }
-            await writeFile(fileName, encoded!, { baseDir: BaseDirectory.AppData });
-        }
-        else{
-            await forageStorage.setItem(fileName, encoded);
+            else{
+                await forageStorage.setItem(fileName, encoded);
+            }
         }
         return await this.encodeBlock({
             compression: false,

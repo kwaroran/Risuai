@@ -826,6 +826,8 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
                         const removeRisuReplacer = globalThis.__pluginApis__.removeRisuReplacer
                         const onUnload = globalThis.__pluginApis__.onUnload
                         const setArg = globalThis.__pluginApis__.setArg
+                        const saveAsset = globalThis.__pluginApis__.saveAsset
+                        const readImage = globalThis.__pluginApis__.readImage
                         ${version === '2.1' ? `
                             const safeGlobalThis = globalThis.__pluginApis__.getSafeGlobalThis()
                             const Risuai = globalThis.__pluginApis__

@@ -80,7 +80,7 @@
         <!-- Resummarize Button -->
         <button
           class="px-4 py-2 rounded text-sm font-medium transition-colors {bulkEditState.selectedSummaries.size > 1 
-            ? 'bg-green-600 hover:bg-green-700 text-white' 
+            ? 'bg-green-600 hover:bg-blue-700 text-white' 
             : 'bg-zinc-600 text-zinc-400 cursor-not-allowed'}"
           onclick={onResummarize}
           disabled={bulkEditState.selectedSummaries.size < 2}

@@ -166,7 +166,7 @@
         {/if}
     {:else}
         <span>{language.notLoggedIn}</span>
-        <button class="bg-selected p-2 rounded-md mt-2 hover:bg-green-500 transition-colors" onclick={() => {
+        <button class="bg-selected p-2 rounded-md mt-2 hover:bg-blue-500 transition-colors" onclick={() => {
             openIframeURL = hubURL + '/hub/login'
             openIframe = true
         }}>

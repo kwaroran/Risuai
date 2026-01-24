@@ -94,7 +94,6 @@ type EncodeBlockArg = {
     type:RisuSaveType
     name:string
     cache?:boolean
-    remote?:true|false|'auto'
 }
 
 type EncodeBlockOption = {

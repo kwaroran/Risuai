@@ -471,22 +471,47 @@ async function pargeChunks() {
                 console.log('error', asset.name)
             }
         }
+
+        const remotes = await readDir('remotes', { baseDir: BaseDirectory.AppData })
+
+        const remoteUnpargeables = new Set<string>(
+            db.characters.map((v) => v.chaId)
+        )
+        for (const remote of remotes) {
+            try {
+                const name = getBasename(remote.name).slice(0, -10) //remove .local.bin
+                const exists = remoteUnpargeables.has(name)
+                if(!exists){
+                    await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
+                }
+            } catch (error) {
+                console.log('error', remote.name)
+            }
+        }
     }
     else {
         const indexes = await forageStorage.keys()
+        const characterIds = new Set<string>(
+            db.characters.map((v) => v.chaId)
+        )
         for (const asset of indexes) {
-            if (!asset.startsWith('assets/')) {
-                continue
+            if (asset.startsWith('assets/')) {
+                const n = getBasename(asset)
+                if(!unpargeable.has(n)) {
+                    await forageStorage.removeItem(asset)
+                }
             }
-            const n = getBasename(asset)
-            if (unpargeable.has(n)) {
-            }
-            else {
-                await forageStorage.removeItem(asset)
+            else if (asset.startsWith('remotes/')) {
+                const name = getBasename(asset).slice(0, -10) //remove .local.bin
+                const exists = characterIds.has(name)
+                if(!exists){
+                    await forageStorage.removeItem(asset)
+                }
             }
         }
     }
 }
+
 
 /**
  * Assigns unique IDs to characters and chats.

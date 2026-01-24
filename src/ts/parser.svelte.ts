@@ -19,6 +19,7 @@ import { language } from 'src/lang';
 import katex from 'katex'
 import { getModelInfo } from './model/modellist';
 import { registerCBS, type matcherArg, type RegisterCallback } from './cbs';
+import cssSelectorParser from 'postcss-selector-parser'
 
 const markdownItOptions = {
     html: true,
@@ -870,14 +871,18 @@ function decodeStyleRule(rule:CssAtRuleAST){
             for(let i=0;i<rule.selectors.length;i++){
                 let slt:string = rule.selectors[i]
                 if(slt){
-                    let selectors = (slt.split(' ') ?? []).map((v) => {
-                        if(v.startsWith('.') && !v.startsWith('.x-risu-')){
-                            return ".x-risu-" + v.substring(1)
-                        }
-                        return v
-                    }).join(' ')
 
-                    rule.selectors[i] = ".chattext " + selectors
+                    const parser = cssSelectorParser((root) => {
+                        root.walkClasses((classes) => {
+                            if(classes.type === 'class' && !classes.value.startsWith('x-risu-')){
+                                classes.value = 'x-risu-' + classes.value
+                            }
+                        })
+                    })
+
+                    slt = parser.processSync(slt)
+
+                    rule.selectors[i] = ".chattext " + slt
                 }
             }
         }

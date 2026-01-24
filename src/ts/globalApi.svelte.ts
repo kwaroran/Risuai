@@ -394,7 +394,8 @@ export async function saveDb() {
             if (requiresFullEncoderReload.state) {
                 encoder = new RisuSaveEncoder()
                 await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount
+                    compression: forageStorage.isAccount,
+                    skipRemoteSavingOnCharacters: false
                 })
                 requiresFullEncoderReload.state = false
             }

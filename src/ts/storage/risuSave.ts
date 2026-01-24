@@ -110,9 +110,13 @@ export class RisuSaveEncoder {
     private compression: boolean = false;
 
     async init(data:Database,arg:{
-        compression?: boolean
+        compression?: boolean,
+        skipRemoteSavingOnCharacters?: boolean
     } = {}){
-        const { compression = false } = arg;
+        const {
+            compression = false,
+            skipRemoteSavingOnCharacters = true
+        } = arg;
         this.compression = compression;
         let obj:Record<any,any> = {}
         let keys = Object.keys(data)
@@ -145,7 +149,7 @@ export class RisuSaveEncoder {
                 data: JSON.stringify(character),
                 type: RisuSaveType.CHARACTER_WITH_CHAT,
                 name: character.chaId,
-                skipRemoteSaving: true
+                skipRemoteSaving: skipRemoteSavingOnCharacters
             }, {
                 remote: 'prefer'
             });

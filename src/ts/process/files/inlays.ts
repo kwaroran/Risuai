@@ -4,7 +4,8 @@ import { getDatabase, setDatabase, type InlayAssetMeta } from "../../storage/dat
 import { checkImageType, encodeCanvasToImage, mimeFromExt } from "../../util/imageConvert";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
-import { loadAsset, saveAsset } from "../../globalApi.svelte";
+import { loadAsset, removeAsset, saveAsset } from "../../globalApi.svelte";
+import { extractInlayIdsFromMessages } from "../../util/inlayTokens";
 
 const inlayImageExts = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'
@@ -24,6 +25,15 @@ const inlayStorage = localforage.createInstance({
 })
 
 type InlayAssetType = 'image'|'video'|'audio'
+
+export type InlayAsset = {
+    name: string
+    data: string | Blob
+    ext: string
+    height: number
+    width: number
+    type: InlayAssetType
+}
 
 type LegacyInlayAsset = {
     name: string
@@ -59,6 +69,18 @@ function ensureInlayAssets(db = getDatabase()){
 
 function getInlayMeta(id:string, db = getDatabase()){
     return db.inlayAssets?.[id] ?? null
+}
+
+async function getOrMigrateInlayMeta(id:string, db = getDatabase()){
+    const meta = getInlayMeta(id, db)
+    if(meta){
+        return meta
+    }
+    const legacy = await inlayStorage.getItem(id) as LegacyInlayAsset | null
+    if(!legacy){
+        return null
+    }
+    return await migrateLegacyInlay(id, legacy)
 }
 
 async function registerInlayMeta(id:string, meta:InlayAssetMeta){
@@ -283,7 +305,7 @@ function blobToBase64(blob: Blob): Promise<string> {
     });
 }
 
-async function getInlayAssetFromPath(path: string){
+async function getInlayAssetFromPath(path: string): Promise<InlayAsset | null> {
     const ext = normalizeExt(path.split('.').at(-1)) || 'png'
     const type = getInlayTypeFromExt(ext) ?? 'image'
     const bytes = await loadAsset(path)
@@ -309,7 +331,7 @@ async function getInlayAssetFromPath(path: string){
     }
 }
 
-async function getInlayAssetBlobFromPath(path: string){
+async function getInlayAssetBlobFromPath(path: string): Promise<InlayAsset | null> {
     const ext = normalizeExt(path.split('.').at(-1)) || 'png'
     const type = getInlayTypeFromExt(ext) ?? 'image'
     const bytes = await loadAsset(path)
@@ -332,106 +354,111 @@ async function getInlayAssetBlobFromPath(path: string){
         width,
         height,
         type
+    }
+}
+
+async function hydrateInlayFromMeta(
+    id: string,
+    meta: InlayAssetMeta,
+    mode: 'data'|'blob'
+): Promise<InlayAsset | null> {
+    const path = resolveInlayPath(id, meta)
+    const asset = mode === 'blob'
+        ? await getInlayAssetBlobFromPath(path)
+        : await getInlayAssetFromPath(path)
+    if(!asset){
+        return null
+    }
+
+    const width = meta.width ?? asset.width ?? 0
+    const height = meta.height ?? asset.height ?? 0
+    if(meta.type === 'image' && (!meta.width || !meta.height) && asset.width && asset.height){
+        await registerInlayMeta(id, { ...meta, width: asset.width, height: asset.height })
+    }
+
+    return {
+        name: meta.name ?? asset.name ?? id,
+        data: asset.data,
+        ext: meta.ext ?? asset.ext,
+        width,
+        height,
+        type: meta.type ?? asset.type
     }
 }
 
 // Returns with base64 data URI
-export async function getInlayAsset(id: string){
-    const img:{
-        name: string,
-        data: string | Blob,
-        ext: string
-        height: number
-        width: number
-        type: 'image'|'video'|'audio'
-    } = await inlayStorage.getItem(id)
-    if(img === null){
+export async function getInlayAsset(id: string): Promise<InlayAsset | null> {
+    if(!id){
         return null
     }
+    if(id.startsWith('assets/')){
+        return await getInlayAssetFromPath(id)
+    }
 
-    const path = resolveInlayPath(id, meta)
-    const bytes = await loadAsset(path)
-    if(!bytes){
-        const legacy = await inlayStorage.getItem(id) as LegacyInlayAsset | null
-        if(legacy){
-            let data = legacy.data instanceof Blob ? await blobToBase64(legacy.data) : legacy.data
-            return { ...legacy, data }
+    const db = ensureInlayAssets(getDatabase())
+    const meta = await getOrMigrateInlayMeta(id, db)
+    if(meta){
+        const asset = await hydrateInlayFromMeta(id, meta, 'data')
+        if(asset){
+            return asset
         }
+    }
+
+    const legacy = await inlayStorage.getItem(id) as LegacyInlayAsset | null
+    if(!legacy){
         return null
     }
-
-    const mime = getInlayMimeType(meta.ext, meta.type)
-    let width = meta.width ?? 0
-    let height = meta.height ?? 0
-    if(meta.type === 'image' && (!width || !height)){
-        const dims = await getImageDimensions(bytes, mime)
-        width = dims.width
-        height = dims.height
-        if(width && height){
-            await registerInlayMeta(id, { ...meta, width, height })
-        }
-    }
-    const data = `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`
+    const data = legacy.data instanceof Blob ? await blobToBase64(legacy.data) : legacy.data
+    const ext = normalizeExt(legacy.ext) || 'png'
+    const type = legacy.type ?? getInlayTypeFromExt(ext) ?? 'image'
     return {
-        name: meta.name ?? id,
+        name: legacy.name ?? id,
         data,
-        ext: meta.ext,
-        width,
-        height,
-        type: meta.type
+        ext,
+        width: legacy.width ?? 0,
+        height: legacy.height ?? 0,
+        type
     }
 }
 
 // Returns with Blob
-export async function getInlayAssetBlob(id: string){
-    const img:{
-        name: string,
-        data: string | Blob,
-        ext: string
-        height: number
-        width: number
-        type: 'image'|'video'|'audio'
-    } = await inlayStorage.getItem(id)
-    if(img === null){
+export async function getInlayAssetBlob(id: string): Promise<InlayAsset | null> {
+    if(!id){
         return null
     }
+    if(id.startsWith('assets/')){
+        return await getInlayAssetBlobFromPath(id)
+    }
 
-    const path = resolveInlayPath(id, meta)
-    const bytes = await loadAsset(path)
-    if(!bytes){
-        const legacy = await inlayStorage.getItem(id) as LegacyInlayAsset | null
-        if(legacy){
-            let data: Blob
-            if(typeof legacy.data === 'string'){
-                data = base64ToBlob(legacy.data)
-                await setLegacyInlayAsset(id, { ...legacy, data })
-            } else {
-                data = legacy.data
-            }
-            return { ...legacy, data }
+    const db = ensureInlayAssets(getDatabase())
+    const meta = await getOrMigrateInlayMeta(id, db)
+    if(meta){
+        const asset = await hydrateInlayFromMeta(id, meta, 'blob')
+        if(asset){
+            return asset
         }
+    }
+
+    const legacy = await inlayStorage.getItem(id) as LegacyInlayAsset | null
+    if(!legacy){
         return null
     }
-
-    const mime = getInlayMimeType(meta.ext, meta.type)
-    const data = new Blob([asBuffer(bytes)], { type: mime })
-    let width = meta.width ?? 0
-    let height = meta.height ?? 0
-    if(meta.type === 'image' && (!width || !height)){
-        const dims = await getImageDimensions(bytes, mime)
-        width = dims.width
-        height = dims.height
-        if(width && height){
-            await registerInlayMeta(id, { ...meta, width, height })
-        }
+    let data: Blob
+    if(typeof legacy.data === 'string'){
+        data = base64ToBlob(legacy.data)
+        await setLegacyInlayAsset(id, { ...legacy, data })
+    } else {
+        data = legacy.data
     }
+    const ext = normalizeExt(legacy.ext) || 'png'
+    const type = legacy.type ?? getInlayTypeFromExt(ext) ?? 'image'
     return {
-        name: meta.name ?? id,
+        name: legacy.name ?? id,
         data,
-        ext: meta.ext,
-        width,
-        height,
-        type: meta.type
+        ext,
+        width: legacy.width ?? 0,
+        height: legacy.height ?? 0,
+        type
     }
 }
 
@@ -441,9 +468,43 @@ async function setLegacyInlayAsset(id: string, img: LegacyInlayAsset){
 
 export async function listInlayAssets(): Promise<[id: string, InlayAsset][]> {
     const assets: [id: string, InlayAsset][] = []
-    await inlayStorage.iterate<InlayAsset, void>((value, key) => {
-        assets.push([key, value])
-    })
+    const db = ensureInlayAssets(getDatabase())
+
+    for(const [id, meta] of Object.entries(db.inlayAssets ?? {})){
+        const asset = await hydrateInlayFromMeta(id, meta, 'blob')
+        if(asset){
+            assets.push([id, asset])
+        }
+    }
+
+    const legacyKeys = await inlayStorage.keys()
+    for(const key of legacyKeys){
+        if(db.inlayAssets?.[key]){
+            continue
+        }
+        const legacy = await inlayStorage.getItem(key) as LegacyInlayAsset | null
+        if(!legacy){
+            continue
+        }
+        let data: Blob
+        if(typeof legacy.data === 'string'){
+            data = base64ToBlob(legacy.data)
+            await setLegacyInlayAsset(key, { ...legacy, data })
+        }
+        else{
+            data = legacy.data
+        }
+        const ext = normalizeExt(legacy.ext) || 'png'
+        const type = legacy.type ?? getInlayTypeFromExt(ext) ?? 'image'
+        assets.push([key, {
+            name: legacy.name ?? key,
+            data,
+            ext,
+            width: legacy.width ?? 0,
+            height: legacy.height ?? 0,
+            type
+        }])
+    }
 
     return assets
 }
@@ -472,6 +533,26 @@ export async function setInlayAsset(id: string, img:{
 }
 
 export async function removeInlayAsset(id: string){
+    const db = ensureInlayAssets(getDatabase())
+    const meta = getInlayMeta(id, db)
+    let changed = false
+    if(meta){
+        const path = resolveInlayPath(id, meta)
+        await removeAsset(path)
+        delete db.inlayAssets[id]
+        changed = true
+    }
+    else if(id.startsWith('assets/')){
+        await removeAsset(id)
+        const match = Object.entries(db.inlayAssets ?? {}).find(([, info]) => info?.path === id)
+        if(match){
+            delete db.inlayAssets[match[0]]
+            changed = true
+        }
+    }
+    if(changed){
+        setDatabase(db)
+    }
     await inlayStorage.removeItem(id)
 }
 

@@ -435,7 +435,8 @@ export class RisuSaveDecoder {
                     }
                     break;
                 }
-                case RisuSaveType.CHARACTER_WITH_CHAT:{
+                case RisuSaveType.CHARACTER_WITH_CHAT:
+                case RisuSaveType.CHARACTER_WITHOUT_CHAT:{
                     db.characters ??= [];
                     const character = JSON.parse(this.blocks[key].content);
                     db.characters.push(character);

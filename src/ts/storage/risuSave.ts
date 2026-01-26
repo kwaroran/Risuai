@@ -493,6 +493,14 @@ export class RisuSaveDecoder {
                     });
                     break;
                 }
+                case RisuSaveType.ROOT_COMPONENT:{
+                    const componentData:{
+                        data:any
+                        key:string
+                    } = JSON.parse(this.blocks[key].content);
+                    db[componentData.key] = componentData.data;
+                    break;
+                }
                 default:{
                     console.warn(`Not Implemented RisuSaveType: ${this.blocks[key].type} for ${this.blocks[key].name}`);
                 }

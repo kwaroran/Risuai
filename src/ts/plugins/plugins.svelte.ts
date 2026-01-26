@@ -585,8 +585,6 @@ export const getV2PluginAPIs = () => {
             //compatibility layer with old unsafe APIs
 
             //from PBV2
-            safeGlobal.readImage = readImage;
-            safeGlobal.saveAsset = saveAsset;
             safeGlobal.showDirectoryPicker = window.showDirectoryPicker
 
             safeGlobal.DBState = {
@@ -773,10 +771,15 @@ export const getV2PluginAPIs = () => {
         }),
         loadPlugins: loadPlugins,
         readImage: (path:string) => {
-            if(path.includes('/') || path.includes('\\')){
-                throw new Error("readImage path cannot contain '/' or '\\' for security reasons.");
+            if(path.startsWith('assets/')){
+                //trim assets/ prefix temporarily
+                path = path.slice(7);
             }
-            return readImage(path);
+            if(path.includes('/') || path.includes('\\')){
+                throw new Error("readImage path cannot contain '/' or '\\' for security reasons, except assets/ prefix.");
+            }
+            //re-add assets/ prefix
+            return readImage('assets/' + path);
         },
         saveAsset: (data:Uint8Array) => {
             return saveAsset(data);
@@ -828,6 +831,8 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
                         const removeRisuReplacer = globalThis.__pluginApis__.removeRisuReplacer
                         const onUnload = globalThis.__pluginApis__.onUnload
                         const setArg = globalThis.__pluginApis__.setArg
+                        const saveAsset = globalThis.__pluginApis__.saveAsset
+                        const readImage = globalThis.__pluginApis__.readImage
                         ${version === '2.1' ? `
                             const safeGlobalThis = globalThis.__pluginApis__.getSafeGlobalThis()
                             const Risuai = globalThis.__pluginApis__

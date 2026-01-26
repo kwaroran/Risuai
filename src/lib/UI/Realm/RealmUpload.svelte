@@ -10,7 +10,7 @@
             <span class="text-textcolor2">You can login in app settings 🡲 account</span>
             <button onclick={async () => {
                 close()
-            }} class="text-textcolor mt-2 text-lg bg-transparent border-solid border-1 border-borderc p-4 hover:bg-green-800 transition-colors cursor-pointer">OK</button>
+            }} class="text-textcolor mt-2 text-lg bg-transparent border-solid border-1 border-borderc p-4 hover:bg-blue-800 transition-colors cursor-pointer">OK</button>
             
         {:else}
         <h1 class="font-bold text-2xl w-full">

@@ -29,22 +29,18 @@ import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
 import { autoServerBackup, saveDbKei } from "./kei/backup";
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import * as CapFS from '@capacitor/filesystem'
 import { save } from "@tauri-apps/plugin-dialog";
 import { listen } from '@tauri-apps/api/event'
-import { registerPlugin } from '@capacitor/core';
 import { language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";
-import { encodeCapKeySafe } from "./storage/mobileStorage";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { fetch as TauriHTTPFetch } from '@tauri-apps/plugin-http';
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
-import { isTauri, isNodeServer, isCapacitor, isInStandaloneMode } from "./platform";
+import { isTauri, isNodeServer } from "./platform";
 
 export const forageStorage = new AutoStorage()
 
@@ -107,25 +103,6 @@ let pathCache: { [key: string]: string } = {}
 let checkedPaths: string[] = []
 
 /**
- * Checks if a file exists in the Capacitor filesystem.
- * 
- * @param {CapFS.GetUriOptions} getUriOptions - The options for getting the URI of the file.
- * @returns {Promise<boolean>} - A promise that resolves to true if the file exists, false otherwise.
- */
-async function checkCapFileExists(getUriOptions: CapFS.GetUriOptions): Promise<boolean> {
-    try {
-        await CapFS.Filesystem.stat(getUriOptions);
-        return true;
-    } catch (checkDirException) {
-        if (checkDirException.message === 'File does not exist') {
-            return false;
-        } else {
-            throw checkDirException;
-        }
-    }
-}
-
-/**
  * Gets the source URL of a file.
  * 
  * @param {string} loc - The location of the file.
@@ -151,19 +128,6 @@ export async function getFileSrc(loc: string) {
     }
     if (forageStorage.isAccount && loc.startsWith('assets')) {
         return hubURL + `/rs/` + loc
-    }
-    if (isCapacitor) {
-        if (!await checkCapFileExists({
-            path: encodeCapKeySafe(loc),
-            directory: CapFS.Directory.External
-        })) {
-            return ''
-        }
-        const uri = await CapFS.Filesystem.getUri({
-            path: encodeCapKeySafe(loc),
-            directory: CapFS.Directory.External
-        })
-        return Capacitor.convertFileSrc(uri.uri)
     }
     try {
         if (usingSw) {
@@ -430,7 +394,8 @@ export async function saveDb() {
             if (requiresFullEncoderReload.state) {
                 encoder = new RisuSaveEncoder()
                 await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount
+                    compression: forageStorage.isAccount,
+                    skipRemoteSavingOnCharacters: false
                 })
                 requiresFullEncoderReload.state = false
             }
@@ -669,9 +634,6 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
         if (isTauri) {
             return await fetchWithTauri(url, arg);
         }
-        if (isCapacitor) {
-            return await fetchWithCapacitor(url, arg);
-        }
         return await fetchWithProxy(url, arg);
 
     } catch (error) {
@@ -779,23 +741,6 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
     }
 }
 
-// Decoupled globalFetch built-in function
-async function fetchWithCapacitor(url: string, arg: GlobalFetchArgs): Promise<GlobalFetchResult> {
-    const { body, headers = {}, rawResponse } = arg;
-    headers["Content-Type"] = body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json";
-
-    const res = await CapacitorHttp.request({ url, method: arg.method ?? "POST", headers, data: body, responseType: rawResponse ? "arraybuffer" : "json" });
-
-    addFetchLogInGlobalFetch(rawResponse ? "Uint8Array Response" : res.data, true, url, arg, res.status);
-
-    return {
-        ok: true,
-        data: rawResponse ? new Uint8Array(res.data as ArrayBuffer) : res.data,
-        headers: res.headers,
-        status: res.status
-    };
-}
-
 /**
  * Performs a fetch request using a proxy.
  * 
@@ -869,21 +814,21 @@ export function getBasename(data: string) {
 }
 
 /**
- * Retrieves unpargeable resources from the database.
+ * Retrieves uncleanable resources from the database.
  * 
- * @param {Database} db - The database to retrieve unpargeable resources from.
- * @param {'basename'|'pure'} [uptype='basename'] - The type of unpargeable resources to retrieve.
- * @returns {string[]} - An array of unpargeable resources.
+ * @param {Database} db - The database to retrieve uncleanable resources from.
+ * @param {'basename'|'pure'} [uptype='basename'] - The type of uncleanable resources to retrieve.
+ * @returns {string[]} - An array of uncleanable resources.
  */
-export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
-    const unpargeable = new Set<string>();
+export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
+    const uncleanable = new Set<string>();
 
     /**
-     * Adds a resource to the unpargeable list if it is not already included.
+     * Adds a resource to the uncleanable list if it is not already included.
      * 
      * @param {string} data - The resource to add.
      */
-    function addUnparge(data: string) {
+    function addUncleanable(data: string) {
         if (!data) {
             return;
         }
@@ -891,37 +836,37 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
             return;
         }
         const bn = uptype === 'basename' ? getBasename(data) : data;
-        unpargeable.add(bn);
+        uncleanable.add(bn);
     }
 
-    addUnparge(db.customBackground);
-    addUnparge(db.userIcon);
+    addUncleanable(db.customBackground);
+    addUncleanable(db.userIcon);
 
     for (const cha of db.characters) {
         if (cha.image) {
-            addUnparge(cha.image);
+            addUncleanable(cha.image);
         }
         if (cha.emotionImages) {
             for (const em of cha.emotionImages) {
-                addUnparge(em[1]);
+                addUncleanable(em[1]);
             }
         }
         if (cha.type !== 'group') {
             if (cha.additionalAssets) {
                 for (const em of cha.additionalAssets) {
-                    addUnparge(em[1]);
+                    addUncleanable(em[1]);
                 }
             }
             if (cha.vits) {
                 const keys = Object.keys(cha.vits.files);
                 for (const key of keys) {
                     const vit = cha.vits.files[key];
-                    addUnparge(vit);
+                    addUncleanable(vit);
                 }
             }
             if (cha.ccAssets) {
                 for (const asset of cha.ccAssets) {
-                    addUnparge(asset.uri);
+                    addUncleanable(asset.uri);
                 }
             }
         }
@@ -932,7 +877,7 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
             const assets = module.assets
             if (assets) {
                 for (const asset of assets) {
-                    addUnparge(asset[1])
+                    addUncleanable(asset[1])
                 }
             }
         }
@@ -940,18 +885,18 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
 
     if (db.personas) {
         db.personas.map((v) => {
-            addUnparge(v.icon);
+            addUncleanable(v.icon);
         });
     }
 
     if (db.characterOrder) {
         db.characterOrder.forEach((item) => {
             if (typeof item === 'object' && 'imgFile' in item) {
-                addUnparge(item.imgFile);
+                addUncleanable(item.imgFile);
             }
         })
     }
-    return Array.from(unpargeable);
+    return Array.from(uncleanable);
 }
 
 
@@ -963,8 +908,6 @@ export function getUnpargeables(db: Database, uptype: 'basename' | 'pure' = 'bas
  * @returns {Database} - The updated database object with replaced resources.
  */
 export function replaceDbResources(db: Database, replacer: { [key: string]: string }): Database {
-    let unpargeable: string[] = [];
-
     /**
      * Replaces a given data string with its corresponding value from the replacer object.
      * 
@@ -1163,64 +1106,12 @@ export class TauriWriter {
     }
 }
 
-/**
- * A writer class for mobile environment.
- */
-class MobileWriter {
-    path: string
-    firstWrite: boolean = true
-
-    /**
-     * Creates an instance of MobileWriter.
-     * 
-     * @param {string} path - The file path to write to.
-     */
-    constructor(path: string) {
-        this.path = path
-    }
-
-    /**
-     * Writes data to the file.
-     * 
-     * @param {Uint8Array} data - The data to write.
-     */
-    async write(data: Uint8Array) {
-        if (this.firstWrite) {
-            if (!await CapFS.Filesystem.checkPermissions()) {
-                await CapFS.Filesystem.requestPermissions()
-            }
-            await CapFS.Filesystem.writeFile({
-                path: this.path,
-                data: Buffer.from(data).toString('base64'),
-                recursive: true,
-                directory: CapFS.Directory.Documents
-            })
-        }
-        else {
-            await CapFS.Filesystem.appendFile({
-                path: this.path,
-                data: Buffer.from(data).toString('base64'),
-                directory: CapFS.Directory.Documents
-            })
-        }
-
-        this.firstWrite = false
-    }
-
-    /**
-     * Closes the writer. (No operation for MobileWriter)
-     */
-    async close() {
-        // do nothing
-    }
-}
-
 
 /**
  * Class representing a local writer.
  */
 export class LocalWriter {
-    writer: WritableStreamDefaultWriter | TauriWriter | MobileWriter
+    writer: WritableStreamDefaultWriter | TauriWriter
 
     /**
      * Initializes the writer.
@@ -1241,10 +1132,6 @@ export class LocalWriter {
                 return false
             }
             this.writer = new TauriWriter(filePath)
-            return true
-        }
-        if (isCapacitor) {
-            this.writer = new MobileWriter(name + '.' + ext[0])
             return true
         }
         const streamSaver = await import('streamsaver')
@@ -1405,19 +1292,6 @@ if (isTauri) {
     }).then((v) => {
         streamedFetchListening = true
     })
-}
-
-if (isCapacitor) {
-    capStreamedFetch = registerPlugin<StreamedFetchPlugin>('CapacitorHttp', CapacitorHttp)
-
-    capStreamedFetch.addListener('streamed_fetch', (data) => {
-        try {
-            nativeFetchData[data.id]?.push(data)
-        } catch (error) {
-            console.error(error)
-        }
-    })
-    streamedFetchListening = true
 }
 
 /**

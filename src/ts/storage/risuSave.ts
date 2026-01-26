@@ -85,7 +85,9 @@ enum RisuSaveType {
     CHAT = 3,
     BOTPRESET = 4,
     MODULES = 5,
-    REMOTE = 6
+    REMOTE = 6,
+    CHARACTER_WITHOUT_CHAT = 7,
+    ROOT_COMPONENT = 8,
 }
 
 type EncodeBlockArg = {

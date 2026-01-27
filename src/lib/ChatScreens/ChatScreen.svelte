@@ -2,7 +2,7 @@
     import { getCustomBackground, getEmotion } from "../../ts/util";
     
     import { DBState } from 'src/ts/stores.svelte';
-    import { CharEmotion, ShowVN, selectedCharID } from "../../ts/stores.svelte";
+    import { CharEmotion, selectedCharID } from "../../ts/stores.svelte";
     import ResizeBox from './ResizeBox.svelte'
     import DefaultChatScreen from "./DefaultChatScreen.svelte";
     import defaultWallpaper from '../../etc/bg.jpg'
@@ -10,7 +10,6 @@
     import TransitionImage from "./TransitionImage.svelte";
     import BackgroundDom from "./BackgroundDom.svelte";
     import SideBarArrow from "../UI/GUI/SideBarArrow.svelte";
-    import VisualNovelMain from "../VisualNovel/VisualNovelMain.svelte";
     import ModuleChatMenu from "../Setting/Pages/Module/ModuleChatMenu.svelte";
     let openChatList = $state(false)
     let openModuleList = $state(false)
@@ -33,9 +32,7 @@
     });
 </script>
 
-{#if $ShowVN}
-    <VisualNovelMain />
-{:else if DBState.db.theme === 'waifu'}
+{#if DBState.db.theme === 'waifu'}
     <div class="grow h-full flex justify-center relative" style="{bgImg.length < 4 ? wallPaper : bgImg}">
         <SideBarArrow />
         <BackgroundDom />

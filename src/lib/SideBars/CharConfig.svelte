@@ -469,9 +469,6 @@
                 <OptionInput value="none">{language.none}</OptionInput>
                 <OptionInput value="emotion">{language.emotionImage}</OptionInput>
                 <OptionInput value="imggen">{language.imageGeneration}</OptionInput>
-                {#if DBState.db.tpo}
-                    <OptionInput value="vn">VN test</OptionInput>
-                {/if}
             </SelectInput>
         {:else}
             <SelectInput className="mb-2" bind:value={DBState.db.characters[$selectedCharID].viewScreen}>
@@ -735,7 +732,6 @@
         && DBState.db.characters[$selectedCharID].license !== 'CC BY-SA 4.0'
         && DBState.db.characters[$selectedCharID].license !== 'CC BY-ND 4.0'
         && DBState.db.characters[$selectedCharID].license !== 'CC BY-NC-ND 4.0'
-        || DBState.db.tpo
         }
         <Button size="sm" onclick={async () => {
             const res = await exportChar($selectedCharID)

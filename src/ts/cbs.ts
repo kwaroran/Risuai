@@ -2222,6 +2222,16 @@ export function registerCBS(arg:CBSRegisterArg) {
     })
 
     registerFunction({
+        name: 'declare',
+        callback: (str, matcherArg, args, vars) => {
+            matcherArg.var[`__declared_${args[0]}__`] = '1'
+            return ''
+        },
+        alias: [],
+        description: 'Declares a data which can be used to change parser\'s behavior. Usage:: {{declare::declaration_name}}',
+    })
+
+    registerFunction({
         name: '//',
         callback: 'doc_only',
         alias: [],

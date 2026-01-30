@@ -26,22 +26,24 @@ const inlayStorage = localforage.createInstance({
 
 type InlayAssetType = 'image'|'video'|'audio'
 
-export type InlayAsset = {
+type InlayAssetCommon = {
     name: string
-    data: string | Blob
     ext: string
     height: number
     width: number
     type: InlayAssetType
 }
 
-type LegacyInlayAsset = {
-    name: string
+export type InlayAsset = InlayAssetCommon & {
+    data: string
+}
+
+export type InlayAssetBlob = InlayAssetCommon & {
+    data: Blob
+}
+
+type LegacyInlayAsset = InlayAssetCommon & {
     data: string | Blob
-    ext: string
-    height: number
-    width: number
-    type: InlayAssetType
 }
 
 function normalizeExt(ext?:string){
@@ -331,7 +333,7 @@ async function getInlayAssetFromPath(path: string): Promise<InlayAsset | null> {
     }
 }
 
-async function getInlayAssetBlobFromPath(path: string): Promise<InlayAsset | null> {
+async function getInlayAssetBlobFromPath(path: string): Promise<InlayAssetBlob | null> {
     const ext = normalizeExt(path.split('.').at(-1)) || 'png'
     const type = getInlayTypeFromExt(ext) ?? 'image'
     const bytes = await loadAsset(path)
@@ -357,15 +359,18 @@ async function getInlayAssetBlobFromPath(path: string): Promise<InlayAsset | nul
     }
 }
 
-async function hydrateInlayFromMeta(
+type InlayAssetMode = 'data' | 'blob'
+type InlayAssetForMode<M extends InlayAssetMode> = M extends 'data' ? InlayAsset : InlayAssetBlob
+
+async function hydrateInlayFromMeta<M extends InlayAssetMode>(
     id: string,
     meta: InlayAssetMeta,
-    mode: 'data'|'blob'
-): Promise<InlayAsset | null> {
+    mode: M
+): Promise<InlayAssetForMode<M> | null> {
     const path = resolveInlayPath(id, meta)
-    const asset = mode === 'blob'
+    const asset = (mode === 'blob'
         ? await getInlayAssetBlobFromPath(path)
-        : await getInlayAssetFromPath(path)
+        : await getInlayAssetFromPath(path)) as InlayAssetForMode<M> | null
     if(!asset){
         return null
     }
@@ -383,7 +388,7 @@ async function hydrateInlayFromMeta(
         width,
         height,
         type: meta.type ?? asset.type
-    }
+    } as InlayAssetForMode<M>
 }
 
 // Returns with base64 data URI
@@ -422,7 +427,7 @@ export async function getInlayAsset(id: string): Promise<InlayAsset | null> {
 }
 
 // Returns with Blob
-export async function getInlayAssetBlob(id: string): Promise<InlayAsset | null> {
+export async function getInlayAssetBlob(id: string): Promise<InlayAssetBlob | null> {
     if(!id){
         return null
     }
@@ -466,8 +471,8 @@ async function setLegacyInlayAsset(id: string, img: LegacyInlayAsset){
     await inlayStorage.setItem(id, img)
 }
 
-export async function listInlayAssets(): Promise<[id: string, InlayAsset][]> {
-    const assets: [id: string, InlayAsset][] = []
+export async function listInlayAssets(): Promise<[id: string, InlayAssetBlob][]> {
+    const assets: [id: string, InlayAssetBlob][] = []
     const db = ensureInlayAssets(getDatabase())
 
     for(const [id, meta] of Object.entries(db.inlayAssets ?? {})){

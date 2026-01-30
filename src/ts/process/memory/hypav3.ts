@@ -18,6 +18,7 @@ import { requestChatData } from "../request/request";
 import { chatCompletion, unloadEngine } from "../webllm";
 import { hypaV3ProgressStore } from "src/ts/stores.svelte";
 import { type ChatTokenizer } from "src/ts/tokenizer";
+import { inlayTokenRegex } from "src/ts/util/inlayTokens";
 
 export interface HypaV3Preset {
   name: string;
@@ -1662,12 +1663,16 @@ function wrapWithXml(tag: string, content: string): string {
   return `<${tag}>\n${content}\n</${tag}>`;
 }
 
+function sanitizeSummaryContent(content: string): string {
+  return content.replace(inlayTokenRegex, "[Image]");
+}
+
 export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolean = false): Promise<string> {
   const db = getDatabase();
   const settings = getCurrentHypaV3Preset().settings;
 
   const strMessages = oaiMessages
-    .map((chat) => `${chat.role}: ${chat.content}`)
+    .map((chat) => `${chat.role}: ${sanitizeSummaryContent(chat.content)}`)
     .join("\n");
 
   const summarizationPrompt = isResummarize

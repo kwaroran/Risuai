@@ -62,7 +62,7 @@ export async function fetchProtectedResource(url: string, options: RequestInit =
     return fetchProtectedResourceSPA(url, options, arg)
 }
 
-const readFileUnSecure = isTauri ? readFile : (path:string, options:any) => {
+const readFileInsecure = isTauri ? readFile : (path:string, options:any) => {
     const data = localStorage.getItem(path)
     if(!data){
         throw new Error("File not found")
@@ -85,7 +85,7 @@ async function fetchProtectedResourceSPA(url: string, options: RequestInit = {},
     
     if(!tokenInitalized || arg.forceRefresh){
 
-        const oauthDataText = await readFileUnSecure('oauthData.json', { baseDir: BaseDirectory.AppData })
+        const oauthDataText = await readFileInsecure('oauthData.json', { baseDir: BaseDirectory.AppData })
         const oauthData: SionywOauthData = JSON.parse(new TextDecoder().decode(oauthDataText))
 
         refreshToken = oauthData.refresh_token

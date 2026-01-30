@@ -533,7 +533,7 @@ app.get('/api/oauth_login', async (req, res) => {
                 redirect_uris: [redirect_uri],
                 response_types: ['code'],
                 grant_types: ['authorization_code'],
-                scope: 'risuai risuai:node',
+                scope: 'risuai',
                 token_endpoint_auth_method: 'client_secret_basic',
                 client_name: 'Risuai Node Server',
             })

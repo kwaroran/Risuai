@@ -1705,8 +1705,10 @@ export function risuChatParser(da:string, arg:{
                 if(dat.startsWith('#') || dat.startsWith(':')){
                     if(isPureMode()){
                         nested[0] += `{{${dat}}}`
-                        nested.unshift('')
-                        stackType[nested.length] = 6
+                        if (dat !== ':else') {
+                            nested.unshift('')
+                            stackType[nested.length] = 6
+                        }
                         break
                     }
                     const matchResult = blockStartMatcher(dat, matcherObj)

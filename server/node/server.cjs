@@ -513,7 +513,7 @@ app.get('/api/oauth_login', async (req, res) => {
         return
     }
     if(!oauthData.client_id || !oauthData.client_secret){
-        const discovery = await openid.discovery('https://your-identity-provider.com','');
+        const discovery = await openid.discovery('https://account.sionyw.com/','','');
         oauthData.config = discovery;
 
         //oauth dynamic client registration

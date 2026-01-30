@@ -911,7 +911,7 @@ export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'bas
     if (db.inlayAssets) {
         for (const [id, meta] of Object.entries(db.inlayAssets)) {
             const path = meta?.path ?? `assets/${id}.${meta?.ext ?? 'png'}`
-            addUnparge(path)
+            addUncleanable(path)
         }
     }
 

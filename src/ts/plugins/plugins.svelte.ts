@@ -811,11 +811,16 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         let version = plugin.version || 2
 
         const createRealScript = (data:string) => {
-            const tt = window.trustedTypes || {
-                createPolicy: (name, rules) => rules // Just return the rules object as the "policy"
-            };
+            const tt = (window as Window & {
+                trustedTypes?: {
+                    createPolicy: (name: string, rules: { createScript: (input: string) => string }) => { createScript: (input: string) => string }
+                }
+            }).trustedTypes
+            const policyFactory = tt ?? {
+                createPolicy: (_name: string, rules: { createScript: (input: string) => string }) => rules // Just return the rules object as the "policy"
+            }
 
-            const policy = tt.createPolicy('plugin-policy', {
+            const policy = policyFactory.createPolicy('plugin-policy', {
                 createScript: (input) => {
                     return `(async () => {
                         const risuFetch = globalThis.__pluginApis__.risuFetch
@@ -862,7 +867,6 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loading V2.1 Plugin', plugin.name, data)
 
             try {
-                //@ts-expect-error, Trusted Types
                 new Function(createRealScript(data))()
             } catch (error) {
                 console.error(error)
@@ -875,7 +879,6 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             console.log('Loading V2.0 Plugin', plugin.name)
 
             try {
-                //@ts-expect-error, Trusted Types
                 eval(createRealScript(data))
             } catch (error) {
                 console.error(error)
@@ -902,5 +905,4 @@ export async function pluginProcess(arg: {
         content: language.pluginProviderNotFound
     }
 }
-
 

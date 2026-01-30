@@ -4,7 +4,7 @@
     import { downloadPreset } from "src/ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { selectedCharID, ShowRealmFrameStore } from "src/ts/stores.svelte";
-    import { asBuffer, sleep } from "src/ts/util";
+    import { sleep } from "src/ts/util";
     import { onDestroy, onMount } from "svelte";
 
     const close =  () => {
@@ -57,14 +57,18 @@
             data: ArrayBuffer,
             name: ArrayBuffer
         }
+
+        const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+            return new Uint8Array(bytes).buffer
+        }
         
         if($ShowRealmFrameStore.startsWith('preset')){
             const predata = await downloadPreset(Number($ShowRealmFrameStore.split(':')[1]), 'return')
             const encodedPredata = predata.buf
             const encodedPredataName = new TextEncoder().encode(predata.data.name + '.risup')
             data = {
-                data: asBuffer(encodedPredata.buffer),
-                name: asBuffer(encodedPredataName.buffer)
+                data: toArrayBuffer(encodedPredata),
+                name: toArrayBuffer(encodedPredataName)
             }
         }
         else if($ShowRealmFrameStore.startsWith('module')){
@@ -74,8 +78,8 @@
             const encodedPredata = new TextEncoder().encode(JSON.stringify(predata))
             const encodedPredataName = new TextEncoder().encode(predata.name + '.json')
             data = {
-                data: asBuffer(encodedPredata.buffer),
-                name: asBuffer(encodedPredataName.buffer)
+                data: toArrayBuffer(encodedPredata),
+                name: toArrayBuffer(encodedPredataName)
             }
         }
         else{

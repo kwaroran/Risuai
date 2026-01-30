@@ -561,10 +561,9 @@ app.get('/api/oauth_login', async (req, res) => {
         oauthData.code_verifier = code_verifier;
         let redirectTo = openid.buildAuthorizationUrl(oauthData.config, {
             redirect_uri,
-            scope: 'openid profile email',
             code_challenge,
             code_challenge_method: 'S256',
-            scope: 'risuai risuai:node',
+            scope: 'risuai',
         })
 
         res.redirect(redirectTo.toString());

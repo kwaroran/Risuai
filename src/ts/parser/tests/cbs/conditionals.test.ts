@@ -345,16 +345,11 @@ describe('#when', () => {
     })
 
     test('works in and out of a nested #when', () => {
-      /*
-      :else is sensitive to line breaks
-      {{#when A}}
-        {{#when B}}CBS{{:else}}SBC{{/}}
-      {{:else}}
-        ABC
-      {{/}}
-      */
-      const nestedTemplate = (a: string, b: string) =>
-        `{{#when ${a}}}\n{{#when ${b}}}CBS{{:else}}SBC{{/}}\n{{:else}}\nABC\n{{/}}`
+      const nestedTemplate = (a: string, b: string) => `{{#when ${a}}}
+{{#when ${b}}}CBS{{:else}}SBC{{/}}
+{{:else}}
+ABC
+{{/}}`
 
       expect(risuChatParser(nestedTemplate('1', '1'))).toBe(`CBS`)
       expect(risuChatParser(nestedTemplate('1', '0'))).toBe(`SBC`)
@@ -362,15 +357,15 @@ describe('#when', () => {
       expect(risuChatParser(nestedTemplate('0', '0'))).toBe(`ABC`)
     })
 
-    // FIXME: parser breaks down here
-    test.skip('works in an #each', () => {
-      /*
-      :else is sensitive to line breaks
-      {{#each [1, 2, 3] as n}}
-        {{#when::n::is::2}}2{{/}}
-      {{/}}
-      */
-      expect(quickParse('#each [1, 2, 3] as n', template('#when::n::is::2', 'CBS{{:else}}SBC'))).toBe('2')
+    test('works in an #each', () => {
+      const template = `{{#each [1, 2, 3] as n}}
+{{#when::n::is::2}}
+CBS{{slot::n}}
+{{:else}}
+SBC{{slot::n}}
+{{/}}
+{{/}}`
+      expect(risuChatParser(template)).toBe(`SBC1SBC2SBC3`)
     })
   })
 })

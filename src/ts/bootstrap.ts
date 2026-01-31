@@ -15,7 +15,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
-import { alertError, alertMd, alertTOS, waitAlert } from "./alert";
+import { alertError, alertMd, alertTOS, waitAlert, alertConfirm, alertInput } from "./alert";
 import { checkDriverInit } from "./drive/drive";
 import { characterURLImport } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
@@ -352,12 +352,60 @@ async function checkNewFormat(): Promise<void> {
         return v !== null;
     });
 
-    db.modules = (db.modules ?? []).map((v) => {
+    db.modules = await Promise.all((db.modules ?? []).map(async (v) => {
         if (v?.lorebook) {
-            v.lorebook = updateLorebooks(v.lorebook);
+            if (!Array.isArray(v.lorebook)) {
+                console.error('Critical: Invalid lorebook format detected in module');
+                console.error('Module data:', JSON.stringify(v, null, 2));
+                
+                // Alert user about corrupted data
+                alertError(`데이터 손상 감지: 모듈 "${v.name || 'Unknown'}"의 로어북 형식이 손상되었습니다.\n\n손상된 데이터 타입: ${typeof v.lorebook}\n다음은 개발자에게 보고할 수 있는 옵션입니다.`);
+                await waitAlert();
+                
+                // Ask if user wants to report the issue
+                const shouldReport = await alertConfirm('다음 팝업 창에서 오류 정보를 복사한 후 개발자에게 보고하시겠습니까?\n\n같은 오류가 다시 발생하는 것을 막는 것에 큰 도움이 됩니다. (오류가 난 모듈 정보만 포함되며 다른 정보는 포함되지 않습니다)');
+                
+                if (shouldReport) {
+                    try {
+                        // Collect diagnostic information (without personal data)
+                        const diagnosticInfo = {
+                            timestamp: new Date().toISOString(),
+                            moduleName: v.name || 'Unknown',
+                            lorebookType: typeof v.lorebook,
+                            lorebookValue: String(v.lorebook).substring(0, 500), // First 500 chars only
+                            isArray: Array.isArray(v.lorebook),
+                            keys: v.lorebook ? Object.keys(v.lorebook).join(', ') : 'N/A',
+                            formatVersion: db.formatversion || 'Unknown'
+                        };
+                        
+                        // Show the diagnostic info and allow user to copy or send
+                        const reportData = JSON.stringify(diagnosticInfo, null, 2);
+                        await alertMd(`# 진단 정보\n\n아래 정보를 복사하여 GitHub Issues나 Discord, 커뮤니티를 통해 개발자에게 제보해주세요\n제보 전에 민감한 정보가 있는지 다시 한번 확인해주세요:\n\n\`\`\`json\n${reportData}\n\`\`\``);
+                        await waitAlert();
+                        
+                        console.log('Diagnostic information for developers:', diagnosticInfo);
+                    } catch (reportError) {
+                        console.error('Failed to generate diagnostic report:', reportError);
+                    }
+                }
+                
+                // Ask if user wants to reset the data
+                const shouldReset = await alertConfirm('손상된 모듈의 모든 로어북 데이터를 초기화하시겠습니까?\n\n"아니오"를 선택하면 데이터가 그대로 유지되지만 오류가 계속 발생할 수 있습니다.');
+                
+                if (shouldReset) {
+                    v.lorebook = [];
+                    console.log('Lorebook reset to empty array by user choice');
+                } else {
+                    console.warn('User chose to keep corrupted lorebook data');
+                }
+            } else {
+                v.lorebook = updateLorebooks(v.lorebook);
+            }
         }
         return v
-    }).filter((v) => {
+    }));
+    
+    db.modules = db.modules.filter((v) => {
         return v !== null && v !== undefined;
     });
 

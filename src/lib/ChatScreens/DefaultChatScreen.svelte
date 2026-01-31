@@ -588,7 +588,7 @@
             >
                 {#if DBState.db.useChatSticker && currentCharacter.type !== 'group'}
                     <div onclick={()=>{toggleStickers = !toggleStickers}}
-                         class={"ml-4 bg-textcolor2 flex justify-center items-center  w-12 h-12 rounded-md hover:bg-green-500 transition-colors "+(toggleStickers ? 'text-green-500':'text-textcolor')}>
+                         class={"ml-4 bg-textcolor2 flex justify-center items-center  w-12 h-12 rounded-md hover:bg-blue-500 transition-colors "+(toggleStickers ? 'text-green-500':'text-textcolor')}>
                         <Laugh/>
                     </div>
                 {/if}

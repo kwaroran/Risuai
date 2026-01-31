@@ -1,7 +1,7 @@
 import { get, writable } from "svelte/store"
 import { sleep } from "./util"
 import { language } from "../lang"
-import { isTauri, isNodeServer, isCapacitor } from "src/ts/platform"
+import { isTauri, isNodeServer } from "src/ts/platform"
 import { getDatabase, type MessageGenerationInfo } from "./storage/database.svelte"
 import { alertStore as alertStoreImported } from "./stores.svelte"
 
@@ -14,6 +14,7 @@ export interface alertData{
     submsg?: string
     datalist?: [string, string][],
     stackTrace?: string;
+    defaultValue?: string
 }
 
 type AlertGenerationInfoStoreData = {
@@ -61,7 +62,7 @@ export function alertError(msg: string | Error) {
     //check if it's a known error
     if(msg.includes('Failed to fetch') || msg.includes("NetworkError when attempting to fetch resource.")){
         submsg =    db.usePlainFetch ? language.errors.networkFetchPlain :
-                    (!isTauri && !isNodeServer && !isCapacitor) ? language.errors.networkFetchWeb : language.errors.networkFetch
+                    (!isTauri && !isNodeServer) ? language.errors.networkFetchWeb : language.errors.networkFetch
     }
 
     alertStoreImported.set({
@@ -252,12 +253,13 @@ export async function alertTOS(){
     return false
 }
 
-export async function alertInput(msg:string, datalist?:[string, string][]) {
+export async function alertInput(msg:string, datalist?:[string, string][], defaultValue?:string) {
 
     alertStoreImported.set({
         'type': 'input',
         'msg': msg,
-        'datalist': datalist ?? []
+        'datalist': datalist ?? [],
+        'defaultValue': defaultValue ?? ''
     })
 
     await waitAlert()

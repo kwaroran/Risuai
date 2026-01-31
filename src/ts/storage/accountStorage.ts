@@ -2,7 +2,7 @@ import { writable } from "svelte/store"
 import { getDatabase } from "./database.svelte"
 import localforage from "localforage"
 import { alertLogin, alertNormalWait, alertStore } from "../alert"
-import { forageStorage, getUnpargeables } from "../globalApi.svelte"
+import { forageStorage, getUncleanables } from "../globalApi.svelte"
 import { encodeRisuSaveLegacy } from "./risuSave"
 import { v4 } from "uuid"
 import { language } from "src/lang"
@@ -159,7 +159,7 @@ export class AccountStorage{
     }
     keys():string[]{
         let db = getDatabase()
-        return getUnpargeables(db, 'pure')
+        return getUncleanables(db, 'pure')
     }
     removeItem(key:string){
         throw "Error: You cannot remove data in account. report this to dev if you found this."

@@ -19,6 +19,7 @@ import { language } from 'src/lang';
 import katex from 'katex'
 import { getModelInfo } from './model/modellist';
 import { registerCBS, type matcherArg, type RegisterCallback } from './cbs';
+import cssSelectorParser from 'postcss-selector-parser'
 
 const markdownItOptions = {
     html: true,
@@ -870,14 +871,18 @@ function decodeStyleRule(rule:CssAtRuleAST){
             for(let i=0;i<rule.selectors.length;i++){
                 let slt:string = rule.selectors[i]
                 if(slt){
-                    let selectors = (slt.split(' ') ?? []).map((v) => {
-                        if(v.startsWith('.') && !v.startsWith('.x-risu-')){
-                            return ".x-risu-" + v.substring(1)
-                        }
-                        return v
-                    }).join(' ')
 
-                    rule.selectors[i] = ".chattext " + selectors
+                    const parser = cssSelectorParser((root) => {
+                        root.walkClasses((classes) => {
+                            if(classes.type === 'class' && !classes.value.startsWith('x-risu-')){
+                                classes.value = 'x-risu-' + classes.value
+                            }
+                        })
+                    })
+
+                    slt = parser.processSync(slt)
+
+                    rule.selectors[i] = ".chattext " + slt
                 }
             }
         }
@@ -1428,8 +1433,10 @@ function blockStartMatcher(p1:string,matcherArg:matcherArg):{type:blockMatch,typ
     if(p1 === '#code'){
         return {type:'normalize'}
     }
-    if(p1 === '#escape'){
-        return {type:'escape'}
+    if(p1.startsWith('#escape')){
+        const t2 = p1.substring(7).trim()
+        const mode = t2 === '::keep' ? 'keep' : undefined
+        return {type:'escape', mode}
     }
     if(p1.startsWith('#each')){
         let t2 = p1.substring(5).trim()
@@ -1461,21 +1468,21 @@ function trimLines(p1:string){
 }
 
 function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string,mode?:string},matcherArg:matcherArg):string{
-    const p1Trimed = p1.trim() 
+    const p1Trimmed = p1.trim() 
     switch(type.type){
         case 'pure':
         case 'pure-display':
         case 'function':{
-            return p1Trimed
+            return p1Trimmed
         }
         case 'parse':{
-            return trimLines(p1Trimed)
+            return trimLines(p1Trimmed)
         }
         case 'each':{
             if(type.mode === 'keep'){
                 return p1
             }
-            return trimLines(p1Trimed)
+            return trimLines(p1Trimmed)
         }
         case 'ifpure':{
             return p1
@@ -1530,7 +1537,7 @@ function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string,mode?:str
         }
 
         case 'normalize':{
-            return p1Trimed.trim().replaceAll('\n','').replaceAll('\t','')
+            return p1Trimmed.trim().replaceAll('\n','').replaceAll('\t','')
             .replaceAll(/\\u([0-9A-Fa-f]{4})/g, (match, p1) => {
                 return String.fromCharCode(parseInt(p1, 16))
             })
@@ -1558,7 +1565,7 @@ function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string,mode?:str
             })
         }
         case 'escape':{
-            return risuEscape(p1Trimed)
+            return risuEscape(type.mode === 'keep' ? p1 : p1Trimmed)
         }
         default:{
             return ''
@@ -1698,8 +1705,10 @@ export function risuChatParser(da:string, arg:{
                 if(dat.startsWith('#') || dat.startsWith(':')){
                     if(isPureMode()){
                         nested[0] += `{{${dat}}}`
-                        nested.unshift('')
-                        stackType[nested.length] = 6
+                        if (dat !== ':else') {
+                            nested.unshift('')
+                            stackType[nested.length] = 6
+                        }
                         break
                     }
                     const matchResult = blockStartMatcher(dat, matcherObj)

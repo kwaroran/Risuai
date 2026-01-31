@@ -2222,6 +2222,16 @@ export function registerCBS(arg:CBSRegisterArg) {
     })
 
     registerFunction({
+        name: 'declare',
+        callback: (str, matcherArg, args, vars) => {
+            matcherArg.var[`__declared_${args[0]}__`] = '1'
+            return ''
+        },
+        alias: [],
+        description: 'Declares a data which can be used to change parser\'s behavior. Usage:: {{declare::declaration_name}}',
+    })
+
+    registerFunction({
         name: '//',
         callback: 'doc_only',
         alias: [],
@@ -2386,7 +2396,7 @@ Basic operators:
 {{#when::not::A}}...{{/when}} - negates condition, so it will be true if A is false.
 
 Advanced operators:
-{{#when::keep::A}}...{{/when}} - keep whitespace handling, so it will not trim spaces inside block.
+{{#when::keep::A}}...{{/when}} - keeps whitespace inside the block without trimming.
 {{#when::legacy::A}}...{{/when}} - legacy whitespace handling, so it will handle like deprecated #if.
 {{#when::var::A}}...{{/when}} - checks if variable A is truthy.
 {{#when::A::vis::B}}...{{/when}} - checks if variable A is equal to literal B.
@@ -2431,13 +2441,25 @@ Usage:: {{#when condition}}...{{/when}} or {{#when::not::condition}}...{{/when}}
     })
 
     registerFunction({
+        name: '#escape',
+        callback: 'doc_only',
+        alias: [],
+        description: `Escapes curly braces and parentheses, treating content as literal text. Useful for displaying CBS syntax without evaluation.
+
+Operators:
+{{#escape::keep}} - keeps whitespace inside the block without trimming.
+
+Usage:: {{#escape}}...{{/escape}}`,
+    })
+
+    registerFunction({
         name:'#each',
         callback: 'doc_only',
         alias: [':each'],
         description: `Iterates over an array.
 
 Operators:
-{{#each::keep A as V}} - keep whitespace handling, so it will not trim spaces inside block.
+{{#each::keep A as V}} - keeps whitespace inside the block without trimming.
 
 Usage:: {{#each A as V}} ... {{slot::V}} ... {{/each}}`,
     })

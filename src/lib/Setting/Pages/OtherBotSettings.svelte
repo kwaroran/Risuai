@@ -815,7 +815,7 @@
 
                     const id = DBState.db.hypaV3PresetId
                     const preset = presets[id]
-                    const newName = await alertInput(`Enter new name for ${preset.name}`)
+                    const newName = await alertInput(`Enter new name for ${preset.name}`, [], preset.name)
 
                     if (!newName || newName.trim().length === 0) return
 

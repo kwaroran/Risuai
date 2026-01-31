@@ -435,7 +435,7 @@
   class:flex={!hidden}
 >
   <button
-    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-green-500"
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
     onclick={() => {
       menuMode = 1 - menuMode;
     }}><ListIcon />
@@ -554,7 +554,7 @@
                 e.preventDefault()
                 const sel = parseInt(await alertSelect([language.renameFolder,language.changeFolderColor,language.changeFolderImage,language.cancel]))
                 if(sel === 0){
-                  const v = await alertInput(language.changeFolderName)
+                  const v = await alertInput(language.changeFolderName, [], char.name)
                   const db = DBState.db
                   if(v){
                     const oder = db.characterOrder[ind]

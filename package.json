@@ -22,9 +22,6 @@
     "@aws-crypto/sha256-js": "^5.2.0",
     "@breezystack/lamejs": "^1.2.7",
     "@browsermt/bergamot-translator": "^0.4.9",
-    "@capacitor/android": "^5.7.8",
-    "@capacitor/core": "^5.7.8",
-    "@capacitor/filesystem": "^5.2.2",
     "@dqbd/tiktoken": "^1.0.22",
     "@huggingface/jinja": "^0.2.2",
     "@huggingface/transformers": "^3.8.1",
@@ -74,6 +71,7 @@
     "pdfjs-dist": "^4.10.38",
     "peerjs": "^1.5.5",
     "png-chunk-text": "^1.0.0",
+    "postcss-selector-parser": "^7.1.1",
     "pyodide": "^0.27.7",
     "rfdc": "^1.4.1",
     "sortablejs": "^1.15.6",
@@ -89,8 +87,6 @@
     "web-streams-polyfill": "^3.3.3"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^5.7.8",
     "@rollup/plugin-strip": "^3.0.4",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@swc/core": "1.5.7",

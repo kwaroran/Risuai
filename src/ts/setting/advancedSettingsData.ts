@@ -148,7 +148,6 @@ export const advancedSettingsItems: SettingItem[] = [
 
     // Dynamic Assets & Others
     { id: 'adv.dynAssets', type: 'check', labelKey: 'dynamicAssets', bindKey: 'dynamicAssets', helpKey: 'dynamicAssets', classes: 'mt-4' },
-    { id: 'adv.checkCorr', type: 'check', labelKey: 'checkCorruption', bindKey: 'checkCorruption', classes: 'mt-4' },
     { id: 'adv.realmOpen', type: 'check', labelKey: 'realmDirectOpen', bindKey: 'realmDirectOpen', helpKey: 'realmDirectOpen', classes: 'mt-4' },
     { id: 'adv.cssErr', type: 'check', labelKey: 'returnCSSError', bindKey: 'returnCSSError', classes: 'mt-4' },
     { id: 'adv.antiOverload', type: 'check', labelKey: 'antiServerOverload', bindKey: 'antiServerOverloads', classes: 'mt-4' },
@@ -198,5 +197,4 @@ export const advancedSettingsItems: SettingItem[] = [
     { type: 'custom', id: 'adv.banChar', componentId: 'BanCharacterSetSettings' },
     { type: 'custom', id: 'adv.customModels', componentId: 'CustomModelsSettings' },
     { type: 'custom', id: 'adv.export', componentId: 'SettingsExportButtons' },
-    { type: 'custom', id: 'adv.storage', componentId: 'StorageInvestigationSettings' }
 ];

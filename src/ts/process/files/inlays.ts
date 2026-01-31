@@ -5,6 +5,15 @@ import { checkImageType } from "../../parser.svelte";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
 
+export type InlayAsset = {
+    data: string | Blob,
+    ext: string
+    height: number
+    name: string,
+    type: 'image' | 'video' | 'audio'
+    width: number
+}
+
 const inlayImageExts = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'
 ]
@@ -141,14 +150,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 // Returns with base64 data URI
 export async function getInlayAsset(id: string){
-    const img:{
-        name: string,
-        data: string | Blob,
-        ext: string
-        height: number
-        width: number
-        type: 'image'|'video'|'audio'
-    } = await inlayStorage.getItem(id)
+    const img = await inlayStorage.getItem<InlayAsset | null>(id)
     if(img === null){
         return null
     }
@@ -165,14 +167,7 @@ export async function getInlayAsset(id: string){
 
 // Returns with Blob
 export async function getInlayAssetBlob(id: string){
-    const img:{
-        name: string,
-        data: string | Blob,
-        ext: string
-        height: number
-        width: number
-        type: 'image'|'video'|'audio'
-    } = await inlayStorage.getItem(id)
+    const img = await inlayStorage.getItem<InlayAsset | null>(id)
     if(img === null){
         return null
     }
@@ -189,15 +184,21 @@ export async function getInlayAssetBlob(id: string){
     return { ...img, data }
 }
 
-export async function setInlayAsset(id: string, img:{
-    name: string,
-    data: string | Blob,
-    ext: string,
-    height: number,
-    width: number,
-    type: 'image'|'video'|'audio'
-}){
+export async function listInlayAssets(): Promise<[id: string, InlayAsset][]> {
+    const assets: [id: string, InlayAsset][] = []
+    await inlayStorage.iterate<InlayAsset, void>((value, key) => {
+        assets.push([key, value])
+    })
+
+    return assets
+}
+
+export async function setInlayAsset(id: string, img: InlayAsset){
     await inlayStorage.setItem(id, img)
+}
+
+export async function removeInlayAsset(id: string){
+    await inlayStorage.removeItem(id)
 }
 
 export function supportsInlayImage(){

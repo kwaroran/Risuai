@@ -3,7 +3,7 @@ import * as fflate from "fflate";
 import { presetTemplate, type Database } from "./database.svelte";
 import localforage from "localforage";
 import { forageStorage } from "../globalApi.svelte";
-import { isTauri } from "src/ts/platform"
+import { isNodeServer, isTauri } from "src/ts/platform"
 import {
     writeFile,
     BaseDirectory,
@@ -85,7 +85,9 @@ enum RisuSaveType {
     CHAT = 3,
     BOTPRESET = 4,
     MODULES = 5,
-    REMOTE = 6
+    REMOTE = 6,
+    CHARACTER_WITHOUT_CHAT = 7,
+    ROOT_COMPONENT = 8,
 }
 
 type EncodeBlockArg = {
@@ -94,7 +96,11 @@ type EncodeBlockArg = {
     type:RisuSaveType
     name:string
     cache?:boolean
-    remote?:true|false|'auto'
+    skipRemoteSaving?:boolean
+}
+
+type EncodeBlockOption = {
+    remote: 'none'|'prefer'|'force'
 }
 
 const risuSaveCacheForage = localforage.createInstance({
@@ -106,9 +112,13 @@ export class RisuSaveEncoder {
     private compression: boolean = false;
 
     async init(data:Database,arg:{
-        compression?: boolean
+        compression?: boolean,
+        skipRemoteSavingOnCharacters?: boolean
     } = {}){
-        const { compression = false } = arg;
+        const {
+            compression = false,
+            skipRemoteSavingOnCharacters = true
+        } = arg;
         this.compression = compression;
         let obj:Record<any,any> = {}
         let keys = Object.keys(data)
@@ -140,7 +150,10 @@ export class RisuSaveEncoder {
                 compression,
                 data: JSON.stringify(character),
                 type: RisuSaveType.CHARACTER_WITH_CHAT,
-                name: character.chaId
+                name: character.chaId,
+                skipRemoteSaving: skipRemoteSavingOnCharacters
+            }, {
+                remote: 'prefer'
             });
         }
         this.blocks['config'] = await this.encodeBlock({
@@ -171,6 +184,8 @@ export class RisuSaveEncoder {
                     data: JSON.stringify(character),
                     type: RisuSaveType.CHARACTER_WITH_CHAT,
                     name: character.chaId
+                }, {
+                    remote: 'prefer'
                 });
                 savedId.add(character.chaId);
                 toSave.character.splice(index, 1);
@@ -181,6 +196,8 @@ export class RisuSaveEncoder {
                     data: JSON.stringify(character),
                     type: RisuSaveType.CHARACTER_WITH_CHAT,
                     name: character.chaId
+                }, {
+                    remote: 'prefer'
                 });
                 savedId.add(character.chaId);
             }
@@ -245,7 +262,23 @@ export class RisuSaveEncoder {
         return arrayBuf;
     }
 
-    async encodeBlock(arg:EncodeBlockArg){
+    async encodeBlock(arg:EncodeBlockArg, option:EncodeBlockOption = { remote: 'none' }){
+        if(
+            option.remote === 'force' ||
+            (
+                option.remote === 'prefer' &&
+                (
+                    isTauri ||
+                    isNodeServer
+                )
+            )
+        ){
+            return await this.encodeRemoteBlock(arg);
+        }
+        return await this.encodeRawBlock(arg);
+    }
+
+    async encodeRawBlock(arg:EncodeBlockArg){
         let databuf: Uint8Array;
         const cacheBlock = arg.cache ?? true;
         if(arg.compression){
@@ -281,14 +314,16 @@ export class RisuSaveEncoder {
     async encodeRemoteBlock(arg:EncodeBlockArg){
         const encoded = new TextEncoder().encode(arg.data);
         const fileName = `remotes/${arg.name}.local.bin`
-        if(isTauri){
-            if(!(await exists('remotes'))){
-                await mkdir('remotes', { recursive: true, baseDir: BaseDirectory.AppData });
+        if(!arg.skipRemoteSaving){
+            if(isTauri){
+                if(!(await exists('remotes', { baseDir: BaseDirectory.AppData }))){
+                    await mkdir('remotes', { recursive: true, baseDir: BaseDirectory.AppData });
+                }
+                await writeFile(fileName, encoded!, { baseDir: BaseDirectory.AppData });
             }
-            await writeFile('remotes/' + fileName, encoded!, { baseDir: BaseDirectory.AppData });
-        }
-        else{
-            await forageStorage.setItem(fileName, encoded);
+            else{
+                await forageStorage.setItem(fileName, encoded);
+            }
         }
         return await this.encodeBlock({
             compression: false,
@@ -400,7 +435,8 @@ export class RisuSaveDecoder {
                     }
                     break;
                 }
-                case RisuSaveType.CHARACTER_WITH_CHAT:{
+                case RisuSaveType.CHARACTER_WITH_CHAT:
+                case RisuSaveType.CHARACTER_WITHOUT_CHAT:{
                     db.characters ??= [];
                     const character = JSON.parse(this.blocks[key].content);
                     db.characters.push(character);
@@ -428,8 +464,8 @@ export class RisuSaveDecoder {
                     let remoteData:Uint8Array|null = null
                     if(isTauri){
                         try {
-                            if(await exists('remotes/' + remoteInfo.name + '.local.bin')){
-                                remoteData = await readFile('remotes/' + remoteInfo.name + '.local.bin', { baseDir: BaseDirectory.AppData });
+                            if(await exists(fileName, { baseDir: BaseDirectory.AppData })){
+                                remoteData = await readFile(fileName, { baseDir: BaseDirectory.AppData });
                             }
                         } catch (error) {
                             console.error(`Error reading remote file ${fileName} in Tauri:`, error);
@@ -455,6 +491,14 @@ export class RisuSaveDecoder {
                         compression: false,
                         content: decoded
                     });
+                    break;
+                }
+                case RisuSaveType.ROOT_COMPONENT:{
+                    const componentData:{
+                        data:any
+                        key:string
+                    } = JSON.parse(this.blocks[key].content);
+                    db[componentData.key] = componentData.data;
                     break;
                 }
                 default:{

@@ -240,7 +240,7 @@
             chat.bookmarks.push(messageId);
 
             const msgSender = chat.message[idx]?.role === 'user' ? getUserName() : name;
-            const newName= await alertInput(language.bookmarkAskNameOrDefault);
+            const newName= await alertInput(language.bookmarkAskNameOrDefault, [], chat.bookmarkNames[messageId] || '');
 
             if (newName && newName.trim() !== '') {
                 chat.bookmarkNames[messageId] = newName;

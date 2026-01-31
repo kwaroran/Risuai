@@ -40,6 +40,9 @@ vi.mock(import('../../stores.svelte'), () => {
         templateDefaultVariables: '',
       },
     },
+    selIdState: {
+      selId: 0,
+    },
     selectedCharID: writable(0),
   } as typeof import('../../stores.svelte')
 })
@@ -111,6 +114,8 @@ test('can get a global chat variable', () => {
         .map(JSON.stringify),
       (key, value) => {
         DBState.db.globalChatVariables[`toggle_${key}`] = value
+
+        expect(getGlobalChatVar(key)).toBe(value)
         expect(getGlobalChatVar(`toggle_${key}`)).toBe(value)
       }
     )

@@ -1,6 +1,6 @@
 import { alertError, alertInput, alertNormal, alertSelect, alertStore } from "../alert";
 import { getDatabase, type Database } from "../storage/database.svelte";
-import { forageStorage, getUnpargeables, openURL } from "../globalApi.svelte";
+import { forageStorage, getUncleanables, openURL } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
 import { BaseDirectory, exists, readFile, readDir, writeFile } from "@tauri-apps/plugin-fs";
 import { language } from "../../lang";
@@ -282,7 +282,7 @@ async function loadDrive(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise<voi
         const db:Database = mode === 'backup' ? await getDbFromList() : JSON.parse(Buffer.from(await getFileData(ACCESS_TOKEN, dbs[0][0].id)).toString('utf-8'))
         lastSaved = Date.now()
         localStorage.setItem('risu_lastsaved', `${lastSaved}`)
-        const requiredImages = (getUnpargeables(db))
+        const requiredImages = (getUncleanables(db))
         let ind = 0;
         let errorLogs:string[] = []
         for(const images of requiredImages){

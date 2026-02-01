@@ -372,7 +372,7 @@ async function checkNewFormat(): Promise<void> {
                             timestamp: new Date().toISOString(),
                             moduleName: v.name || 'Unknown',
                             lorebookType: typeof v.lorebook,
-                            lorebookValue: String(v.lorebook).substring(0, 500), // First 500 chars only
+                            lorebookValue: JSON.stringify(v.lorebook).substring(0, 500), // First 500 chars only
                             isArray: Array.isArray(v.lorebook),
                             keys: v.lorebook ? Object.keys(v.lorebook).join(', ') : 'N/A',
                             formatVersion: db.formatversion || 'Unknown'

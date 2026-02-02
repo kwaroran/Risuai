@@ -349,13 +349,20 @@
             hideButton();
         };
 
+        const handleScroll = () => {
+            if (isEditing) return;
+            hideButton();
+        };
+
         // document 레벨에서 mousemove 리스닝 (버튼 영역도 포함하기 위해)
         document.addEventListener('mousemove', handleMove);
         bodyRoot.addEventListener('mouseleave', handleLeave);
+        document.addEventListener('scroll', handleScroll, true); // capture phase로 모든 스크롤 감지
 
         return () => {
             document.removeEventListener('mousemove', handleMove);
             bodyRoot.removeEventListener('mouseleave', handleLeave);
+            document.removeEventListener('scroll', handleScroll, true);
             if (rafId !== null) {
                 cancelAnimationFrame(rafId);
             }
@@ -477,13 +484,13 @@
     }
 
     :global(.partial-edit-btn-edit:hover) {
-        background: rgba(59, 130, 246, 0.1);
+        background: #e0f2fe;
         border-color: #3b82f6;
         color: #3b82f6;
     }
 
     :global(.partial-edit-btn-delete:hover) {
-        background: rgba(239, 68, 68, 0.1);
+        background: #fee2e2;
         border-color: #ef4444;
         color: #ef4444;
     }

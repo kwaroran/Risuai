@@ -265,17 +265,6 @@
         }
     }
 
-    // 블록의 확장된 영역(버튼 위치 포함)에 마우스가 있는지 확인
-    function isMouseInExtendedBlockArea(mouseX: number, mouseY: number, block: HTMLElement): boolean {
-        const rect = block.getBoundingClientRect();
-        const buttonHeight = 32;
-        const gap = 4;
-        const extendedTop = rect.top - buttonHeight - gap - 8; // 버튼 영역 + 여유 공간
-        
-        return mouseX >= rect.left && mouseX <= rect.right &&
-               mouseY >= extendedTop && mouseY <= rect.bottom;
-    }
-
     // 마우스가 버튼 위에 있는지 확인
     function isMouseOnButton(mouseX: number, mouseY: number): boolean {
         if (!buttonWrapper || buttonWrapper.style.display === 'none') return false;
@@ -284,7 +273,17 @@
                mouseY >= rect.top && mouseY <= rect.bottom;
     }
 
-    // 이벤트 위임 방식으로 이벤트 리스너 설정
+    // 현재 블록의 확장 영역(버튼 자리, 블록 위쪽)에 마우스가 있는지 확인
+    function isMouseInButtonZone(mouseX: number, mouseY: number, block: HTMLElement): boolean {
+        const rect = block.getBoundingClientRect();
+        const buttonHeight = 32;
+        const gap = 4;
+        const extendedTop = rect.top - buttonHeight - gap - 8;
+        
+        return mouseX >= rect.left && mouseX <= rect.right &&
+               mouseY >= extendedTop && mouseY < rect.top;
+    }
+
     $effect(() => {
         if (!bodyRoot || !enabled) return;
 
@@ -292,7 +291,7 @@
         let lastMouseY = 0;
         let rafId: number | null = null;
 
-        // mousemove 핸들러 - 블록 영역 + 버튼 영역 모두 감지
+        // mousemove 핸들러 - elementFromPoint로 실제 보이는 블록만 감지
         const handleMove = (e: MouseEvent) => {
             if (isEditing) return;
             
@@ -309,29 +308,42 @@
                     return;
                 }
 
-                // 현재 호버된 블록의 확장 영역에 있으면 유지
-                if (currentHoveredBlock && isMouseInExtendedBlockArea(lastMouseX, lastMouseY, currentHoveredBlock)) {
-                    return;
+                // 현재 호버된 블록이 있을 때
+                if (currentHoveredBlock) {
+                    if (isMouseInButtonZone(lastMouseX, lastMouseY, currentHoveredBlock)) {
+                        return;
+                    }
                 }
 
-                // 새 블록 찾기 - 확장 영역 포함
-                const blocks = bodyRoot.querySelectorAll(SELECTOR);
-                let foundBlock: HTMLElement | null = null;
+                // 새 블록 찾기 - elementFromPoint로 실제 보이는 요소만 감지
+                const elementAtPoint = document.elementFromPoint(lastMouseX, lastMouseY);
+                if (elementAtPoint) {
+                    const block = elementAtPoint.closest(SELECTOR) as HTMLElement | null;
+                    if (block && bodyRoot.contains(block) && hasTextContent(block)) {
+                        showButtonOnBlock(block);
+                        return;
+                    }
+                }
 
+                // elementFromPoint로 못 찾았으면, 확장 영역(버튼 자리) 체크
+                const blocks = bodyRoot.querySelectorAll(SELECTOR);
                 for (const block of blocks) {
-                    if (isMouseInExtendedBlockArea(lastMouseX, lastMouseY, block as HTMLElement)) {
+                    if (isMouseInButtonZone(lastMouseX, lastMouseY, block as HTMLElement)) {
                         if (hasTextContent(block as HTMLElement)) {
-                            foundBlock = block as HTMLElement;
-                            break;
+                            // 이 블록이 가려져 있지 않은지 확인 (블록 상단 중앙에서 체크)
+                            const rect = (block as HTMLElement).getBoundingClientRect();
+                            const checkX = rect.left + rect.width / 2;
+                            const checkY = rect.top + 5; // 블록 상단 근처
+                            const elementAtBlock = document.elementFromPoint(checkX, checkY);
+                            if (elementAtBlock && (block.contains(elementAtBlock) || elementAtBlock === block)) {
+                                showButtonOnBlock(block as HTMLElement);
+                                return;
+                            }
                         }
                     }
                 }
 
-                if (foundBlock) {
-                    showButtonOnBlock(foundBlock);
-                } else {
-                    hideButton();
-                }
+                hideButton();
             });
         };
 

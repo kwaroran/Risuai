@@ -23,6 +23,7 @@
     import AutoresizeArea from "../UI/GUI/TextAreaResizable.svelte"
     import ChatBody from './ChatBody.svelte'
     import PopupButton from "../UI/PopupButton.svelte";
+    import PartialEditController from './PartialEditController.svelte';
 
     let translating = $state(false)
     let editMode = $state(false)
@@ -75,6 +76,7 @@
 
     let msgDisplay = $state('')
     let translated = $state(false)
+    let partialEditEnabled = $state(true)
 
     async function rm(e:MouseEvent, rec?:boolean){
         if(e.shiftKey){
@@ -107,6 +109,15 @@
 
     async function edit(){
         DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = message
+    }
+
+    // 부분 편집 저장 핸들러
+    function handlePartialEditSave(e: CustomEvent<{ newData: string }>) {
+        if (idx >= 0) {
+            message = e.detail.newData
+            DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = e.detail.newData
+            displaya(e.detail.newData)
+        }
     }
 
     function getCbsCondition(){
@@ -370,6 +381,16 @@
                     bind:translating={translating}
                     bind:retranslate={retranslate} />
             {/key}
+            <!-- 부분 편집 컨트롤러 -->
+            {#if idx >= 0 && !editMode && partialEditEnabled && DBState.db.enablePartialEdit}
+                <PartialEditController
+                    messageData={message}
+                    chatIndex={idx}
+                    {bodyRoot}
+                    enabled={true}
+                    on:save={handlePartialEditSave}
+                />
+            {/if}
         </span>
     {/if}
 {/snippet}

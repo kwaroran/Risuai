@@ -60,6 +60,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['click', 'edit', 'message']
     },
     {
+        id: 'acc.enablePartialEdit',
+        type: 'check',
+        labelKey: 'enablePartialEdit',
+        bindKey: 'enablePartialEdit',
+        keywords: ['partial', 'edit', 'block', 'inline']
+    },
+    {
         id: 'acc.botSettingAtStart',
         type: 'check',
         labelKey: 'botSettingAtStart',

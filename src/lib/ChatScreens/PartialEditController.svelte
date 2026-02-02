@@ -17,7 +17,7 @@
         chatIndex: number;
         /** 렌더링된 HTML을 포함하는 루트 요소 */
         bodyRoot: HTMLElement | null;
-        /** 부분 편집 활성화 여부 */
+        /** 부분 수정 활성화 여부 */
         enabled?: boolean;
     }
 
@@ -63,7 +63,7 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'partial-edit-btn-wrapper';
         wrapper.innerHTML = `
-            <button type="button" class="partial-edit-btn partial-edit-btn-edit" title="부분 편집">
+            <button type="button" class="partial-edit-btn partial-edit-btn-edit" title="부분 수정">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
                     <path d="m15 5 4 4"/>
@@ -413,7 +413,7 @@
     <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
         <div class="partial-edit-modal">
             <div class="partial-edit-header">
-                <span class="partial-edit-title">부분 편집</span>
+                <span class="partial-edit-title">부분 수정</span>
                 <span class="partial-edit-hint">
                     {#if foundRange}
                         매칭: {foundRange.method}

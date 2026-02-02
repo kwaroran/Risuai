@@ -111,7 +111,7 @@
         DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = message
     }
 
-    // 부분 편집 저장 핸들러
+    // 부분 수정 저장 핸들러
     function handlePartialEditSave(e: CustomEvent<{ newData: string }>) {
         if (idx >= 0) {
             message = e.detail.newData
@@ -381,7 +381,7 @@
                     bind:translating={translating}
                     bind:retranslate={retranslate} />
             {/key}
-            <!-- 부분 편집 컨트롤러 -->
+            <!-- 부분 수정 컨트롤러 -->
             {#if idx >= 0 && !editMode && partialEditEnabled && DBState.db.enablePartialEdit}
                 <PartialEditController
                     messageData={message}

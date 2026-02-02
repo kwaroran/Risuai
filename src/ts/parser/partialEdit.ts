@@ -1,8 +1,8 @@
 /**
- * 부분 편집 유틸리티
+ * 부분 수정 유틸리티
  * 
  * 렌더링된 HTML 블록에서 원본 마크다운의 해당 범위를 찾고,
- * 부분 편집 후 원본 텍스트를 업데이트하는 기능 제공
+ * 부분 수정 후 원본 텍스트를 업데이트하는 기능 제공
  */
 
 export interface RangeResult {
@@ -334,7 +334,7 @@ export function replaceRange(original: string, range: RangeResult, newText: stri
 }
 
 /**
- * 부분 편집 대상이 되는 블록 요소 선택자
+ * 부분 수정 대상이 되는 블록 요소 선택자
  */
 export const EDITABLE_BLOCK_SELECTORS = [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',

@@ -719,7 +719,7 @@ export const languageKorean = {
     "sendWithEnter": "엔터키로 메세지 보내기(체크 해제시 Shift + Enter가 메세지 전송으로 변경.)",
     "fixedChatTextarea": "채팅창 하단 고정",
     "clickToEdit": "클릭해서 수정하기",
-    "enablePartialEdit": "부분 편집 활성화 (블록에 마우스를 올려 개별 수정)",
+    "enablePartialEdit": "부분 수정 활성화 (블록에 마우스를 올려 개별 수정)",
     "setNodePassword": "보안을 위해 비밀번호를 정해주세요",
     "inputNodePassword": "비밀번호를 입력해주세요. 기억이 안나신다면, save/__password를 지우고 서버를 재시작해주세요.",
     "simple": "간단",

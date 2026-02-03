@@ -277,7 +277,7 @@ export function findOriginalRangeFromHtml(
     opts: FindRangeOptions = {}
 ): RangeResult | null {
     const ANCH = opts.anchor ?? 12;
-    const FUZZY_MAX = opts.fuzzyMaxLen ?? 200;
+    const FUZZY_MAX = opts.fuzzyMaxLen ?? 500;
     const CUTOFF = opts.fuzzyCutoff ?? 20;
     const EXTEND_EOL = !!opts.extendToEOL;
     const EXTEND_MAX = opts.extendMax ?? 5000;

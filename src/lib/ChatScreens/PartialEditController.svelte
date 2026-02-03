@@ -46,6 +46,9 @@
     let deleteTargetElement: HTMLElement | null = $state(null);
     let deleteRange: RangeResult | null = $state(null);
 
+    // 매칭 실패 모달 상태
+    let showMatchFailedModal = $state(false);
+
     const SELECTOR = EDITABLE_BLOCK_SELECTORS.join(', ');
 
     // DOM에 직접 추가할 버튼 요소
@@ -171,20 +174,18 @@
         const searchStartOffset = calculateCumulativeOffset(bodyRoot, currentHoveredBlock);
 
         // 원본에서 해당 범위 찾기
-        const plainText = htmlToPlain(currentHoveredBlock);
         foundRange = findOriginalRangeFromHtml(messageData, currentHoveredBlock, {
             extendToEOL: false,
             snapStartToPrevEOL: false,
             searchStartOffset: searchStartOffset,
         });
 
-        if (foundRange) {
-            editText = messageData.slice(foundRange.start, foundRange.end);
-        } else {
-            // fallback: 평문 텍스트 사용
-            editText = plainText;
+        if (!foundRange) {
+            showMatchFailedModal = true;
+            return;
         }
 
+        editText = messageData.slice(foundRange.start, foundRange.end);
         isEditing = true;
         hideButton();
 
@@ -200,12 +201,9 @@
 
     // 저장
     function handleSave() {
-        if (!editingElement) return;
+        if (!editingElement || !foundRange) return;
 
-        const newData = foundRange
-            ? replaceRange(messageData, foundRange, editText)
-            : messageData.replace(htmlToPlain(editingElement), editText);
-
+        const newData = replaceRange(messageData, foundRange, editText);
         dispatch('save', { newData });
 
         // 편집 종료
@@ -244,21 +242,20 @@
             searchStartOffset: searchStartOffset,
         });
 
+        if (!deleteRange) {
+            showMatchFailedModal = true;
+            return;
+        }
+
         isConfirmingDelete = true;
         hideButton();
     }
 
     // 삭제 확인
     function handleConfirmDelete() {
-        if (!deleteTargetElement) return;
+        if (!deleteTargetElement || !deleteRange) return;
 
-        let newData: string;
-        if (deleteRange) {
-            newData = replaceRange(messageData, deleteRange, '');
-        } else {
-            const plainText = htmlToPlain(deleteTargetElement);
-            newData = messageData.replace(plainText, '');
-        }
+        let newData = replaceRange(messageData, deleteRange, '');
 
         // 연속 줄바꿈 정리
         newData = newData.replace(/\n{3,}/g, '\n\n').trim();
@@ -421,6 +418,30 @@
     });
 </script>
 
+<!-- 매칭 실패 모달 -->
+{#if showMatchFailedModal}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) showMatchFailedModal = false; }}>
+        <div class="partial-match-failed-modal">
+            <div class="partial-match-failed-header">
+                <span class="partial-match-failed-title">{language.partialEdit.matchFailedTitle}</span>
+            </div>
+            <p class="partial-match-failed-message">{language.partialEdit.matchFailedMessage}</p>
+            <div class="partial-edit-buttons">
+                <button
+                    type="button"
+                    class="partial-edit-save-btn"
+                    onclick={() => showMatchFailedModal = false}
+                >
+                    <CheckIcon size={14} />
+                    <span>{language.confirm}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <!-- 삭제 확인 모달 -->
 {#if isConfirmingDelete}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -465,11 +486,7 @@
             <div class="partial-edit-header">
                 <span class="partial-edit-title">{language.partialEdit.editModalTitle}</span>
                 <span class="partial-edit-hint">
-                    {#if foundRange}
-                        {language.partialEdit.matchFound(foundRange.method)}
-                    {:else}
-                        {language.partialEdit.matchNotFound}
-                    {/if}
+                    {language.partialEdit.matchFound(foundRange.method)}
                 </span>
             </div>
             <textarea
@@ -536,6 +553,37 @@
         background: #fee2e2;
         border-color: #ef4444;
         color: #ef4444;
+    }
+
+    .partial-match-failed-modal {
+        background: var(--risu-theme-bgcolor, #fff);
+        border-radius: 12px;
+        padding: 20px;
+        width: min(calc(100% - 2rem), 500px);
+        min-width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .partial-match-failed-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .partial-match-failed-title {
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--risu-theme-textcolor, #000);
+    }
+
+    .partial-match-failed-message {
+        font-size: 14px;
+        color: var(--risu-theme-textcolor2, #666);
+        margin: 0;
+        line-height: 1.5;
     }
 
     .partial-delete-modal {

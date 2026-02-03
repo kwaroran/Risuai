@@ -51,6 +51,29 @@
     let buttonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
 
+    // 이전 블록들의 누적 텍스트 오프셋 계산
+    function calculateCumulativeOffset(
+        bodyRoot: HTMLElement | null,
+        targetBlock: HTMLElement
+    ): number {
+        if (!bodyRoot) return 0;
+
+        const allBlocks = Array.from(bodyRoot.querySelectorAll(SELECTOR)) as HTMLElement[];
+        const targetIndex = allBlocks.indexOf(targetBlock);
+
+        if (targetIndex <= 0) return 0;
+
+        let offset = 0;
+        for (let i = 0; i < targetIndex; i++) {
+            const plainText = htmlToPlain(allBlocks[i]);
+            offset += plainText.length;
+            // 블록 사이 줄바꿈 추가 (일반적으로 \n\n으로 구분)
+            offset += 2;
+        }
+
+        return offset;
+    }
+
     // 텍스트 내용이 있는지 확인
     function hasTextContent(el: HTMLElement): boolean {
         const clone = el.cloneNode(true) as HTMLElement;
@@ -142,12 +165,14 @@
 
         editingElement = currentHoveredBlock;
         originalHTML = currentHoveredBlock.innerHTML;
+        const searchStartOffset = calculateCumulativeOffset(bodyRoot, currentHoveredBlock);
 
         // 원본에서 해당 범위 찾기
         const plainText = htmlToPlain(currentHoveredBlock);
         foundRange = findOriginalRangeFromHtml(messageData, currentHoveredBlock, {
             extendToEOL: false,
             snapStartToPrevEOL: false,
+            searchStartOffset: searchStartOffset,
         });
 
         if (foundRange) {
@@ -207,10 +232,13 @@
 
         deleteTargetElement = currentHoveredBlock;
         
+        const searchStartOffset = calculateCumulativeOffset(bodyRoot, currentHoveredBlock);
+        
         // 원본에서 해당 범위 찾기
         deleteRange = findOriginalRangeFromHtml(messageData, currentHoveredBlock, {
             extendToEOL: true,
             snapStartToPrevEOL: true,
+            searchStartOffset: searchStartOffset,
         });
 
         isConfirmingDelete = true;

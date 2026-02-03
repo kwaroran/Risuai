@@ -2,6 +2,7 @@
     import { CheckIcon, XIcon } from '@lucide/svelte';
     import { createEventDispatcher, onDestroy } from 'svelte';
     import { DBState } from 'src/ts/stores.svelte';
+    import { language } from 'src/lang';
     import { 
         findOriginalRangeFromHtml, 
         htmlToPlain,
@@ -86,13 +87,13 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'partial-edit-btn-wrapper';
         wrapper.innerHTML = `
-            <button type="button" class="partial-edit-btn partial-edit-btn-edit" title="부분 수정">
+            <button type="button" class="partial-edit-btn partial-edit-btn-edit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
                     <path d="m15 5 4 4"/>
                 </svg>
             </button>
-            <button type="button" class="partial-edit-btn partial-edit-btn-delete" title="삭제">
+            <button type="button" class="partial-edit-btn partial-edit-btn-delete">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 6h18"/>
                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
@@ -104,6 +105,7 @@
         `;
         
         const editBtn = wrapper.querySelector('.partial-edit-btn-edit')!;
+        editBtn.setAttribute('title', language.partialEdit.editButtonTooltip);
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -111,6 +113,7 @@
         });
 
         const deleteBtn = wrapper.querySelector('.partial-edit-btn-delete')!;
+        deleteBtn.setAttribute('title', language.partialEdit.deleteButtonTooltip);
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -425,9 +428,9 @@
     <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) handleCancelDelete(); }}>
         <div class="partial-delete-modal">
             <div class="partial-delete-header">
-                <span class="partial-delete-title">삭제 확인</span>
+                <span class="partial-delete-title">{language.partialEdit.deleteModalTitle}</span>
             </div>
-            <p class="partial-delete-message">이 부분을 삭제하시겠습니까?</p>
+            <p class="partial-delete-message">{language.partialEdit.deleteConfirmMessage}</p>
             <div class="partial-delete-preview">
                 {deleteTargetElement?.textContent?.slice(0, 100)}{(deleteTargetElement?.textContent?.length ?? 0) > 100 ? '...' : ''}
             </div>
@@ -438,7 +441,7 @@
                     onclick={handleConfirmDelete}
                 >
                     <CheckIcon size={14} />
-                    <span>예</span>
+                    <span>{language.partialEdit.deleteYes}</span>
                 </button>
                 <button
                     type="button"
@@ -446,7 +449,7 @@
                     onclick={handleCancelDelete}
                 >
                     <XIcon size={14} />
-                    <span>아니오</span>
+                    <span>{language.partialEdit.deleteNo}</span>
                 </button>
             </div>
         </div>
@@ -460,12 +463,12 @@
     <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
         <div class="partial-edit-modal">
             <div class="partial-edit-header">
-                <span class="partial-edit-title">부분 수정</span>
+                <span class="partial-edit-title">{language.partialEdit.editModalTitle}</span>
                 <span class="partial-edit-hint">
                     {#if foundRange}
-                        매칭: {foundRange.method}
+                        {language.partialEdit.matchFound(foundRange.method)}
                     {:else}
-                        ⚠️ 정확한 범위를 찾지 못함 - 평문 기반 교체
+                        {language.partialEdit.matchNotFound}
                     {/if}
                 </span>
             </div>
@@ -483,19 +486,19 @@
                     type="button"
                     class="partial-edit-save-btn"
                     onclick={handleSave}
-                    title="저장 (Ctrl+Enter)"
+                    title="{language.partialEdit.saveShortcut}"
                 >
                     <CheckIcon size={14} />
-                    <span>저장</span>
+                    <span>{language.partialEdit.save}</span>
                 </button>
                 <button
                     type="button"
                     class="partial-edit-cancel-btn"
                     onclick={handleCancel}
-                    title="취소 (Esc)"
+                    title="{language.partialEdit.cancelShortcut}"
                 >
                     <XIcon size={14} />
-                    <span>취소</span>
+                    <span>{language.partialEdit.cancel}</span>
                 </button>
             </div>
         </div>

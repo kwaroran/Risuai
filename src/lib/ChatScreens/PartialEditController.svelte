@@ -542,8 +542,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
-        min-width: 320px;
-        max-width: 90vw;
+        width: min(calc(100% - 2rem), 1600px);
+        min-width: 400px;
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -615,8 +615,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
+        width: min(calc(100% - 2rem), 1600px);
         min-width: 400px;
-        max-width: 90vw;
         max-height: 80vh;
         display: flex;
         flex-direction: column;

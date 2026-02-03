@@ -53,15 +53,92 @@ export function htmlToPlain(htmlOrFragment: string | HTMLElement): string {
 }
 
 /**
- * 문자열 정규화 및 인덱스 맵 생성
+ * Stage 1: CBS 패턴 변환
+ * 
+ * {{ruby::A::B}} → A(B) 형태로 변환하고, 각 문자가 원본의 어느 위치에서 왔는지 추적하는 맵 생성
+ * 
+ * @param s - 원본 문자열
+ * @returns processed - 변환된 문자열, positionMap - 각 문자의 원본 위치
+ * 
+ * @example
+ * Input:  "Hello {{ruby::漢字::かんじ}} world"
+ * Output: { processed: "Hello 漢字(かんじ) world", positionMap: [0,1,2,3,4,5,6,6,7,8,9,10,...] }
+ *          positionMap[6] = 6 (첫 문자는 {{ruby:: 포함)
+ *          positionMap[14] = 23 (마지막 ')' 는 패턴 종료 직전)
  */
-function normalizeWithMap(s: string): { norm: string; map: number[] } {
+function transformCBSPatterns(s: string): { processed: string; positionMap: number[] } {
+    let processed = '';
+    const positionMap: number[] = [];
+    const rubyRegex = /\{\{ruby::([^:}]+)::([^}]+)\}\}/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = rubyRegex.exec(s)) !== null) {
+        const matchStart = match.index;
+        const matchEnd = matchStart + match[0].length;
+        const baseText = match[1]; // A
+        const rubyText = match[2]; // B
+
+        // 매칭 이전의 일반 텍스트 추가
+        for (let j = lastIndex; j < matchStart; j++) {
+            processed += s[j];
+            positionMap.push(j);
+        }
+
+        // 변환된 ruby 텍스트 추가 및 위치 맵핑
+        // 'A' 부분 - 첫 문자는 {{ruby:: 포함한 시작 위치로 매핑
+        const baseStart = matchStart + 8; // '{{ruby::' 길이
+        for (let j = 0; j < baseText.length; j++) {
+            processed += baseText[j];
+            positionMap.push(j === 0 ? matchStart : baseStart + j);
+        }
+        
+        processed += '(';
+        positionMap.push(baseStart + baseText.length);
+        
+        // 'B' 부분 - '::' 이후 위치로 매핑
+        const rubyStart = baseStart + baseText.length + 2; // '::' 길이
+        for (let j = 0; j < rubyText.length; j++) {
+            processed += rubyText[j];
+            positionMap.push(rubyStart + j);
+        }
+        
+        // ')' 괄호는 패턴 종료 직전 위치로 매핑하여 mapBack에서 end = matchEnd가 되도록 함
+        processed += ')';
+        positionMap.push(matchEnd - 1);
+
+        lastIndex = matchEnd;
+    }
+
+    for (let j = lastIndex; j < s.length; j++) {
+        processed += s[j];
+        positionMap.push(j);
+    }
+
+    return { processed, positionMap };
+}
+
+/**
+ * Stage 2: 텍스트 정규화
+ * 
+ * CRLF, 타이포그래픽 문자, 제로폭 문자, 공백 등을 정규화하고
+ * sourceMap을 통해 최종 결과를 원본 문자열의 위치로 매핑
+ * 
+ * @param text - Stage 1에서 변환된 텍스트
+ * @param sourceMap - Stage 1의 positionMap (text의 각 문자가 원본의 어느 위치인지)
+ * @returns norm - 정규화된 문자열, map - 각 문자의 원본 위치
+ * 
+ * @example
+ * Input:  text="Hello\r\nWorld", sourceMap=[0,1,2,3,4,5,6,7,8,9,10]
+ * Output: { norm="Hello\nWorld", map=[0,1,2,3,4,5,7,8,9,10] }
+ *         (CRLF → LF로 변환, 위치는 sourceMap[5]를 사용)
+ */
+function normalizeText(text: string, sourceMap: number[]): { norm: string; map: number[] } {
     const out: string[] = [];
     const map: number[] = [];
-    const len = s.length;
     let i = 0;
+    const len = text.length;
 
-    // 타이포그래픽 문자 매핑
     const typomap: Record<string, string> = {
         '\u2018': "'", // '
         '\u2019': "'", // '
@@ -73,66 +150,58 @@ function normalizeWithMap(s: string): { norm: string; map: number[] } {
     };
 
     while (i < len) {
-        const ch = s[i];
+        const ch = text[i];
 
-        // CRLF/CR → \n
         if (ch === '\r') {
-            const next = s[i + 1];
+            const next = text[i + 1];
             out.push('\n');
-            map.push(i);
+            map.push(sourceMap[i]);
             i += next === '\n' ? 2 : 1;
             continue;
         }
 
-        // 제로폭 제거
         if ((ch >= '\u200B' && ch <= '\u200D') || ch === '\uFEFF') {
             i++;
             continue;
         }
 
-        // NBSP → space
         if (ch === '\u00A0') {
             out.push(' ');
-            map.push(i);
+            map.push(sourceMap[i]);
             i++;
             continue;
         }
 
-        // 타이포그래픽 치환
         if (typomap[ch]) {
             out.push(typomap[ch]);
-            map.push(i);
+            map.push(sourceMap[i]);
             i++;
             continue;
         }
 
-        // 줄임표 … → ...
         if (ch === '\u2026') {
             out.push('.', '.', '.');
-            map.push(i, i, i);
+            map.push(sourceMap[i], sourceMap[i], sourceMap[i]);
             i++;
             continue;
         }
 
-        // 공백/탭 런 축약
         if (ch === ' ' || ch === '\t') {
             if (out.length > 0 && out[out.length - 1] === ' ') {
                 i++;
                 continue;
             }
             out.push(' ');
-            map.push(i);
+            map.push(sourceMap[i]);
             i++;
             continue;
         }
 
-        // 일반 문자
         out.push(ch);
-        map.push(i);
+        map.push(sourceMap[i]);
         i++;
     }
 
-    // trim
     while (out.length && out[0] === ' ') {
         out.shift();
         map.shift();
@@ -143,6 +212,27 @@ function normalizeWithMap(s: string): { norm: string; map: number[] } {
     }
 
     return { norm: out.join(''), map };
+}
+
+/**
+ * 문자열 정규화 및 인덱스 맵 생성 (2단계 파이프라인)
+ * 
+ * 변환 파이프라인:
+ * 1. Stage 1 (transformCBSPatterns): {{ruby::A::B}} → A(B) 변환 + positionMap 생성
+ * 2. Stage 2 (normalizeText): 타이포그래픽 정규화 + 최종 map 생성
+ * 
+ * 이중 맵핑 인디렉션:
+ *   최종 map[i]는 sourceMap을 통해 원본 위치를 참조
+ *   map[i] = positionMap[processedIndex] = originalIndex
+ * 
+ * @example
+ * Input:  "{{ruby::漢字::かんじ}}\r\ntest"
+ * Stage 1: "漢字(かんじ)\r\ntest" + positionMap
+ * Stage 2: "漢字(かんじ)\ntest" + map (최종적으로 원본 위치 참조)
+ */
+function normalizeWithMap(s: string): { norm: string; map: number[] } {
+    const stage1 = transformCBSPatterns(s);
+    return normalizeText(stage1.processed, stage1.positionMap);
 }
 
 /**

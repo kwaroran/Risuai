@@ -275,58 +275,6 @@ export function findOriginalRangeFromHtml(
 }
 
 /**
- * HTML을 편집 가능한 특수 포맷으로 변환
- * <ruby>텍스트<rt>루비</rt></ruby> → :텍스트[루비]:
- */
-export function convertHTMLToEditFormat(element: HTMLElement): string {
-    const cloned = element.cloneNode(true) as HTMLElement;
-
-    // 버튼들 제거
-    cloned.querySelectorAll('button, .partial-edit-btn, .x-risu-button-default').forEach(btn => btn.remove());
-
-    function processNode(node: Node): string {
-        if (node.nodeType === Node.TEXT_NODE) {
-            return node.textContent || '';
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as HTMLElement;
-            const tagName = el.tagName.toLowerCase();
-
-            if (tagName === 'ruby') {
-                const baseText = Array.from(el.childNodes)
-                    .filter(n => 
-                        n.nodeType === Node.TEXT_NODE ||
-                        (n.nodeType === Node.ELEMENT_NODE && (n as HTMLElement).tagName.toLowerCase() !== 'rt')
-                    )
-                    .map(n => n.textContent)
-                    .join('');
-
-                const rtNode = el.querySelector('rt');
-                const rubyText = rtNode ? rtNode.textContent : '';
-
-                return `:${baseText}[${rubyText}]:`;
-            } else if (tagName === 'br') {
-                return '';
-            } else {
-                return Array.from(el.childNodes).map(processNode).join('');
-            }
-        }
-        return '';
-    }
-
-    return processNode(cloned).trim();
-}
-
-/**
- * 편집 포맷을 HTML로 변환
- * :텍스트[루비]: → <ruby>텍스트<rt>루비</rt></ruby>
- */
-export function convertEditFormatToHTML(text: string): string {
-    let result = text.replace(/:([^\[\]:]+)\[([^\]]+)\]:/g, '<ruby>$1<rt>$2</rt></ruby>');
-    result = result.replace(/\n/g, '<br>\n');
-    return result;
-}
-
-/**
  * 원본 텍스트에서 지정된 범위를 새 텍스트로 교체
  */
 export function replaceRange(original: string, range: RangeResult, newText: string): string {
@@ -347,41 +295,3 @@ export const EDITABLE_BLOCK_SELECTORS = [
     'div.x-risu-regex-sound-block',
     'div.x-risu-message',
 ];
-
-/**
- * 요소가 편집 가능한 블록인지 확인
- */
-export function isEditableBlock(element: Element): boolean {
-    if (!element) return false;
-    
-    const tagName = element.tagName.toLowerCase();
-    
-    // 기본 블록 태그
-    if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'blockquote', 'pre'].includes(tagName)) {
-        return true;
-    }
-    
-    // 특수 클래스를 가진 div
-    if (tagName === 'div') {
-        const classList = element.classList;
-        if (
-            classList.contains('x-risu-regex-quote-block') ||
-            classList.contains('x-risu-regex-thought-block') ||
-            classList.contains('x-risu-regex-sound-block') ||
-            classList.contains('x-risu-message')
-        ) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-/**
- * 텍스트 내용이 있는지 확인 (버튼 제외)
- */
-export function hasTextContent(element: HTMLElement): boolean {
-    const clone = element.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('button').forEach(btn => btn.remove());
-    return !!clone.textContent?.trim();
-}

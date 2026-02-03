@@ -20,7 +20,6 @@ export interface FindRangeOptions {
     snapStartToPrevEOL?: boolean;
     snapMaxBack?: number;
     snapTrimSpaces?: boolean;
-    searchStartOffset?: number;
 }
 
 /**
@@ -284,7 +283,6 @@ export function findOriginalRangeFromHtml(
     const SNAP_BOL = !!opts.snapStartToPrevEOL;
     const SNAP_BACK = opts.snapMaxBack ?? 4;
     const SNAP_TRIM = opts.snapTrimSpaces ?? true;
-    const SEARCH_START = opts.searchStartOffset ?? 0;
 
     // HTML → 평문
     const plain = htmlToPlain(replacedHtml);
@@ -301,7 +299,7 @@ export function findOriginalRangeFromHtml(
     }
 
     // 1순위: 전체 일치
-    let idx = mdN.indexOf(plN, SEARCH_START);
+    let idx = mdN.indexOf(plN);
     if (idx >= 0) {
         return mapBack(idx, idx + plN.length);
     }
@@ -311,7 +309,7 @@ export function findOriginalRangeFromHtml(
     if (plN.length >= N * 2) {
         const head = plN.slice(0, N);
         const tail = plN.slice(-N);
-        const headPos = mdN.indexOf(head, SEARCH_START);
+        const headPos = mdN.indexOf(head);
         if (headPos >= 0) {
             const tailPos = mdN.indexOf(tail, headPos + head.length);
             if (tailPos >= 0) {
@@ -324,7 +322,7 @@ export function findOriginalRangeFromHtml(
     if (plN.length <= FUZZY_MAX) {
         let best = { pos: -1, dist: Infinity };
         const step = 8;
-        for (let i = SEARCH_START; i + plN.length <= mdN.length; i += step) {
+        for (let i = 0; i + plN.length <= mdN.length; i += step) {
             const seg = mdN.slice(i, i + plN.length);
             const d = fastEditDistance(plN, seg, CUTOFF);
             if (d < best.dist) {

@@ -496,9 +496,14 @@
         <div class="partial-edit-modal">
             <div class="partial-edit-header">
                 <span class="partial-edit-title">{language.partialEdit.editModalTitle}</span>
-                <span class="partial-edit-hint">
-                    {language.partialEdit.matchFound(foundRange.method)}
-                </span>
+                <div class="partial-edit-meta">
+                    <span class="partial-edit-hint">
+                        {language.partialEdit.matchFound(foundRange.method)}
+                    </span>
+                    <span class="partial-edit-confidence" class:low-confidence={foundRange.confidence < 0.7}>
+                        {(foundRange.confidence * 100).toFixed(0)}%
+                    </span>
+                </div>
             </div>
             <textarea
                 bind:this={textareaRef}
@@ -695,9 +700,28 @@
         color: var(--risu-theme-textcolor, #000);
     }
 
+    .partial-edit-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     .partial-edit-hint {
         font-size: 12px;
         color: var(--risu-theme-textcolor2, #666);
+    }
+
+    .partial-edit-confidence {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #10b981;
+        color: white;
+    }
+
+    .partial-edit-confidence.low-confidence {
+        background: #f59e0b;
     }
 
     .partial-edit-textarea {

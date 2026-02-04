@@ -8,7 +8,8 @@
 export interface RangeResult {
     start: number;
     end: number;
-    method: 'exact' | 'anchor' | 'fuzzy' | 'fuzzy+eol' | 'fuzzy+eol+snap';
+    method: 'exact' | 'anchor' | 'fuzzy' | 'fuzzy+eol' | 'fuzzy+eol+snap' | 'bigram';
+    confidence: number; // 0~1 범위, 매칭 품질 (1 = perfect match)
 }
 
 export interface FindRangeOptions {
@@ -20,6 +21,8 @@ export interface FindRangeOptions {
     snapStartToPrevEOL?: boolean;
     snapMaxBack?: number;
     snapTrimSpaces?: boolean;
+    bigramThreshold?: number; // Bigram 유사도 임계값 (기본: 0.35)
+    bigramMaxLen?: number; // Bigram 매칭 최대 길이 (기본: 2000)
 }
 
 /**
@@ -180,13 +183,16 @@ function normalizeText(text: string, sourceMap: number[]): { norm: string; map: 
         }
 
         if (ch === '\u2026') {
+            // ellipsis 위치 매핑 개선: 각 점을 원본 위치에서 순차적으로 매핑
+            const basePos = sourceMap[i];
             out.push('.', '.', '.');
-            map.push(sourceMap[i], sourceMap[i], sourceMap[i]);
+            map.push(basePos, basePos, basePos + 1);
             i++;
             continue;
         }
 
         if (ch === ' ' || ch === '\t') {
+            // 연속 공백 처리 개선: 첫 공백 위치 유지
             if (out.length > 0 && out[out.length - 1] === ' ') {
                 i++;
                 continue;
@@ -263,6 +269,189 @@ function fastEditDistance(a: string, b: string, cutoff: number = 30): number {
 }
 
 /**
+ * Bigram 프로필 생성 (2-gram 빈도 맵)
+ */
+interface BigramProfile {
+    counts: Map<number, number>;
+    total: number; // bigram 총 개수 (length - 1)
+}
+
+function buildBigramProfile(s: string): BigramProfile {
+    const counts = new Map<number, number>();
+    const len = s.length;
+
+    for (let i = 0; i < len - 1; i++) {
+        const k = (s.charCodeAt(i) << 16) | s.charCodeAt(i + 1);
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+
+    return { counts, total: Math.max(0, len - 1) };
+}
+
+/**
+ * Dice coefficient를 사용한 Bigram 유사도 계산
+ */
+function diceFromProfiles(a: BigramProfile, b: BigramProfile): number {
+    if (a.total === 0 || b.total === 0) return 0;
+
+    let small = a, large = b;
+    if (a.counts.size > b.counts.size) {
+        small = b;
+        large = a;
+    }
+
+    let inter = 0;
+    for (const [k, ca] of small.counts) {
+        const cb = large.counts.get(k);
+        if (cb) inter += Math.min(ca, cb);
+    }
+
+    return (2 * inter) / (a.total + b.total);
+}
+
+/**
+ * Prefix/Suffix 매칭 스코어 계산
+ */
+function prefixSuffixScore(a: string, b: string): number {
+    const la = a.length;
+    const lb = b.length;
+    const minLen = Math.min(la, lb);
+    if (!minLen) return la === lb ? 1 : 0;
+
+    let prefix = 0;
+    while (prefix < minLen && a.charCodeAt(prefix) === b.charCodeAt(prefix)) prefix++;
+
+    let suffix = 0;
+    while (suffix + prefix < minLen && a.charCodeAt(la - 1 - suffix) === b.charCodeAt(lb - 1 - suffix)) {
+        suffix++;
+    }
+
+    const maxLen = Math.max(la, lb);
+    const edgeMatchCount = prefix + suffix;
+    const sMax = edgeMatchCount / maxLen;
+    const sMin = edgeMatchCount / minLen;
+    const lengthRatio = minLen / maxLen;
+    const boosted = sMax + (sMin - sMax) * lengthRatio;
+    return boosted;
+}
+
+/**
+ * Prefix/Suffix와 Bigram Dice coefficient를 혼합한 유사도 계산
+ */
+const PS_WEIGHT = 0.4;
+const DICE_WEIGHT = 0.6;
+
+function bigramSimilarity(a: string, b: string): number {
+    if (a === b) return 1;
+    if (!a.length || !b.length) return 0;
+
+    const ps = prefixSuffixScore(a, b);
+    const profileA = buildBigramProfile(a);
+    const profileB = buildBigramProfile(b);
+    const dice = diceFromProfiles(profileA, profileB);
+
+    return PS_WEIGHT * ps + DICE_WEIGHT * dice;
+}
+
+/**
+ * Fuzzy 매칭
+ */
+function fuzzyMatchWithConfidence(
+    needle: string,
+    haystack: string,
+    maxLen: number = 500,
+    cutoff: number = 20
+): { pos: number; dist: number; confidence: number } | null {
+    if (needle.length > maxLen) return null;
+    if (needle.length === 0) return null;
+
+    // 적응형 step 크기: 짧은 텍스트는 세밀하게, 긴 텍스트는 성능 고려
+    const step = Math.max(1, Math.min(8, Math.floor(needle.length / 20)));
+    
+    let best = { pos: -1, dist: Infinity };
+    
+    for (let i = 0; i + needle.length <= haystack.length; i += step) {
+        const seg = haystack.slice(i, i + needle.length);
+        const d = fastEditDistance(needle, seg, cutoff);
+        if (d < best.dist) {
+            best = { pos: i, dist: d };
+            if (d === 0) break; // Perfect match
+        }
+    }
+
+    // Step으로 건너뛴 영역에서 더 나은 매칭이 있을 수 있으므로
+    // best 주변을 세밀하게 재검색
+    if (best.pos >= 0 && best.dist > 0 && step > 1) {
+        const refineStart = Math.max(0, best.pos - step);
+        const refineEnd = Math.min(haystack.length - needle.length, best.pos + step);
+        
+        for (let i = refineStart; i <= refineEnd; i++) {
+            if (i === best.pos) continue;
+            const seg = haystack.slice(i, i + needle.length);
+            const d = fastEditDistance(needle, seg, cutoff);
+            if (d < best.dist) {
+                best = { pos: i, dist: d };
+                if (d === 0) break;
+            }
+        }
+    }
+
+    const threshold = Math.max(5, Math.floor(needle.length * 0.15));
+    if (best.pos < 0 || best.dist > threshold) return null;
+
+    // Confidence 계산: 1 - (distance / maxAllowedDistance)
+    const confidence = Math.max(0, 1 - (best.dist / threshold));
+
+    return { pos: best.pos, dist: best.dist, confidence };
+}
+
+/**
+ * Bigram 기반 매칭 (긴 텍스트에 적합)
+ */
+function bigramMatch(
+    needle: string,
+    haystack: string,
+    threshold: number = 0.35,
+    maxLen: number = 2000
+): { pos: number; score: number } | null {
+    if (needle.length > maxLen) return null;
+    if (needle.length === 0) return null;
+
+    // 슬라이딩 윈도우로 bigram 유사도 계산
+    const step = Math.max(1, Math.floor(needle.length / 10));
+    let best = { pos: -1, score: 0 };
+
+    for (let i = 0; i + needle.length <= haystack.length; i += step) {
+        const seg = haystack.slice(i, i + needle.length);
+        const score = bigramSimilarity(needle, seg);
+        if (score > best.score) {
+            best = { pos: i, score };
+            if (score >= 0.95) break; // Near perfect match
+        }
+    }
+
+    // 세밀 재검색
+    if (best.pos >= 0 && best.score < 0.95 && step > 1) {
+        const refineStart = Math.max(0, best.pos - step);
+        const refineEnd = Math.min(haystack.length - needle.length, best.pos + step);
+        
+        for (let i = refineStart; i <= refineEnd; i++) {
+            if (i === best.pos) continue;
+            const seg = haystack.slice(i, i + needle.length);
+            const score = bigramSimilarity(needle, seg);
+            if (score > best.score) {
+                best = { pos: i, score };
+                if (score >= 0.95) break;
+            }
+        }
+    }
+
+    if (best.pos < 0 || best.score < threshold) return null;
+
+    return best;
+}
+
+/**
  * 렌더링된 HTML 블록에서 원본 마크다운의 해당 범위를 찾음
  * 
  * @param originalMd - 원본 마크다운 전체 문자열
@@ -283,6 +472,8 @@ export function findOriginalRangeFromHtml(
     const SNAP_BOL = !!opts.snapStartToPrevEOL;
     const SNAP_BACK = opts.snapMaxBack ?? 4;
     const SNAP_TRIM = opts.snapTrimSpaces ?? true;
+    const BIGRAM_THRESHOLD = opts.bigramThreshold ?? 0.35;
+    const BIGRAM_MAX = opts.bigramMaxLen ?? 2000;
 
     // HTML → 평문
     const plain = htmlToPlain(replacedHtml);
@@ -292,16 +483,16 @@ export function findOriginalRangeFromHtml(
     const { norm: mdN, map: mdMap } = normalizeWithMap(originalMd);
     const { norm: plN } = normalizeWithMap(plain);
 
-    function mapBack(nStart: number, nEnd: number, method: RangeResult['method'] = 'exact'): RangeResult {
+    function mapBack(nStart: number, nEnd: number, method: RangeResult['method'], confidence: number): RangeResult {
         const start = mdMap[nStart];
         const end = nEnd - 1 < mdMap.length ? mdMap[nEnd - 1] + 1 : originalMd.length;
-        return { start, end, method };
+        return { start, end, method, confidence };
     }
 
     // 1순위: 전체 일치
     let idx = mdN.indexOf(plN);
     if (idx >= 0) {
-        return mapBack(idx, idx + plN.length);
+        return mapBack(idx, idx + plN.length, 'exact', 1.0);
     }
 
     // 2순위: 앵커(head/tail) 일치
@@ -313,26 +504,20 @@ export function findOriginalRangeFromHtml(
         if (headPos >= 0) {
             const tailPos = mdN.indexOf(tail, headPos + head.length);
             if (tailPos >= 0) {
-                return mapBack(headPos, tailPos + N, 'anchor');
+                // Anchor confidence: head와 tail이 정확히 일치하므로 높은 신뢰도
+                const matchedLen = N * 2;
+                const confidence = Math.min(0.95, 0.7 + (matchedLen / plN.length) * 0.25);
+                return mapBack(headPos, tailPos + N, 'anchor', confidence);
             }
         }
     }
 
     // 3순위: fuzzy 매칭
     if (plN.length <= FUZZY_MAX) {
-        let best = { pos: -1, dist: Infinity };
-        const step = 8;
-        for (let i = 0; i + plN.length <= mdN.length; i += step) {
-            const seg = mdN.slice(i, i + plN.length);
-            const d = fastEditDistance(plN, seg, CUTOFF);
-            if (d < best.dist) {
-                best = { pos: i, dist: d };
-                if (d === 0) break;
-            }
-        }
-        if (best.pos >= 0 && best.dist <= Math.max(5, Math.floor(plN.length * 0.15))) {
-            let nStart = best.pos;
-            let nEnd = best.pos + plN.length;
+        const result = fuzzyMatchWithConfidence(plN, mdN, FUZZY_MAX, CUTOFF);
+        if (result) {
+            let nStart = result.pos;
+            let nEnd = result.pos + plN.length;
 
             if (EXTEND_EOL) {
                 const nl = mdN.indexOf('\n', nEnd);
@@ -353,11 +538,38 @@ export function findOriginalRangeFromHtml(
                 }
             }
 
-            return mapBack(
-                nStart,
-                nEnd,
-                EXTEND_EOL ? (SNAP_BOL ? 'fuzzy+eol+snap' : 'fuzzy+eol') : 'fuzzy'
-            );
+            const method = EXTEND_EOL ? (SNAP_BOL ? 'fuzzy+eol+snap' : 'fuzzy+eol') : 'fuzzy';
+            return mapBack(nStart, nEnd, method, result.confidence);
+        }
+    }
+
+    // 4순위: Bigram 유사도 매칭 (긴 텍스트 또는 fuzzy 실패 시)
+    if (plN.length > FUZZY_MAX || plN.length <= BIGRAM_MAX) {
+        const result = bigramMatch(plN, mdN, BIGRAM_THRESHOLD, BIGRAM_MAX);
+        if (result) {
+            let nStart = result.pos;
+            let nEnd = result.pos + plN.length;
+
+            if (EXTEND_EOL) {
+                const nl = mdN.indexOf('\n', nEnd);
+                const hardCapEnd = Math.min(mdN.length, nEnd + EXTEND_MAX);
+                nEnd = nl === -1 ? hardCapEnd : Math.min(nl, hardCapEnd);
+
+                if (SNAP_BOL) {
+                    const scanStart = Math.max(0, nStart - SNAP_BACK);
+                    const local = mdN.slice(scanStart, nStart);
+                    const nlLocalIdx = local.lastIndexOf('\n');
+                    if (nlLocalIdx !== -1) {
+                        let s = scanStart + nlLocalIdx + 1;
+                        if (SNAP_TRIM) {
+                            while (s < nStart && (mdN[s] === ' ' || mdN[s] === '\t')) s++;
+                        }
+                        if (s < nEnd) nStart = s;
+                    }
+                }
+            }
+
+            return mapBack(nStart, nEnd, 'bigram', result.score);
         }
     }
 

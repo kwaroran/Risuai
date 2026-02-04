@@ -1389,6 +1389,7 @@ export const languageKorean = {
         "matchFailedTitle": "블록 수정 불가",
         "matchFailedMessage": "원본 메시지에서 이 블록의 정확한 위치를 찾을 수 없습니다. 매우 긴 블록이거나 중복된 내용인 경우 발생할 수 있습니다. 전체 메시지 수정 기능을 사용해주세요.",
         "selectMatch": "수정할 블록을 선택하세요",
+        "selectDeleteMatch": "삭제할 블록을 선택하세요",
         "matchesFound": "개의 매칭을 찾음",
         "lineNumber": (line: number) => `약 ${line}줄`,
         "saveShortcut": "저장 (Ctrl+Enter)",

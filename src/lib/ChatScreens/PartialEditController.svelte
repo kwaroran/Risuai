@@ -37,20 +37,27 @@
 
     // 편집 상태
     let isEditing = $state(false);
-    let editingElement: HTMLElement | null = $state(null);
     let editText = $state('');
-    let foundRange: RangeResult | null = $state(null);
-    let originalHTML = $state('');
     let textareaRef: HTMLTextAreaElement | null = $state(null);
-
-    // 다중 매칭 선택 상태
-    let matchSelectionMode = $state(false);
-    let foundMatches: RangeResultWithContext[] = $state([]);
 
     // 삭제 확인 상태
     let isConfirmingDelete = $state(false);
-    let deleteTargetElement: HTMLElement | null = $state(null);
-    let deleteRange: RangeResult | null = $state(null);
+
+    // 통합 매칭 상태
+    type MatchingMode = 'edit' | 'delete' | null;
+    let matchingState = $state<{
+        mode: MatchingMode;
+        targetElement: HTMLElement | null;
+        originalHTML: string;
+        foundMatches: RangeResultWithContext[];
+        selectedRange: RangeResult | null;
+    }>({
+        mode: null,
+        targetElement: null,
+        originalHTML: '',
+        foundMatches: [],
+        selectedRange: null,
+    });
 
     // 매칭 실패 모달 상태
     let showMatchFailedModal = $state(false);
@@ -148,47 +155,59 @@
         currentHoveredBlock = null;
     }
 
-    // 편집 시작
-    function startEdit() {
-        if (!currentHoveredBlock || !messageData) return;
+    // 매칭 찾기 및 처리 헬퍼 함수
+    function findAndProcessMatches(
+        mode: MatchingMode,
+        element: HTMLElement,
+        proceedCallback: (match: RangeResultWithContext) => void
+    ) {
+        if (!element || !messageData) return;
 
-        editingElement = currentHoveredBlock;
-        originalHTML = currentHoveredBlock.innerHTML;
+        matchingState.mode = mode;
+        matchingState.targetElement = element;
+        matchingState.originalHTML = element.innerHTML;
+
+        // 매칭 옵션 설정
+        const options = mode === 'edit' 
+            ? { extendToEOL: false, snapStartToPrevEOL: false }
+            : { extendToEOL: true, snapStartToPrevEOL: true };
 
         // 모든 매칭 결과 찾기
-        foundMatches = findAllOriginalRangesFromHtml(messageData, currentHoveredBlock, {
-            extendToEOL: false,
-            snapStartToPrevEOL: false,
-        });
+        matchingState.foundMatches = findAllOriginalRangesFromHtml(messageData, element, options);
 
-        if (foundMatches.length === 0) {
+        if (matchingState.foundMatches.length === 0) {
             // 매칭 실패
             showMatchFailedModal = true;
             return;
         }
 
         // confidence >= 0.95인 결과 필터링
-        const highConfidenceMatches = foundMatches.filter(m => m.confidence >= 0.95);
+        const highConfidenceMatches = matchingState.foundMatches.filter(m => m.confidence >= 0.95);
 
         if (highConfidenceMatches.length === 1) {
-            // 높은 confidence가 하나만 있으면 바로 편집
-            proceedWithEdit(highConfidenceMatches[0]);
-        } else if (foundMatches.length === 1) {
-            // 전체 결과가 하나면 바로 편집
-            proceedWithEdit(foundMatches[0]);
+            // 높은 confidence가 하나만 있으면 바로 진행
+            proceedCallback(highConfidenceMatches[0]);
+        } else if (matchingState.foundMatches.length === 1) {
+            // 전체 결과가 하나면 바로 진행
+            proceedCallback(matchingState.foundMatches[0]);
         } else {
-            // 여러 결과가 있으면 선택 모달 표시
-            matchSelectionMode = true;
+            // 여러 결과가 있으면 선택 모달 표시 (mode는 이미 설정됨)
         }
 
         hideButton();
     }
 
+    // 편집 시작
+    function startEdit() {
+        if (!currentHoveredBlock) return;
+        findAndProcessMatches('edit', currentHoveredBlock, proceedWithEdit);
+    }
+
     // 선택된 매칭으로 편집 진행
     function proceedWithEdit(match: RangeResultWithContext) {
-        foundRange = match;
+        matchingState.selectedRange = match;
+        matchingState.mode = null; // 선택 모달 닫기
         editText = messageData.slice(match.start, match.end);
-        matchSelectionMode = false;
         isEditing = true;
 
         // 다음 틱에 textarea 포커스
@@ -202,26 +221,38 @@
     }
 
     // 매칭 선택
-    function selectMatch(index: number) {
-        proceedWithEdit(foundMatches[index]);
+    function selectMatchAtIndex(index: number) {
+        const match = matchingState.foundMatches[index];
+        if (!match) return;
+
+        if (matchingState.mode === 'edit') {
+            proceedWithEdit(match);
+        } else if (matchingState.mode === 'delete') {
+            proceedWithDelete(match);
+        }
     }
 
     // 매칭 선택 취소
     function cancelMatchSelection() {
-        matchSelectionMode = false;
-        foundMatches = [];
-        if (editingElement && originalHTML) {
-            editingElement.innerHTML = originalHTML;
+        // 편집 모드일 때만 HTML 복원
+        if (matchingState.mode === 'edit' && matchingState.targetElement && matchingState.originalHTML) {
+            matchingState.targetElement.innerHTML = matchingState.originalHTML;
         }
-        editingElement = null;
-        originalHTML = '';
+
+        matchingState = {
+            mode: null,
+            targetElement: null,
+            originalHTML: '',
+            foundMatches: [],
+            selectedRange: null,
+        };
     }
 
     // 저장
     function handleSave() {
-        if (!editingElement || !foundRange) return;
+        if (!matchingState.selectedRange) return;
 
-        const newData = replaceRange(messageData, foundRange, editText);
+        const newData = replaceRange(messageData, matchingState.selectedRange, editText);
         dispatch('save', { newData });
 
         // 편집 종료
@@ -230,8 +261,8 @@
 
     // 취소
     function handleCancel() {
-        if (editingElement && originalHTML) {
-            editingElement.innerHTML = originalHTML;
+        if (matchingState.targetElement && matchingState.originalHTML) {
+            matchingState.targetElement.innerHTML = matchingState.originalHTML;
         }
         closeEdit();
     }
@@ -239,38 +270,34 @@
     // 편집 종료
     function closeEdit() {
         isEditing = false;
-        editingElement = null;
         editText = '';
-        foundRange = null;
-        originalHTML = '';
+        matchingState = {
+            mode: null,
+            targetElement: null,
+            originalHTML: '',
+            foundMatches: [],
+            selectedRange: null,
+        };
     }
 
     // 삭제 시작
     function startDelete() {
-        if (!currentHoveredBlock || !messageData) return;
+        if (!currentHoveredBlock) return;
+        findAndProcessMatches('delete', currentHoveredBlock, proceedWithDelete);
+    }
 
-        deleteTargetElement = currentHoveredBlock;
-        
-        // 원본에서 해당 범위 찾기
-        deleteRange = findOriginalRangeFromHtml(messageData, currentHoveredBlock, {
-            extendToEOL: true,
-            snapStartToPrevEOL: true,
-        });
-
-        if (!deleteRange) {
-            showMatchFailedModal = true;
-            return;
-        }
-
+    // 선택된 매칭으로 삭제 진행
+    function proceedWithDelete(match: RangeResultWithContext) {
+        matchingState.selectedRange = match;
+        matchingState.mode = null; // 선택 모달 닫기
         isConfirmingDelete = true;
-        hideButton();
     }
 
     // 삭제 확인
     function handleConfirmDelete() {
-        if (!deleteTargetElement || !deleteRange) return;
+        if (!matchingState.selectedRange) return;
 
-        let newData = replaceRange(messageData, deleteRange, '');
+        let newData = replaceRange(messageData, matchingState.selectedRange, '');
 
         // 연속 줄바꿈 정리
         newData = newData.replace(/\n{3,}/g, '\n\n').trim();
@@ -287,8 +314,13 @@
     // 삭제 확인 종료
     function closeDeleteConfirm() {
         isConfirmingDelete = false;
-        deleteTargetElement = null;
-        deleteRange = null;
+        matchingState = {
+            mode: null,
+            targetElement: null,
+            originalHTML: '',
+            foundMatches: [],
+            selectedRange: null,
+        };
     }
 
     // 키보드 단축키
@@ -433,6 +465,53 @@
     });
 </script>
 
+{#snippet MatchSelectionModal(mode: MatchingMode, matches: RangeResultWithContext[], title: string)}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) cancelMatchSelection(); }}>
+        <div class="partial-match-selection-modal">
+            <div class="match-selection-header">
+                <span class="match-selection-title">{title}</span>
+                <span class="match-count">{matches.length} {language.partialEdit.matchesFound}</span>
+            </div>
+            <div class="match-list">
+                {#each matches as match, i}
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <div class="match-item" onclick={() => selectMatchAtIndex(i)}>
+                        <div class="match-meta">
+                            <span class="match-line">{language.partialEdit.lineNumber(match.lineNumber)}</span>
+                            <span class="match-confidence" class:high-confidence={match.confidence >= 0.95} class:medium-confidence={match.confidence >= 0.7 && match.confidence < 0.95} class:low-confidence={match.confidence < 0.7}>
+                                {(match.confidence * 100).toFixed(0)}%
+                            </span>
+                            <span class="match-method">{match.method}</span>
+                        </div>
+                        {#if match.contextBefore}
+                            <div class="match-context-before">{match.contextBefore}</div>
+                        {/if}
+                        <div class="match-text">
+                            {messageData.slice(match.start, match.end).slice(0, 150)}{messageData.slice(match.start, match.end).length > 150 ? '...' : ''}
+                        </div>
+                        {#if match.contextAfter}
+                            <div class="match-context-after">{match.contextAfter}</div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+            <div class="partial-edit-buttons">
+                <button
+                    type="button"
+                    class="partial-edit-cancel-btn"
+                    onclick={cancelMatchSelection}
+                >
+                    <XIcon size={14} />
+                    <span>{language.cancel}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+{/snippet}
+
 <!-- 매칭 실패 모달 -->
 {#if showMatchFailedModal}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -468,7 +547,7 @@
             </div>
             <p class="partial-delete-message">{language.partialEdit.deleteConfirmMessage}</p>
             <div class="partial-delete-preview">
-                {deleteTargetElement?.textContent?.slice(0, 100)}{(deleteTargetElement?.textContent?.length ?? 0) > 100 ? '...' : ''}
+                {matchingState.targetElement?.textContent?.slice(0, 100)}{(matchingState.targetElement?.textContent?.length ?? 0) > 100 ? '...' : ''}
             </div>
             <div class="partial-edit-buttons">
                 <button
@@ -492,52 +571,11 @@
     </div>
 {/if}
 
-<!-- 매칭 선택 모달 -->
-{#if matchSelectionMode}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="partial-edit-overlay" onclick={(e) => { if (e.target === e.currentTarget) cancelMatchSelection(); }}>
-        <div class="partial-match-selection-modal">
-            <div class="match-selection-header">
-                <span class="match-selection-title">{language.partialEdit.selectMatch}</span>
-                <span class="match-count">{foundMatches.length} {language.partialEdit.matchesFound}</span>
-            </div>
-            <div class="match-list">
-                {#each foundMatches as match, i}
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <div class="match-item" onclick={() => selectMatch(i)}>
-                        <div class="match-meta">
-                            <span class="match-line">{language.partialEdit.lineNumber(match.lineNumber)}</span>
-                            <span class="match-confidence" class:high-confidence={match.confidence >= 0.95} class:medium-confidence={match.confidence >= 0.7 && match.confidence < 0.95} class:low-confidence={match.confidence < 0.7}>
-                                {(match.confidence * 100).toFixed(0)}%
-                            </span>
-                            <span class="match-method">{match.method}</span>
-                        </div>
-                        {#if match.contextBefore}
-                            <div class="match-context-before">{match.contextBefore}</div>
-                        {/if}
-                        <div class="match-text">
-                            {messageData.slice(match.start, match.end).slice(0, 150)}{messageData.slice(match.start, match.end).length > 150 ? '...' : ''}
-                        </div>
-                        {#if match.contextAfter}
-                            <div class="match-context-after">{match.contextAfter}</div>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-            <div class="partial-edit-buttons">
-                <button
-                    type="button"
-                    class="partial-edit-cancel-btn"
-                    onclick={cancelMatchSelection}
-                >
-                    <XIcon size={14} />
-                    <span>{language.cancel}</span>
-                </button>
-            </div>
-        </div>
-    </div>
+<!-- 매칭 선택 모달 (편집/삭제 공통) -->
+{#if matchingState.mode === 'edit'}
+    {@render MatchSelectionModal('edit', matchingState.foundMatches, language.partialEdit.selectMatch)}
+{:else if matchingState.mode === 'delete'}
+    {@render MatchSelectionModal('delete', matchingState.foundMatches, language.partialEdit.selectDeleteMatch)}
 {/if}
 
 <!-- 편집 모달 (편집 중일 때만 표시) -->
@@ -550,10 +588,10 @@
                 <span class="partial-edit-title">{language.partialEdit.editModalTitle}</span>
                 <div class="partial-edit-meta">
                     <span class="partial-edit-hint">
-                        {language.partialEdit.matchFound(foundRange.method)}
+                        {language.partialEdit.matchFound(matchingState.selectedRange.method)}
                     </span>
-                    <span class="partial-edit-confidence" class:low-confidence={foundRange.confidence < 0.7}>
-                        {(foundRange.confidence * 100).toFixed(0)}%
+                    <span class="partial-edit-confidence" class:low-confidence={matchingState.selectedRange.confidence < 0.7}>
+                        {(matchingState.selectedRange.confidence * 100).toFixed(0)}%
                     </span>
                 </div>
             </div>

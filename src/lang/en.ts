@@ -1499,6 +1499,7 @@ export const languageEnglish = {
         matchFailedTitle: "Cannot Edit Block",
         matchFailedMessage: "Unable to locate this block precisely in the original message. This may happen with very long blocks or duplicate content. Please use the full message edit feature instead.",
         selectMatch: "Select which block to edit",
+        selectDeleteMatch: "Select which block to delete",
         matchesFound: "matches found",
         lineNumber: (line: number) => `Line ~${line}`,
         saveShortcut: "Save (Ctrl+Enter)",

@@ -5,11 +5,23 @@
  * 부분 수정 후 원본 텍스트를 업데이트하는 기능 제공
  */
 
+/**
+ * Confidence 값 비교 시 사용할 epsilon 임계값
+ * 이 값보다 작은 차이는 무시하여 부동소수점 오차와 의미없는 미세 차이를 처리
+ */
+const CONFIDENCE_EPSILON = 0.001;
+
 export interface RangeResult {
     start: number;
     end: number;
     method: 'exact' | 'anchor' | 'fuzzy' | 'fuzzy+eol' | 'fuzzy+eol+snap' | 'bigram';
     confidence: number; // 0~1 범위, 매칭 품질 (1 = perfect match)
+}
+
+export interface RangeResultWithContext extends RangeResult {
+    lineNumber: number; // 매칭 위치의 대략적인 줄 번호 (1-based)
+    contextBefore: string; // 매칭 앞의 컨텍스트 (N줄)
+    contextAfter: string; // 매칭 뒤의 컨텍스트 (N줄)
 }
 
 export interface FindRangeOptions {
@@ -23,6 +35,10 @@ export interface FindRangeOptions {
     snapTrimSpaces?: boolean;
     bigramThreshold?: number; // Bigram 유사도 임계값 (기본: 0.35)
     bigramMaxLen?: number; // Bigram 매칭 최대 길이 (기본: 2000)
+    maxResults?: number; // 최대 결과 수 (기본: 10)
+    minConfidence?: number; // 최소 confidence 임계값 (기본: 0.3)
+    contextLines?: number; // 컨텍스트 줄 수 (기본: 2)
+    contextMaxChars?: number; // 컨텍스트 최대 문자 수 (기본: 200)
 }
 
 /**
@@ -452,18 +468,22 @@ function bigramMatch(
 }
 
 /**
- * 렌더링된 HTML 블록에서 원본 마크다운의 해당 범위를 찾음
+ * 렌더링된 HTML 블록에서 원본 마크다운의 모든 매칭 범위를 찾음
  * 
  * @param originalMd - 원본 마크다운 전체 문자열
  * @param replacedHtml - 정규식 치환 후 화면에 표시되는 HTML (해당 블록의 outerHTML 또는 innerHTML)
  * @param opts - 옵션
- * @returns 찾은 범위 또는 null
+ * @returns 찾은 모든 범위 (confidence 내림차순, 같으면 position 오름차순)
  */
-export function findOriginalRangeFromHtml(
+export function findAllOriginalRangesFromHtml(
     originalMd: string,
     replacedHtml: string | HTMLElement,
     opts: FindRangeOptions = {}
-): RangeResult | null {
+): RangeResultWithContext[] {
+    const MAX_RESULTS = opts.maxResults ?? 10;
+    const MIN_CONFIDENCE = opts.minConfidence ?? 0.3;
+    const CONTEXT_LINES = opts.contextLines ?? 2;
+    const CONTEXT_MAX_CHARS = opts.contextMaxChars ?? 200;
     const ANCH = opts.anchor ?? 12;
     const FUZZY_MAX = opts.fuzzyMaxLen ?? 500;
     const CUTOFF = opts.fuzzyCutoff ?? 20;
@@ -477,7 +497,7 @@ export function findOriginalRangeFromHtml(
 
     // HTML → 평문
     const plain = htmlToPlain(replacedHtml);
-    if (!plain) return null;
+    if (!plain) return [];
 
     // 정규화 + 인덱스 맵 생성
     const { norm: mdN, map: mdMap } = normalizeWithMap(originalMd);
@@ -489,35 +509,147 @@ export function findOriginalRangeFromHtml(
         return { start, end, method, confidence };
     }
 
-    // 1순위: 전체 일치
-    let idx = mdN.indexOf(plN);
-    if (idx >= 0) {
-        return mapBack(idx, idx + plN.length, 'exact', 1.0);
+    function addContext(range: RangeResult): RangeResultWithContext {
+        const lineNumber = calculateLineNumber(originalMd, range.start);
+        const context = extractContext(originalMd, range.start, range.end, CONTEXT_LINES, CONTEXT_LINES, CONTEXT_MAX_CHARS);
+        return {
+            ...range,
+            lineNumber,
+            contextBefore: context.before,
+            contextAfter: context.after,
+        };
     }
 
-    // 2순위: 앵커(head/tail) 일치
+    function deduplicateByLine(matches: RangeResultWithContext[]): RangeResultWithContext[] {
+        // 같은 줄에 있는 매칭들을 그룹화하고 가장 높은 confidence만 유지
+        const byLine = new Map<number, RangeResultWithContext>();
+        for (const match of matches) {
+            const existing = byLine.get(match.lineNumber);
+            if (!existing || match.confidence > existing.confidence) {
+                byLine.set(match.lineNumber, match);
+            }
+        }
+        return Array.from(byLine.values());
+    }
+
+    const results: RangeResultWithContext[] = [];
+
+    // 1순위: 전체 일치 (최대 MAX_RESULTS개만 찾기)
+    let searchPos = 0;
+    while (results.length < MAX_RESULTS && searchPos <= mdN.length - plN.length) {
+        const idx = mdN.indexOf(plN, searchPos);
+        if (idx < 0) break;
+        const range = mapBack(idx, idx + plN.length, 'exact', 1.0);
+        results.push(addContext(range));
+        searchPos = idx + plN.length; // 매칭된 부분 이후부터 검색 (중복 방지)
+    }
+
+    // Exact match가 있으면 다른 방법은 시도하지 않음
+    if (results.length > 0) {
+        // Confidence 내림차순, 같으면 position 오름차순
+        results.sort((a, b) => {
+            if (Math.abs(a.confidence - b.confidence) > CONFIDENCE_EPSILON) {
+                return b.confidence - a.confidence;
+            }
+            return a.start - b.start;
+        });
+        // 같은 줄의 중복 제거
+        const deduplicated = deduplicateByLine(results);
+        return deduplicated.slice(0, MAX_RESULTS);
+    }
+
+    // 2순위: 앵커(head/tail) 일치 (최대 MAX_RESULTS개만 찾기)
     const N = Math.max(8, Math.min(ANCH, Math.floor(plN.length / 3)));
     if (plN.length >= N * 2) {
         const head = plN.slice(0, N);
         const tail = plN.slice(-N);
-        const headPos = mdN.indexOf(head);
-        if (headPos >= 0) {
+        
+        let headPos = 0;
+        while (results.length < MAX_RESULTS && (headPos = mdN.indexOf(head, headPos)) >= 0) {
             const tailPos = mdN.indexOf(tail, headPos + head.length);
             if (tailPos >= 0) {
-                // Anchor confidence: head와 tail이 정확히 일치하므로 높은 신뢰도
                 const matchedLen = N * 2;
                 const confidence = Math.min(0.95, 0.7 + (matchedLen / plN.length) * 0.25);
-                return mapBack(headPos, tailPos + N, 'anchor', confidence);
+                if (confidence >= MIN_CONFIDENCE) {
+                    const range = mapBack(headPos, tailPos + N, 'anchor', confidence);
+                    results.push(addContext(range));
+                }
+                headPos = tailPos + N; // 매칭 끝 이후부터 검색 (중복 방지)
+            } else {
+                headPos = mdN.indexOf(head, headPos + 1); // 다음 head 찾기
+                if (headPos < 0) break;
             }
         }
     }
 
-    // 3순위: fuzzy 매칭
+    if (results.length > 0) {
+        results.sort((a, b) => {
+            if (Math.abs(a.confidence - b.confidence) > CONFIDENCE_EPSILON) {
+                return b.confidence - a.confidence;
+            }
+            return a.start - b.start;
+        });
+        // 같은 줄의 중복 제거
+        const deduplicated = deduplicateByLine(results);
+        return deduplicated.slice(0, MAX_RESULTS);
+    }
+
+    // 3순위: fuzzy 매칭 (조기 종료 최적화)
     if (plN.length <= FUZZY_MAX) {
-        const result = fuzzyMatchWithConfidence(plN, mdN, FUZZY_MAX, CUTOFF);
-        if (result) {
-            let nStart = result.pos;
-            let nEnd = result.pos + plN.length;
+        const step = Math.max(1, Math.min(8, Math.floor(plN.length / 20)));
+        const threshold = Math.max(5, Math.floor(plN.length * 0.15));
+        const uniqueCandidates = new Map<number, number>();
+        
+        // 첫 번째 스캔: step 단위로 빠르게 검색
+        for (let i = 0; i + plN.length <= mdN.length; i += step) {
+            const seg = mdN.slice(i, i + plN.length);
+            const d = fastEditDistance(plN, seg, CUTOFF);
+            if (d <= threshold) {
+                uniqueCandidates.set(i, d);
+                
+                // 고품질 결과를 충분히 찾으면 조기 종료
+                const confidence = 1 - (d / threshold);
+                if (confidence >= 0.9 && uniqueCandidates.size >= MAX_RESULTS) {
+                    break;
+                }
+            }
+        }
+
+        // 세밀 재검색: 찾은 후보 주변만 정밀 검색 (중복 제거)
+        const refinedPositions = new Set<number>();
+        for (const [candPos, candDist] of Array.from(uniqueCandidates.entries())) {
+            const refineStart = Math.max(0, candPos - step);
+            const refineEnd = Math.min(mdN.length - plN.length, candPos + step);
+            
+            for (let i = refineStart; i <= refineEnd; i++) {
+                if (refinedPositions.has(i) || uniqueCandidates.has(i)) continue;
+                refinedPositions.add(i);
+                
+                const seg = mdN.slice(i, i + plN.length);
+                const d = fastEditDistance(plN, seg, CUTOFF);
+                if (d <= threshold) {
+                    const existing = uniqueCandidates.get(i);
+                    if (!existing || d < existing) {
+                        uniqueCandidates.set(i, d);
+                    }
+                }
+            }
+        }
+
+        // 결과 생성 (confidence 순으로 정렬하여 최대 MAX_RESULTS개만)
+        const sortedCandidates = Array.from(uniqueCandidates.entries())
+            .map(([pos, dist]) => ({
+                pos,
+                dist,
+                confidence: Math.max(0, 1 - (dist / threshold))
+            }))
+            .filter(c => c.confidence >= MIN_CONFIDENCE)
+            .sort((a, b) => b.confidence - a.confidence)
+            .slice(0, MAX_RESULTS);
+
+        for (const { pos, confidence } of sortedCandidates) {
+            let nStart = pos;
+            let nEnd = pos + plN.length;
 
             if (EXTEND_EOL) {
                 const nl = mdN.indexOf('\n', nEnd);
@@ -539,16 +671,73 @@ export function findOriginalRangeFromHtml(
             }
 
             const method = EXTEND_EOL ? (SNAP_BOL ? 'fuzzy+eol+snap' : 'fuzzy+eol') : 'fuzzy';
-            return mapBack(nStart, nEnd, method, result.confidence);
+            const range = mapBack(nStart, nEnd, method, confidence);
+            results.push(addContext(range));
         }
     }
 
-    // 4순위: Bigram 유사도 매칭 (긴 텍스트 또는 fuzzy 실패 시)
+    if (results.length > 0) {
+        results.sort((a, b) => {
+            if (Math.abs(a.confidence - b.confidence) > CONFIDENCE_EPSILON) {
+                return b.confidence - a.confidence;
+            }
+            return a.start - b.start;
+        });
+        // 같은 줄의 중복 제거
+        const deduplicated = deduplicateByLine(results);
+        return deduplicated.slice(0, MAX_RESULTS);
+    }
+
+    // 4순위: Bigram 유사도 매칭 (조기 종료 최적화)
     if (plN.length > FUZZY_MAX || plN.length <= BIGRAM_MAX) {
-        const result = bigramMatch(plN, mdN, BIGRAM_THRESHOLD, BIGRAM_MAX);
-        if (result) {
-            let nStart = result.pos;
-            let nEnd = result.pos + plN.length;
+        const step = Math.max(1, Math.floor(plN.length / 10));
+        const uniqueCandidates = new Map<number, number>();
+
+        // 첫 번째 스캔: step 단위로 빠르게 검색
+        for (let i = 0; i + plN.length <= mdN.length; i += step) {
+            const seg = mdN.slice(i, i + plN.length);
+            const score = bigramSimilarity(plN, seg);
+            if (score >= BIGRAM_THRESHOLD) {
+                uniqueCandidates.set(i, score);
+                
+                // 고품질 결과를 충분히 찾으면 조기 종료
+                if (score >= 0.9 && uniqueCandidates.size >= MAX_RESULTS) {
+                    break;
+                }
+            }
+        }
+
+        // 세밀 재검색: 찾은 후보 주변만 정밀 검색 (중복 제거)
+        const refinedPositions = new Set<number>();
+        for (const [candPos] of Array.from(uniqueCandidates.entries())) {
+            const refineStart = Math.max(0, candPos - step);
+            const refineEnd = Math.min(mdN.length - plN.length, candPos + step);
+            
+            for (let i = refineStart; i <= refineEnd; i++) {
+                if (refinedPositions.has(i) || uniqueCandidates.has(i)) continue;
+                refinedPositions.add(i);
+                
+                const seg = mdN.slice(i, i + plN.length);
+                const score = bigramSimilarity(plN, seg);
+                if (score >= BIGRAM_THRESHOLD) {
+                    const existing = uniqueCandidates.get(i);
+                    if (!existing || score > existing) {
+                        uniqueCandidates.set(i, score);
+                    }
+                }
+            }
+        }
+
+        // 결과 생성 (confidence 순으로 정렬하여 최대 MAX_RESULTS개만)
+        const sortedCandidates = Array.from(uniqueCandidates.entries())
+            .map(([pos, score]) => ({ pos, score }))
+            .filter(c => c.score >= MIN_CONFIDENCE)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, MAX_RESULTS);
+
+        for (const { pos, score } of sortedCandidates) {
+            let nStart = pos;
+            let nEnd = pos + plN.length;
 
             if (EXTEND_EOL) {
                 const nl = mdN.indexOf('\n', nEnd);
@@ -569,11 +758,37 @@ export function findOriginalRangeFromHtml(
                 }
             }
 
-            return mapBack(nStart, nEnd, 'bigram', result.score);
+            const range = mapBack(nStart, nEnd, 'bigram', score);
+            results.push(addContext(range));
         }
     }
 
-    return null;
+    results.sort((a, b) => {
+        if (Math.abs(a.confidence - b.confidence) > CONFIDENCE_EPSILON) {
+            return b.confidence - a.confidence;
+        }
+        return a.start - b.start;
+    });
+    // 같은 줄의 중복 제거
+    const deduplicated = deduplicateByLine(results);
+    return deduplicated.slice(0, MAX_RESULTS);
+}
+
+/**
+ * 렌더링된 HTML 블록에서 원본 마크다운의 해당 범위를 찾음 (단일 결과)
+ * 
+ * @param originalMd - 원본 마크다운 전체 문자열
+ * @param replacedHtml - 정규식 치환 후 화면에 표시되는 HTML (해당 블록의 outerHTML 또는 innerHTML)
+ * @param opts - 옵션
+ * @returns 찾은 범위 또는 null
+ */
+export function findOriginalRangeFromHtml(
+    originalMd: string,
+    replacedHtml: string | HTMLElement,
+    opts: FindRangeOptions = {}
+): RangeResult | null {
+    const results = findAllOriginalRangesFromHtml(originalMd, replacedHtml, { ...opts, maxResults: 1 });
+    return results.length > 0 ? results[0] : null;
 }
 
 /**
@@ -581,6 +796,55 @@ export function findOriginalRangeFromHtml(
  */
 export function replaceRange(original: string, range: RangeResult, newText: string): string {
     return original.slice(0, range.start) + newText + original.slice(range.end);
+}
+
+/**
+ * 줄 번호 계산 (1-based)
+ */
+function calculateLineNumber(text: string, position: number): number {
+    let line = 1;
+    for (let i = 0; i < position && i < text.length; i++) {
+        if (text[i] === '\n') line++;
+    }
+    return line;
+}
+
+/**
+ * 매칭 위치 앞뒤 컨텍스트 추출
+ */
+function extractContext(
+    text: string,
+    start: number,
+    end: number,
+    linesBefore: number = 2,
+    linesAfter: number = 2,
+    maxChars: number = 200
+): { before: string; after: string } {
+    // 앞 컨텍스트
+    let beforeStart = start;
+    let linesFound = 0;
+    for (let i = start - 1; i >= 0 && linesFound < linesBefore; i--) {
+        if (text[i] === '\n') linesFound++;
+        beforeStart = i;
+    }
+    let before = text.slice(beforeStart, start).trim();
+    if (before.length > maxChars) {
+        before = '...' + before.slice(-maxChars);
+    }
+
+    // 뒤 컨텍스트
+    let afterEnd = end;
+    linesFound = 0;
+    for (let i = end; i < text.length && linesFound < linesAfter; i++) {
+        afterEnd = i + 1;
+        if (text[i] === '\n') linesFound++;
+    }
+    let after = text.slice(end, afterEnd).trim();
+    if (after.length > maxChars) {
+        after = after.slice(0, maxChars) + '...';
+    }
+
+    return { before, after };
 }
 
 /**

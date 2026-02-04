@@ -955,6 +955,7 @@
         border-left: 3px solid var(--risu-theme-darkborderc, #ddd);
         line-height: 1.5;
         font-style: italic;
+        white-space: pre-line;
     }
 
     .match-text {
@@ -966,5 +967,6 @@
         border-left: 3px solid #3b82f6;
         line-height: 1.5;
         font-weight: 500;
+        white-space: pre-line;
     }
 </style>

@@ -544,6 +544,14 @@
         <div class="partial-delete-modal">
             <div class="partial-delete-header">
                 <span class="partial-delete-title">{language.partialEdit.deleteModalTitle}</span>
+                <div class="partial-match-meta">
+                    <span class="partial-match-hint">
+                        {language.partialEdit.matchFound(matchingState.selectedRange.method)}
+                    </span>
+                    <span class="partial-match-confidence" class:low-confidence={matchingState.selectedRange.confidence < 0.7}>
+                        {(matchingState.selectedRange.confidence * 100).toFixed(0)}%
+                    </span>
+                </div>
             </div>
             <p class="partial-delete-message">{language.partialEdit.deleteConfirmMessage}</p>
             <div class="partial-delete-preview">
@@ -586,11 +594,11 @@
         <div class="partial-edit-modal">
             <div class="partial-edit-header">
                 <span class="partial-edit-title">{language.partialEdit.editModalTitle}</span>
-                <div class="partial-edit-meta">
-                    <span class="partial-edit-hint">
+                <div class="partial-match-meta">
+                    <span class="partial-match-hint">
                         {language.partialEdit.matchFound(matchingState.selectedRange.method)}
                     </span>
-                    <span class="partial-edit-confidence" class:low-confidence={matchingState.selectedRange.confidence < 0.7}>
+                    <span class="partial-match-confidence" class:low-confidence={matchingState.selectedRange.confidence < 0.7}>
                         {(matchingState.selectedRange.confidence * 100).toFixed(0)}%
                     </span>
                 </div>
@@ -790,18 +798,18 @@
         color: var(--risu-theme-textcolor, #000);
     }
 
-    .partial-edit-meta {
+    .partial-match-meta {
         display: flex;
         align-items: center;
         gap: 8px;
     }
 
-    .partial-edit-hint {
+    .partial-match-hint {
         font-size: 12px;
         color: var(--risu-theme-textcolor, #000);
     }
 
-    .partial-edit-confidence {
+    .partial-match-confidence {
         font-size: 11px;
         font-weight: 600;
         padding: 2px 6px;
@@ -810,7 +818,7 @@
         color: white;
     }
 
-    .partial-edit-confidence.low-confidence {
+    .partial-match-confidence.low-confidence {
         background: #f59e0b;
     }
 

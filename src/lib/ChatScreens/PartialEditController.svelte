@@ -547,7 +547,7 @@
             </div>
             <p class="partial-delete-message">{language.partialEdit.deleteConfirmMessage}</p>
             <div class="partial-delete-preview">
-                {matchingState.targetElement?.textContent?.slice(0, 100)}{(matchingState.targetElement?.textContent?.length ?? 0) > 100 ? '...' : ''}
+                {matchingState.selectedRange ? messageData.slice(matchingState.selectedRange.start, matchingState.selectedRange.end).slice(0, 200) : ''}{matchingState.selectedRange && messageData.slice(matchingState.selectedRange.start, matchingState.selectedRange.end).length > 200 ? '...' : ''}
             </div>
             <div class="partial-edit-buttons">
                 <button

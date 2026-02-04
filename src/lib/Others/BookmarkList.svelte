@@ -92,7 +92,7 @@
 
     async function editName(chatId: string) {
         const chat = chara.chats[chara.chatPage];
-        const newName = await alertInput(language.bookmarkAskNameOrCancel);
+        const newName = await alertInput(language.bookmarkAskNameOrCancel, [], chat.bookmarkNames?.[chatId] || '');
         if (newName && newName.trim() !== '') {
             chat.bookmarkNames[chatId] = newName;
         }

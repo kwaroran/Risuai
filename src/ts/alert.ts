@@ -14,6 +14,7 @@ export interface alertData{
     submsg?: string
     datalist?: [string, string][],
     stackTrace?: string;
+    defaultValue?: string
 }
 
 type AlertGenerationInfoStoreData = {
@@ -252,12 +253,13 @@ export async function alertTOS(){
     return false
 }
 
-export async function alertInput(msg:string, datalist?:[string, string][]) {
+export async function alertInput(msg:string, datalist?:[string, string][], defaultValue?:string) {
 
     alertStoreImported.set({
         'type': 'input',
         'msg': msg,
-        'datalist': datalist ?? []
+        'datalist': datalist ?? [],
+        'defaultValue': defaultValue ?? ''
     })
 
     await waitAlert()

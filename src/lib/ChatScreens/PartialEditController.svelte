@@ -55,6 +55,39 @@
     let buttonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
 
+    /**
+     * 원본 텍스트에서 범위를 위아래 줄로 확장
+     * @param text - 원본 텍스트
+     * @param range - 확장할 범위
+     * @param linesBefore - 위로 확장할 줄 수
+     * @param linesAfter - 아래로 확장할 줄 수
+     */
+    function expandRangeByLines(
+        text: string,
+        range: RangeResult,
+        linesBefore: number,
+        linesAfter: number
+    ): { start: number; end: number } {
+        let start = range.start;
+        let end = range.end;
+
+        for (let i = 0; i < linesBefore && start > 0; i++) {
+            const prevNewline = text.lastIndexOf('\n', start - 1);
+            start = prevNewline === -1 ? 0 : prevNewline + 1;
+        }
+
+        for (let i = 0; i < linesAfter && end < text.length; i++) {
+            const nextNewline = text.indexOf('\n', end);
+            if (nextNewline === -1) {
+                end = text.length;
+                break;
+            }
+            end = nextNewline + 1;
+        }
+
+        return { start, end };
+    }
+
     // 텍스트 내용이 있는지 확인
     function hasTextContent(el: HTMLElement): boolean {
         const clone = el.cloneNode(true) as HTMLElement;
@@ -158,6 +191,12 @@
         if (!foundRange) {
             showMatchFailedModal = true;
             return;
+        }
+
+        // fuzzy 매칭의 경우 주변 문맥을 포함하기 위해 범위 확장
+        if (foundRange.method.startsWith('fuzzy')) {
+            const expanded = expandRangeByLines(messageData, foundRange, 2, 2);
+            foundRange = { ...foundRange, start: expanded.start, end: expanded.end };
         }
 
         editText = messageData.slice(foundRange.start, foundRange.end);

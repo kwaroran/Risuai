@@ -482,7 +482,7 @@ export function findAllOriginalRangesFromHtml(
 ): RangeResultWithContext[] {
     const MAX_RESULTS = opts.maxResults ?? 10;
     const MIN_CONFIDENCE = opts.minConfidence ?? 0.3;
-    const CONTEXT_LINES = opts.contextLines ?? 2;
+    const CONTEXT_LINES = opts.contextLines ?? 1;
     const CONTEXT_MAX_CHARS = opts.contextMaxChars ?? 200;
     const ANCH = opts.anchor ?? 12;
     const FUZZY_MAX = opts.fuzzyMaxLen ?? 500;
@@ -825,6 +825,9 @@ function calculateLineNumber(text: string, position: number): number {
 
 /**
  * 매칭 위치 앞뒤 컨텍스트 추출
+ * 
+ * 빈 줄(공백/탭만 있는 줄)은 줄 수에 포함하지 않고,
+ * 실제 내용이 있는 줄만 카운트하여 의미 있는 컨텍스트 제공
  */
 function extractContext(
     text: string,
@@ -834,25 +837,74 @@ function extractContext(
     linesAfter: number = 2,
     maxChars: number = 200
 ): { before: string; after: string } {
-    // 앞 컨텍스트
-    let beforeStart = start;
-    let linesFound = 0;
-    for (let i = start - 1; i >= 0 && linesFound < linesBefore; i--) {
-        if (text[i] === '\n') linesFound++;
-        beforeStart = i;
+    /**
+     * 줄이 빈 줄인지 확인 (공백/탭만 있거나 비어있으면 빈 줄)
+     */
+    function isEmptyLine(lineContent: string): boolean {
+        return lineContent.trim().length === 0;
     }
+
+    // 앞 컨텍스트: 내용이 있는 줄을 linesBefore개 찾을 때까지 역방향 스캔
+    let beforeStart = start;
+    let contentLinesFound = 0;
+    let currentLineStart = start;
+    
+    // start 위치에서 역방향으로 줄 단위로 스캔
+    for (let i = start - 1; i >= 0; i--) {
+        if (text[i] === '\n' || i === 0) {
+            // 줄의 시작 위치 결정 (i === 0이면 0, 아니면 i + 1)
+            const lineStart = i === 0 ? 0 : i + 1;
+            const lineContent = text.slice(lineStart, currentLineStart);
+            
+            // 빈 줄이 아니면 카운트
+            if (!isEmptyLine(lineContent)) {
+                contentLinesFound++;
+                if (contentLinesFound >= linesBefore) {
+                    beforeStart = lineStart;
+                    break;
+                }
+            }
+            
+            beforeStart = lineStart;
+            currentLineStart = i; // 다음 줄의 끝 위치 (현재 \n 위치)
+            
+            if (i === 0) break;
+        }
+    }
+    
     let before = text.slice(beforeStart, start).trim();
     if (before.length > maxChars) {
         before = '...' + before.slice(-maxChars);
     }
 
-    // 뒤 컨텍스트
+    // 뒤 컨텍스트: 내용이 있는 줄을 linesAfter개 찾을 때까지 정방향 스캔
     let afterEnd = end;
-    linesFound = 0;
-    for (let i = end; i < text.length && linesFound < linesAfter; i++) {
-        afterEnd = i + 1;
-        if (text[i] === '\n') linesFound++;
+    contentLinesFound = 0;
+    let currentLineEnd = end;
+    
+    // end 위치에서 정방향으로 줄 단위로 스캔
+    for (let i = end; i <= text.length; i++) {
+        if (text[i] === '\n' || i === text.length) {
+            const lineContent = text.slice(currentLineEnd, i);
+            
+            // 빈 줄이 아니면 카운트
+            if (!isEmptyLine(lineContent)) {
+                contentLinesFound++;
+                afterEnd = i;
+                if (contentLinesFound >= linesAfter) {
+                    break;
+                }
+            } else {
+                // 빈 줄도 포함 (카운트는 안 하지만 추출 범위에는 포함)
+                afterEnd = i;
+            }
+            
+            currentLineEnd = i + 1; // 다음 줄의 시작 위치
+            
+            if (i === text.length) break;
+        }
     }
+    
     let after = text.slice(end, afterEnd).trim();
     if (after.length > maxChars) {
         after = after.slice(0, maxChars) + '...';

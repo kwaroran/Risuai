@@ -649,7 +649,7 @@
 
     .partial-match-failed-message {
         font-size: 14px;
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
         margin: 0;
         line-height: 1.5;
     }
@@ -689,7 +689,7 @@
         background: var(--risu-theme-darkbg, #f5f5f5);
         border-radius: 8px;
         font-size: 13px;
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
         max-height: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -760,7 +760,7 @@
 
     .partial-edit-hint {
         font-size: 12px;
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
     }
 
     .partial-edit-confidence {
@@ -868,7 +868,7 @@
         padding: 4px 10px;
         border-radius: 12px;
         background: var(--risu-theme-darkbg, #f5f5f5);
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
     }
 
     .match-list {
@@ -909,7 +909,7 @@
     .match-line {
         font-size: 12px;
         font-weight: 500;
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
         background: var(--risu-theme-bgcolor, #fff);
         padding: 2px 8px;
         border-radius: 4px;
@@ -941,14 +941,14 @@
         padding: 2px 6px;
         border-radius: 4px;
         background: var(--risu-theme-bgcolor, #fff);
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
         font-family: monospace;
     }
 
     .match-context-before,
     .match-context-after {
         font-size: 12px;
-        color: var(--risu-theme-textcolor2, #666);
+        color: var(--risu-theme-textcolor, #000);
         padding: 8px 12px;
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 6px;

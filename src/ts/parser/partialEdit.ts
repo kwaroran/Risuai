@@ -618,8 +618,8 @@ export function findAllOriginalRangesFromHtml(
         // 세밀 재검색: 찾은 후보 주변만 정밀 검색 (중복 제거)
         const refinedPositions = new Set<number>();
         for (const [candPos, candDist] of Array.from(uniqueCandidates.entries())) {
-            const refineStart = Math.max(0, candPos - step);
-            const refineEnd = Math.min(mdN.length - plN.length, candPos + step);
+            const refineStart = Math.max(0, candPos - Math.floor(step / 2));
+            const refineEnd = Math.min(mdN.length - plN.length, candPos + Math.floor(step / 2));
             
             for (let i = refineStart; i <= refineEnd; i++) {
                 if (refinedPositions.has(i) || uniqueCandidates.has(i)) continue;
@@ -672,7 +672,14 @@ export function findAllOriginalRangesFromHtml(
 
             const method = EXTEND_EOL ? (SNAP_BOL ? 'fuzzy+eol+snap' : 'fuzzy+eol') : 'fuzzy';
             const range = mapBack(nStart, nEnd, method, confidence);
-            results.push(addContext(range));
+            
+            // Overlap 체크: 30% 이상 겹치는 기존 결과가 있으면 추가하지 않음
+            const hasOverlap = results.some(existing => 
+                Math.abs(existing.start - range.start) < plN.length * 0.3
+            );
+            if (!hasOverlap) {
+                results.push(addContext(range));
+            }
         }
     }
 
@@ -710,8 +717,8 @@ export function findAllOriginalRangesFromHtml(
         // 세밀 재검색: 찾은 후보 주변만 정밀 검색 (중복 제거)
         const refinedPositions = new Set<number>();
         for (const [candPos] of Array.from(uniqueCandidates.entries())) {
-            const refineStart = Math.max(0, candPos - step);
-            const refineEnd = Math.min(mdN.length - plN.length, candPos + step);
+            const refineStart = Math.max(0, candPos - Math.floor(step / 2));
+            const refineEnd = Math.min(mdN.length - plN.length, candPos + Math.floor(step / 2));
             
             for (let i = refineStart; i <= refineEnd; i++) {
                 if (refinedPositions.has(i) || uniqueCandidates.has(i)) continue;
@@ -759,7 +766,14 @@ export function findAllOriginalRangesFromHtml(
             }
 
             const range = mapBack(nStart, nEnd, 'bigram', score);
-            results.push(addContext(range));
+            
+            // Overlap 체크: 30% 이상 겹치는 기존 결과가 있으면 추가하지 않음
+            const hasOverlap = results.some(existing => 
+                Math.abs(existing.start - range.start) < plN.length * 0.3
+            );
+            if (!hasOverlap) {
+                results.push(addContext(range));
+            }
         }
     }
 

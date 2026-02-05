@@ -44,7 +44,7 @@ export interface FindRangeOptions {
 /**
  * HTML 문자열에서 평문 텍스트 추출
  */
-export function htmlToPlain(htmlOrFragment: string | HTMLElement): string {
+function htmlToPlain(htmlOrFragment: string | HTMLElement): string {
     let html = '';
     if (typeof htmlOrFragment === 'string') {
         html = htmlOrFragment;
@@ -369,103 +369,9 @@ function bigramSimilarity(a: string, b: string): number {
     return PS_WEIGHT * ps + DICE_WEIGHT * dice;
 }
 
-/**
- * Fuzzy 매칭
- */
-function fuzzyMatchWithConfidence(
-    needle: string,
-    haystack: string,
-    maxLen: number = 500,
-    cutoff: number = 20
-): { pos: number; dist: number; confidence: number } | null {
-    if (needle.length > maxLen) return null;
-    if (needle.length === 0) return null;
 
-    // 적응형 step 크기: 짧은 텍스트는 세밀하게, 긴 텍스트는 성능 고려
-    const step = Math.max(1, Math.min(8, Math.floor(needle.length / 20)));
-    
-    let best = { pos: -1, dist: Infinity };
-    
-    for (let i = 0; i + needle.length <= haystack.length; i += step) {
-        const seg = haystack.slice(i, i + needle.length);
-        const d = fastEditDistance(needle, seg, cutoff);
-        if (d < best.dist) {
-            best = { pos: i, dist: d };
-            if (d === 0) break; // Perfect match
-        }
-    }
 
-    // Step으로 건너뛴 영역에서 더 나은 매칭이 있을 수 있으므로
-    // best 주변을 세밀하게 재검색
-    if (best.pos >= 0 && best.dist > 0 && step > 1) {
-        const refineStart = Math.max(0, best.pos - step);
-        const refineEnd = Math.min(haystack.length - needle.length, best.pos + step);
-        
-        for (let i = refineStart; i <= refineEnd; i++) {
-            if (i === best.pos) continue;
-            const seg = haystack.slice(i, i + needle.length);
-            const d = fastEditDistance(needle, seg, cutoff);
-            if (d < best.dist) {
-                best = { pos: i, dist: d };
-                if (d === 0) break;
-            }
-        }
-    }
 
-    const threshold = Math.max(5, Math.floor(needle.length * 0.15));
-    if (best.pos < 0 || best.dist > threshold) return null;
-
-    // Confidence 계산: 1 - (distance / maxAllowedDistance)
-    const confidence = Math.max(0, 1 - (best.dist / threshold));
-
-    return { pos: best.pos, dist: best.dist, confidence };
-}
-
-/**
- * Bigram 기반 매칭 (긴 텍스트에 적합)
- */
-function bigramMatch(
-    needle: string,
-    haystack: string,
-    threshold: number = 0.35,
-    maxLen: number = 2000
-): { pos: number; score: number } | null {
-    if (needle.length > maxLen) return null;
-    if (needle.length === 0) return null;
-
-    // 슬라이딩 윈도우로 bigram 유사도 계산
-    const step = Math.max(1, Math.floor(needle.length / 10));
-    let best = { pos: -1, score: 0 };
-
-    for (let i = 0; i + needle.length <= haystack.length; i += step) {
-        const seg = haystack.slice(i, i + needle.length);
-        const score = bigramSimilarity(needle, seg);
-        if (score > best.score) {
-            best = { pos: i, score };
-            if (score >= 0.95) break; // Near perfect match
-        }
-    }
-
-    // 세밀 재검색
-    if (best.pos >= 0 && best.score < 0.95 && step > 1) {
-        const refineStart = Math.max(0, best.pos - step);
-        const refineEnd = Math.min(haystack.length - needle.length, best.pos + step);
-        
-        for (let i = refineStart; i <= refineEnd; i++) {
-            if (i === best.pos) continue;
-            const seg = haystack.slice(i, i + needle.length);
-            const score = bigramSimilarity(needle, seg);
-            if (score > best.score) {
-                best = { pos: i, score };
-                if (score >= 0.95) break;
-            }
-        }
-    }
-
-    if (best.pos < 0 || best.score < threshold) return null;
-
-    return best;
-}
 
 /**
  * 렌더링된 HTML 블록에서 원본 마크다운의 모든 매칭 범위를 찾음
@@ -788,22 +694,7 @@ export function findAllOriginalRangesFromHtml(
     return deduplicated.slice(0, MAX_RESULTS);
 }
 
-/**
- * 렌더링된 HTML 블록에서 원본 마크다운의 해당 범위를 찾음 (단일 결과)
- * 
- * @param originalMd - 원본 마크다운 전체 문자열
- * @param replacedHtml - 정규식 치환 후 화면에 표시되는 HTML (해당 블록의 outerHTML 또는 innerHTML)
- * @param opts - 옵션
- * @returns 찾은 범위 또는 null
- */
-export function findOriginalRangeFromHtml(
-    originalMd: string,
-    replacedHtml: string | HTMLElement,
-    opts: FindRangeOptions = {}
-): RangeResult | null {
-    const results = findAllOriginalRangesFromHtml(originalMd, replacedHtml, { ...opts, maxResults: 1 });
-    return results.length > 0 ? results[0] : null;
-}
+
 
 /**
  * 원본 텍스트에서 지정된 범위를 새 텍스트로 교체

@@ -4,9 +4,7 @@
     import { DBState } from 'src/ts/stores.svelte';
     import { language } from 'src/lang';
     import { 
-        findOriginalRangeFromHtml, 
         findAllOriginalRangesFromHtml,
-        htmlToPlain,
         replaceRange,
         EDITABLE_BLOCK_SELECTORS,
         type RangeResult,

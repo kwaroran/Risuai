@@ -810,11 +810,9 @@ function extractContext(
 export const EDITABLE_BLOCK_SELECTORS = [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'p',
+    'span',
     'ul', 'ol',
     'blockquote',
     'pre',
-    'div.x-risu-regex-quote-block',
-    'div.x-risu-regex-thought-block',
-    'div.x-risu-regex-sound-block',
-    'div.x-risu-message',
+    'div',
 ];

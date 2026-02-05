@@ -704,7 +704,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
-        width: min(calc(100% - 2rem), 500px);
+        width: 50vw;
+        max-width: 500px;
         min-width: 320px;
         display: flex;
         flex-direction: column;
@@ -735,7 +736,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
-        width: min(calc(100% - 2rem), 1600px);
+        width: 50vw;
+        max-width: 1600px;
         min-width: 400px;
         display: flex;
         flex-direction: column;
@@ -808,7 +810,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
-        width: min(calc(100% - 2rem), 1600px);
+        width: 50vw;
+        max-width: 1600px;
         min-width: 400px;
         max-height: 80vh;
         display: flex;
@@ -916,7 +919,8 @@
         background: var(--risu-theme-bgcolor, #fff);
         border-radius: 12px;
         padding: 20px;
-        width: min(calc(100% - 2rem), 1200px);
+        width: 50vw;
+        max-width: 1200px;
         min-width: 400px;
         max-height: 80vh;
         display: flex;

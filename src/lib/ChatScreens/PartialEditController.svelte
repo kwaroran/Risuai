@@ -216,7 +216,6 @@
         setTimeout(() => {
             if (textareaRef) {
                 textareaRef.focus();
-                textareaRef.select();
                 adjustHeight();
             }
         }, 10);

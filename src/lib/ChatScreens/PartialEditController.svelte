@@ -68,6 +68,10 @@
     let buttonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
 
+    // Viewport 감지 상태
+    let isInViewport = $state(false);
+    let isFullyActive = $derived(enabled && isInViewport);
+
     // 텍스트 내용이 있는지 확인
     function hasTextContent(el: HTMLElement): boolean {
         const clone = el.cloneNode(true) as HTMLElement;
@@ -359,8 +363,37 @@
                mouseY >= extendedTop && mouseY < rect.top;
     }
 
+    // Viewport 감지 - 화면에 보이는 메시지만 활성화
     $effect(() => {
-        if (!bodyRoot || !enabled) return;
+        if (!bodyRoot) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                isInViewport = entry.isIntersecting;
+                // Viewport 이탈 시 버튼 즉시 숨김
+                if (!entry.isIntersecting) {
+                    hideButton();
+                }
+            },
+            {
+                // 여러 threshold로 민감하게 감지
+                threshold: [0, 0.1, 0.5, 1.0],
+                // 빠른 스크롤 대비 큰 rootMargin
+                rootMargin: '300px', // Viewport 진입 300px 전부터 미리 활성화
+            }
+        );
+
+        observer.observe(bodyRoot);
+
+        return () => {
+            observer.disconnect();
+            isInViewport = false;
+        };
+    });
+
+    // 이벤트 리스너 설정 - viewport 내에 있을 때만 활성화
+    $effect(() => {
+        if (!bodyRoot || !isFullyActive) return;
 
         let lastMouseX = 0;
         let lastMouseY = 0;

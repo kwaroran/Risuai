@@ -52,7 +52,7 @@
 
 <div class="h-full w-full flex flex-col overflow-y-auto items-center">
     {#if $PlaygroundStore === 1}
-        <h2 class="text-4xl text-textcolor my-6 font-black relative">{language.playground}</h2>
+        <h2 class="text-4xl text-textcolor my-6 font-black relative">{language.playground.playground}</h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 w-full max-w-4xl p-2">
             <button class="bg-darkbg rounded-md p-6 flex flex-col transition-shadow hover:ring-1 md:col-span-2" onclick={() => {
                 playgroundChat()
@@ -117,7 +117,7 @@
             <button class="bg-darkbg rounded-md p-6 flex flex-col transition-shadow hover:ring-1" onclick={() => {
                 PlaygroundStore.set(14)
             }}>
-                <h1 class="text-2xl font-bold text-start">Inlay Assets Explorer</h1>
+                <h1 class="text-2xl font-bold text-start">{language.playground.inlayExplorer}</h1>
             </button>
             <button class="bg-darkbg rounded-md p-6 flex flex-col transition-shadow hover:ring-1" onclick={() => {
                 PlaygroundStore.set(101)

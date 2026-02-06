@@ -1,6 +1,6 @@
 import { Packr, Unpackr, decode } from "msgpackr/index-no-eval";
 import * as fflate from "fflate";
-import { presetTemplate, type Database } from "./database.svelte";
+import { getDatabase, presetTemplate, type Database } from "./database.svelte";
 import localforage from "localforage";
 import { forageStorage } from "../globalApi.svelte";
 import { isNodeServer, isTauri } from "src/ts/platform"
@@ -21,6 +21,15 @@ const unpackr = new Unpackr({
     useRecords:false
 })
 
+const disableRemoteSaving = () => {
+    try {
+        const db = getDatabase()
+        return !db.enableRemoteSaving
+    } catch (error) {
+        return true
+    }
+}
+const checkedRemoteExistence = new Set<string>();
 const magicHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 7]); 
 const magicCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 8]);
 const magicStreamCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 9]);
@@ -271,7 +280,8 @@ export class RisuSaveEncoder {
                     isTauri ||
                     isNodeServer
                 )
-            )
+            ) &&
+            !disableRemoteSaving()
         ){
             return await this.encodeRemoteBlock(arg);
         }
@@ -312,8 +322,28 @@ export class RisuSaveEncoder {
     }
 
     async encodeRemoteBlock(arg:EncodeBlockArg){
+        console.log(`Encoding remote block: ${arg.name}`);
         const encoded = new TextEncoder().encode(arg.data);
         const fileName = `remotes/${arg.name}.local.bin`
+
+        if(arg.skipRemoteSaving && checkedRemoteExistence.has(arg.name) === false){
+            let fileExists = false;
+            if(isTauri){
+                fileExists = await exists(fileName, { baseDir: BaseDirectory.AppData });
+            }
+            else{
+                const stored = await forageStorage.keys();
+                if(stored.includes(fileName)){
+                    fileExists = true;
+                }
+            }
+            if(!fileExists){
+                console.log(`Remote file ${fileName} does not exist, disabling skipRemoteSaving for this block.`);
+                arg.skipRemoteSaving = false;
+            }
+            checkedRemoteExistence.add(arg.name);
+        }
+
         if(!arg.skipRemoteSaving){
             if(isTauri){
                 if(!(await exists('remotes', { baseDir: BaseDirectory.AppData }))){

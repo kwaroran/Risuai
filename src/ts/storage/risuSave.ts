@@ -21,6 +21,8 @@ const unpackr = new Unpackr({
     useRecords:false
 })
 
+const disableRemoteSaving = true;
+
 const magicHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 7]); 
 const magicCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 8]);
 const magicStreamCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 9]);
@@ -271,7 +273,8 @@ export class RisuSaveEncoder {
                     isTauri ||
                     isNodeServer
                 )
-            )
+            ) &&
+            !disableRemoteSaving
         ){
             return await this.encodeRemoteBlock(arg);
         }

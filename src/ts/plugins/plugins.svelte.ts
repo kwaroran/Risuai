@@ -811,7 +811,9 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         let version = plugin.version || 2
 
         const createRealScript = (data:string) => {
-            const tt = (window as Window & {
+            // TS's built-in Trusted Types typings don't structurally match this minimal shim,
+            // so cast through unknown to avoid a false-negative incompatibility error.
+            const tt = (window as unknown as Window & {
                 trustedTypes?: {
                     createPolicy: (name: string, rules: { createScript: (input: string) => string }) => { createScript: (input: string) => string }
                 }
@@ -905,4 +907,3 @@ export async function pluginProcess(arg: {
         content: language.pluginProviderNotFound
     }
 }
-

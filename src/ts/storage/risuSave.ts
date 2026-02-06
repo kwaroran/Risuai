@@ -21,7 +21,7 @@ const unpackr = new Unpackr({
     useRecords:false
 })
 
-const disableRemoteSaving = true;
+const disableRemoteSaving = false;
 
 const magicHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 7]); 
 const magicCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 8]);
@@ -315,8 +315,27 @@ export class RisuSaveEncoder {
     }
 
     async encodeRemoteBlock(arg:EncodeBlockArg){
+        console.log(`Encoding remote block: ${arg.name}`);
         const encoded = new TextEncoder().encode(arg.data);
         const fileName = `remotes/${arg.name}.local.bin`
+
+        if(arg.skipRemoteSaving){
+            let fileExists = false;
+            if(isTauri){
+                fileExists = await exists(fileName, { baseDir: BaseDirectory.AppData });
+            }
+            else{
+                const stored = await forageStorage.keys();
+                if(stored.includes(fileName)){
+                    fileExists = true;
+                }
+            }
+            if(!fileExists){
+                console.log(`Remote file ${fileName} does not exist, disabling skipRemoteSaving for this block.`);
+                arg.skipRemoteSaving = false;
+            }
+        }
+
         if(!arg.skipRemoteSaving){
             if(isTauri){
                 if(!(await exists('remotes', { baseDir: BaseDirectory.AppData }))){

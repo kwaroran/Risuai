@@ -5,6 +5,7 @@
     import { language } from 'src/lang';
     import { 
         findAllOriginalRangesFromHtml,
+        findAllOriginalRangesFromText,
         replaceRange,
         EDITABLE_BLOCK_SELECTORS,
         type RangeResult,
@@ -35,6 +36,9 @@
     const dispatch = createEventDispatcher<{
         save: { newData: string };
     }>();
+
+    // 드래그 선택 최소 길이
+    const MIN_DRAG_SELECTION_LENGTH = 5;
 
     // 편집 상태
     let isEditing = $state(false);
@@ -71,7 +75,7 @@
 
     // ─── 드래그 부분 수정용 상태 ───
     let dragButtonWrapper: HTMLDivElement | null = null;
-    let currentDragTarget: HTMLElement | null = null;
+    let currentDragSelectedText: string = '';
 
     // Viewport 감지 상태
     let isInViewport = $state(false);
@@ -175,9 +179,7 @@
     }
 
     // ─── 드래그 버튼 표시/숨김 ───
-    function showDragButton(rect: DOMRect, target: HTMLElement) {
-        currentDragTarget = target;
-
+    function showDragButton(rect: DOMRect) {
         if (!dragButtonWrapper) {
             dragButtonWrapper = createButton(
                 'partial-edit-btn-wrapper partial-edit-drag-btn-wrapper',
@@ -187,13 +189,12 @@
             document.body.appendChild(dragButtonWrapper);
         }
 
-        const buttonHeight = 32;
         // 72px: 버튼 2개(32px*2) + gap(4px) + 여유
         const buttonTotalWidth = 72;
         const centerX = (rect.left + rect.right) / 2;
 
         dragButtonWrapper.style.position = 'fixed';
-        dragButtonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
+        dragButtonWrapper.style.top = `${rect.bottom + 4}px`;
         dragButtonWrapper.style.left = `${centerX - buttonTotalWidth / 2}px`;
         dragButtonWrapper.style.display = 'flex';
         dragButtonWrapper.style.gap = '4px';
@@ -204,28 +205,36 @@
         if (dragButtonWrapper) {
             dragButtonWrapper.style.display = 'none';
         }
-        currentDragTarget = null;
+        currentDragSelectedText = '';
     }
 
-    // ─── 매칭 찾기 및 처리 (공용) ───
+    // ─── 매칭 찾기 및 처리 (통합) ───
     function findAndProcessMatches(
         mode: MatchingMode,
-        element: HTMLElement,
+        elementOrText: HTMLElement | string,
         proceedCallback: (match: RangeResultWithContext) => void
     ) {
-        if (!element || !messageData) return;
+        if (!elementOrText || !messageData) return;
 
         matchingState.mode = mode;
-        matchingState.targetElement = element;
-        matchingState.originalHTML = element.innerHTML;
 
         // 매칭 옵션 설정
         const options = mode === 'edit' 
             ? { extendToEOL: false, snapStartToPrevEOL: false }
             : { extendToEOL: true, snapStartToPrevEOL: true };
 
-        // 모든 매칭 결과 찾기
-        matchingState.foundMatches = findAllOriginalRangesFromHtml(messageData, element, options);
+        // HTML 요소인지 텍스트인지 판별하여 매칭 처리
+        if (typeof elementOrText === 'string') {
+            // 텍스트 기반 매칭
+            matchingState.targetElement = null;
+            matchingState.originalHTML = '';
+            matchingState.foundMatches = findAllOriginalRangesFromText(messageData, elementOrText, options);
+        } else {
+            // HTML 요소 기반 매칭
+            matchingState.targetElement = elementOrText;
+            matchingState.originalHTML = elementOrText.innerHTML;
+            matchingState.foundMatches = findAllOriginalRangesFromHtml(messageData, elementOrText, options);
+        }
 
         if (matchingState.foundMatches.length === 0) {
             // 매칭 실패
@@ -263,13 +272,13 @@
 
     // ─── 드래그 부분 수정 시작 ───
     function startDragEdit() {
-        if (!currentDragTarget) return;
-        findAndProcessMatches('edit', currentDragTarget, proceedWithEdit);
+        if (!currentDragSelectedText) return;
+        findAndProcessMatches('edit', currentDragSelectedText, proceedWithEdit);
     }
 
     function startDragDelete() {
-        if (!currentDragTarget) return;
-        findAndProcessMatches('delete', currentDragTarget, proceedWithDelete);
+        if (!currentDragSelectedText) return;
+        findAndProcessMatches('delete', currentDragSelectedText, proceedWithDelete);
     }
 
     // ─── 공용 편집/삭제/매칭 처리 ───
@@ -575,13 +584,6 @@
                     return;
                 }
 
-                // SELECTOR에 매칭되는 가장 가까운 요소 찾기
-                const targetBlock = ancestorEl.closest(SELECTOR) as HTMLElement | null;
-                if (!targetBlock || !bodyRoot.contains(targetBlock)) {
-                    hideDragButton();
-                    return;
-                }
-
                 // 선택 영역의 위치를 기준으로 버튼 배치
                 const rect = range.getBoundingClientRect();
                 if (rect.width === 0 && rect.height === 0) {
@@ -589,7 +591,16 @@
                     return;
                 }
 
-                showDragButton(rect, targetBlock);
+                // 선택된 텍스트 길이 확인
+                const selectedText = sel.toString();
+                if (selectedText.length < MIN_DRAG_SELECTION_LENGTH) {
+                    hideDragButton();
+                    return;
+                }
+
+                // 선택된 텍스트를 저장하고 버튼 표시
+                currentDragSelectedText = selectedText;
+                showDragButton(rect);
             }, 150);
         };
 

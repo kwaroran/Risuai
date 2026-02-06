@@ -1,11 +1,11 @@
 import { get, writable } from "svelte/store";
 import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex } from "./storage/database.svelte";
-import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
+import { alertAddCharacter, alertConfirm, alertError, alertMd, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
 import { v4 as uuidv4, v4 } from 'uuid';
 import { MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
-import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, getFileSrc, requiresFullEncoderReload } from "./globalApi.svelte";
+import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, forageStorage, getFileSrc, requiresFullEncoderReload, saveAsset } from "./globalApi.svelte";
 import { updateInlayScreen } from "./process/inlayScreen";
 import { parseMarkdownSafe } from "./parser.svelte";
 import { checkImageType } from "./util/imageConvert";
@@ -14,6 +14,11 @@ import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
 import { PngChunk } from "./pngChunk";
 import { removeInlayAssetsForMessages } from "./process/files/inlays";
+import { extractInlayIdsFromText } from "./util/inlayTokens";
+import { exportChatZipWithInlays } from "./process/files/chatZipExport";
+import * as fflate from "fflate";
+import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
+import { isTauri } from "./platform";
 
 export function createNewCharacter() {
     let db = getDatabase()
@@ -205,7 +210,7 @@ export function rmCharEmotion(charId:number, emotionId:number) {
 export async function exportChat(page:number){
     try {
 
-        const mode = await alertSelect(['Export as JSON', "Export as TXT", "Export as HTML File", "Export as HTML Embed"])
+        const mode = await alertSelect(['Export as JSON', "Export as TXT", "Export as HTML File", "Export as HTML Embed", "Export as ZIP"])
         const doTranslate = (mode === '2' || mode === '3') ? (await alertSelect([language.translateContent, language.doNotTranslate])) === '0' : false
         const anonymous = (mode === '2' || mode === '3') ? ((await alertSelect([language.includePersonaName, language.hidePersonaName])) === '1') : false
         const selectedID = get(selectedCharID)
@@ -235,15 +240,15 @@ export async function exportChat(page:number){
             if(chat.folderId) {
                 folders = db.characters[selectedID].chatFolders?.filter(f => f.id === chat.folderId)
             }
-            const stringl = Buffer.from(JSON.stringify({
+            const payload = {
                 type: 'risuChat',
                 ver: 2,
                 data: chat,
                 folders: folders
-            }), 'utf-8')
-    
+            }
+
+            const stringl = Buffer.from(JSON.stringify(payload), 'utf-8')
             await downloadFile(`${char.name}_${date}_chat`.replace(/[<>:"/\\|?*\.\,]/g, "") + '.json', stringl)
-    
         }
         else if(mode === '2'){
 
@@ -357,6 +362,40 @@ export async function exportChat(page:number){
             return
 
         }
+        else if(mode === '4'){
+            let folders = []
+            if(chat.folderId) {
+                folders = db.characters[selectedID].chatFolders?.filter(f => f.id === chat.folderId)
+            }
+            const payload = {
+                type: 'risuChat',
+                ver: 2,
+                data: chat,
+                folders: folders
+            }
+
+            const inlayIds = new Set(extractInlayIdsFromText(JSON.stringify(payload)))
+            const baseName = `${char.name}_${date}_chat_inlays`.replace(/[<>:"/\\|?*\.\,]/g, "")
+            const result = await exportChatZipWithInlays({
+                baseName,
+                payload,
+                inlayIds
+            })
+
+            if(result.canceled){
+                alertStore.set({ type: 'none', msg: '' })
+                return
+            }
+
+            if(result.missingInlays.length > 0){
+                const lines = result.missingInlays.map((id) => `- \`${id}\``).join('\n')
+                alertMd(`Exported, but some inlays were missing and skipped:\n\n${lines}`)
+                return
+            }
+
+            alertNormal(language.successExport)
+            return
+        }
         else{
             
             let stringl = chat.message.map((v) => {
@@ -382,13 +421,43 @@ export async function exportChat(page:number){
 }
 
 export async function importChat(){
-    const dat =await selectSingleFile(['json','jsonl','txt','html'])
+    const dat =await selectSingleFile(['json','jsonl','txt','html','zip'])
     if(!dat){
         return
     }
     try {
         const selectedID = get(selectedCharID)
         let db = getDatabase()
+
+        const importRisuChatsV2 = (json: any) => {
+            const folders = json.folders || []
+            const chats = Array.isArray(json.data) ? json.data : [json.data]
+            const folderIdMap: Record<string, string> = {}
+
+            folders.forEach((folder: any) => {
+                if(db.characters[selectedID].chatFolders?.some((f) => f.id === folder.id)){
+                    const newId = uuidv4()
+                    folderIdMap[folder.id] = newId
+                    folder.id = newId
+                }
+                else{
+                    folderIdMap[folder.id] = folder.id
+                }
+            })
+
+            if(db.characters[selectedID].chatFolders === undefined){
+                db.characters[selectedID].chatFolders = []
+            }
+
+            db.characters[selectedID].chatFolders.push(...folders)
+            chats.forEach((chat: any) => {
+                if(chat.folderId && folderIdMap[chat.folderId]){
+                    chat.folderId = folderIdMap[chat.folderId]
+                }
+                chat.id = v4()
+            })
+            db.characters[selectedID].chats.unshift(...chats)
+        }
 
         if(dat.name.endsWith('jsonl')){
             const lines = Buffer.from(dat.data).toString('utf-8').split('\n')
@@ -432,34 +501,189 @@ export async function importChat(){
             setDatabase(db)
             alertNormal(language.successImport)
         }
+        else if(dat.name.endsWith('zip')){
+            const unzipped = await new Promise<fflate.Unzipped>((resolve, reject) => {
+                fflate.unzip(dat.data, (err, data) => {
+                    if (err) reject(err)
+                    else resolve(data)
+                })
+            })
+
+            let manifest: any = null
+            if (unzipped["manifest.json"]) {
+                try {
+                    manifest = JSON.parse(new TextDecoder().decode(unzipped["manifest.json"]))
+                } catch {
+                    manifest = null
+                }
+            }
+
+            const chatFileName = (manifest?.chatFile as string) || "chat.json"
+            const chatBytes = unzipped[chatFileName] ?? unzipped["chat.json"]
+            if (!chatBytes) {
+                alertError("No chat.json found in ZIP.")
+                return
+            }
+
+            const json = JSON.parse(new TextDecoder().decode(chatBytes))
+            if (!((json.type === "risuAllChats" || json.type === "risuChat") && json.ver === 2)) {
+                alertError(language.errors.noData)
+                return
+            }
+
+            type ManifestInlayInfo = {
+                file: string
+                ext?: string
+                type?: "image" | "audio" | "video"
+                name?: string
+                width?: number
+                height?: number
+            }
+
+            const inlayFiles: Array<{ id: string; info: ManifestInlayInfo; bytes: Uint8Array }> = []
+            const inlaysFromManifest =
+                manifest?.type === "risuChatZip" && manifest?.ver === 1 && manifest?.inlays
+                    ? (manifest.inlays as Record<string, ManifestInlayInfo>)
+                    : null
+
+            if (inlaysFromManifest) {
+                for (const [id, info] of Object.entries(inlaysFromManifest)) {
+                    const filePath = info?.file
+                    const bytes = filePath ? unzipped[filePath] : null
+                    if (!id || !bytes) {
+                        continue
+                    }
+                    inlayFiles.push({ id, info, bytes })
+                }
+            } else {
+                for (const [filePath, bytes] of Object.entries(unzipped)) {
+                    if (!filePath.startsWith("inlays/")) {
+                        continue
+                    }
+                    const rel = filePath.slice("inlays/".length)
+                    const dot = rel.lastIndexOf(".")
+                    if (dot <= 0) {
+                        continue
+                    }
+                    const id = rel.slice(0, dot)
+                    const ext = rel.slice(dot + 1)
+                    if (!id || id.includes("/")) {
+                        continue
+                    }
+                    inlayFiles.push({
+                        id,
+                        info: { file: filePath, ext },
+                        bytes
+                    })
+                }
+            }
+
+            const imageExts = new Set(["jpg", "jpeg", "png", "gif", "webp", "avif"])
+            const audioExts = new Set(["wav", "mp3", "ogg", "flac"])
+            const videoExts = new Set(["webm", "mp4", "mkv"])
+
+            const normalizeExt = (ext?: string) => (ext ?? "").replace(/^\./, "").toLowerCase()
+            const inferInlayType = (ext: string): "image" | "audio" | "video" => {
+                const lowered = normalizeExt(ext)
+                if (audioExts.has(lowered)) return "audio"
+                if (videoExts.has(lowered)) return "video"
+                if (imageExts.has(lowered)) return "image"
+                return "image"
+            }
+
+            let forageKeys: string[] | null = null
+            const assetExists = async (path: string) => {
+                if (!path) {
+                    return false
+                }
+                if (isTauri) {
+                    try {
+                        return await exists(path, { baseDir: BaseDirectory.AppData })
+                    } catch {
+                        return false
+                    }
+                }
+                if (!forageKeys) {
+                    forageKeys = await forageStorage.keys()
+                }
+                return forageKeys.includes(path)
+            }
+
+            const ensureInlayAssets = () => {
+                db.inlayAssets ??= {}
+                return db.inlayAssets
+            }
+
+            const missingInlays: string[] = []
+            for (let i = 0; i < inlayFiles.length; i++) {
+                const { id, info, bytes } = inlayFiles[i]
+                if (!id) continue
+
+                alertWait(`Importing... (Inlays ${i + 1} / ${inlayFiles.length})`)
+
+                const extFromFile = normalizeExt(info.file.split(".").at(-1))
+                const ext = normalizeExt(info.ext) || extFromFile || "png"
+                const type = info.type ?? inferInlayType(ext)
+                const targetKey = `assets/${id}.${ext}`
+
+                const existingMeta = db.inlayAssets?.[id]
+                const existingPath = existingMeta?.path ?? targetKey
+                const alreadyDeployed = existingMeta ? await assetExists(existingPath) : await assetExists(targetKey)
+
+                if (alreadyDeployed) {
+                    if (!existingMeta) {
+                        ensureInlayAssets()[id] = {
+                            path: targetKey,
+                            ext,
+                            type,
+                            width: info.width ?? 0,
+                            height: info.height ?? 0,
+                            name: info.name ?? id
+                        }
+                    }
+                    continue
+                }
+
+                try {
+                    const savedPath = await saveAsset(bytes, id, `${id}.${ext}`)
+                    ensureInlayAssets()[id] = {
+                        path: savedPath,
+                        ext,
+                        type,
+                        width: info.width ?? 0,
+                        height: info.height ?? 0,
+                        name: info.name ?? id
+                    }
+                } catch (_error) {
+                    missingInlays.push(id)
+                }
+            }
+
+            importRisuChatsV2(json)
+            setDatabase(db)
+
+            const expectedIds = new Set(extractInlayIdsFromText(JSON.stringify(json)).filter((id) => id && !id.includes("/")))
+            const importedIds = new Set(inlayFiles.map((v) => v.id))
+            const missingFromZip = Array.from(expectedIds).filter((id) => !importedIds.has(id))
+
+            if (missingFromZip.length > 0 || missingInlays.length > 0) {
+                const missingZipLines = missingFromZip.length
+                    ? `\n\nMissing from ZIP:\n${missingFromZip.map((id) => `- \`${id}\``).join("\n")}`
+                    : ""
+                const missingDeployLines = missingInlays.length
+                    ? `\n\nFailed to deploy:\n${missingInlays.map((id) => `- \`${id}\``).join("\n")}`
+                    : ""
+                alertMd(`${language.successImport}${missingZipLines}${missingDeployLines}`)
+                return
+            }
+
+            alertNormal(language.successImport)
+            return
+        }
         else if(dat.name.endsWith('json')){
             const json = JSON.parse(Buffer.from(dat.data).toString('utf-8'))
             if((json.type === 'risuAllChats' || json.type === 'risuChat') && json.ver === 2){
-                const folders = json.folders || []
-                const chats = Array.isArray(json.data) ? json.data : [json.data]
-                const selectedID = get(selectedCharID)
-                let db = getDatabase()
-                let folderIdMap = {}
-                folders.forEach(folder => {
-                    if(db.characters[selectedID].chatFolders?.some(f => f.id === folder.id)){
-                        const newId = uuidv4()
-                        folderIdMap[folder.id] = newId
-                        folder.id = newId
-                    } else {
-                        folderIdMap[folder.id] = folder.id
-                    }
-                })
-                if(db.characters[selectedID].chatFolders === undefined){
-                    db.characters[selectedID].chatFolders = []
-                }
-                db.characters[selectedID].chatFolders.push(...folders)
-                chats.forEach(chat => {
-                    if(chat.folderId && folderIdMap[chat.folderId]){
-                        chat.folderId = folderIdMap[chat.folderId]
-                    }
-                    chat.id = v4()
-                })
-                db.characters[selectedID].chats.unshift(...chats)
+                importRisuChatsV2(json)
                 setDatabase(db)
                 alertNormal(language.successImport)
                 return
@@ -529,15 +753,45 @@ export async function exportAllChats() {
         const db = getDatabase()
         const char = db.characters[selectedID]
         const date = new Date().toISOString().replace(/[:.]/g, "-")
+        const exportMode = await alertSelect(
+            ["JSON Export", "Export as ZIP"],
+            "Chat Export"
+        )
         const allChats = char.chats
         const allFolders = char.chatFolders
-        const stringl = Buffer.from(JSON.stringify({
+        const payload = {
             type: 'risuAllChats',
             ver: 2,
             data: allChats,
             folders: allFolders
-        }), 'utf-8')
-        await downloadFile(`${char.name}_all_chats_${date}`.replace(/[<>:"/\\|?*.,]/g, "") + '.json', stringl)
+        }
+
+        if(exportMode === '0'){
+            const stringl = Buffer.from(JSON.stringify(payload), 'utf-8')
+            await downloadFile(`${char.name}_all_chats_${date}`.replace(/[<>:"/\\|?*.,]/g, "") + '.json', stringl)
+            alertNormal(language.successExport)
+            return
+        }
+
+        const inlayIds = new Set(extractInlayIdsFromText(JSON.stringify(payload)))
+        const baseName = `${char.name}_all_chats_${date}_inlays`.replace(/[<>:"/\\|?*.,]/g, "")
+        const result = await exportChatZipWithInlays({
+            baseName,
+            payload,
+            inlayIds
+        })
+
+        if(result.canceled){
+            alertStore.set({ type: 'none', msg: '' })
+            return
+        }
+
+        if(result.missingInlays.length > 0){
+            const lines = result.missingInlays.map((id) => `- \`${id}\``).join('\n')
+            alertMd(`Exported, but some inlays were missing and skipped:\n\n${lines}`)
+            return
+        }
+
         alertNormal(language.successExport)
     } catch (error) {
         alertError(error)

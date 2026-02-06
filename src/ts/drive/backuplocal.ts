@@ -4,7 +4,7 @@ import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm }
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
-import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
+import { getDatabase, setDatabaseLite, type InlayAssetMeta } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { sleep } from "../util";
 import { hubURL } from "../characterCards";
@@ -25,6 +25,48 @@ const backupAssetExts = [
 
 function isBackupAsset(name:string){
     return backupAssetExts.some((ext) => name.endsWith(ext))
+}
+
+type LegacyInlayAsset = {
+    name?: string
+    ext?: string
+    height?: number
+    width?: number
+    type?: InlayAssetMeta['type']
+    data?: string | Blob
+}
+
+const legacyInlayImageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif']
+const legacyInlayAudioExts = ['wav', 'mp3', 'ogg', 'flac']
+const legacyInlayVideoExts = ['webm', 'mp4', 'mkv']
+
+function normalizeInlayExt(ext?: string) {
+    return (ext ?? '').replace(/^\./, '').toLowerCase()
+}
+
+function getInlayTypeFromExt(ext: string): InlayAssetMeta['type'] {
+    const lowered = normalizeInlayExt(ext)
+    if (legacyInlayAudioExts.includes(lowered)) {
+        return 'audio'
+    }
+    if (legacyInlayVideoExts.includes(lowered)) {
+        return 'video'
+    }
+    return 'image'
+}
+
+async function legacyInlayDataToBytes(data: string | Blob): Promise<Uint8Array> {
+    if (data instanceof Blob) {
+        return new Uint8Array(await data.arrayBuffer())
+    }
+    if (typeof data === 'string') {
+        if (data.startsWith('data:')) {
+            const base64 = data.split(',')[1] ?? ''
+            return new Uint8Array(Buffer.from(base64, 'base64'))
+        }
+        return new Uint8Array(Buffer.from(data, 'base64'))
+    }
+    return new Uint8Array()
 }
 
 export async function SaveLocalBackup(){
@@ -149,7 +191,54 @@ export async function SaveLocalBackup(){
         }
     }
 
-    const dbWithoutAccount = { ...db, account: undefined }
+    const extraInlayMeta: Record<string, InlayAssetMeta> = {}
+    try {
+        // Include legacy inlay storage (localforage 'inlay') assets that haven't been migrated to db.inlayAssets yet.
+        const inlayForage = localforage.createInstance({ name: 'inlay', storeName: 'inlay' })
+        const legacyIds = await inlayForage.keys()
+        if (legacyIds.length > 0) {
+            for (let i = 0; i < legacyIds.length; i++) {
+                const id = legacyIds[i]
+                if (!id) {
+                    continue
+                }
+                if (db.inlayAssets?.[id]) {
+                    continue
+                }
+
+                alertWait(`Saving local Backup... (Inlays ${i + 1} / ${legacyIds.length})`)
+
+                const legacy = (await inlayForage.getItem(id)) as unknown as LegacyInlayAsset | null
+                if (!legacy?.data) {
+                    missingAssets.push(`Inlay Asset: ${id}`)
+                    continue
+                }
+
+                const ext = normalizeInlayExt(legacy.ext) || 'png'
+                const type = legacy.type ?? getInlayTypeFromExt(ext)
+                const bytes = await legacyInlayDataToBytes(legacy.data)
+                if (!bytes || bytes.byteLength === 0) {
+                    missingAssets.push(`Inlay Asset: ${id}`)
+                    continue
+                }
+
+                const assetPath = `assets/${id}.${ext}`
+                await writer.writeBackup(assetPath, bytes)
+                extraInlayMeta[id] = {
+                    path: assetPath,
+                    ext,
+                    type,
+                    width: legacy.width ?? 0,
+                    height: legacy.height ?? 0,
+                    name: legacy.name ?? id
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to include legacy inlay assets in backup.', error)
+    }
+
+    const dbWithoutAccount = { ...db, account: undefined, inlayAssets: { ...(db.inlayAssets ?? {}), ...extraInlayMeta } }
     const dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
 
     alertWait(`Saving local Backup... (Saving database)`) 

@@ -70,7 +70,7 @@
     {language.loadBackupLocal}
 </Button>
 
-{#if !DBState.db.account}
+{#if !DBState.db.account?.useSync}
     <Button
         onclick={async () => {
             if((await alertConfirm(language.backupLoadConfirm)) && (await alertConfirm(language.backupLoadConfirm2))){

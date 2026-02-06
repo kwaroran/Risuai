@@ -17,7 +17,8 @@ export const AnthropicModels: LLMModel[] = [
             LLMFlags.claudeThinking
         ],
         parameters: [...ClaudeParameters, 'thinking_tokens'],
-        tokenizer: LLMTokenizer.Claude
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
     },
 
     // Claude 4.5 (2025-11-01)

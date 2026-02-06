@@ -374,16 +374,19 @@ function bigramSimilarity(a: string, b: string): number {
 
 
 /**
- * 렌더링된 HTML 블록에서 원본 마크다운의 모든 매칭 범위를 찾음
+ * 평문 텍스트에서 원본 마크다운의 모든 매칭 범위를 찾음
+ * 
+ * 드래그 선택된 텍스트나 HTML에서 추출된 텍스트를 기반으로
+ * 원본 마크다운에서 해당하는 범위를 찾음
  * 
  * @param originalMd - 원본 마크다운 전체 문자열
- * @param replacedHtml - 정규식 치환 후 화면에 표시되는 HTML (해당 블록의 outerHTML 또는 innerHTML)
+ * @param plainText - 검색할 평문 텍스트 (선택된 텍스트 또는 HTML에서 추출한 텍스트)
  * @param opts - 옵션
  * @returns 찾은 모든 범위 (confidence 내림차순, 같으면 position 오름차순)
  */
-export function findAllOriginalRangesFromHtml(
+export function findAllOriginalRangesFromText(
     originalMd: string,
-    replacedHtml: string | HTMLElement,
+    plainText: string,
     opts: FindRangeOptions = {}
 ): RangeResultWithContext[] {
     const MAX_RESULTS = opts.maxResults ?? 10;
@@ -401,13 +404,11 @@ export function findAllOriginalRangesFromHtml(
     const BIGRAM_THRESHOLD = opts.bigramThreshold ?? 0.35;
     const BIGRAM_MAX = opts.bigramMaxLen ?? 2000;
 
-    // HTML → 평문
-    const plain = htmlToPlain(replacedHtml);
-    if (!plain) return [];
+    if (!plainText) return [];
 
     // 정규화 + 인덱스 맵 생성
     const { norm: mdN, map: mdMap } = normalizeWithMap(originalMd);
-    const { norm: plN } = normalizeWithMap(plain);
+    const { norm: plN } = normalizeWithMap(plainText);
 
     function mapBack(nStart: number, nEnd: number, method: RangeResult['method'], confidence: number): RangeResult {
         const start = mdMap[nStart];
@@ -694,7 +695,25 @@ export function findAllOriginalRangesFromHtml(
     return deduplicated.slice(0, MAX_RESULTS);
 }
 
-
+/**
+ * 렌더링된 HTML 블록에서 원본 마크다운의 모든 매칭 범위를 찾음
+ * 
+ * HTML을 평문으로 변환한 후 findAllOriginalRangesFromText에 위임
+ * 
+ * @param originalMd - 원본 마크다운 전체 문자열
+ * @param replacedHtml - 정규식 치환 후 화면에 표시되는 HTML (해당 블록의 outerHTML 또는 innerHTML)
+ * @param opts - 옵션
+ * @returns 찾은 모든 범위 (confidence 내림차순, 같으면 position 오름차순)
+ */
+export function findAllOriginalRangesFromHtml(
+    originalMd: string,
+    replacedHtml: string | HTMLElement,
+    opts: FindRangeOptions = {}
+): RangeResultWithContext[] {
+    const plain = htmlToPlain(replacedHtml);
+    if (!plain) return [];
+    return findAllOriginalRangesFromText(originalMd, plain, opts);
+}
 
 /**
  * 원본 텍스트에서 지정된 범위를 새 텍스트로 교체

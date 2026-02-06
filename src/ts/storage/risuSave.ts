@@ -22,7 +22,7 @@ const unpackr = new Unpackr({
 })
 
 const disableRemoteSaving = false;
-
+const checkedRemoteExistence = new Set<string>();
 const magicHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 7]); 
 const magicCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 8]);
 const magicStreamCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 9]);
@@ -319,7 +319,7 @@ export class RisuSaveEncoder {
         const encoded = new TextEncoder().encode(arg.data);
         const fileName = `remotes/${arg.name}.local.bin`
 
-        if(arg.skipRemoteSaving){
+        if(arg.skipRemoteSaving && checkedRemoteExistence.has(arg.name) === false){
             let fileExists = false;
             if(isTauri){
                 fileExists = await exists(fileName, { baseDir: BaseDirectory.AppData });
@@ -334,6 +334,7 @@ export class RisuSaveEncoder {
                 console.log(`Remote file ${fileName} does not exist, disabling skipRemoteSaving for this block.`);
                 arg.skipRemoteSaving = false;
             }
+            checkedRemoteExistence.add(arg.name);
         }
 
         if(!arg.skipRemoteSaving){

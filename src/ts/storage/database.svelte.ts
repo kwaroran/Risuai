@@ -549,6 +549,8 @@ export function setDatabase(data:Database){
     data.showDeprecatedTriggerV2 ??= false
     data.returnCSSError ??= true
     data.realmDirectOpen ??= false
+    data.checkCorruption ??= false
+    data.toggleConfirmRecommendedPreset ??= false
     data.useExperimentalGoogleTranslator ??= false
     if(data.antiClaudeOverload){ //migration
         data.antiClaudeOverload = false
@@ -1025,6 +1027,8 @@ export interface Database{
     showDeprecatedTriggerV1:boolean
     showDeprecatedTriggerV2:boolean
     returnCSSError:boolean
+    checkCorruption?: boolean
+    toggleConfirmRecommendedPreset?: boolean
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
     antiServerOverloads: boolean

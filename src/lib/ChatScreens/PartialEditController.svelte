@@ -80,6 +80,7 @@
     // Viewport 감지 상태
     let isInViewport = $state(false);
     let isBlockActive = $derived(blockEditEnabled && isInViewport);
+    let isDragActive = $derived(dragEditEnabled && isInViewport);
 
     // 텍스트 내용이 있는지 확인
     function hasTextContent(el: HTMLElement): boolean {
@@ -430,9 +431,9 @@
                mouseY >= extendedTop && mouseY < rect.top;
     }
 
-    // ─── Viewport 감지 (블록 부분 수정용) ───
+    // ─── Viewport 감지 (블록/드래그 부분 수정용) ───
     $effect(() => {
-        if (!bodyRoot || !blockEditEnabled) return;
+        if (!bodyRoot || (!blockEditEnabled && !dragEditEnabled)) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -440,6 +441,7 @@
                 // Viewport 이탈 시 버튼 즉시 숨김
                 if (!entry.isIntersecting) {
                     hideBlockButton();
+                    hideDragButton();
                 }
             },
             {
@@ -563,7 +565,7 @@
 
     // ─── 드래그 감지 이벤트 리스너 ───
     $effect(() => {
-        if (!bodyRoot || !dragEditEnabled) return;
+        if (!bodyRoot || !isDragActive) return;
 
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 

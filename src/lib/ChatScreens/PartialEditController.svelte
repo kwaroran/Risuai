@@ -294,6 +294,12 @@
             if (textareaRef) {
                 textareaRef.focus();
                 adjustHeight();
+                setTimeout(() => {
+                    const buttonsEl = textareaRef.closest('.partial-edit-modal')?.querySelector('.partial-edit-buttons');
+                    if (buttonsEl) {
+                        (buttonsEl as HTMLElement).scrollIntoView({ behavior: 'instant', block: 'nearest' });
+                    }
+                }, 200);
             }
         }, 10);
     }

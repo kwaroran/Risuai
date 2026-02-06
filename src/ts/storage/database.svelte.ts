@@ -15,7 +15,7 @@ import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../p
 import { isTauri, isNodeServer } from "src/ts/platform"
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.1.184" //<APP_VERSION_POINT>
+export let appVer = "2026.2.63" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 
@@ -1118,6 +1118,7 @@ export interface Database{
     echoMessage?:string
     echoDelay?:number
     createFolderOnBranch?:boolean
+    enableRemoteSaving?:boolean
 }
 
 interface SeparateParameters{

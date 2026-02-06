@@ -524,8 +524,30 @@ async function cleanChunks() {
         for (const remote of remotes) {
             try {
                 const name = getBasename(remote.name).slice(0, -10) //remove .local.bin
-                const exists = remoteUncleanables.has(name)
-                if(!exists){
+                const fexists = remoteUncleanables.has(name)
+                if(!fexists){
+
+                    let okayToDelete = false
+                    try {
+                        const metaPath = 'remotes/' + remote.name + '.meta'
+                        const metaExists = await exists(metaPath, { baseDir: BaseDirectory.AppData })
+                        if (metaExists) {
+                            const meta = await readFile(metaPath, { baseDir: BaseDirectory.AppData })
+                            const metaJson = JSON.parse(new TextDecoder().decode(meta))
+                            const lastUsed = metaJson.lastUsed as number
+
+                            if(Date.now() - lastUsed > 1000 * 60 * 60 * 24 * 7) { //not used for 7 days
+                                okayToDelete = true
+                            }
+                        }
+                        else{
+                            //write meta for next time
+                            const metaJson = {
+                                lastUsed: Date.now()
+                            }
+                            await writeFile(metaPath, new TextEncoder().encode(JSON.stringify(metaJson)), { baseDir: BaseDirectory.AppData })
+                        }
+                    } catch (error) {}
                     await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
                 }
             } catch (error) {
@@ -549,7 +571,29 @@ async function cleanChunks() {
                 const name = getBasename(asset).slice(0, -10) //remove .local.bin
                 const exists = characterIds.has(name)
                 if(!exists){
-                    await forageStorage.removeItem(asset)
+                    let okayToDelete = false
+                    try {
+                        const metaPath = asset + '.meta'
+                        const metaExists = (await forageStorage.keys()).includes(metaPath)
+                        if (metaExists) {
+                            const metaData: Uint8Array = await forageStorage.getItem(metaPath) as unknown as Uint8Array
+                            const metaJson = JSON.parse(new TextDecoder().decode(metaData))
+                            const lastUsed = metaJson.lastUsed as number
+                            if(Date.now() - lastUsed > 1000 * 60 * 60 * 24 * 7) { //not used for 7 days
+                                okayToDelete = true
+                            }
+                        }
+                        else{
+                            //write meta for next time
+                            const metaJson = {
+                                lastUsed: Date.now()
+                            }
+                            await forageStorage.setItem(metaPath, new TextEncoder().encode(JSON.stringify(metaJson)))
+                        }
+                    } catch (error) {}
+                    if (okayToDelete) {
+                        await forageStorage.removeItem(asset)
+                    }
                 }
             }
         }

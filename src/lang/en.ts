@@ -1503,5 +1503,6 @@ export const languageEnglish = {
         reportErrorQuestion: "Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)",
         diagnosticInformation: (reportData: string) => `# Diagnostic Information\n\nPlease copy the information below and report it to the developer via GitHub Issues, Discord, or community.\nDouble-check for any sensitive information before reporting.\n\n\`\`\`json\n${reportData}\n\`\`\``,
         resetLorebookQuestion: "Do you want to reset ONLY the lorebook data in this specific corrupted module?\n(Other modules and character data will NOT be affected)\n\nChoosing \"No\" will keep the data but errors may continue.",
-    }
+    },
+    enableRemoteSaving: "Enable Remote Saving",
 }

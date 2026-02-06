@@ -468,6 +468,13 @@
         const handleMove = (e: MouseEvent) => {
             if (isEditing) return;
             
+            // 텍스트가 선택되어 있으면 블록 버튼 표시하지 않음
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed) {
+                hideBlockButton();
+                return;
+            }
+            
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 

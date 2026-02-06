@@ -422,7 +422,7 @@
   }}
 >
   <ShellIcon />
-  <span class="text-xs">{language.playground}</span>
+  <span class="text-xs">{language.playground.playground}</span>
 </button>
 </div>
 {:else}

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { SvelteSet } from 'svelte/reactivity'
 
+  import { language } from 'src/lang'
   import { alertConfirm } from 'src/ts/alert'
-  import { listInlayAssets, getInlayAssetBlob, removeInlayAsset, type InlayAsset } from 'src/ts/process/files/inlays'
+  import { getInlayAssetBlob, listInlayAssets, removeInlayAsset, type InlayAsset } from 'src/ts/process/files/inlays'
   import Button from '../UI/GUI/Button.svelte'
   import CheckInput from '../UI/GUI/CheckInput.svelte'
 
@@ -47,7 +48,7 @@
   }
 
   const deleteAsset = async (id: string, name: string) => {
-    if (!(await alertConfirm(`Are you sure you want to delete "${name}"?`))) {
+    if (!(await alertConfirm(language.playground.inlayDeleteConfirm(name)))) {
       return
     }
     await removeInlayAsset(id)
@@ -61,7 +62,7 @@
 
   const deleteSelected = async () => {
     if (selection.size === 0) return
-    if (!(await alertConfirm(`Are you sure you want to delete the selected ${selection.size} assets?`))) {
+    if (!(await alertConfirm(language.playground.inlayDeleteMultipleConfirm(selection.size)))) {
       return
     }
     for (const id of selection) {
@@ -105,17 +106,19 @@
   loadAssets()
 </script>
 
-<h2 class="text-4xl text-textcolor mt-6 font-black relative">Inlay Asset Explorer</h2>
+<h2 class="text-4xl text-textcolor mt-6 font-black relative">{language.playground.inlayExplorer}</h2>
 
 <header class="flex flex-wrap gap-4 py-6 items-center sticky top-0 bg-bgcolor">
-  <span class="text-textcolor2">Total {allAssets.length} assets</span>
+  <span class="text-textcolor2">{language.playground.inlayTotalAssets(allAssets.length)}</span>
   {#if allAssets.length > 0}
     <div class="flex gap-2 ml-auto">
       {#if hasSelection}
-        <Button onclick={deleteSelected} styled="danger" size="sm">Delete Selected</Button>
-        <Button onclick={deselectAll} styled="primary" size="sm">Deselect ({selection.size})</Button>
+        <Button onclick={deleteSelected} styled="danger" size="sm">{language.playground.inlayDeleteSelected}</Button>
+        <Button onclick={deselectAll} styled="primary" size="sm"
+          >{language.playground.inlayDeselectAll} ({selection.size})</Button
+        >
       {:else}
-        <Button onclick={selectAll} styled="primary" size="sm">Select All</Button>
+        <Button onclick={selectAll} styled="primary" size="sm">{language.playground.inlaySelectAll}</Button>
       {/if}
     </div>
   {/if}
@@ -123,11 +126,12 @@
 
 {#if allAssets.length === 0 && !loading}
   <div class="text-center py-12 text-textcolor2">
-    <p class="text-lg">No saved inlay assets</p>
-    <p class="text-sm mt-2">Images, audio, and videos attached or generated in chats will appear here</p>
+    <p class="text-lg">{language.playground.inlayEmpty}</p>
+    <p class="text-sm mt-2">{language.playground.inlayEmptyDesc}</p>
   </div>
 {:else if loading}
   <div class="text-center py-12 text-textcolor2">
+    <!-- Won't take long, not worth localizing -->
     <p class="text-lg">Loading...</p>
   </div>
 {:else}
@@ -136,12 +140,7 @@
       {#key selection.has(id)}
         <div class="border border-darkborderc rounded-lg p-4 bg-darkbg">
           <div class="flex items-center gap-2 mb-3">
-            <CheckInput 
-              check={selection.has(id)} 
-              hiddenName
-              margin={false}
-              onChange={() => toggleSelect(id)}
-            />
+            <CheckInput check={selection.has(id)} hiddenName margin={false} onChange={() => toggleSelect(id)} />
             <span class="px-2 py-1 text-xs rounded bg-darkbutton text-textcolor2">
               {asset.type}
             </span>
@@ -197,7 +196,7 @@
   {#if hasMore}
     <div class="my-6 text-center">
       <Button onclick={loadMore} styled="outlined">
-        Load More ({allAssets.length - displayCount} remaining)
+        {language.playground.inlayLoadMore(allAssets.length - displayCount)}
       </Button>
     </div>
   {/if}

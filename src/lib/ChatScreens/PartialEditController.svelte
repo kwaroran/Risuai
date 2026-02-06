@@ -18,15 +18,18 @@
         chatIndex: number;
         /** 렌더링된 HTML을 포함하는 루트 요소 */
         bodyRoot: HTMLElement | null;
-        /** 부분 수정 활성화 여부 */
-        enabled?: boolean;
+        /** 블록 부분 수정 활성화 여부 */
+        blockEditEnabled?: boolean;
+        /** 드래그 부분 수정 활성화 여부 */
+        dragEditEnabled?: boolean;
     }
 
     let {
         messageData = $bindable(''),
         chatIndex,
         bodyRoot,
-        enabled = true,
+        blockEditEnabled = false,
+        dragEditEnabled = false,
     }: Props = $props();
 
     const dispatch = createEventDispatcher<{
@@ -62,13 +65,17 @@
 
     const SELECTOR = EDITABLE_BLOCK_SELECTORS.join(', ');
 
-    // DOM에 직접 추가할 버튼 요소
-    let buttonWrapper: HTMLDivElement | null = null;
+    // ─── 블록 부분 수정용 상태 ───
+    let blockButtonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
+
+    // ─── 드래그 부분 수정용 상태 ───
+    let dragButtonWrapper: HTMLDivElement | null = null;
+    let currentDragTarget: HTMLElement | null = null;
 
     // Viewport 감지 상태
     let isInViewport = $state(false);
-    let isFullyActive = $derived(enabled && isInViewport);
+    let isBlockActive = $derived(blockEditEnabled && isInViewport);
 
     // 텍스트 내용이 있는지 확인
     function hasTextContent(el: HTMLElement): boolean {
@@ -77,10 +84,15 @@
         return !!clone.textContent?.trim();
     }
 
-    // 버튼 생성
-    function createButton(): HTMLDivElement {
+    // ─── 공용 버튼 DOM 생성 ───
+    function createButton(
+        className: string,
+        onEdit: () => void,
+        onDelete: () => void,
+        onMouseLeave?: (e: MouseEvent) => void,
+    ): HTMLDivElement {
         const wrapper = document.createElement('div');
-        wrapper.className = 'partial-edit-btn-wrapper';
+        wrapper.className = className;
         wrapper.innerHTML = `
             <button type="button" class="partial-edit-btn partial-edit-btn-edit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -98,13 +110,13 @@
                 </svg>
             </button>
         `;
-        
+
         const editBtn = wrapper.querySelector('.partial-edit-btn-edit')!;
         editBtn.setAttribute('title', language.partialEdit.editButtonTooltip);
         editBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            startEdit();
+            onEdit();
         });
 
         const deleteBtn = wrapper.querySelector('.partial-edit-btn-delete')!;
@@ -112,52 +124,90 @@
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            startDelete();
+            onDelete();
         });
 
-        // 버튼에서 마우스가 벗어날 때도 처리
-        wrapper.addEventListener('mouseleave', (e) => {
-            const relatedTarget = e.relatedTarget as HTMLElement | null;
-            if (!relatedTarget || !currentHoveredBlock?.contains(relatedTarget)) {
-                hideButton();
-            }
-        });
+        if (onMouseLeave) {
+            wrapper.addEventListener('mouseleave', onMouseLeave);
+        }
 
         return wrapper;
     }
 
-    // 블록에 버튼 표시
-    function showButtonOnBlock(block: HTMLElement) {
-        if (currentHoveredBlock === block && buttonWrapper?.style.display === 'block') return;
-        
+    // ─── 블록 버튼 표시/숨김 ───
+    function showBlockButton(block: HTMLElement) {
+        if (currentHoveredBlock === block && blockButtonWrapper?.style.display === 'block') return;
+
         currentHoveredBlock = block;
 
-        if (!buttonWrapper) {
-            buttonWrapper = createButton();
-            document.body.appendChild(buttonWrapper);
+        if (!blockButtonWrapper) {
+            blockButtonWrapper = createButton(
+                'partial-edit-btn-wrapper',
+                startBlockEdit,
+                startBlockDelete,
+                (e: MouseEvent) => {
+                    const relatedTarget = e.relatedTarget as HTMLElement | null;
+                    if (!relatedTarget || !currentHoveredBlock?.contains(relatedTarget)) {
+                        hideBlockButton();
+                    }
+                },
+            );
+            document.body.appendChild(blockButtonWrapper);
         }
 
         // 버튼 위치 계산 (viewport 기준 fixed positioning)
         // 블록의 위 왼쪽에 버튼 배치
         const rect = block.getBoundingClientRect();
         const buttonHeight = 32; // 버튼 높이
-        buttonWrapper.style.position = 'fixed';
-        buttonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
-        buttonWrapper.style.left = `${rect.left}px`;
-        buttonWrapper.style.display = 'flex';
-        buttonWrapper.style.gap = '4px';
-        buttonWrapper.style.zIndex = '1000';
+        blockButtonWrapper.style.position = 'fixed';
+        blockButtonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
+        blockButtonWrapper.style.left = `${rect.left}px`;
+        blockButtonWrapper.style.display = 'flex';
+        blockButtonWrapper.style.gap = '4px';
+        blockButtonWrapper.style.zIndex = '1000';
     }
 
-    // 버튼 숨기기
-    function hideButton() {
-        if (buttonWrapper) {
-            buttonWrapper.style.display = 'none';
+    function hideBlockButton() {
+        if (blockButtonWrapper) {
+            blockButtonWrapper.style.display = 'none';
         }
         currentHoveredBlock = null;
     }
 
-    // 매칭 찾기 및 처리 헬퍼 함수
+    // ─── 드래그 버튼 표시/숨김 ───
+    function showDragButton(rect: DOMRect, target: HTMLElement) {
+        currentDragTarget = target;
+
+        if (!dragButtonWrapper) {
+            dragButtonWrapper = createButton(
+                'partial-edit-btn-wrapper partial-edit-drag-btn-wrapper',
+                startDragEdit,
+                startDragDelete,
+            );
+            document.body.appendChild(dragButtonWrapper);
+        }
+
+        const buttonHeight = 32;
+        // 72px: 버튼 2개(32px*2) + gap(4px) + 여유
+        const buttonTotalWidth = 72;
+        const centerX = (rect.left + rect.right) / 2;
+
+        dragButtonWrapper.style.position = 'fixed';
+        dragButtonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
+        dragButtonWrapper.style.left = `${centerX - buttonTotalWidth / 2}px`;
+        dragButtonWrapper.style.display = 'flex';
+        dragButtonWrapper.style.gap = '4px';
+        dragButtonWrapper.style.zIndex = '1000';
+    }
+
+    function hideDragButton() {
+        if (dragButtonWrapper) {
+            dragButtonWrapper.style.display = 'none';
+        }
+        currentDragTarget = null;
+    }
+
+    // ─── 매칭 찾기 및 처리 (공용) ───
     function findAndProcessMatches(
         mode: MatchingMode,
         element: HTMLElement,
@@ -196,16 +246,33 @@
             // 여러 결과가 있으면 선택 모달 표시 (mode는 이미 설정됨)
         }
 
-        hideButton();
+        hideBlockButton();
+        hideDragButton();
     }
 
-    // 편집 시작
-    function startEdit() {
+    // ─── 블록 부분 수정 시작 ───
+    function startBlockEdit() {
         if (!currentHoveredBlock) return;
         findAndProcessMatches('edit', currentHoveredBlock, proceedWithEdit);
     }
 
-    // 선택된 매칭으로 편집 진행
+    function startBlockDelete() {
+        if (!currentHoveredBlock) return;
+        findAndProcessMatches('delete', currentHoveredBlock, proceedWithDelete);
+    }
+
+    // ─── 드래그 부분 수정 시작 ───
+    function startDragEdit() {
+        if (!currentDragTarget) return;
+        findAndProcessMatches('edit', currentDragTarget, proceedWithEdit);
+    }
+
+    function startDragDelete() {
+        if (!currentDragTarget) return;
+        findAndProcessMatches('delete', currentDragTarget, proceedWithDelete);
+    }
+
+    // ─── 공용 편집/삭제/매칭 처리 ───
     function proceedWithEdit(match: RangeResultWithContext) {
         matchingState.selectedRange = match;
         matchingState.mode = null; // 선택 모달 닫기
@@ -281,12 +348,6 @@
         };
     }
 
-    // 삭제 시작
-    function startDelete() {
-        if (!currentHoveredBlock) return;
-        findAndProcessMatches('delete', currentHoveredBlock, proceedWithDelete);
-    }
-
     // 선택된 매칭으로 삭제 진행
     function proceedWithDelete(match: RangeResultWithContext) {
         matchingState.selectedRange = match;
@@ -341,10 +402,10 @@
         }
     }
 
-    // 마우스가 버튼 위에 있는지 확인
-    function isMouseOnButton(mouseX: number, mouseY: number): boolean {
-        if (!buttonWrapper || buttonWrapper.style.display === 'none') return false;
-        const rect = buttonWrapper.getBoundingClientRect();
+    // 마우스가 블록 버튼 위에 있는지 확인
+    function isMouseOnBlockButton(mouseX: number, mouseY: number): boolean {
+        if (!blockButtonWrapper || blockButtonWrapper.style.display === 'none') return false;
+        const rect = blockButtonWrapper.getBoundingClientRect();
         return mouseX >= rect.left && mouseX <= rect.right &&
                mouseY >= rect.top && mouseY <= rect.bottom;
     }
@@ -360,23 +421,21 @@
                mouseY >= extendedTop && mouseY < rect.top;
     }
 
-    // Viewport 감지 - 화면에 보이는 메시지만 활성화
+    // ─── Viewport 감지 (블록 부분 수정용) ───
     $effect(() => {
-        if (!bodyRoot) return;
+        if (!bodyRoot || !blockEditEnabled) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
                 isInViewport = entry.isIntersecting;
                 // Viewport 이탈 시 버튼 즉시 숨김
                 if (!entry.isIntersecting) {
-                    hideButton();
+                    hideBlockButton();
                 }
             },
             {
-                // 여러 threshold로 민감하게 감지
                 threshold: [0, 0.1, 0.5, 1.0],
-                // 빠른 스크롤 대비 큰 rootMargin
-                rootMargin: '300px', // Viewport 진입 300px 전부터 미리 활성화
+                rootMargin: '300px',
             }
         );
 
@@ -388,9 +447,9 @@
         };
     });
 
-    // 이벤트 리스너 설정 - viewport 내에 있을 때만 활성화
+    // ─── 블록 감지 이벤트 리스너 ───
     $effect(() => {
-        if (!bodyRoot || !isFullyActive) return;
+        if (!bodyRoot || !isBlockActive) return;
 
         let lastMouseX = 0;
         let lastMouseY = 0;
@@ -409,7 +468,7 @@
                 rafId = null;
                 
                 // 버튼 위에 있으면 유지
-                if (isMouseOnButton(lastMouseX, lastMouseY)) {
+                if (isMouseOnBlockButton(lastMouseX, lastMouseY)) {
                     return;
                 }
 
@@ -425,7 +484,7 @@
                 if (elementAtPoint) {
                     const block = elementAtPoint.closest(SELECTOR) as HTMLElement | null;
                     if (block && bodyRoot.contains(block) && hasTextContent(block)) {
-                        showButtonOnBlock(block);
+                        showBlockButton(block);
                         return;
                     }
                 }
@@ -441,14 +500,14 @@
                             const checkY = rect.top + 5; // 블록 상단 근처
                             const elementAtBlock = document.elementFromPoint(checkX, checkY);
                             if (elementAtBlock && (block.contains(elementAtBlock) || elementAtBlock === block)) {
-                                showButtonOnBlock(block as HTMLElement);
+                                showBlockButton(block as HTMLElement);
                                 return;
                             }
                         }
                     }
                 }
 
-                hideButton();
+                hideBlockButton();
             });
         };
 
@@ -459,16 +518,16 @@
             const relatedTarget = e.relatedTarget as HTMLElement | null;
             
             // 버튼으로 이동하면 유지
-            if (relatedTarget && buttonWrapper?.contains(relatedTarget)) {
+            if (relatedTarget && blockButtonWrapper?.contains(relatedTarget)) {
                 return;
             }
             
-            hideButton();
+            hideBlockButton();
         };
 
         const handleScroll = () => {
             if (isEditing) return;
-            hideButton();
+            hideBlockButton();
         };
 
         // document 레벨에서 mousemove 리스닝 (버튼 영역도 포함하기 위해)
@@ -486,11 +545,87 @@
         };
     });
 
+    // ─── 드래그 감지 이벤트 리스너 ───
+    $effect(() => {
+        if (!bodyRoot || !dragEditEnabled) return;
+
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const handleSelectionChange = () => {
+            if (isEditing || isConfirmingDelete || matchingState.mode) return;
+
+            // debounce: 선택이 안정될 때까지 대기
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const sel = window.getSelection();
+                if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+                    hideDragButton();
+                    return;
+                }
+
+                // 선택 영역이 bodyRoot 내부에 있는지 확인
+                const range = sel.getRangeAt(0);
+                const ancestor = range.commonAncestorContainer;
+                const ancestorEl = ancestor.nodeType === Node.ELEMENT_NODE
+                    ? ancestor as HTMLElement
+                    : ancestor.parentElement;
+
+                if (!ancestorEl || !bodyRoot.contains(ancestorEl)) {
+                    hideDragButton();
+                    return;
+                }
+
+                // SELECTOR에 매칭되는 가장 가까운 요소 찾기
+                const targetBlock = ancestorEl.closest(SELECTOR) as HTMLElement | null;
+                if (!targetBlock || !bodyRoot.contains(targetBlock)) {
+                    hideDragButton();
+                    return;
+                }
+
+                // 선택 영역의 위치를 기준으로 버튼 배치
+                const rect = range.getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0) {
+                    hideDragButton();
+                    return;
+                }
+
+                showDragButton(rect, targetBlock);
+            }, 150);
+        };
+
+        const handleDragScroll = () => {
+            if (isEditing) return;
+            hideDragButton();
+        };
+
+        const handleMouseDown = (e: MouseEvent) => {
+            if (isEditing || isConfirmingDelete || matchingState.mode) return;
+            // 드래그 버튼 자체를 클릭한 경우 무시
+            if (dragButtonWrapper && dragButtonWrapper.contains(e.target as Node)) return;
+            hideDragButton();
+        };
+
+        document.addEventListener('selectionchange', handleSelectionChange);
+        document.addEventListener('scroll', handleDragScroll, true);
+        document.addEventListener('mousedown', handleMouseDown);
+
+        return () => {
+            document.removeEventListener('selectionchange', handleSelectionChange);
+            document.removeEventListener('scroll', handleDragScroll, true);
+            document.removeEventListener('mousedown', handleMouseDown);
+            if (debounceTimer) clearTimeout(debounceTimer);
+        };
+    });
+
     // 컴포넌트 언마운트 시 정리
     onDestroy(() => {
-        if (buttonWrapper) {
-            buttonWrapper.remove();
-            buttonWrapper = null;
+        if (blockButtonWrapper) {
+            blockButtonWrapper.remove();
+            blockButtonWrapper = null;
+        }
+        if (dragButtonWrapper) {
+            dragButtonWrapper.remove();
+            dragButtonWrapper = null;
         }
     });
 </script>

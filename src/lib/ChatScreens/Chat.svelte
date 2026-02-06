@@ -382,12 +382,13 @@
                     bind:retranslate={retranslate} />
             {/key}
             <!-- 부분 수정 컨트롤러 -->
-            {#if idx >= 0 && !editMode && partialEditEnabled && DBState.db.enablePartialEdit}
+            {#if idx >= 0 && !editMode && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
                 <PartialEditController
                     messageData={message}
                     chatIndex={idx}
                     {bodyRoot}
-                    enabled={true}
+                    blockEditEnabled={DBState.db.enableBlockPartialEdit}
+                    dragEditEnabled={DBState.db.enableDragPartialEdit}
                     on:save={handlePartialEditSave}
                 />
             {/if}

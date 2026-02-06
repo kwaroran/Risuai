@@ -1,6 +1,6 @@
 import { Packr, Unpackr, decode } from "msgpackr/index-no-eval";
 import * as fflate from "fflate";
-import { presetTemplate, type Database } from "./database.svelte";
+import { getDatabase, presetTemplate, type Database } from "./database.svelte";
 import localforage from "localforage";
 import { forageStorage } from "../globalApi.svelte";
 import { isNodeServer, isTauri } from "src/ts/platform"
@@ -21,7 +21,14 @@ const unpackr = new Unpackr({
     useRecords:false
 })
 
-const disableRemoteSaving = false;
+const disableRemoteSaving = () => {
+    try {
+        const db = getDatabase()
+        return !db.enableRemoteSaving
+    } catch (error) {
+        return true
+    }
+}
 const checkedRemoteExistence = new Set<string>();
 const magicHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 7]); 
 const magicCompressedHeader = new Uint8Array([0, 82, 73, 83, 85, 83, 65, 86, 69, 0, 8]);
@@ -274,7 +281,7 @@ export class RisuSaveEncoder {
                     isNodeServer
                 )
             ) &&
-            !disableRemoteSaving
+            !disableRemoteSaving()
         ){
             return await this.encodeRemoteBlock(arg);
         }

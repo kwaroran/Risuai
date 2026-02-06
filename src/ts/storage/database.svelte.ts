@@ -1118,6 +1118,7 @@ export interface Database{
     echoMessage?:string
     echoDelay?:number
     createFolderOnBranch?:boolean
+    enableRemoteSaving?:boolean
 }
 
 interface SeparateParameters{

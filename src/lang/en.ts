@@ -1485,5 +1485,11 @@ export const languageEnglish = {
     partialBackupFirstConfirm: "⚠️ WARNING: Partial Local Backup ⚠️\n\nThis backup quickly saves only essential information.\n\nIncluded:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\n⚠️ NOT Included:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other additional media files\n\nThis backup file does NOT include all character assets!\nIf you need a complete backup, use the regular local backup.\n\nDo you want to continue?",
     partialBackupSecondConfirm: "⚠️⚠️ FINAL WARNING ⚠️⚠️\n\nThis backup saves only character profile images and does NOT save most other assets!\n\nWhat will be saved:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\nWhat will NOT be saved:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other media files\n\n⚠️ Proceed ONLY if you don't need character assets in your backup file! ⚠️\n\nAre you really sure you want to proceed with partial backup?",
     savePartialLocalBackup: "Save Partial Backup Locally (Excluding Character Assets)",
-    pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin."
+    pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin.",
+    bootstrap: {
+        dataCorruptionDetected: (name: string, type: string) => `Data Corruption Detected\n\nModule "${name}" has corrupted lorebook format.\n\nCorrupted data type: ${type}`,
+        reportErrorQuestion: "Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)",
+        diagnosticInformation: (reportData: string) => `# Diagnostic Information\n\nPlease copy the information below and report it to the developer via GitHub Issues, Discord, or community.\nDouble-check for any sensitive information before reporting.\n\n\`\`\`json\n${reportData}\n\`\`\``,
+        resetLorebookQuestion: "Do you want to reset ONLY the lorebook data in this specific corrupted module?\n(Other modules and character data will NOT be affected)\n\nChoosing \"No\" will keep the data but errors may continue.",
+    }
 }

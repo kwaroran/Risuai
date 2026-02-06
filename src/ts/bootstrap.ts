@@ -359,11 +359,11 @@ async function checkNewFormat(): Promise<void> {
                 console.error('Module data:', JSON.stringify(v, null, 2));
                 
                 // Alert user about corrupted data
-                alertError(`Data Corruption Detected / 데이터 손상 감지\n\nModule "${v.name || 'Unknown'}" has corrupted lorebook format.\n모듈 "${v.name || 'Unknown'}"의 로어북 형식이 손상되었습니다.\n\nCorrupted data type: ${typeof v.lorebook}\n손상된 데이터 타입: ${typeof v.lorebook}`);
+                alertError(language.bootstrap.dataCorruptionDetected(v.name || 'Unknown', typeof v.lorebook));
                 await waitAlert();
                 
                 // Ask if user wants to report the issue
-                const shouldReport = await alertConfirm('Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)\n\n다음 팝업 창에서 오류 정보를 복사한 후 개발자에게 보고하시겠습니까?\n같은 오류가 다시 발생하는 것을 막는 것에 큰 도움이 됩니다.\n(오류가 난 모듈 정보만 포함되며 다른 정보는 포함되지 않습니다)');
+                const shouldReport = await alertConfirm(language.bootstrap.reportErrorQuestion);
                 
                 if (shouldReport) {
                     try {
@@ -380,7 +380,7 @@ async function checkNewFormat(): Promise<void> {
                         
                         // Show the diagnostic info and allow user to copy or send
                         const reportData = JSON.stringify(diagnosticInfo, null, 2);
-                        await alertMd(`# Diagnostic Information\n\nPlease copy the information below and report it to the developer via GitHub Issues, Discord, or community.\nDouble-check for any sensitive information before reporting.\n\n아래 정보를 복사하여 GitHub Issues나 Discord, 커뮤니티를 통해 개발자에게 제보해주세요.\n제보 전에 민감한 정보가 있는지 다시 한번 확인해주세요:\n\n\`\`\`json\n${reportData}\n\`\`\``);
+                        await alertMd(language.bootstrap.diagnosticInformation(reportData));
                         await waitAlert();
                         
                         console.log('Diagnostic information for developers:', diagnosticInfo);
@@ -390,7 +390,7 @@ async function checkNewFormat(): Promise<void> {
                 }
                 
                 // Ask if user wants to reset the data
-                const shouldReset = await alertConfirm('Do you want to reset ONLY the lorebook data in this specific corrupted module?\n(Other modules and character data will NOT be affected)\n\nChoosing "No" will keep the data but errors may continue.\n\n이 손상된 모듈의 로어북 데이터만 초기화하시겠습니까?\n(다른 모듈이나 캐릭터 데이터는 영향받지 않습니다)\n\n"아니오"를 선택하면 데이터가 그대로 유지되지만 오류가 계속 발생할 수 있습니다.');
+                const shouldReset = await alertConfirm(language.bootstrap.resetLorebookQuestion);
                 
                 if (shouldReset) {
                     v.lorebook = [];

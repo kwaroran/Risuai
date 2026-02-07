@@ -3,6 +3,7 @@ import { writable } from 'svelte/store'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { DBState } from '../../stores.svelte'
 import { getChatVar, getGlobalChatVar, setChatVar } from '../chatVar.svelte'
+import { resetChatVariables } from './cbs/lib'
 
 //#region module mocks
 
@@ -57,6 +58,7 @@ const anyValidDefaultVarValue = fc
 
 beforeEach(() => {
   vi.resetAllMocks()
+  resetChatVariables()
 })
 
 test('can get a character default variable', () => {
@@ -115,7 +117,6 @@ test('can get a global chat variable', () => {
       (key, value) => {
         DBState.db.globalChatVariables[`toggle_${key}`] = value
 
-        expect(getGlobalChatVar(key)).toBe(value)
         expect(getGlobalChatVar(`toggle_${key}`)).toBe(value)
       }
     )

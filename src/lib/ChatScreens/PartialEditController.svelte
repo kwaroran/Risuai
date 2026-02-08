@@ -13,15 +13,10 @@
     } from 'src/ts/parser/partialEdit';
 
     interface Props {
-        /** 채팅 메시지 원본 데이터 */
         messageData: string;
-        /** 채팅 인덱스 */
         chatIndex: number;
-        /** 렌더링된 HTML을 포함하는 루트 요소 */
         bodyRoot: HTMLElement | null;
-        /** 블록 부분 수정 활성화 여부 */
         blockEditEnabled?: boolean;
-        /** 드래그 부분 수정 활성화 여부 */
         dragEditEnabled?: boolean;
     }
 
@@ -37,18 +32,16 @@
         save: { newData: string };
     }>();
 
-    // 드래그 선택 최소 길이
+    // Min drag selection length
     const MIN_DRAG_SELECTION_LENGTH = 5;
 
-    // 편집 상태
     let isEditing = $state(false);
     let editText = $state('');
     let textareaRef: HTMLTextAreaElement | null = $state(null);
 
-    // 삭제 확인 상태
     let isConfirmingDelete = $state(false);
 
-    // 통합 매칭 상태
+    // Unified matching state: tracks both edit and delete operations
     type MatchingMode = 'edit' | 'delete' | null;
     let matchingState = $state<{
         mode: MatchingMode;
@@ -64,32 +57,30 @@
         selectedRange: null,
     });
 
-    // 매칭 실패 모달 상태
     let showMatchFailedModal = $state(false);
 
     const SELECTOR = EDITABLE_BLOCK_SELECTORS.join(', ');
 
-    // ─── 블록 부분 수정용 상태 ───
+    // Block edit state
     let blockButtonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
 
-    // ─── 드래그 부분 수정용 상태 ───
+    // Drag edit state
     let dragButtonWrapper: HTMLDivElement | null = null;
     let currentDragSelectedText: string = '';
 
-    // Viewport 감지 상태
     let isInViewport = $state(false);
     let isBlockActive = $derived(blockEditEnabled && isInViewport);
     let isDragActive = $derived(dragEditEnabled && isInViewport);
 
-    // 텍스트 내용이 있는지 확인
+    // Check if element has text content (excluding buttons)
     function hasTextContent(el: HTMLElement): boolean {
         const clone = el.cloneNode(true) as HTMLElement;
         clone.querySelectorAll('button').forEach(btn => btn.remove());
         return !!clone.textContent?.trim();
     }
 
-    // ─── 공용 버튼 DOM 생성 ───
+    // Create edit/delete button pair
     function createButton(
         className: string,
         onEdit: () => void,
@@ -139,7 +130,7 @@
         return wrapper;
     }
 
-    // ─── 블록 버튼 표시/숨김 ───
+    // Show/hide block edit button
     function showBlockButton(block: HTMLElement) {
         if (currentHoveredBlock === block && blockButtonWrapper?.style.display === 'block') return;
 
@@ -160,10 +151,10 @@
             document.body.appendChild(blockButtonWrapper);
         }
 
-        // 버튼 위치 계산 (viewport 기준 fixed positioning)
-        // 블록의 위 왼쪽에 버튼 배치
+        // Calculate button position (fixed to viewport)
+        // Place button at top-left of block
         const rect = block.getBoundingClientRect();
-        const buttonHeight = 32; // 버튼 높이
+        const buttonHeight = 32;
         blockButtonWrapper.style.position = 'fixed';
         blockButtonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
         blockButtonWrapper.style.left = `${rect.left}px`;
@@ -179,7 +170,7 @@
         currentHoveredBlock = null;
     }
 
-    // ─── 드래그 버튼 표시/숨김 ───
+    // Show/hide drag edit button
     function showDragButton(rect: DOMRect) {
         if (!dragButtonWrapper) {
             dragButtonWrapper = createButton(
@@ -190,7 +181,7 @@
             document.body.appendChild(dragButtonWrapper);
         }
 
-        // 72px: 버튼 2개(32px*2) + gap(4px) + 여유
+        // 72px: 2 buttons (32px*2) + gap(4px) + margin
         const buttonTotalWidth = 72;
         const centerX = (rect.left + rect.right) / 2;
 
@@ -209,7 +200,6 @@
         currentDragSelectedText = '';
     }
 
-    // ─── 매칭 찾기 및 처리 (통합) ───
     function findAndProcessMatches(
         mode: MatchingMode,
         elementOrText: HTMLElement | string,
@@ -219,48 +209,41 @@
 
         matchingState.mode = mode;
 
-        // 매칭 옵션 설정
+        // Set matching options based on mode
         const options = mode === 'edit' 
             ? { extendToEOL: false, snapStartToPrevEOL: false }
             : { extendToEOL: true, snapStartToPrevEOL: true };
 
-        // HTML 요소인지 텍스트인지 판별하여 매칭 처리
+        // Determine if matching from HTML element or text
         if (typeof elementOrText === 'string') {
-            // 텍스트 기반 매칭
             matchingState.targetElement = null;
             matchingState.originalHTML = '';
             matchingState.foundMatches = findAllOriginalRangesFromText(messageData, elementOrText, options);
         } else {
-            // HTML 요소 기반 매칭
             matchingState.targetElement = elementOrText;
             matchingState.originalHTML = elementOrText.innerHTML;
             matchingState.foundMatches = findAllOriginalRangesFromHtml(messageData, elementOrText, options);
         }
 
         if (matchingState.foundMatches.length === 0) {
-            // 매칭 실패
             showMatchFailedModal = true;
             return;
         }
 
-        // confidence >= 0.95인 결과 필터링
+        // Filter high-confidence matches
         const highConfidenceMatches = matchingState.foundMatches.filter(m => m.confidence >= 0.95);
 
         if (highConfidenceMatches.length === 1) {
-            // 높은 confidence가 하나만 있으면 바로 진행
             proceedCallback(highConfidenceMatches[0]);
         } else if (matchingState.foundMatches.length === 1) {
-            // 전체 결과가 하나면 바로 진행
             proceedCallback(matchingState.foundMatches[0]);
-        } else {
-            // 여러 결과가 있으면 선택 모달 표시 (mode는 이미 설정됨)
         }
 
         hideBlockButton();
         hideDragButton();
     }
 
-    // ─── 블록 부분 수정 시작 ───
+    // Start block edit/delete
     function startBlockEdit() {
         if (!currentHoveredBlock) return;
         findAndProcessMatches('edit', currentHoveredBlock, proceedWithEdit);
@@ -271,7 +254,7 @@
         findAndProcessMatches('delete', currentHoveredBlock, proceedWithDelete);
     }
 
-    // ─── 드래그 부분 수정 시작 ───
+    // Start drag edit/delete
     function startDragEdit() {
         if (!currentDragSelectedText) return;
         findAndProcessMatches('edit', currentDragSelectedText, proceedWithEdit);
@@ -282,14 +265,14 @@
         findAndProcessMatches('delete', currentDragSelectedText, proceedWithDelete);
     }
 
-    // ─── 공용 편집/삭제/매칭 처리 ───
+    // Proceed with edit/delete after match found
     function proceedWithEdit(match: RangeResultWithContext) {
         matchingState.selectedRange = match;
-        matchingState.mode = null; // 선택 모달 닫기
+        matchingState.mode = null;
         editText = messageData.slice(match.start, match.end);
         isEditing = true;
 
-        // 다음 틱에 textarea 포커스
+        // Focus textarea on next tick
         setTimeout(() => {
             if (textareaRef) {
                 textareaRef.focus();
@@ -304,7 +287,7 @@
         }, 10);
     }
 
-    // 매칭 선택
+    // Select match from list
     function selectMatchAtIndex(index: number) {
         const match = matchingState.foundMatches[index];
         if (!match) return;
@@ -316,9 +299,8 @@
         }
     }
 
-    // 매칭 선택 취소
+    // Cancel match selection (restore HTML if in edit mode)
     function cancelMatchSelection() {
-        // 편집 모드일 때만 HTML 복원
         if (matchingState.mode === 'edit' && matchingState.targetElement && matchingState.originalHTML) {
             matchingState.targetElement.innerHTML = matchingState.originalHTML;
         }
@@ -332,18 +314,17 @@
         };
     }
 
-    // 저장
+    // Save edited text
     function handleSave() {
         if (!matchingState.selectedRange) return;
 
         const newData = replaceRange(messageData, matchingState.selectedRange, editText);
         dispatch('save', { newData });
 
-        // 편집 종료
         closeEdit();
     }
 
-    // 취소
+    // Cancel editing
     function handleCancel() {
         if (matchingState.targetElement && matchingState.originalHTML) {
             matchingState.targetElement.innerHTML = matchingState.originalHTML;
@@ -351,7 +332,7 @@
         closeEdit();
     }
 
-    // 편집 종료
+    // Close edit mode
     function closeEdit() {
         isEditing = false;
         editText = '';
@@ -364,32 +345,30 @@
         };
     }
 
-    // 선택된 매칭으로 삭제 진행
+    // Proceed with delete after match selected
     function proceedWithDelete(match: RangeResultWithContext) {
         matchingState.selectedRange = match;
-        matchingState.mode = null; // 선택 모달 닫기
+        matchingState.mode = null;
         isConfirmingDelete = true;
     }
 
-    // 삭제 확인
+    // Confirm deletion
     function handleConfirmDelete() {
         if (!matchingState.selectedRange) return;
 
         let newData = replaceRange(messageData, matchingState.selectedRange, '');
-
-        // 연속 줄바꿈 정리
         newData = newData.replace(/\n{3,}/g, '\n\n').trim();
 
         dispatch('save', { newData });
         closeDeleteConfirm();
     }
 
-    // 삭제 취소
+    // Cancel deletion
     function handleCancelDelete() {
         closeDeleteConfirm();
     }
 
-    // 삭제 확인 종료
+    // Close delete confirmation
     function closeDeleteConfirm() {
         isConfirmingDelete = false;
         matchingState = {
@@ -401,7 +380,6 @@
         };
     }
 
-    // 키보드 단축키
     function handleKeydown(e: KeyboardEvent) {
         if (e.key === 'Escape') {
             handleCancel();
@@ -410,7 +388,7 @@
         }
     }
 
-    // textarea 높이 자동 조절
+    // Auto-adjust textarea height
     function adjustHeight() {
         if (textareaRef) {
             textareaRef.style.height = 'auto';
@@ -418,7 +396,7 @@
         }
     }
 
-    // 마우스가 블록 버튼 위에 있는지 확인
+    // Check if mouse is over block button
     function isMouseOnBlockButton(mouseX: number, mouseY: number): boolean {
         if (!blockButtonWrapper || blockButtonWrapper.style.display === 'none') return false;
         const rect = blockButtonWrapper.getBoundingClientRect();
@@ -426,7 +404,7 @@
                mouseY >= rect.top && mouseY <= rect.bottom;
     }
 
-    // 현재 블록의 확장 영역(버튼 자리, 블록 위쪽)에 마우스가 있는지 확인
+    // Check if mouse is in extended button zone above block
     function isMouseInButtonZone(mouseX: number, mouseY: number, block: HTMLElement): boolean {
         const rect = block.getBoundingClientRect();
         const buttonHeight = 32;
@@ -437,14 +415,13 @@
                mouseY >= extendedTop && mouseY < rect.top;
     }
 
-    // ─── Viewport 감지 (블록/드래그 부분 수정용) ───
+    // Viewport detection (enable block/drag edit when in view)
     $effect(() => {
         if (!bodyRoot || (!blockEditEnabled && !dragEditEnabled)) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
                 isInViewport = entry.isIntersecting;
-                // Viewport 이탈 시 버튼 즉시 숨김
                 if (!entry.isIntersecting) {
                     hideBlockButton();
                     hideDragButton();
@@ -464,7 +441,7 @@
         };
     });
 
-    // ─── 블록 감지 이벤트 리스너 ───
+    // Block hover detection (using elementFromPoint for precise detection)
     $effect(() => {
         if (!bodyRoot || !isBlockActive) return;
 
@@ -472,11 +449,9 @@
         let lastMouseY = 0;
         let rafId: number | null = null;
 
-        // mousemove 핸들러 - elementFromPoint로 실제 보이는 블록만 감지
         const handleMove = (e: MouseEvent) => {
             if (isEditing) return;
             
-            // 텍스트가 선택되어 있으면 블록 버튼 표시하지 않음
             const sel = window.getSelection();
             if (sel && !sel.isCollapsed) {
                 hideBlockButton();
@@ -486,24 +461,20 @@
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            // RAF로 throttle
             if (rafId !== null) return;
             rafId = requestAnimationFrame(() => {
                 rafId = null;
                 
-                // 버튼 위에 있으면 유지
                 if (isMouseOnBlockButton(lastMouseX, lastMouseY)) {
                     return;
                 }
 
-                // 현재 호버된 블록이 있을 때
                 if (currentHoveredBlock) {
                     if (isMouseInButtonZone(lastMouseX, lastMouseY, currentHoveredBlock)) {
                         return;
                     }
                 }
 
-                // 새 블록 찾기 - elementFromPoint로 실제 보이는 요소만 감지
                 const elementAtPoint = document.elementFromPoint(lastMouseX, lastMouseY);
                 if (elementAtPoint) {
                     const block = elementAtPoint.closest(SELECTOR) as HTMLElement | null;
@@ -513,15 +484,14 @@
                     }
                 }
 
-                // elementFromPoint로 못 찾았으면, 확장 영역(버튼 자리) 체크
+                // Check if element is not hidden (verify at center top of block)
                 const blocks = bodyRoot.querySelectorAll(SELECTOR);
                 for (const block of blocks) {
                     if (isMouseInButtonZone(lastMouseX, lastMouseY, block as HTMLElement)) {
                         if (hasTextContent(block as HTMLElement)) {
-                            // 이 블록이 가려져 있지 않은지 확인 (블록 상단 중앙에서 체크)
                             const rect = (block as HTMLElement).getBoundingClientRect();
                             const checkX = rect.left + rect.width / 2;
-                            const checkY = rect.top + 5; // 블록 상단 근처
+                            const checkY = rect.top + 5;
                             const elementAtBlock = document.elementFromPoint(checkX, checkY);
                             if (elementAtBlock && (block.contains(elementAtBlock) || elementAtBlock === block)) {
                                 showBlockButton(block as HTMLElement);
@@ -535,13 +505,12 @@
             });
         };
 
-        // mouseleave 핸들러 - bodyRoot를 벗어날 때
+        // mouseleave handler
         const handleLeave = (e: MouseEvent) => {
             if (isEditing) return;
             
             const relatedTarget = e.relatedTarget as HTMLElement | null;
             
-            // 버튼으로 이동하면 유지
             if (relatedTarget && blockButtonWrapper?.contains(relatedTarget)) {
                 return;
             }
@@ -554,10 +523,10 @@
             hideBlockButton();
         };
 
-        // document 레벨에서 mousemove 리스닝 (버튼 영역도 포함하기 위해)
+        // Listen at document level to include button area
         document.addEventListener('mousemove', handleMove);
         bodyRoot.addEventListener('mouseleave', handleLeave);
-        document.addEventListener('scroll', handleScroll, true); // capture phase로 모든 스크롤 감지
+        document.addEventListener('scroll', handleScroll, true);
 
         return () => {
             document.removeEventListener('mousemove', handleMove);
@@ -569,7 +538,7 @@
         };
     });
 
-    // ─── 드래그 감지 이벤트 리스너 ───
+    // Drag selection detection
     $effect(() => {
         if (!bodyRoot || !isDragActive) return;
 
@@ -578,7 +547,7 @@
         const handleSelectionChange = () => {
             if (isEditing || isConfirmingDelete || matchingState.mode) return;
 
-            // debounce: 선택이 안정될 때까지 대기
+            // Debounce: wait for selection to stabilize
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 const sel = window.getSelection();
@@ -587,7 +556,7 @@
                     return;
                 }
 
-                // 선택 영역이 bodyRoot 내부에 있는지 확인
+                // Check if selection is within bodyRoot
                 const range = sel.getRangeAt(0);
                 const ancestor = range.commonAncestorContainer;
                 const ancestorEl = ancestor.nodeType === Node.ELEMENT_NODE
@@ -599,21 +568,21 @@
                     return;
                 }
 
-                // 선택 영역의 위치를 기준으로 버튼 배치
+                // Position button based on selection bounds
                 const rect = range.getBoundingClientRect();
                 if (rect.width === 0 && rect.height === 0) {
                     hideDragButton();
                     return;
                 }
 
-                // 선택된 텍스트 길이 확인
+                // Check selection text length
                 const selectedText = sel.toString();
                 if (selectedText.length < MIN_DRAG_SELECTION_LENGTH) {
                     hideDragButton();
                     return;
                 }
 
-                // 선택된 텍스트를 저장하고 버튼 표시
+                // Save selected text and show button
                 currentDragSelectedText = selectedText;
                 showDragButton(rect);
             }, 150);
@@ -626,7 +595,6 @@
 
         const handleMouseDown = (e: MouseEvent) => {
             if (isEditing || isConfirmingDelete || matchingState.mode) return;
-            // 드래그 버튼 자체를 클릭한 경우 무시
             if (dragButtonWrapper && dragButtonWrapper.contains(e.target as Node)) return;
             hideDragButton();
         };
@@ -643,7 +611,7 @@
         };
     });
 
-    // 컴포넌트 언마운트 시 정리
+    // Cleanup on component unmount
     onDestroy(() => {
         if (blockButtonWrapper) {
             blockButtonWrapper.remove();
@@ -703,7 +671,7 @@
     </div>
 {/snippet}
 
-<!-- 매칭 실패 모달 -->
+<!-- Match failed modal -->
 {#if showMatchFailedModal}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -727,7 +695,7 @@
     </div>
 {/if}
 
-<!-- 삭제 확인 모달 -->
+<!-- Delete confirmation modal -->
 {#if isConfirmingDelete}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -770,14 +738,14 @@
     </div>
 {/if}
 
-<!-- 매칭 선택 모달 (편집/삭제 공통) -->
+<!-- Match selection modal (shared for edit/delete) -->
 {#if matchingState.mode === 'edit'}
     {@render MatchSelectionModal('edit', matchingState.foundMatches, language.partialEdit.selectMatch)}
 {:else if matchingState.mode === 'delete'}
     {@render MatchSelectionModal('delete', matchingState.foundMatches, language.partialEdit.selectDeleteMatch)}
 {/if}
 
-<!-- 편집 모달 (편집 중일 때만 표시) -->
+<!-- Edit modal (shown only during edit) -->
 {#if isEditing}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->

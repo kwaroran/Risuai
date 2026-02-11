@@ -15,7 +15,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
-import { alertError, alertMd, alertTOS, waitAlert } from "./alert";
+import { alertError, alertMd, alertTOS, waitAlert, alertConfirm, alertInput } from "./alert";
 import { checkDriverInit } from "./drive/drive";
 import { characterURLImport } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
@@ -352,12 +352,60 @@ async function checkNewFormat(): Promise<void> {
         return v !== null;
     });
 
-    db.modules = (db.modules ?? []).map((v) => {
+    db.modules = await Promise.all((db.modules ?? []).map(async (v) => {
         if (v?.lorebook) {
-            v.lorebook = updateLorebooks(v.lorebook);
+            if (!Array.isArray(v.lorebook)) {
+                console.error('Critical: Invalid lorebook format detected in module');
+                console.error('Module data:', JSON.stringify(v, null, 2));
+                
+                // Alert user about corrupted data
+                alertError(language.bootstrap.dataCorruptionDetected(v.name || 'Unknown', typeof v.lorebook));
+                await waitAlert();
+                
+                // Ask if user wants to report the issue
+                const shouldReport = await alertConfirm(language.bootstrap.reportErrorQuestion);
+                
+                if (shouldReport) {
+                    try {
+                        // Collect diagnostic information (without personal data)
+                        const diagnosticInfo = {
+                            timestamp: new Date().toISOString(),
+                            moduleName: v.name || 'Unknown',
+                            lorebookType: typeof v.lorebook,
+                            lorebookValue: JSON.stringify(v.lorebook).substring(0, 500), // First 500 chars only
+                            isArray: Array.isArray(v.lorebook),
+                            keys: v.lorebook ? Object.keys(v.lorebook).join(', ') : 'N/A',
+                            formatVersion: db.formatversion || 'Unknown'
+                        };
+                        
+                        // Show the diagnostic info and allow user to copy or send
+                        const reportData = JSON.stringify(diagnosticInfo, null, 2);
+                        await alertMd(language.bootstrap.diagnosticInformation(reportData));
+                        await waitAlert();
+                        
+                        console.log('Diagnostic information for developers:', diagnosticInfo);
+                    } catch (reportError) {
+                        console.error('Failed to generate diagnostic report:', reportError);
+                    }
+                }
+                
+                // Ask if user wants to reset the data
+                const shouldReset = await alertConfirm(language.bootstrap.resetLorebookQuestion);
+                
+                if (shouldReset) {
+                    v.lorebook = [];
+                    console.log('Lorebook reset to empty array by user choice');
+                } else {
+                    console.warn('User chose to keep corrupted lorebook data');
+                }
+            } else {
+                v.lorebook = updateLorebooks(v.lorebook);
+            }
         }
         return v
-    }).filter((v) => {
+    }));
+    
+    db.modules = db.modules.filter((v) => {
         return v !== null && v !== undefined;
     });
 

@@ -1249,6 +1249,7 @@ export const languageChineseTraditional = {
     "loadingChatData": "正在載入聊天資料",
     "outputImageModal": "輸出圖片模態",
     "playMessageOnTranslateEnd": "翻譯完成後播放音訊",
+    "auxModelUnderModelSettings": "在模型設定中顯示輔助模型分離",
     "seperateModelsForAxModels": "為輔助模型使用獨立模型",
     "axModelsDef": "輔助模型定義",
     "doNotChangeSeperateModels": "變更預設時不更改獨立模型設定",

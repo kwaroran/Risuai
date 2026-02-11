@@ -1250,6 +1250,7 @@ export const languageKorean = {
     "loadingChatData": "채팅 데이터 로딩 중",
     "outputImageModal": "출력 이미지 모달",
     "playMessageOnTranslateEnd": "번역 완료 시 오디오 재생",
+    "auxModelUnderModelSettings": "보조 모델 분리를 모델 설정에 표시",
     "seperateModelsForAxModels": "보조 모델 분리",
     "axModelsDef": "보조 모델 정의",
     "doNotChangeSeperateModels": "프리셋 변경 시 분리된 모델 변경하지 않기",

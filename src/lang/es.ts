@@ -1249,6 +1249,7 @@ export const languageSpanish = {
     "loadingChatData": "Cargando Datos de Chat",
     "outputImageModal": "Modal de Imagen de Salida",
     "playMessageOnTranslateEnd": "Reproducir Audio al Completar Traducción",
+    "auxModelUnderModelSettings": "Mostrar Modelos Auxiliares Separados en Configuración de Modelo",
     "seperateModelsForAxModels": "Modelos Separados para Modelos Auxiliares",
     "axModelsDef": "Definición de Modelos Auxiliares",
     "doNotChangeSeperateModels": "No Cambiar Modelos Separados al Cambiar Preset",

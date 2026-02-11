@@ -1249,6 +1249,7 @@ export const languageVietnamese = {
     "loadingChatData": "Đang tải dữ liệu trò chuyện",
     "outputImageModal": "Modal hình ảnh đầu ra",
     "playMessageOnTranslateEnd": "Phát âm thanh khi hoàn thành dịch",
+    "auxModelUnderModelSettings": "Hiển thị tách biệt mô hình phụ trong cài đặt mô hình",
     "seperateModelsForAxModels": "Tách biệt mô hình cho các mô hình phụ trợ",
     "axModelsDef": "Định nghĩa mô hình Ax",
     "doNotChangeSeperateModels": "Không thay đổi mô hình tách biệt khi thay đổi cài đặt trước",

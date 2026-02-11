@@ -1249,6 +1249,7 @@ export const languageGerman = {
     "loadingChatData": "Lade Chat-Daten",
     "outputImageModal": "Ausgabebild-Modal",
     "playMessageOnTranslateEnd": "Audio bei Übersetzungsabschluss abspielen",
+    "auxModelUnderModelSettings": "Separate Hilfsmodelle in Modelleinstellungen anzeigen",
     "seperateModelsForAxModels": "Separate Modelle für Hilfsmodelle",
     "axModelsDef": "Hilfsmodell-Definition",
     "doNotChangeSeperateModels": "Separate Modelle bei Voreinstellungsänderung nicht ändern",

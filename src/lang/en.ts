@@ -230,11 +230,11 @@ export const languageEnglish = {
         sourcemapTranslate:
             "If enabled, stack traces from errors will be automatically translated to show the original source code location, using sourcemaps. This is useful for debugging.",
         realmDirectOpen: "If enabled, clicking a character in RisuRealm preview will directly open the character description.",
-        openrouterProviderOrder:
+        openRouterProviderOrder:
             "The order of providers to use, the first provider will be used first, if the provider is not available, it will use the next provider. See datail on https://openrouter.ai/docs/guides/routing/provider-selection#ordering-specific-providers",
-        openrouterProviderOnly:
+        openRouterProviderOnly:
             "Only use the providers in this list, if all the provider is not available, the request will failed. See detail on https://openrouter.ai/docs/guides/routing/provider-selection#allowing-only-specific-providers",
-        openrouterProviderIgnore:
+        openRouterProviderIgnore:
             "Ignore the providers in this list, if all the provider is ingored, the request will failed. See detail on https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         additionalPrompt:
             "Text that gets appended to the Main Prompt when Prompt Preprocess is enabled. Default is 'The assistant must act as {{char}}. user is {{user}}.' This helps set up basic roleplay context.",
@@ -265,7 +265,7 @@ export const languageEnglish = {
         inputName: "Lastly, Input your Nickname.",
         welcome: "Welcome to Risuai! I am Airisu, I am here guide you to setup Risuai. First, What may I call you?",
         welcome2: "Hello {username}! before we start, I will ask you some questions. You can change these settings later in settings.\n\nFirst select the AI provider.",
-        openrouterProvider: "Openrouter has a lot of models, some of them unfiltered and some of them free, but it is not as good as OpenAI.",
+        openRouterProvider: "OpenRouter has a lot of models, some of them unfiltered and some of them free, but it is not as good as OpenAI.",
         hordeProvider: "Horde is a free provider, but the response time is long and the quality is low.",
         setProviderLater: "There are other providers, but you can set it later in settings. select this if you want to set it later.",
         setupOpenAI:
@@ -285,8 +285,8 @@ export const languageEnglish = {
             "Input just like the image above, and press 'Add'",
             "Copy the key, and paste it in here and send it.",
         ],
-        setupOpenrouter:
-            "To use Openrouter, you need to get an API key. \n1. go to https://openrouter.ai/keys\n2. click 'Create Key'\n3. set key name whatever you want.\n4. copy the key in the website\n5. go back to Risuai\n6. paste it, and click send button.",
+        setupOpenRouter:
+            "To use OpenRouter, you need to get an API key. \n1. go to https://openrouter.ai/keys\n2. click 'Create Key'\n3. set key name whatever you want.\n4. copy the key in the website\n5. go back to Risuai\n6. paste it, and click send button.",
         allDone: "All Done! please wait a moment.",
         setupLaterMessage: "Welcome {username}! do you want me to guide you to setup or do it yourself?",
         setupMessageOption1: "Guide me to setup",
@@ -757,7 +757,7 @@ export const languageEnglish = {
     presets: "Presets",
     imageGeneration: "Image Generation",
     provider: "Provider",
-    key: "key",
+    key: "Key",
     noData: "No Data",
     currentImageGeneration: "Current Image Generation Data",
     promptPreprocess: "Use Prompt Preprocess",
@@ -1010,11 +1010,12 @@ export const languageEnglish = {
     autoRemoveThoughtTag: "Remove Thought Tag",
     customChainOfThought: "Custom Chain of Thoughts",
     maxThoughtTagDepth: "Max Thought Tag Depth",
-    openrouterFallback: "Openrouter Fallback",
-    openrouterMiddleOut: "Openrouter Middle Out",
-    openrouterProviderOrder: "Ordering Specific Providers",
-    openrouterProviderOnly: "Allowing Only Specific Providers",
-    openrouterProviderIgnore: "Ignoring Providers",
+    openRouterFallback: "Use Fallback",
+    openRouterMiddleOut: "Use Middle Out",
+    openRouterProviderOrder: "Provider Preference Order",
+    openRouterProviderOnly: "Allowed Providers",
+    openRouterProviderIgnore: "Ignored Providers",
+    openRouterSearchModel: "Search models...",
     geminiApiKey: "Gemini API Key",
     removePunctuationHypa: "Memory Punctuation Removal",
     memoryLimitThickness: "Memory Limit Thickness",

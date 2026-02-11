@@ -19,7 +19,7 @@
     import Button from "src/lib/UI/GUI/Button.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
-    import { openRouterModels } from "src/ts/model/openrouter";
+    import { getOpenRouterModels } from "src/ts/model/openrouter";
     import OobaSettings from "./OobaSettings.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import OpenrouterSettings from "./OpenrouterSettings.svelte";
@@ -66,7 +66,7 @@
 
     $effect(() => {
         if (DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter') {
-            openrouterSearchQuery = ""
+            openRouterSearchQuery = ""
         }
     });
 
@@ -74,7 +74,7 @@
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
-    let openrouterSearchQuery = $state("")
+    let openRouterSearchQuery = $state("")
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -201,40 +201,36 @@
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} />
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
-        <span class="text-textcolor mt-4">Openrouter Key</span>
+        <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.openrouterKey} />
 
-        <span class="text-textcolor mt-4">Openrouter Model</span>
-        {#await openRouterModels()}
+        <span class="text-textcolor mt-4">OpenRouter {language.model}</span>
+        {#await getOpenRouterModels()}
             <SelectInput className="mt-2 mb-4" value="">
-                <OptionInput value="">Loading..</OptionInput>
+                <OptionInput value="">Loading...</OptionInput>
             </SelectInput>
         {:then m}
             {#if m && m.length > 0}
                 <TextInput 
-                    bind:value={openrouterSearchQuery} 
-                    placeholder="Search models..." 
+                    bind:value={openRouterSearchQuery} 
+                    placeholder={language.openRouterSearchModel}
                     size="sm" 
                 />
             {/if}
             <SelectInput className="mt-2 mb-4" bind:value={DBState.db.openrouterRequestModel}>
-                {#if (!m) || (m.length === 0)}
-                    <OptionInput value="openai/gpt-3.5-turbo">GPT 3.5</OptionInput>
-                    <OptionInput value="openai/gpt-3.5-turbo-16k">GPT 3.5 16k</OptionInput>
-                    <OptionInput value="openai/gpt-4">GPT-4</OptionInput>
-                    <OptionInput value="openai/gpt-4-32k">GPT-4 32k</OptionInput>
-                    <OptionInput value="anthropic/claude-2">Claude 2</OptionInput>
-                    <OptionInput value="anthropic/claude-instant-v1">Claude Instant v1</OptionInput>
-                    <OptionInput value="anthropic/claude-instant-v1-100k">Claude Instant v1 100k</OptionInput>
-                    <OptionInput value="anthropic/claude-v1">Claude v1</OptionInput>
-                    <OptionInput value="anthropic/claude-v1-100k">Claude v1 100k</OptionInput>
-                    <OptionInput value="anthropic/claude-1.2">Claude v1.2</OptionInput>
+                {#if !m || (m.length === 0)}
+                    <OptionInput value="risu/free">Free Auto</OptionInput>
+                    <OptionInput value="openai/gpt-5.2">GPT 5.2</OptionInput>
+                    <OptionInput value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</OptionInput>
+                    <OptionInput value="anthropic/claude-opus-4.5">Claude Opus 4.5</OptionInput>
+                    <OptionInput value="google/gemini-3-flash-preview">Google Gemini 3 Flash Preview</OptionInput>
+                    <OptionInput value="google/gemini-3-pro-preview">Google Gemini 3 Pro Preview</OptionInput>
                 {:else}
-                    <OptionInput value={"risu/free"}>Free Auto</OptionInput>
-                    <OptionInput value={"openrouter/auto"}>Openrouter Auto</OptionInput>
+                    <OptionInput value="risu/free">Free Auto</OptionInput>
+                    <OptionInput value="openrouter/auto">OpenRouter Auto</OptionInput>
                     {#each m.filter(model => {
-                        if (openrouterSearchQuery === "") return true;
-                        const searchTerms = openrouterSearchQuery.toLowerCase().trim().split(/\s+/);
+                        if (openRouterSearchQuery === "") return true;
+                        const searchTerms = openRouterSearchQuery.trim().toLowerCase().split(/\s+/);
                         const modelText = (model.name + " " + model.id).toLowerCase();
                         return searchTerms.every(term => modelText.includes(term));
                     }) as model}

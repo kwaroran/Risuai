@@ -1,12 +1,11 @@
 <script lang="ts">
-
+    import { ArrowLeft } from "@lucide/svelte";
     import { language } from "src/lang";
     import TextInput from "./GUI/TextInput.svelte";
-    import { ArrowLeft } from "@lucide/svelte";
 
     interface Props {
         value?: string;
-        options?: string[];
+        options?: { name: string, slug: string }[];
         onChange?: (v:string) => void;
         onclick?: (event: MouseEvent & {
             currentTarget: EventTarget & HTMLDivElement;
@@ -48,11 +47,11 @@
             </div>
             <div class="border-t-1 border-y-selected mb-2"></div>
 
-            {#each providers as provider}
-                <button class="hover:bg-selected px-6 py-2 text-lg" onclick={() => {changeModel(provider)}}>{provider}</button>
-            {/each}
-
             <TextInput bind:value={custom} onchange={() => {changeModel(custom)}}/>
+
+            {#each providers as provider}
+                <button class="hover:bg-selected px-6 py-2 text-lg" onclick={() => {changeModel(provider.slug)}}>{provider.name} ({provider.slug})</button>
+            {/each}
         </div>
     </div>
 

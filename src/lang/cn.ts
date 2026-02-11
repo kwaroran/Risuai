@@ -154,7 +154,8 @@ export const languageChinese = {
         "openrouterProviderIgnore": "忽略此列表中的提供商，若所有提供商都被忽略，请求将会失败。详见 https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         "additionalPrompt": "启用提示词预处理时，这段文本会添加到主提示词的末尾。默认值是 'The assistant must act as {{char}}. user is {{user}}.'，用于设置基本的角色扮演背景。",
         "hideAllImagesDesc": "隐藏机器人图标、机器人图片资源和RisuRealm封面图片。",
-        "embedding": "嵌入模型用于多个功能中的相似度搜索：\n\n- **长期记忆**: HypaV2, HypaV3, Hanurai Memory 和 SupaMemory (启用 HypaMemory 时)\n- **附加文本**: 基于上下文匹配角色附加信息\n- **动态资产**: 当未找到精确匹配时查找相似的资产名称\n- **情感图片**: 当情感方式设置为 'embedding' 时\n- **触发脚本**: 触发脚本中的相似度条件\n- **文件附件**: 在 PDF/TXT/XML 附件中搜索\n- **Playground**: Playground 中的嵌入测试"
+        "embedding": "嵌入模型用于多个功能中的相似度搜索：\n\n- **长期记忆**: HypaV2, HypaV3, Hanurai Memory 和 SupaMemory (启用 HypaMemory 时)\n- **附加文本**: 基于上下文匹配角色附加信息\n- **动态资产**: 当未找到精确匹配时查找相似的资产名称\n- **情感图片**: 当情感方式设置为 'embedding' 时\n- **触发脚本**: 触发脚本中的相似度条件\n- **文件附件**: 在 PDF/TXT/XML 附件中搜索\n- **Playground**: Playground 中的嵌入测试",
+        "enableScrollToActiveChar": "如果启用，在拖动角色时按下热键或按住 Ctrl 键将滚动到当前活跃的角色。如果文件夹已关闭，将自动打开。"
     },
     "setup": {
         "chooseProvider": "选择 AI 提供者",
@@ -527,16 +528,12 @@ export const languageChinese = {
     },
     "playground": {
         "playground": "Playground",
-        "inlayDeleteConfirm": (name: string) => `确定要删除"${name}"吗？`,
-        "inlayDeleteMultipleConfirm": (count: number) => `确定要删除选中的${count}个资源吗？`,
         "inlayDeleteSelected": "删除选中项",
         "inlayDeselectAll": "取消全选",
         "inlayEmpty": "没有保存的内联资源",
         "inlayEmptyDesc": "在聊天中附加或生成的图像、音频和视频将显示在这里",
         "inlayExplorer": "内联资源浏览器",
-        "inlayLoadMore": (remaining: number) => `加载更多(剩余${remaining}个)`,
-        "inlaySelectAll": "全选",
-        "inlayTotalAssets": (count: number) => `共${count}个资源`,
+        "inlaySelectAll": "全选"
     },
     "confirm": "确定",
     "goback": "返回",
@@ -1282,7 +1279,8 @@ export const languageChinese = {
         "import": "导入",
         "export": "导出",
         "webcam": "切换摄像头",
-        "focusInput": "聚焦输入框"
+        "focusInput": "聚焦输入框",
+        "scrollToActiveChar": "滚动至当前角色"
     },
     "screenTooSmall": "屏幕太小，无法显示界面。",
     "advancedModelSettings": "高级模型设置",
@@ -1381,4 +1379,12 @@ export const languageChinese = {
     "alwaysScrollToNewMessage": "始终滚动到新消息（忽略滚动位置）",
     "autoScrollToNewMessage": "自动滚动至新消息",
     "disableAbove": "为 AI 剪裁的消息",
-} satisfies DeepPartial<typeof import('./en').languageEnglish>
+    "pluginDevelopMode": "插件开发模式",
+    "newMessageButtonTopBar": "顶栏",
+    "newMessageButtonRightCenter": "右中",
+    "mainDomAccessConsent": "插件 {} 正在请求访问主文档，这可能会泄露敏感信息。是否允许？",
+    "getFullDatabaseConsent": "插件 {} 正在请求访问完整数据库，这可能会泄露敏感信息。是否允许？",
+    "fetchLogConsent": "插件 {} 正在请求获取日志，这可能会泄露敏感信息。是否允许？",
+    "enableScrollToActiveChar": "启用滚动至当前角色",
+    "trimStartNewChat": "修剪“开始新对话”消息"
+} satisfies DeepPartial<typeof import('./en').languageEnglish>;

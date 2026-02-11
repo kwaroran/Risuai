@@ -154,7 +154,8 @@ export const languageChineseTraditional = {
         "openrouterProviderIgnore": "忽略此列表中的提供商,若所有提供商均被忽略,請求將失敗。詳情請參閱 https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         "additionalPrompt": "啟用提示詞預處理時，這段文字會加在主要提示詞的末尾。預設值是 'The assistant must act as {{char}}. user is {{user}}.'，用於設定基本的角色扮演情境。",
         "hideAllImagesDesc": "隱藏機器人圖示、機器人圖片資源和RisuRealm封面圖片。",
-        "embedding": "嵌入模型用於多個功能中的相似度搜尋：\n\n- **長期記憶**: HypaV2, HypaV3, Hanurai Memory 和 SupaMemory (啟用 HypaMemory 時)\n- **附加文本**: 基於上下文匹配角色附加資訊\n- **動態資源**: 當未找到精確匹配時尋找相似的資源名稱\n- **情感圖片**: 當情感方式設定為 'embedding' 時\n- **觸發腳本**: 觸發腳本中的相似度條件\n- **檔案附件**: 在 PDF/TXT/XML 附件中搜尋\n- **Playground**: Playground 中的嵌入測試"
+        "embedding": "嵌入模型用於多個功能中的相似度搜尋：\n\n- **長期記憶**: HypaV2, HypaV3, Hanurai Memory 和 SupaMemory (啟用 HypaMemory 時)\n- **附加文本**: 基於上下文匹配角色附加資訊\n- **動態資源**: 當未找到精確匹配時尋找相似的資源名稱\n- **情感圖片**: 當情感方式設定為 'embedding' 時\n- **觸發腳本**: 觸發腳本中的相似度條件\n- **檔案附件**: 在 PDF/TXT/XML 附件中搜尋\n- **Playground**: Playground 中的嵌入測試",
+        "enableScrollToActiveChar": "若已啟用，按下快捷鍵或在拖曳角色時按住 Ctrl 鍵將捲動至目前選取的角色。若資料夾已關閉，則會自動開啟。"
     },
     "setup": {
         "chooseProvider": "選擇 AI 提供者",
@@ -527,16 +528,12 @@ export const languageChineseTraditional = {
     },
     "playground": {
         "playground": "Playground",
-        "inlayDeleteConfirm": (name: string) => `確定要刪除"${name}"嗎？`,
-        "inlayDeleteMultipleConfirm": (count: number) => `確定要刪除選中的${count}個資源嗎？`,
         "inlayDeleteSelected": "刪除選中項",
         "inlayDeselectAll": "取消全選",
         "inlayEmpty": "沒有保存的內聯資源",
         "inlayEmptyDesc": "在聊天中附加或生成的圖像、音頻和視頻將顯示在這裡",
         "inlayExplorer": "內聯資源瀏覽器",
-        "inlayLoadMore": (remaining: number) => `加載更多(剩餘${remaining}個)`,
-        "inlaySelectAll": "全選",
-        "inlayTotalAssets": (count: number) => `共${count}個資源`,
+        "inlaySelectAll": "全選"
     },
     "confirm": "確定",
     "goback": "返回",
@@ -1282,7 +1279,8 @@ export const languageChineseTraditional = {
         "import": "匯入",
         "export": "匯出",
         "webcam": "切換網路攝影機",
-        "focusInput": "聚焦輸入框"
+        "focusInput": "聚焦輸入框",
+        "scrollToActiveChar": "捲動至當前角色"
     },
     "screenTooSmall": "螢幕太小，無法顯示介面。",
     "advancedModelSettings": "進階模型設定",
@@ -1381,4 +1379,12 @@ export const languageChineseTraditional = {
     "disableMessage": "停用訊息",
     "newMessageButtonBottomCenter": "底部置中 (預設)",
     "disableAbove": "為 AI 剪裁訊息",
-} satisfies DeepPartial<typeof import('./en').languageEnglish>
+    "pluginDevelopMode": "插件開發模式",
+    "newMessageButtonTopBar": "頂端列",
+    "getFullDatabaseConsent": "插件 {} 正在請求存取完整資料庫，這可能會洩露敏感資訊。您是否要允許此操作？",
+    "trimStartNewChat": "修剪「開始新對話」訊息",
+    "newMessageButtonRightCenter": "右中",
+    "mainDomAccessConsent": "外掛程式 {} 正在要求存取主要文件，這可能會導致敏感資訊外洩。是否要允許？",
+    "enableScrollToActiveChar": "啟用捲動至當前角色",
+    "fetchLogConsent": "插件 {} 正在請求擷取記錄，這可能會洩露敏感資訊。您要允許嗎？"
+} satisfies DeepPartial<typeof import('./en').languageEnglish>;

@@ -154,7 +154,8 @@ export const languageSpanish = {
         "openrouterProviderIgnore": "Ignorar los proveedores en esta lista, si todos los proveedores son ignorados, la solicitud fallará. Ver detalles en https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         "additionalPrompt": "Texto que se agrega al final del Prompt Principal cuando el Preprocesamiento de Prompt está habilitado. El valor predeterminado es 'The assistant must act as {{char}}. user is {{user}}.' Esto ayuda a establecer el contexto básico del juego de roles.",
         "hideAllImagesDesc": "Oculta los iconos de bots, recursos de imágenes de bots y portadas de RisuRealm.",
-        "embedding": "El modelo de incrustación (embedding) se utiliza para la búsqueda de similitud en múltiples características:\n\n- **Memoria a Largo Plazo**: HypaV2, HypaV3, Memoria Hanurai y SupaMemory (con HypaMemory habilitado)\n- **Texto Adicional**: Coincidencia de información adicional del personaje basada en el contexto\n- **Activos Dinámicos**: Encontrar nombres de activos similares cuando no se encuentra una coincidencia exacta\n- **Imágenes de Emoción**: Cuando el método de Emoción está configurado en 'embedding'\n- **Scripts de Activación**: Condiciones de similitud en scripts de activación\n- **Archivos Adjuntos**: Búsqueda dentro de archivos adjuntos PDF/TXT/XML\n- **Playground**: Pruebas de incrustación en Playground"
+        "embedding": "El modelo de incrustación (embedding) se utiliza para la búsqueda de similitud en múltiples características:\n\n- **Memoria a Largo Plazo**: HypaV2, HypaV3, Memoria Hanurai y SupaMemory (con HypaMemory habilitado)\n- **Texto Adicional**: Coincidencia de información adicional del personaje basada en el contexto\n- **Activos Dinámicos**: Encontrar nombres de activos similares cuando no se encuentra una coincidencia exacta\n- **Imágenes de Emoción**: Cuando el método de Emoción está configurado en 'embedding'\n- **Scripts de Activación**: Condiciones de similitud en scripts de activación\n- **Archivos Adjuntos**: Búsqueda dentro de archivos adjuntos PDF/TXT/XML\n- **Playground**: Pruebas de incrustación en Playground",
+        "enableScrollToActiveChar": "Si está habilitado, pulsar la tecla de acceso rápido o mantener presionada la tecla Ctrl mientras se arrastra un personaje desplazará la vista hasta el personaje activo. Las carpetas se abrirán automáticamente si están cerradas."
     },
     "setup": {
         "chooseProvider": "Elige Proveedor de IA",
@@ -527,16 +528,12 @@ export const languageSpanish = {
     },
     "playground": {
         "playground": "Playground",
-        "inlayDeleteConfirm": (name: string) => `¿Estás seguro de que deseas eliminar "${name}"?`,
-        "inlayDeleteMultipleConfirm": (count: number) => `¿Estás seguro de que deseas eliminar los ${count} recursos seleccionados?`,
         "inlayDeleteSelected": "Eliminar seleccionados",
         "inlayDeselectAll": "Deseleccionar todo",
         "inlayEmpty": "Sin recursos inlay guardados",
         "inlayEmptyDesc": "Las imágenes, audios y videos adjuntos o generados en chats aparecerán aquí",
         "inlayExplorer": "Explorador de Recursos Inlay",
-        "inlayLoadMore": (remaining: number) => `Cargar más (${remaining} restantes)`,
-        "inlaySelectAll": "Seleccionar todo",
-        "inlayTotalAssets": (count: number) => `Total ${count} recursos`,
+        "inlaySelectAll": "Seleccionar todo"
     },
     "confirm": "Confirmar",
     "goback": "Volver",
@@ -1282,7 +1279,8 @@ export const languageSpanish = {
         "import": "Importar",
         "export": "Exportar",
         "webcam": "Alternar Webcam",
-        "focusInput": "Enfocar Entrada"
+        "focusInput": "Enfocar Entrada",
+        "scrollToActiveChar": "Desplazarse al personaje activo"
     },
     "screenTooSmall": "La pantalla es demasiado pequeña para mostrar la interfaz.",
     "advancedModelSettings": "Configuraciones Avanzadas del Modelo",
@@ -1380,4 +1378,12 @@ export const languageSpanish = {
     "disableMessage": "Desactivar mensaje",
     "newMessageButtonStyle": "Estilo del botón de nuevo mensaje",
     "alwaysScrollToNewMessage": "Desplazarse siempre al nuevo mensaje (ignorar la posición de desplazamiento)",
-} satisfies DeepPartial<typeof import('./en').languageEnglish>
+    "newMessageButtonTopBar": "Barra superior",
+    "enableScrollToActiveChar": "Activar desplazamiento al personaje activo",
+    "pluginDevelopMode": "Modo de desarrollo de plugins",
+    "newMessageButtonRightCenter": "Centro derecha",
+    "trimStartNewChat": "Recortar mensajes de «Iniciar nuevo chat»",
+    "getFullDatabaseConsent": "El plugin {} está solicitando acceso a la base de datos completa, lo que podría exponer información confidencial. ¿Desea permitir esto?",
+    "fetchLogConsent": "El complemento {} está solicitando obtener registros, lo cual podría exponer información confidencial. ¿Desea permitir esto?",
+    "disableAbove": "Mensajes cortados para la IA"
+} satisfies DeepPartial<typeof import('./en').languageEnglish>;

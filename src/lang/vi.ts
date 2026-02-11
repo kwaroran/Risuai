@@ -154,7 +154,8 @@ export const languageVietnamese = {
         "openrouterProviderIgnore": "Bỏ qua các nhà cung cấp trong danh sách này, nếu tất cả các nhà cung cấp bị bỏ qua, yêu cầu sẽ thất bại. Xem chi tiết tại https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         "additionalPrompt": "Văn bản được thêm vào cuối Lời nhắc chính khi Tiền xử lý lời nhắc được bật. Mặc định là 'The assistant must act as {{char}}. user is {{user}}.' Điều này giúp thiết lập ngữ cảnh nhập vai cơ bản.",
         "hideAllImagesDesc": "Ẩn biểu tượng bot, tài nguyên hình ảnh bot và ảnh bìa RisuRealm.",
-        "embedding": "Mô hình nhúng được sử dụng cho tìm kiếm tương đồng trên nhiều tính năng:\n\n- **Bộ nhớ dài hạn**: HypaV2, HypaV3, Bộ nhớ Hanurai và SupaMemory (khi bật HypaMemory)\n- **Văn bản bổ sung**: Khớp thông tin bổ sung của nhân vật dựa trên ngữ cảnh\n- **Tài sản động**: Tìm tên tài sản tương tự khi không tìm thấy kết quả khớp chính xác\n- **Hình ảnh cảm xúc**: Khi phương pháp Cảm xúc được đặt thành 'embedding'\n- **Tập lệnh kích hoạt**: Các điều kiện tương đồng trong tập lệnh kích hoạt\n- **Tệp đính kèm**: Tìm kiếm trong các tệp đính kèm PDF/TXT/XML\n- **Playground**: Thử nghiệm nhúng trong Playground"
+        "embedding": "Mô hình nhúng được sử dụng cho tìm kiếm tương đồng trên nhiều tính năng:\n\n- **Bộ nhớ dài hạn**: HypaV2, HypaV3, Bộ nhớ Hanurai và SupaMemory (khi bật HypaMemory)\n- **Văn bản bổ sung**: Khớp thông tin bổ sung của nhân vật dựa trên ngữ cảnh\n- **Tài sản động**: Tìm tên tài sản tương tự khi không tìm thấy kết quả khớp chính xác\n- **Hình ảnh cảm xúc**: Khi phương pháp Cảm xúc được đặt thành 'embedding'\n- **Tập lệnh kích hoạt**: Các điều kiện tương đồng trong tập lệnh kích hoạt\n- **Tệp đính kèm**: Tìm kiếm trong các tệp đính kèm PDF/TXT/XML\n- **Playground**: Thử nghiệm nhúng trong Playground",
+        "enableScrollToActiveChar": "Nếu được bật, nhấn phím tắt hoặc giữ phím Ctrl khi kéo một nhân vật sẽ cuộn đến nhân vật hiện đang hoạt động. Các thư mục sẽ tự động được mở nếu đang đóng."
     },
     "setup": {
         "chooseProvider": "Chọn nhà cung cấp AI",
@@ -527,16 +528,12 @@ export const languageVietnamese = {
     },
     "playground": {
         "playground": "Playground",
-        "inlayDeleteConfirm": (name: string) => `Bạn có chắc muốn xóa "${name}" không?`,
-        "inlayDeleteMultipleConfirm": (count: number) => `Bạn có chắc muốn xóa ${count} tài sản được chọn không?`,
         "inlayDeleteSelected": "Xóa mục đã chọn",
         "inlayDeselectAll": "Bỏ chọn tất cả",
         "inlayEmpty": "Không có tài sản nội tuyến đã lưu",
         "inlayEmptyDesc": "Hình ảnh, âm thanh và video được đính kèm hoặc tạo trong trò chuyện sẽ xuất hiện ở đây",
         "inlayExplorer": "Trình khám phá Tài sản Inlay",
-        "inlayLoadMore": (remaining: number) => `Tải thêm (${remaining} còn lại)`,
-        "inlaySelectAll": "Chọn tất cả",
-        "inlayTotalAssets": (count: number) => `Tổng cộng ${count} tài sản`,
+        "inlaySelectAll": "Chọn tất cả"
     },
     "confirm": "Xác nhận",
     "goback": "Quay lại",
@@ -1282,7 +1279,8 @@ export const languageVietnamese = {
         "import": "Nhập",
         "export": "Xuất",
         "webcam": "Bật/Tắt Webcam",
-        "focusInput": "Tập trung vào đầu vào"
+        "focusInput": "Tập trung vào đầu vào",
+        "scrollToActiveChar": "Cuộn đến nhân vật đang hoạt động"
     },
     "screenTooSmall": "Màn hình quá nhỏ để hiển thị giao diện.",
     "advancedModelSettings": "Cài đặt mô hình nâng cao",
@@ -1381,4 +1379,12 @@ export const languageVietnamese = {
     "newMessageButtonFloatingCircle": "Vòng tròn nổi (Góc dưới bên phải)",
     "newMessageButtonBottomLeft": "Phía dưới bên trái",
     "newMessageButtonBottomCenter": "Dưới cùng ở giữa (Mặc định)",
-} satisfies DeepPartial<typeof import('./en').languageEnglish>
+    "fetchLogConsent": "Plugin {} đang yêu cầu truy xuất nhật ký, hành động này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép điều này không?",
+    "newMessageButtonTopBar": "Thanh trên cùng",
+    "pluginDevelopMode": "Chế độ phát triển Plugin",
+    "mainDomAccessConsent": "Plugin {} đang yêu cầu truy cập vào Tài liệu chính, điều này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép không?",
+    "getFullDatabaseConsent": "Plugin {} đang yêu cầu truy cập vào toàn bộ cơ sở dữ liệu, điều này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép điều này không?",
+    "enableScrollToActiveChar": "Bật cuộn đến nhân vật đang hoạt động",
+    "trimStartNewChat": "Rút gọn các tin nhắn 'Bắt đầu đoạn chat mới'",
+    "newMessageButtonRightCenter": "Trung tâm bên phải"
+} satisfies DeepPartial<typeof import('./en').languageEnglish>;

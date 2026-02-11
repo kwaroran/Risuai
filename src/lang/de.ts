@@ -154,7 +154,8 @@ export const languageGerman = {
         "openrouterProviderIgnore": "Ignorieren Sie die Anbieter in dieser Liste. Wenn alle Anbieter ignoriert werden, schlägt die Anfrage fehl. Siehe Details unter https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         "additionalPrompt": "Text, der am Ende der Haupt-Anweisung angehängt wird, wenn die Anweisungsvorverarbeitung aktiviert ist. Der Standardwert ist 'The assistant must act as {{char}}. user is {{user}}.' Dies hilft, den grundlegenden Rollenspielkontext einzurichten.",
         "hideAllImagesDesc": "Blendet Bot-Symbole, Bot-Bild-Assets und RisuRealm-Coverbilder aus.",
-        "embedding": "Das Embedding-Modell wird für die Ähnlichkeitssuche in mehreren Funktionen verwendet:\n\n- **Langzeitgedächtnis**: HypaV2, HypaV3, Hanurai Memory und SupaMemory (bei aktiviertem HypaMemory)\n- **Zusätzlicher Text**: Abgleich zusätzlicher Charakterinformationen basierend auf dem Kontext\n- **Dynamische Assets**: Finden ähnlicher Asset-Namen, wenn keine exakte Übereinstimmung gefunden wird\n- **Emotionsbilder**: Wenn die Emotionsmethode auf 'Embedding' gesetzt ist\n- **Trigger-Skripte**: Ähnlichkeitsbedingungen in Trigger-Skripten\n- **Dateianhänge**: Suche in PDF/TXT/XML-Anhängen\n- **Playground**: Embedding-Tests im Playground"
+        "embedding": "Das Embedding-Modell wird für die Ähnlichkeitssuche in mehreren Funktionen verwendet:\n\n- **Langzeitgedächtnis**: HypaV2, HypaV3, Hanurai Memory und SupaMemory (bei aktiviertem HypaMemory)\n- **Zusätzlicher Text**: Abgleich zusätzlicher Charakterinformationen basierend auf dem Kontext\n- **Dynamische Assets**: Finden ähnlicher Asset-Namen, wenn keine exakte Übereinstimmung gefunden wird\n- **Emotionsbilder**: Wenn die Emotionsmethode auf 'Embedding' gesetzt ist\n- **Trigger-Skripte**: Ähnlichkeitsbedingungen in Trigger-Skripten\n- **Dateianhänge**: Suche in PDF/TXT/XML-Anhängen\n- **Playground**: Embedding-Tests im Playground",
+        "enableScrollToActiveChar": "Wenn aktiviert, wird durch Drücken des Hotkeys oder Halten der Strg-Taste beim Ziehen eines Charakters zum aktuell aktiven Charakter gescrollt. Geschlossene Ordner werden automatisch geöffnet."
     },
     "setup": {
         "chooseProvider": "Wählen Sie Ihren AI-Anbieter aus",
@@ -527,16 +528,12 @@ export const languageGerman = {
     },
     "playground": {
         "playground": "Spielwiese",
-        "inlayDeleteConfirm": (name: string) => `Möchten Sie "${name}" wirklich löschen?`,
-        "inlayDeleteMultipleConfirm": (count: number) => `Möchten Sie die ausgewählten ${count} Ressourcen wirklich löschen?`,
         "inlayDeleteSelected": "Ausgewählte löschen",
         "inlayDeselectAll": "Alle abwählen",
         "inlayEmpty": "Keine gespeicherten Inlay-Ressourcen",
         "inlayEmptyDesc": "In Chats angehängte oder generierte Bilder, Audio und Videos werden hier angezeigt",
         "inlayExplorer": "Inlay-Ressourcen-Explorer",
-        "inlayLoadMore": (remaining: number) => `Mehr laden (${remaining} verbleibend)`,
-        "inlaySelectAll": "Alle auswählen",
-        "inlayTotalAssets": (count: number) => `Insgesamt ${count} Ressourcen`,
+        "inlaySelectAll": "Alle auswählen"
     },
     "confirm": "Bestätigen",
     "goback": "Zurück",
@@ -1282,7 +1279,8 @@ export const languageGerman = {
         "import": "Importieren",
         "export": "Exportieren",
         "webcam": "Webcam umschalten",
-        "focusInput": "Eingabe fokussieren"
+        "focusInput": "Eingabe fokussieren",
+        "scrollToActiveChar": "Zum aktiven Charakter scrollen"
     },
     "screenTooSmall": "Der Bildschirm ist zu klein, um die Benutzeroberfläche anzuzeigen.",
     "advancedModelSettings": "Erweiterte Modelleinstellungen",
@@ -1381,4 +1379,12 @@ export const languageGerman = {
     "disableAbove": "Nachrichten für KI kürzen",
     "autoScrollToNewMessage": "Automatisch zu neuen Nachrichten scrollen",
     "newMessageButtonStyle": "Stil der Schaltfläche „Neue Nachricht“",
-} satisfies DeepPartial<typeof import('./en').languageEnglish>
+    "pluginDevelopMode": "Plugin-Entwicklungsmodus",
+    "newMessageButtonTopBar": "Obere Leiste",
+    "fetchLogConsent": "Plugin {} möchte Protokolle abrufen, was sensible Informationen offenlegen könnte. Möchten Sie dies zulassen?",
+    "getFullDatabaseConsent": "Das Plugin {} möchte auf die gesamte Datenbank zugreifen, was zur Offenlegung sensibler Informationen führen kann. Möchten Sie dies zulassen?",
+    "mainDomAccessConsent": "Plugin {} möchte auf das Hauptdokument zugreifen, wodurch sensible Informationen offengelegt werden könnten. Möchten Sie dies zulassen?",
+    "enableScrollToActiveChar": "Scrollen zum aktiven Charakter aktivieren",
+    "newMessageButtonRightCenter": "Mitte rechts",
+    "trimStartNewChat": "„Neuen Chat starten“-Nachrichten kürzen"
+} satisfies DeepPartial<typeof import('./en').languageEnglish>;

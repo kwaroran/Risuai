@@ -342,6 +342,8 @@ export function setDatabase(data:Database){
     data.OAIPrediction ??= ''
     data.autoSuggestClean ??= true
     data.imageCompression ??= true
+    data.enableBlockPartialEdit ??= false
+    data.enableDragPartialEdit ??= false
     if(!data.formatingOrder.includes('personaPrompt')){
         data.formatingOrder.splice(data.formatingOrder.indexOf('main'),0,'personaPrompt')
     }
@@ -801,6 +803,8 @@ export interface Database{
     sendWithEnter:boolean
     fixedChatTextarea:boolean
     clickToEdit: boolean
+    enableBlockPartialEdit: boolean
+    enableDragPartialEdit: boolean
     koboldURL:string
     useAutoSuggestions:boolean
     autoSuggestPrompt:string

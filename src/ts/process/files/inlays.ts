@@ -6,10 +6,11 @@ import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
 
 export type InlayAsset = {
-    data: string | Blob,
+    data: string | Blob
+    /** File extension */
     ext: string
     height: number
-    name: string,
+    name: string
     type: 'image' | 'video' | 'audio'
     width: number
 }

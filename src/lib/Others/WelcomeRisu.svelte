@@ -261,7 +261,7 @@
                                 step = 4
                             }}>
                                 <h1 class="text-2xl font-bold text-start">OpenRouter</h1>
-                                <span class="mt-2 text-textcolor2 text-start">{language.setup.openrouterProvider}</span>
+                                <span class="mt-2 text-textcolor2 text-start">{language.setup.openRouterProvider}</span>
                             </button>
                         </div>
                     {/if}
@@ -271,7 +271,7 @@
                             <Chat name="Airisu" img={airisuStyle} message={language.setup.setupOpenAI} isLastMemory={false} />
                         {/if}
                         {#if provider === 'openrouter'}
-                            <Chat name="Airisu" img={airisuStyle} message={language.setup.setupOpenrouter} isLastMemory={false} />
+                            <Chat name="Airisu" img={airisuStyle} message={language.setup.setupOpenRouter} isLastMemory={false} />
                         {/if}
                         {#if provider === 'claude'}
                             {#each language.setup.setupClaudeSteps as step, i}

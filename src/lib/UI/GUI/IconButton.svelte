@@ -11,7 +11,7 @@
         id?: string;
     }
 
-    const { children, onclick, name, className }: Props = $props();
+    const { children, onclick, name, className, id }: Props = $props();
 </script>
 
 <button class={{

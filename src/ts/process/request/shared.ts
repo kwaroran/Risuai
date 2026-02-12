@@ -1,6 +1,6 @@
 import { getDatabase } from 'src/ts/storage/database.svelte'
 
-export type Parameter =
+export type LLMParameter =
     | 'temperature'
     | 'top_k'
     | 'repetition_penalty'
@@ -32,8 +32,8 @@ export function setObjectValue<T>(obj: T, key: string, value: any): T {
 
 export function applyParameters(
     data: Record<string, any>,
-    parameters: Parameter[],
-    rename: Partial<Record<Parameter, string>>,
+    parameters: LLMParameter[],
+    rename: Partial<Record<LLMParameter, string>>,
     ModelMode: ModelModeExtended,
     arg: {
         ignoreTopKIfZero?: boolean

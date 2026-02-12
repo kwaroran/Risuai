@@ -9,7 +9,7 @@ import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
 import { addFetchLog } from "src/ts/globalApi.svelte"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters, type Parameter } from './shared'
+import { applyParameters, type LLMParameter } from './shared'
 
 type GeminiFunctionCall = {
     id?: string;
@@ -300,7 +300,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         }
     }
 
-    let para:Parameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
+    let para:LLMParameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
 
     if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
         para.push('thinking_tokens')

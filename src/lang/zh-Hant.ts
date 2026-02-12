@@ -528,12 +528,15 @@ export const languageChineseTraditional = {
     },
     "playground": {
         "playground": "Playground",
+        "inlayDeleteConfirm": "確定要刪除\"{name}\"嗎？",
+        "inlayDeleteMultipleConfirm": "確定要刪除選中的{count}個資源嗎？",
         "inlayDeleteSelected": "刪除選中項",
         "inlayDeselectAll": "取消全選",
         "inlayEmpty": "沒有保存的內聯資源",
         "inlayEmptyDesc": "在聊天中附加或生成的圖像、音頻和視頻將顯示在這裡",
         "inlayExplorer": "內聯資源瀏覽器",
-        "inlaySelectAll": "全選"
+        "inlaySelectAll": "全選",
+        "inlayTotalAssets": "共{count}個資源",
     },
     "confirm": "確定",
     "goback": "返回",

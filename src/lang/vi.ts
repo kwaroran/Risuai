@@ -528,12 +528,15 @@ export const languageVietnamese = {
     },
     "playground": {
         "playground": "Playground",
+        "inlayDeleteConfirm": "Bạn có chắc muốn xóa \"{name}\" không?",
+        "inlayDeleteMultipleConfirm": "Bạn có chắc muốn xóa ${count} tài sản được chọn không?",
         "inlayDeleteSelected": "Xóa mục đã chọn",
         "inlayDeselectAll": "Bỏ chọn tất cả",
         "inlayEmpty": "Không có tài sản nội tuyến đã lưu",
         "inlayEmptyDesc": "Hình ảnh, âm thanh và video được đính kèm hoặc tạo trong trò chuyện sẽ xuất hiện ở đây",
         "inlayExplorer": "Trình khám phá Tài sản Inlay",
-        "inlaySelectAll": "Chọn tất cả"
+        "inlaySelectAll": "Chọn tất cả",
+        "inlayTotalAssets": "Tổng cộng ${count} tài sản",
     },
     "confirm": "Xác nhận",
     "goback": "Quay lại",

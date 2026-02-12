@@ -528,12 +528,15 @@ export const languageSpanish = {
     },
     "playground": {
         "playground": "Playground",
+        "inlayDeleteConfirm": "¿Estás seguro de que deseas eliminar \"{name}\"?",
+        "inlayDeleteMultipleConfirm": "¿Estás seguro de que deseas eliminar los {count} recursos seleccionados?",
         "inlayDeleteSelected": "Eliminar seleccionados",
         "inlayDeselectAll": "Deseleccionar todo",
         "inlayEmpty": "Sin recursos inlay guardados",
         "inlayEmptyDesc": "Las imágenes, audios y videos adjuntos o generados en chats aparecerán aquí",
         "inlayExplorer": "Explorador de Recursos Inlay",
-        "inlaySelectAll": "Seleccionar todo"
+        "inlaySelectAll": "Seleccionar todo",
+        "inlayTotalAssets": "Total {count} recursos",
     },
     "confirm": "Confirmar",
     "goback": "Volver",

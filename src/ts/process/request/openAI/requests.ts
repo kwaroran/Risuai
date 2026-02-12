@@ -1,46 +1,21 @@
 import { language } from "src/lang"
+import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { isTauri } from "src/ts/platform"
-import type { OpenAIChatFull } from "../index.svelte"
-import { extractJSON, getOpenAIJSONSchema } from "../templates/jsonSchema"
-import { applyChatTemplate } from "../templates/chatTemplate"
-import { supportsInlayImage } from "../files/inlays"
 import { simplifySchema } from "src/ts/util"
-import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
-import { alertError } from "src/ts/alert";
-import type { OpenAIChatExtra, OpenAIContents, OpenAIToolCall, RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters, setObjectValue } from './shared'
 
-interface OAIResponseInputItem {
-    content:({
-        type: 'input_text',
-        text: string
-    }|{
-        detail: 'high'|'low'|'auto'
-        type: 'input_image',
-        image_url: string
-    }|{
-        type: 'input_file',
-        file_data: string
-        filename?: string
-    })[]
-    role:'user'|'system'|'developer'
-}
+import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
+import { applyChatTemplate } from "../../templates/chatTemplate"
+import { supportsInlayImage } from "../../files/inlays"
+import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
+import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
+import { applyParameters, setObjectValue } from '../shared'
 
-interface OAIResponseOutputItem {
-    content:({
-        type: 'output_text',
-        text: string,
-        annotations: []
-    })[]
-    type: 'message',
-    status: 'in_progress'|'complete'|'incomplete'
-    role:'assistant'
-}
+import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     let formatedChat:OpenAIChatExtra[] = []
@@ -108,7 +83,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         
         return processedMessages
     }
-      for(let i=0;i<formated.length;i++){
+    for(let i=0;i<formated.length;i++){
         const m = formated[i]
         
         // Check if message contains tool calls
@@ -118,7 +93,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         else if(m.multimodals && m.multimodals.length > 0 && m.role === 'user'){
             let v:OpenAIChatExtra = safeStructuredClone(m)
-            let contents:OpenAIContents[] = []
+            let contents:Contents[] = []
             for(let j=0;j<m.multimodals.length;j++){
                 contents.push({
                     "type": "image_url",
@@ -682,7 +657,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
 }
 
-export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
+async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     
     const db = getDatabase()
     const res = await globalFetch(replacerURL, {
@@ -744,7 +719,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
     if(res.ok){
         try {
             // Collect all tool_calls from all choices
-            let allToolCalls: OpenAIToolCall[] = []
+            let allToolCalls: ToolCall[] = []
             if(dat.choices) {
                 for(const choice of dat.choices) {
                     if(choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
@@ -759,7 +734,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
             }
 
             if(dat.choices?.[0]?.message?.tool_calls && dat.choices[0].message.tool_calls.length > 0){
-                const toolCalls = dat.choices[0].message.tool_calls as OpenAIToolCall[]
+                const toolCalls = dat.choices[0].message.tool_calls as ToolCall[]
 
                 const messages = body.messages as OpenAIChatExtra[]
                 
@@ -976,10 +951,6 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
     
 }
 
-
-type OAIResponseItem = OAIResponseInputItem|OAIResponseOutputItem
-
-
 export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
 
     const formated = arg.formated
@@ -987,7 +958,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     const aiModel = arg.aiModel
     const maxTokens = arg.maxTokens
 
-    const items:OAIResponseItem[] = []
+    const items:ResponseItem[] = []
 
     for(let i=0;i<formated.length;i++){
         const content = formated[i]
@@ -995,7 +966,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
             case 'function':
                 break
             case 'assistant':{
-                const item:OAIResponseOutputItem = {
+                const item:ResponseOutputItem = {
                     content: [],
                     role: content.role,
                     status: 'complete',
@@ -1013,7 +984,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
             }
             case 'user':
             case 'system':{
-                const item:OAIResponseInputItem = {
+                const item:ResponseInputItem = {
                     content: [],
                     role: content.role
                 }
@@ -1047,7 +1018,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     }
 
     if(items[items.length-1].role === 'assistant'){
-        (items[items.length-1] as OAIResponseOutputItem).status = 'incomplete'
+        (items[items.length-1] as ResponseOutputItem).status = 'incomplete'
     }
     
     const body = applyParameters({
@@ -1153,7 +1124,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    let result: string = (response.data.output?.find((m:OAIResponseOutputItem) => m.type === 'message') as OAIResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
+    let result: string = (response.data.output?.find((m:ResponseOutputItem) => m.type === 'message') as ResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
 
     if(!result){
         return {
@@ -1331,7 +1302,7 @@ function wrapToolStream(
                     value = lastValue ?? {'0': ''}
                     content = value?.['0'] || ''
                     
-                    const toolCalls = Object.values(JSON.parse(value?.['__tool_calls'] || '{}') || {}) as OpenAIToolCall[]; 
+                    const toolCalls = Object.values(JSON.parse(value?.['__tool_calls'] || '{}') || {}) as ToolCall[]; 
                     if(toolCalls && toolCalls.length > 0){
                         const messages = body.messages as OpenAIChatExtra[]
 

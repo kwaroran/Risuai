@@ -52,21 +52,6 @@ export interface MultiModal{
     width?:number
 }
 
-export interface OpenAIChatFull extends OpenAIChat{
-    function_call?: {
-        name: string
-        arguments:string
-    }
-    tool_calls?:{
-        function: {
-            name: string
-            arguments:string
-        }
-        id:string
-        type:'function'
-    }[]
-}
-
 export interface requestTokenPart{
     name:string
     tokens:number

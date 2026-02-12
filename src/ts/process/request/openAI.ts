@@ -1,11 +1,10 @@
 import { language } from "src/lang"
-import { applyParameters, setObjectValue, type OpenAIChatExtra, type OpenAIContents, type OpenAIToolCall, type RequestDataArgumentExtended, type requestDataResponse, type StreamResponseChunk } from "./request"
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { isTauri, isNodeServer } from "src/ts/platform"
+import { isTauri } from "src/ts/platform"
 import type { OpenAIChatFull } from "../index.svelte"
 import { extractJSON, getOpenAIJSONSchema } from "../templates/jsonSchema"
 import { applyChatTemplate } from "../templates/chatTemplate"
@@ -13,7 +12,8 @@ import { supportsInlayImage } from "../files/inlays"
 import { simplifySchema } from "src/ts/util"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
-
+import type { OpenAIChatExtra, OpenAIContents, OpenAIToolCall, RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
+import { applyParameters, setObjectValue } from './shared'
 
 interface OAIResponseInputItem {
     content:({
@@ -40,15 +40,6 @@ interface OAIResponseOutputItem {
     type: 'message',
     status: 'in_progress'|'complete'|'incomplete'
     role:'assistant'
-}
-
-interface OAIResponseOutputToolCall {
-    arguments: string
-    call_id: string
-    name: string
-    type: 'function_call'
-    id: string
-    status: 'in_progress'|'complete'|'error'
 }
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{

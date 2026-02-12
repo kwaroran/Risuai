@@ -1,4 +1,4 @@
-import type { Parameter } from "../process/request/request"
+import type { Parameter } from '../process/request/shared'
 
 export enum LLMFlags{
     hasImageInput,

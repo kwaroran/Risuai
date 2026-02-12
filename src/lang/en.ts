@@ -1535,4 +1535,10 @@ export const languageEnglish = {
         cancel: "Cancel",
     },
     enableRemoteSaving: "Enable Remote Saving",
+} satisfies I18nTranslation;
+
+type I18nTranslationFunction = (...args: any[]) => string;
+
+type I18nTranslation = {
+    [key: string]: string | I18nTranslation | string[] | I18nTranslationFunction
 }

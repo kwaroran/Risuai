@@ -2,7 +2,7 @@ import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
 import { globalFetch } from "../../globalApi.svelte";
 import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
-import { risuChatParser, risuEscape, risuUnescape } from "../../parser.svelte";
+import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
 import { getCurrentCharacter, getCurrentChat, getDatabase, type character } from "../../storage/database.svelte";
 import { tokenizeNum } from "../../tokenizer";

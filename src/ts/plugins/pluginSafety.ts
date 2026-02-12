@@ -1,4 +1,4 @@
-import { hasher } from '../parser.svelte';
+import { hasher } from '../parser/parser.svelte';
 
 export interface CheckResult {
     isSafe: boolean;

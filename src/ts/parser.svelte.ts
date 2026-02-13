@@ -192,6 +192,7 @@ function renderMarkdown(md:markdownit, data:string){
 
         //clean up any unmatched quote marks
         text = text.replace(/\uE9b0/gu,  quotes[0]).replace(/\uE9b1/gu, quotes[1])
+        text = text.replace(/\uE9b2/gu, quotes[2]).replace(/\uE9b3/gu, quotes[3])
         
     }
     else{

@@ -121,7 +121,7 @@
         vttB64 = `data:text/vtt;base64,${Buffer.from(outputText).toString('base64')}`
 
         const audio = new Audio(sendSound);
-        audio.play();
+        audio.play().catch(() => {});
     }
 
     async function runWhisperMode() {
@@ -347,7 +347,7 @@
         vobj = convertWebVTTtoObj(outputText)
 
         const audio = new Audio(sendSound);
-        audio.play();
+        audio.play().catch(() => {});
     }
 
     

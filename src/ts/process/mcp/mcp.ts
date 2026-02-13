@@ -268,7 +268,8 @@ export async function importMCPModule(){
         !x.startsWith('http://127') &&
         !x.startsWith('https:') &&
         !x.startsWith('internal:') &&
-        !x.startsWith('stdio:')
+        !x.startsWith('stdio:') &&
+        !x.startsWith('plugin:')
     ){
         alertError('Invalid URL');
         return;

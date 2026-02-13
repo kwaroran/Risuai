@@ -42,9 +42,6 @@ export async function registerMCPModule(arg: {
     getToolList: () => Promise<MCPTool[]>,
     callTool: (toolName: string, content: any) => Promise<RPCToolCallContent[]>,
 ) {
-    if (registeredCustomPluginMCPs.has(arg.identifier)) {
-        throw new Error(`MCP module with identifier ${arg.identifier} is already registered.`);
-    }
     if (!arg.identifier.startsWith('plugin:')) {
         throw new Error(`MCP module identifier must start with 'plugin:'.`);
     }

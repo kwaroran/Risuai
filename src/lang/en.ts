@@ -1535,6 +1535,7 @@ export const languageEnglish = {
         cancel: "Cancel",
     },
     enableRemoteSaving: "Enable Remote Saving",
+    blockquoteStyling: "Blockquote Styling",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

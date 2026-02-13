@@ -288,6 +288,20 @@ body {
   color: var(--FontColorQuote2);
 }
 
+.chattext mark[risu-mark="blockquote1"] {
+  border-left: 4px solid var(--FontColorQuote1);
+  background-color: color-mix(in srgb, transparent 90%, var(--FontColorQuote1) 10%);
+  padding: 0.5rem 1rem;
+  color: var(--FontColorQuote1);
+}
+
+.chattext mark[risu-mark="blockquote2"] {
+  border-left: 4px solid var(--FontColorQuote2);
+  background-color: color-mix(in srgb, transparent 90%, var(--FontColorQuote2) 10%);
+  padding: 0.5rem 1rem;
+  color: var(--FontColorQuote2);
+}
+
 .strokeme {
   color: #000;
   text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white;

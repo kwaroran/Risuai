@@ -1144,6 +1144,7 @@ export interface Database{
     echoDelay?:number
     createFolderOnBranch?:boolean
     enableRemoteSaving?:boolean
+    blockquoteStyling?:boolean
 }
 
 interface SeparateParameters{

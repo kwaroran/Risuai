@@ -370,6 +370,10 @@
     </div>
 
     <div class="flex items-center mt-2">
+        <Check bind:check={DBState.db.blockquoteStyling} name={language.blockquoteStyling}/>
+    </div>
+
+    <div class="flex items-center mt-2">
         <Check bind:check={DBState.db.customQuotes} name={language.customQuotes}/>
     </div>
 

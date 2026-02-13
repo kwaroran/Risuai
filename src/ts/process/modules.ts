@@ -5,8 +5,8 @@ import { AppendableBuffer, downloadFile, forageStorage, readImage, saveAsset } f
 import { selectSingleFile, sleep } from "../util"
 import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
+import { compressImage } from '../media'
 import { decodeRPack, encodeRPack } from "../rpack/rpack_js"
-import { convertImage } from "../util/imageConvert"
 import { HideIconStore, moduleBackgroundEmbedding, ReloadGUIPointer } from "../stores.svelte"
 import {get} from "svelte/store"
 
@@ -78,7 +78,7 @@ export async function exportModule(module:RisuModule, arg:{
         if(!rData){
             rData = new Uint8Array(0) //blank buffer
         }
-        let encoded = await encodeRPack(Buffer.from(await convertImage(rData)))
+        let encoded = await encodeRPack(Buffer.from(await compressImage(rData)))
         writeLength(encoded.length)
         apb.append(encoded)
     }

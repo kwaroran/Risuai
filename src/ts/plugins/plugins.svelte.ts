@@ -810,9 +810,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         let data = ''
         let version = plugin.version || 2
 
-        const createRealScript = (data:string) => {
-            // TS's built-in Trusted Types typings don't structurally match this minimal shim,
-            // so cast through unknown to avoid a false-negative incompatibility error.
+        const createRealScript = (data:string): string => {
             const tt = (window as unknown as Window & {
                 trustedTypes?: {
                     createPolicy: (name: string, rules: { createScript: (input: string) => string }) => { createScript: (input: string) => string }
@@ -823,7 +821,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             }
 
             const policy = policyFactory.createPolicy('plugin-policy', {
-                createScript: (input) => {
+                createScript: (_input) => {
                     return `(async () => {
                         const risuFetch = globalThis.__pluginApis__.risuFetch
                         const nativeFetch = globalThis.__pluginApis__.nativeFetch

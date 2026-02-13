@@ -4,7 +4,7 @@
     import Help from "src/lib/Others/Help.svelte";
     import { selectSingleFile } from "src/ts/util";
     import { DBState, selectedCharID } from 'src/ts/stores.svelte';
-    import { saveAsset, downloadFile } from "src/ts/globalApi.svelte";
+    import { saveAsset, downloadFile, globalFetch } from "src/ts/globalApi.svelte";
     import { isTauri } from "src/ts/platform"
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
@@ -77,6 +77,150 @@
         return parseFloat(maxMemoryRatio.toFixed(2));
     }
     // End HypaV3
+
+    // wavespeed
+    interface WavespeedModel {
+        model_id: string;
+        name: string;
+        base_price: number;
+        supportsImageInput: boolean;
+        supportsLoras: boolean;
+    }
+    interface LoraItem {
+        path: string;
+        scale: number;
+    }
+    let wavespeedModels = $state<WavespeedModel[]>([]);
+    let isWavespeedLoading = $state(false);
+    let wavespeedSearchQuery = $state("");
+    let wavespeedLoras = $state<LoraItem[]>([
+        { path: "", scale: 1.0 },
+        { path: "", scale: 1.0 },
+        { path: "", scale: 1.0 }
+    ]);
+
+    /**
+     * Fetch models from WaveSpeed API dynamically
+     * https://wavespeed.ai/docs/docs-common-api/models
+     */
+    async function fetchWavespeedModels() {
+        if (!DBState.db.wavespeedImage.key || DBState.db.wavespeedImage.key.trim() === '') {
+            alertError('WaveSpeed API Key not set');
+            return [];
+        }
+
+        isWavespeedLoading = true;
+        try {
+            const result = await globalFetch('https://api.wavespeed.ai/api/v3/models', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${DBState.db.wavespeedImage.key}`
+                },
+            });
+
+            if (!result.ok || !result.data) {
+                alertError('Failed to fetch WaveSpeed models');
+                return;
+            }
+
+            let responseData;
+            try {
+                responseData = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+            } catch (e) {
+                alertError('Failed to parse WaveSpeed response');
+                return;
+            }
+
+            if (responseData.code !== 200 || !Array.isArray(responseData.data)) {
+                alertError('Invalid WaveSpeed API response');
+                return;
+            }
+
+            // Filter, transform, and sort models by name
+            const filteredModels: WavespeedModel[] = responseData.data
+              .filter((model: any) =>
+                model.type === 'text-to-image' || model.type === 'image-to-image'
+              )
+              .map((model: any) => {
+                  // Check if model supports LoRAs
+                  const supportsLoras = model.api_schema?.api_schemas?.some((schema: any) =>
+                    schema.request_schema?.properties?.loras !== undefined
+                  ) ?? false;
+
+                  return {
+                      model_id: model.model_id,
+                      name: model.name,
+                      base_price: model.base_price,
+                      type: model.type,
+                      supportsImageInput: model.type === 'image-to-image',
+                      supportsLoras: supportsLoras,
+                  };
+              })
+              .sort((a, b) => a.name.localeCompare(b.model_id));
+
+            wavespeedModels = filteredModels;
+            alertNormal(`Successfully loaded ${filteredModels.length} models`);
+        } catch (error) {
+            alertError(`Failed to fetch models: ${error}`);
+        } finally {
+            isWavespeedLoading = false;
+        }
+    }
+
+    /**
+     * Handle model selection change
+     */
+    function handleModelChange() {
+        const selectedModel = wavespeedModels.find(m => m.model_id === DBState.db.wavespeedImage.model);
+
+        // Reset reference_mode for text-to-image models
+        if (selectedModel?.supportsImageInput) {
+            DBState.db.wavespeedImage.reference_mode = '';
+            DBState.db.wavespeedImage.reference_image = undefined;
+            DBState.db.wavespeedImage.reference_base64image = undefined;
+        }
+
+        // Reset loras if model doesn't support them
+        if (!selectedModel?.supportsLoras) {
+            DBState.db.wavespeedImage.loras = undefined;
+        }
+    }
+
+    /**
+     * Get display name for a WaveSpeed model
+     * @param model - The model to get display name for
+     */
+    function getModelDisplayName(model: WavespeedModel): string {
+        const imageInputIcon = model.supportsImageInput ? '✓' : '✗';
+        const loraIcon = model.supportsLoras ? '✓' : '✗';
+        return `${model.name} (price: ${model.base_price}) [${imageInputIcon} Image] [${loraIcon} LoRA]`;
+    }
+
+    /**
+     * Filter and sort models based on search query
+     */
+    function getFilteredModels(): WavespeedModel[] {
+        if (wavespeedSearchQuery === "") return wavespeedModels;
+
+        const searchTerms = wavespeedSearchQuery.toLowerCase().trim().split(/\s+/);
+        return wavespeedModels.filter(model => {
+            const modelText = (model.name + " " + model.model_id).toLowerCase();
+            return searchTerms.every(term => modelText.includes(term));
+        });
+    }
+
+    $effect(() => {
+        // Sync loras to DB, filtering out empty URLs
+        if (DBState.db.wavespeedImage) {
+            DBState.db.wavespeedImage.loras = wavespeedLoras
+              .filter(item => item.path && item.path.trim() !== "")
+              .map(item => ({
+                  path: item.path,
+                  scale: item.scale
+              }));
+        }
+    });
+    // End wavespeed
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.otherBots}</h2>
 
@@ -119,6 +263,7 @@
             <OptionInput value="comfyui" >ComfyUI</OptionInput>
             <OptionInput value="Imagen" >Imagen</OptionInput>
             <OptionInput value="openai-compat" >OpenAI Compatible</OptionInput>
+            <OptionInput value="wavespeed" >WaveSpeedAI</OptionInput>
 
             <!-- Legacy -->
             {#if DBState.db.sdProvider === 'comfy'}
@@ -665,6 +810,131 @@
                 <OptionInput value="medium" >Medium</OptionInput>
                 <OptionInput value="high" >High</OptionInput>
             </SelectInput>
+        {/if}
+
+        {#if DBState.db.sdProvider === 'wavespeed'}
+            <span class="text-textcolor">API Key</span>
+            <TextInput size="sm" marginBottom placeholder="sk-..." hideText={DBState.db.hideApiKey} bind:value={DBState.db.wavespeedImage.key}/>
+
+            <span class="text-textcolor">Model</span>
+            <button
+              class="px-3 py-2 bg-darkbutton rounded-md hover:bg-textcolor2 transition-colors disabled:opacity-50"
+              disabled={isWavespeedLoading}
+              onclick={fetchWavespeedModels}
+            >
+                {isWavespeedLoading ? 'Loading...' : 'Refresh Models'}
+            </button>
+            <TextInput
+              bind:value={wavespeedSearchQuery}
+              placeholder="Search models..."
+              size="sm"
+              marginBottom
+            />
+            <SelectInput className="mb-4" bind:value={DBState.db.wavespeedImage.model} onchange={handleModelChange}>
+                <OptionInput value="" >Select a model...</OptionInput>
+                {#if wavespeedModels.length > 0}
+                    {#each getFilteredModels() as model}
+                        <OptionInput value={model.model_id}>
+                            {getModelDisplayName(model)}
+                        </OptionInput>
+                    {/each}
+                {:else if DBState.db.wavespeedImage.model}
+                    <OptionInput value={DBState.db.wavespeedImage.model}> {DBState.db.wavespeedImage.model} </OptionInput>
+                {/if}
+            </SelectInput>
+
+            <span class="text-textcolor mt-4">LoRAs</span>
+            {#if wavespeedModels.find(m => m.model_id === DBState.db.wavespeedImage.model)?.supportsLoras}
+                {#each wavespeedLoras as lora, index}
+                    <TextInput
+                      size="sm"
+                      marginBottom
+                      marginTop
+                      placeholder={`LoRA ${index + 1} URL (optional)`}
+                      bind:value={lora.path}
+                    />
+                    <SliderInput
+                      marginBottom
+                      min={0}
+                      max={4}
+                      step={0.1}
+                      fixed={1}
+                      bind:value={lora.scale}
+                    />
+                {/each}
+                <span class="text-textcolor2 text-xs mb-2 block">
+                    Only .safetensors files are supported. Use owner/model-name (Hugging Face) or direct URL (Civitai).
+                </span>
+            {:else}
+                <span class="text-textcolor2 text-xs mb-2 block">
+                    Model does not support LoRA. Or refresh model list to update model status.
+                </span>
+            {/if}
+
+            <span class="text-textcolor">Image Reference</span>
+            {#if wavespeedModels.find(m => m.model_id === DBState.db.wavespeedImage.model)?.supportsImageInput}
+                <SelectInput className="mb-4" bind:value={DBState.db.wavespeedImage.reference_mode}>
+                    <OptionInput value="" >None</OptionInput>
+                    <OptionInput value="image" >Upload Image</OptionInput>
+                    <OptionInput value="character" >Use Character Image</OptionInput>
+                </SelectInput>
+
+                {#if DBState.db.wavespeedImage.reference_mode === 'image'}
+                    <div class="relative">
+                        <button class="mb-2" onclick={async () => {
+                            const img = await selectSingleFile([
+                                'jpg',
+                                'jpeg',
+                                'png',
+                                'webp'
+                            ])
+                            if(!img){
+                                return null
+                            }
+
+                            const imageData = img.data;
+
+                            DBState.db.wavespeedImage.reference_base64image = Buffer.from(imageData).toString('base64');
+                            const saveId = await saveAsset(imageData)
+                            DBState.db.wavespeedImage.reference_image = saveId
+                            console.log('Character image set:', DBState.db.wavespeedImage.reference_image)
+                        }}>
+                            {#if !DBState.db.wavespeedImage.reference_image || DBState.db.wavespeedImage.reference_image === ''}
+                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                    <span class="text-sm">Upload<br />Image</span>
+                                </div>
+                            {:else}
+                                {#await getCharImage(DBState.db.wavespeedImage.reference_image, 'plain')}
+                                    <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                        <span class="text-sm">Uploading<br />Image..</span>
+                                    </div>
+                                {:then im}
+                                    <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500" alt="Base Preview"/>
+                                {/await}
+                            {/if}
+                        </button>
+
+                        {#if DBState.db.wavespeedImage.reference_image && DBState.db.wavespeedImage.reference_image !== ''}
+                            <button
+                              onclick={() => {
+                                    DBState.db.wavespeedImage.reference_image = undefined;
+                                    DBState.db.wavespeedImage.reference_base64image = undefined;
+                                }}
+                              class="absolute top-2 right-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-sm"
+                            >
+                                Delete
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+                {#if DBState.db.wavespeedImage.reference_mode === 'character'}
+                    <span class="text-textcolor2 text-xs mb-2 block">Use the character's default image.</span>
+                {/if}
+            {:else}
+                <span class="text-textcolor2 text-xs mb-2 block">
+                    Model does not support image input. Or refresh model list to update model status.
+                </span>
+            {/if}
         {/if}
     </Accordion>
 {/if}

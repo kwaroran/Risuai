@@ -8,6 +8,7 @@ import type { MCPClientLike } from "./internalmcp";
 import localforage from "localforage";
 import { isTauri } from "src/ts/platform"
 import { sleep } from "src/ts/util";
+import { registeredCustomPluginMCPs } from "./pluginmcp";
 
 export type MCPToolWithURL = MCPTool & {
     mcpURL: string;
@@ -52,12 +53,30 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                         MCPs[mcp] = new GoogleSearchClient();
                         break;
                     }
+                    case 'internal:graphmem':{
+                        const { GraphMemClient } = await import('./graphmem');
+                        MCPs[mcp] = new GraphMemClient();
+                        break;
+                    }
+                    case 'internal:dice':{
+                        const { DiceClient } = await import('./dice');
+                        MCPs[mcp] = new DiceClient();
+                        break;
+                    }
                 }
 
                 await MCPs[mcp].checkHandshake();
                 continue;
             }
 
+            if(mcp.startsWith('plugin:')){
+                const customMCP = registeredCustomPluginMCPs.get(mcp);
+                if(customMCP){
+                    MCPs[mcp] = customMCP;
+                    await MCPs[mcp].checkHandshake();
+                    continue;
+                }
+            }
             if(mcp.startsWith('stdio:')){
                 const MCPJSON = mcp.slice('stdio:'.length);
                 try {
@@ -235,6 +254,8 @@ export async function importMCPModule(){
         ['internal:risuai', 'Risu Access Client (internal:risuai)'],
         ['internal:fs', 'File System Client (internal:fs)'],
         ['internal:googlesearch', 'Google Search Client (internal:googlesearch)'],
+        ['internal:dice', 'Dice Tool Client (internal:dice)'],
+        ['internal:graphmem', 'Graph Memory Client (internal:graphmem)'],
         ['https://mcp.paypal.com/sse', 'PayPal MCP (https://mcp.paypal.com/sse)'],
         ['https://mcp.linear.app/sse', 'Linear MCP (https://mcp.linear.app/sse)'],
         ['https://rag-mcp-2.whatsmcp.workers.dev/sse', 'OneContext MCP (https://rag-mcp-2.whatsmcp.workers.dev/sse)'],
@@ -247,7 +268,8 @@ export async function importMCPModule(){
         !x.startsWith('http://127') &&
         !x.startsWith('https:') &&
         !x.startsWith('internal:') &&
-        !x.startsWith('stdio:')
+        !x.startsWith('stdio:') &&
+        !x.startsWith('plugin:')
     ){
         alertError('Invalid URL');
         return;

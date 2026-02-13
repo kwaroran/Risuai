@@ -11,6 +11,7 @@ import { language } from "src/lang";
 import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
+import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
 
 /*
     V3 API for RisuAI Plugins
@@ -762,6 +763,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return {id:id};
         },
+        registerMCP: registerMCPModule,
+        unregisterMCP: unregisterMCPModule,
         unregisterUIPart: (id: string) => {
             const removeFromMenuStore = (menuStore: MenuDef[]) => {
                 const index = menuStore.findIndex(item => item.id === id);

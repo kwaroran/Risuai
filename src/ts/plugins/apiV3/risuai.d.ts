@@ -95,6 +95,60 @@
  */
 
 // ============================================================================
+// MCP Types
+// ============================================================================
+
+/**
+ * MCP tool definition
+ */
+interface MCPToolDef {
+    /** Tool name */
+    name: string;
+    /** Tool description */
+    description: string;
+    /** JSON schema for input validation */
+    inputSchema: any;
+    /** Annotations for the tool, can be used for documentation or metadata */
+    annotations?: any;
+}
+
+/**
+ * Text content returned from an MCP tool call
+ */
+interface MCPToolCallTextContent {
+    type: 'text';
+    text: string;
+}
+
+/**
+ * Image or audio content returned from an MCP tool call
+ */
+interface MCPToolCallImageAudioContent {
+    type: 'image' | 'audio';
+    /** Base64 encoded data */
+    data: string;
+    /** e.g. 'image/png', 'image/jpeg' */
+    mimeType: string;
+}
+
+/**
+ * Resource content returned from an MCP tool call
+ */
+interface MCPToolCallResourceContent {
+    type: 'resource';
+    resource: {
+        uri: string;
+        mimeType: string;
+        text: string;
+    };
+}
+
+/**
+ * Content types that can be returned from an MCP tool call
+ */
+type MCPToolCallContent = MCPToolCallTextContent | MCPToolCallImageAudioContent | MCPToolCallResourceContent;
+
+// ============================================================================
 // Core Types
 // ============================================================================
 
@@ -1267,6 +1321,61 @@ interface RisuaiPluginAPI {
      * @param id - UI part ID returned during registration
      */
     unregisterUIPart(id: string): Promise<void>;
+
+    // ========== MCP APIs ==========
+
+    /**
+     * Registers a custom MCP (Model Context Protocol) module
+     * @param arg - MCP module configuration
+     * @param arg.identifier - Unique identifier (must start with 'plugin:')
+     * @param arg.name - Display name of the MCP module
+     * @param arg.version - Version string
+     * @param arg.description - Description of the MCP module
+     * @param getToolList - Function that returns the list of available tools
+     * @param callTool - Function that handles tool invocations
+     *
+     * @example
+     * ```typescript
+     * await risuai.registerMCP(
+     *   {
+     *     identifier: 'plugin:my-tools',
+     *     name: 'My Tools',
+     *     version: '1.0.0',
+     *     description: 'Custom tools for my plugin'
+     *   },
+     *   async () => [{
+     *     name: 'hello',
+     *     description: 'Says hello',
+     *     inputSchema: { type: 'object', properties: { name: { type: 'string' } } }
+     *   }],
+     *   async (toolName, content) => [{
+     *     type: 'text',
+     *     text: `Hello, ${content.name}!`
+     *   }]
+     * );
+     * ```
+     */
+    registerMCP(
+        arg: {
+            identifier: string;
+            name: string;
+            version: string;
+            description: string;
+        },
+        getToolList: () => Promise<MCPToolDef[]>,
+        callTool: (toolName: string, content: any) => Promise<MCPToolCallContent[]>
+    ): Promise<void>;
+
+    /**
+     * Unregisters a previously registered MCP module
+     * @param identifier - The identifier used when registering the MCP module
+     *
+     * @example
+     * ```typescript
+     * await risuai.unregisterMCP('plugin:my-tools');
+     * ```
+     */
+    unregisterMCP(identifier: string): Promise<void>;
 
     // ========== Provider APIs ==========
 

@@ -230,11 +230,11 @@ export const languageEnglish = {
         sourcemapTranslate:
             "If enabled, stack traces from errors will be automatically translated to show the original source code location, using sourcemaps. This is useful for debugging.",
         realmDirectOpen: "If enabled, clicking a character in RisuRealm preview will directly open the character description.",
-        openrouterProviderOrder:
+        openRouterProviderOrder:
             "The order of providers to use, the first provider will be used first, if the provider is not available, it will use the next provider. See datail on https://openrouter.ai/docs/guides/routing/provider-selection#ordering-specific-providers",
-        openrouterProviderOnly:
+        openRouterProviderOnly:
             "Only use the providers in this list, if all the provider is not available, the request will failed. See detail on https://openrouter.ai/docs/guides/routing/provider-selection#allowing-only-specific-providers",
-        openrouterProviderIgnore:
+        openRouterProviderIgnore:
             "Ignore the providers in this list, if all the provider is ingored, the request will failed. See detail on https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers",
         additionalPrompt:
             "Text that gets appended to the Main Prompt when Prompt Preprocess is enabled. Default is 'The assistant must act as {{char}}. user is {{user}}.' This helps set up basic roleplay context.",
@@ -265,7 +265,7 @@ export const languageEnglish = {
         inputName: "Lastly, Input your Nickname.",
         welcome: "Welcome to Risuai! I am Airisu, I am here guide you to setup Risuai. First, What may I call you?",
         welcome2: "Hello {username}! before we start, I will ask you some questions. You can change these settings later in settings.\n\nFirst select the AI provider.",
-        openrouterProvider: "Openrouter has a lot of models, some of them unfiltered and some of them free, but it is not as good as OpenAI.",
+        openRouterProvider: "OpenRouter has a lot of models, some of them unfiltered and some of them free, but it is not as good as OpenAI.",
         hordeProvider: "Horde is a free provider, but the response time is long and the quality is low.",
         setProviderLater: "There are other providers, but you can set it later in settings. select this if you want to set it later.",
         setupOpenAI:
@@ -285,8 +285,8 @@ export const languageEnglish = {
             "Input just like the image above, and press 'Add'",
             "Copy the key, and paste it in here and send it.",
         ],
-        setupOpenrouter:
-            "To use Openrouter, you need to get an API key. \n1. go to https://openrouter.ai/keys\n2. click 'Create Key'\n3. set key name whatever you want.\n4. copy the key in the website\n5. go back to Risuai\n6. paste it, and click send button.",
+        setupOpenRouter:
+            "To use OpenRouter, you need to get an API key. \n1. go to https://openrouter.ai/keys\n2. click 'Create Key'\n3. set key name whatever you want.\n4. copy the key in the website\n5. go back to Risuai\n6. paste it, and click send button.",
         allDone: "All Done! please wait a moment.",
         setupLaterMessage: "Welcome {username}! do you want me to guide you to setup or do it yourself?",
         setupMessageOption1: "Guide me to setup",
@@ -624,16 +624,16 @@ export const languageEnglish = {
     },
     playground: {
         playground: "Playground",
-        inlayDeleteConfirm: (name: string) => `Are you sure you want to delete "${name}"?`,
-        inlayDeleteMultipleConfirm: (count: number) => `Are you sure you want to delete the selected ${count} assets?`,
         inlayDeleteSelected: "Delete Selected",
         inlayDeselectAll: "Deselect All",
         inlayEmpty: "No saved inlay assets",
         inlayEmptyDesc: "Images, audio, and videos attached or generated in chats will appear here",
         inlayExplorer: "Inlay Assets Explorer",
-        inlayLoadMore: (remaining: number) => `Load More (${remaining} remaining)`,
         inlaySelectAll: "Select All",
-        inlayTotalAssets: (count: number) => `Total ${count} assets`,
+        inlayDeleteConfirm: "Are you sure you want to delete {name}?",
+        inlayDeleteMultipleConfirm: "Are you sure you want to delete the selected {count} assets?",
+        inlayLoadMore: "Load More ({remaining} remaining)",
+        inlayTotalAssets: "Total {count} assets",
     },
     confirm: "Confirm",
     goback: "Go Back",
@@ -717,6 +717,12 @@ export const languageEnglish = {
     text: "Text",
     UISize: "Chat Text Size",
     newVersion: "Update found, do you want to install?",
+    remindLaterQuestion: "When should I remind you?",
+    remindIgnore: "Ignore",
+    remindLater1Day: "Remind in 1 day",
+    remindLater3Days: "Remind in 3 days",
+    remindLater5Days: "Remind in 5 days",
+    remindLater1Week: "Remind in 1 week",
     display: "Display & Audio",
     useCustomBackground: "Custom Background",
     translateInput: "Translate Input",
@@ -757,7 +763,7 @@ export const languageEnglish = {
     presets: "Presets",
     imageGeneration: "Image Generation",
     provider: "Provider",
-    key: "key",
+    key: "Key",
     noData: "No Data",
     currentImageGeneration: "Current Image Generation Data",
     promptPreprocess: "Use Prompt Preprocess",
@@ -828,6 +834,8 @@ export const languageEnglish = {
     sendWithEnter: "Send with Enter Key",
     fixedChatTextarea: "Fixed at the bottom of the chat window(When unchecked, Shift + Enter changes to send a message.)",
     clickToEdit: "Click Text to Edit",
+    enableBlockPartialEdit: "Enable Block Partial Edit (Hover to edit individual blocks)",
+    enableDragPartialEdit: "Enable Drag Partial Edit (Select text to edit)",
     setNodePassword: "Set your password to security",
     inputNodePassword: "Input your password. if you can't remember, remove save/__password.txt in your server files and restart the server.",
     simple: "Simple",
@@ -1010,11 +1018,12 @@ export const languageEnglish = {
     autoRemoveThoughtTag: "Remove Thought Tag",
     customChainOfThought: "Custom Chain of Thoughts",
     maxThoughtTagDepth: "Max Thought Tag Depth",
-    openrouterFallback: "Openrouter Fallback",
-    openrouterMiddleOut: "Openrouter Middle Out",
-    openrouterProviderOrder: "Ordering Specific Providers",
-    openrouterProviderOnly: "Allowing Only Specific Providers",
-    openrouterProviderIgnore: "Ignoring Providers",
+    openRouterFallback: "Use Fallback",
+    openRouterMiddleOut: "Use Middle Out",
+    openRouterProviderOrder: "Provider Preference Order",
+    openRouterProviderOnly: "Allowed Providers",
+    openRouterProviderIgnore: "Ignored Providers",
+    openRouterSearchModel: "Search models...",
     geminiApiKey: "Gemini API Key",
     removePunctuationHypa: "Memory Punctuation Removal",
     memoryLimitThickness: "Memory Limit Thickness",
@@ -1353,7 +1362,8 @@ export const languageEnglish = {
     loadingChatData: "Loading Chat Data",
     outputImageModal: "Output Image Modal",
     playMessageOnTranslateEnd: "Play Audio on Translate Completion",
-    seperateModelsForAxModels: "Seperate Models for Auxiliary Models",
+    auxModelUnderModelSettings: "Show Separate Aux Models in Model Settings",
+    seperateModelsForAxModels: "Separate Models for Auxiliary Models",
     axModelsDef: "Ax Models Definition",
     doNotChangeSeperateModels: "Do Not Change Seperate Models on Preset Change",
     tools: "Tools",
@@ -1497,5 +1507,38 @@ export const languageEnglish = {
     partialBackupFirstConfirm: "⚠️ WARNING: Partial Local Backup ⚠️\n\nThis backup quickly saves only essential information.\n\nIncluded:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\n⚠️ NOT Included:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other additional media files\n\nThis backup file does NOT include all character assets!\nIf you need a complete backup, use the regular local backup.\n\nDo you want to continue?",
     partialBackupSecondConfirm: "⚠️⚠️ FINAL WARNING ⚠️⚠️\n\nThis backup saves only character profile images and does NOT save most other assets!\n\nWhat will be saved:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\nWhat will NOT be saved:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other media files\n\n⚠️ Proceed ONLY if you don't need character assets in your backup file! ⚠️\n\nAre you really sure you want to proceed with partial backup?",
     savePartialLocalBackup: "Save Partial Backup Locally (Excluding Character Assets)",
-    pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin."
+    pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin.",
+    bootstrap: {
+        dataCorruptionDetected: (name: string, type: string) => `Data Corruption Detected\n\nModule "${name}" has corrupted lorebook format.\n\nCorrupted data type: ${type}`,
+        reportErrorQuestion: "Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)",
+        diagnosticInformation: (reportData: string) => `# Diagnostic Information\n\nPlease copy the information below and report it to the developer via GitHub Issues, Discord, or community.\nDouble-check for any sensitive information before reporting.\n\n\`\`\`json\n${reportData}\n\`\`\``,
+        resetLorebookQuestion: "Do you want to reset ONLY the lorebook data in this specific corrupted module?\n(Other modules and character data will NOT be affected)\n\nChoosing \"No\" will keep the data but errors may continue.",
+    },
+    partialEdit: {
+        editButtonTooltip: "Edit",
+        deleteButtonTooltip: "Delete",
+        deleteModalTitle: "Delete Confirmation",
+        deleteConfirmMessage: "Are you sure you want to delete this part?",
+        deleteYes: "Yes",
+        deleteNo: "No",
+        editModalTitle: "Partial Edit",
+        matchFound: (method: string) => `Match: ${method}`,
+        matchFailedTitle: "Cannot Partial Edit",
+        matchFailedMessage: "Unable to locate precisely in the original message. This may happen with very long sentences or duplicate content. Please use the full message edit feature instead.",
+        selectMatch: "Select which block to edit",
+        selectDeleteMatch: "Select which block to delete",
+        matchesFound: "matches found",
+        lineNumber: (line: number) => `Line ~${line}`,
+        saveShortcut: "Save (Ctrl+Enter)",
+        cancelShortcut: "Cancel (Esc)",
+        save: "Save",
+        cancel: "Cancel",
+    },
+    enableRemoteSaving: "Enable Remote Saving",
+} satisfies I18nTranslation;
+
+type I18nTranslationFunction = (...args: any[]) => string;
+
+type I18nTranslation = {
+    [key: string]: string | I18nTranslation | string[] | I18nTranslationFunction
 }

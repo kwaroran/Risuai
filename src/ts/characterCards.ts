@@ -7,9 +7,9 @@ import { v4 as uuidv4, v4 } from 'uuid';
 import { characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
+import { compressImage, getImageType } from "./media"
 import { SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { hasher } from "./parser.svelte"
-import { checkImageType, convertImage, convertImageWithMeta } from "./util/imageConvert"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
@@ -1283,7 +1283,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                     })
                     const key = card.data.extensions.risuai.emotions[i][1]
                     const rData = await readImage(key)
-                    const b64encoded = Buffer.from(await convertImage(rData)).toString('base64')
+                    const b64encoded = Buffer.from(await compressImage(rData)).toString('base64')
                     assetIndex++
                     card.data.extensions.risuai.emotions[i][1] = `__asset:${assetIndex}`
                     await writer.write("chara-ext-asset_:" + assetIndex, b64encoded)
@@ -1300,7 +1300,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                     })
                     const key = card.data.extensions.risuai.additionalAssets[i][1]
                     const rData = await readImage(key)
-                    const b64encoded = Buffer.from(await convertImage(rData)).toString('base64')
+                    const b64encoded = Buffer.from(await compressImage(rData)).toString('base64')
                     assetIndex++
                     card.data.extensions.risuai.additionalAssets[i][1] = `__asset:${assetIndex}`
                     await writer.write("chara-ext-asset_:" + assetIndex, b64encoded)
@@ -1361,12 +1361,12 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                     }
                     assetIndex++
                     if(type === 'png'){
-                        const b64encoded = Buffer.from(await convertImage(rData)).toString('base64')
+                        const b64encoded = Buffer.from(await compressImage(rData)).toString('base64')
                         card.data.assets[i].uri = `__asset:${assetIndex}`
                         await writer.write("chara-ext-asset_:" + assetIndex, b64encoded)
                     }
                     else if(type === 'json'){
-                        const b64encoded = Buffer.from(await convertImage(rData)).toString('base64')
+                        const b64encoded = Buffer.from(await compressImage(rData)).toString('base64')
                         card.data.assets[i].uri = `data:application/octet-stream;base64,${b64encoded}`
                     }
                     else{
@@ -1457,7 +1457,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         seenPaths.add(path)
 
                         card.data.assets[i].uri = 'embeded://' + path
-                        const imageType = checkImageType(rData)
+                        const imageType = getImageType(rData)
                         const metaPath = `x_meta/${uniqueName}.json`
                         if(imageType === 'PNG' && writer instanceof CharXWriter){
                             const metadatas:Record<string,string> = {}
@@ -1482,7 +1482,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                                 'type': imageType
                             }), 'utf-8'), 6)
                         }
-                        await writer.write(path, Buffer.from(converted.data))
+                        await writer.write(path, Buffer.from(await compressImage(rData)))
                     }
                 }
             }

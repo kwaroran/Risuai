@@ -1,11 +1,19 @@
 import localforage from "localforage";
 import { v4 } from "uuid";
-import { getDatabase, setDatabase, type InlayAssetMeta } from "../../storage/database.svelte";
-import { checkImageType, encodeCanvasToImage, mimeFromExt } from "../../util/imageConvert";
+import { getImageType } from "src/ts/media";
+import { getDatabase } from "../../storage/database.svelte";
 import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
-import { loadAsset, removeAsset, saveAsset } from "../../globalApi.svelte";
-import { extractInlayIdsFromMessages } from "../../util/inlayTokens";
+
+export type InlayAsset = {
+    data: string | Blob
+    /** File extension */
+    ext: string
+    height: number
+    name: string
+    type: 'image' | 'video' | 'audio'
+    width: number
+}
 
 const inlayImageExts = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'
@@ -567,7 +575,7 @@ export function supportsInlayImage(){
 }
 
 export async function reencodeImage(img:Uint8Array){
-    if(checkImageType(img) === 'PNG'){
+    if(getImageType(img) === 'PNG'){
         return img
     }
     const canvas = document.createElement('canvas')

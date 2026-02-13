@@ -48,7 +48,7 @@
   }
 
   const deleteAsset = async (id: string, name: string) => {
-    if (!(await alertConfirm(language.playground.inlayDeleteConfirm(name)))) {
+    if (!(await alertConfirm(language.playground.inlayDeleteConfirm.replace('{name}', name)))) {
       return
     }
     await removeInlayAsset(id)
@@ -62,7 +62,7 @@
 
   const deleteSelected = async () => {
     if (selection.size === 0) return
-    if (!(await alertConfirm(language.playground.inlayDeleteMultipleConfirm(selection.size)))) {
+    if (!(await alertConfirm(language.playground.inlayDeleteMultipleConfirm.replace('{count}', selection.size.toString())))) {
       return
     }
     for (const id of selection) {
@@ -106,7 +106,7 @@
 <h2 class="text-4xl text-textcolor mt-6 font-black relative">{language.playground.inlayExplorer}</h2>
 
 <header class="flex flex-wrap gap-4 py-6 items-center sticky top-0 bg-bgcolor">
-  <span class="text-textcolor2">{language.playground.inlayTotalAssets(allAssets.length)}</span>
+  <span class="text-textcolor2">{language.playground.inlayTotalAssets.replace('{count}', allAssets.length.toString())}</span>
   {#if allAssets.length > 0}
     <div class="flex gap-2 ml-auto">
       {#if hasSelection}
@@ -193,7 +193,7 @@
   {#if hasMore}
     <div class="my-6 text-center">
       <Button onclick={loadMore} styled="outlined">
-        {language.playground.inlayLoadMore(allAssets.length - displayCount)}
+        {language.playground.inlayLoadMore.replace('{remaining}', (allAssets.length - displayCount).toString())}
       </Button>
     </div>
   {/if}

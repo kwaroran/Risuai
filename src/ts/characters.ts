@@ -4,11 +4,11 @@ import { alertAddCharacter, alertConfirm, alertError, alertMd, alertNormal, aler
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
 import { v4 as uuidv4, v4 } from 'uuid';
+import { getImageType } from "./media";
 import { MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
 import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, forageStorage, getFileSrc, requiresFullEncoderReload, saveAsset } from "./globalApi.svelte";
 import { updateInlayScreen } from "./process/inlayScreen";
 import { parseMarkdownSafe } from "./parser.svelte";
-import { checkImageType } from "./util/imageConvert";
 import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
@@ -102,8 +102,7 @@ export async function selectCharImg(charIndex:number) {
     const img = selected.data
     let db = getDatabase()
 
-    const type = checkImageType(img)
-    console.log(type)
+    const type = getImageType(img)
 
     try {
         if(type === 'PNG' && db.characters[charIndex].type === 'character'){

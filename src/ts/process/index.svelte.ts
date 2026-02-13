@@ -110,9 +110,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         stage4Duration: 0
     }
 
-    let lastCharMessageIndex = -1
-    let hadImgGenTag = false
-
     let isAborted = false
     let findCharCache:{[key:string]:character} = {}
     function findCharacterbyIdwithCache(id:string){

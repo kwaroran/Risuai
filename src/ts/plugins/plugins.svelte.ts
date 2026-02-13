@@ -878,12 +878,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
             data = plugin.script
             console.log('Loading V2.0 Plugin', plugin.name)
 
-            try {
-                eval(createRealScript(data))
-            } catch (error) {
-                console.error(error)
-            }
-            console.log('Loaded V2.0 Plugin', plugin.name)
+            console.warn(`Plugin 2.0 is removed and no longer supported. Please update plugin "${plugin.name}" to API version 3.0`)
         }
     }
 }

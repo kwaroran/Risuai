@@ -58,6 +58,11 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                         MCPs[mcp] = new GraphMemClient();
                         break;
                     }
+                    case 'internal:dice':{
+                        const { DiceClient } = await import('./dice');
+                        MCPs[mcp] = new DiceClient();
+                        break;
+                    }
                 }
 
                 await MCPs[mcp].checkHandshake();
@@ -249,6 +254,7 @@ export async function importMCPModule(){
         ['internal:risuai', 'Risu Access Client (internal:risuai)'],
         ['internal:fs', 'File System Client (internal:fs)'],
         ['internal:googlesearch', 'Google Search Client (internal:googlesearch)'],
+        ['internal:dice', 'Dice Tool Client (internal:dice)'],
         ['internal:graphmem', 'Graph Memory Client (internal:graphmem)'],
         ['https://mcp.paypal.com/sse', 'PayPal MCP (https://mcp.paypal.com/sse)'],
         ['https://mcp.linear.app/sse', 'Linear MCP (https://mcp.linear.app/sse)'],

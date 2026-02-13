@@ -258,31 +258,6 @@ export async function saveAsset(data: Uint8Array, customId: string = '', fileNam
 }
 
 /**
- * Removes an asset file by path.
- *
- * @param {string} path - The path of the asset file to remove.
- */
-export async function removeAsset(path: string) {
-    if (!path) {
-        return;
-    }
-    if (isTauri) {
-        const target = path.startsWith('assets/') ? path : `assets/${path}`
-        try {
-            await remove(target, { baseDir: BaseDirectory.AppData })
-        } catch (error) {
-            console.warn(`Failed to remove asset: ${target}`, error)
-        }
-    } else {
-        try {
-            await forageStorage.removeItem(path)
-        } catch (error) {
-            console.warn(`Failed to remove asset: ${path}`, error)
-        }
-    }
-}
-
-/**
  * Loads an asset file with the given ID.
  * 
  * @param {string} id - The ID of the asset file to load.
@@ -908,13 +883,6 @@ export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'bas
         }
     }
 
-    if (db.inlayAssets) {
-        for (const [id, meta] of Object.entries(db.inlayAssets)) {
-            const path = meta?.path ?? `assets/${id}.${meta?.ext ?? 'png'}`
-            addUncleanable(path)
-        }
-    }
-
     if (db.personas) {
         db.personas.map((v) => {
             addUncleanable(v.icon);
@@ -970,14 +938,6 @@ export function replaceDbResources(db: Database, replacer: { [key: string]: stri
                 for (let i = 0; i < cha.additionalAssets.length; i++) {
                     cha.additionalAssets[i][1] = replaceData(cha.additionalAssets[i][1]);
                 }
-            }
-        }
-    }
-    if (db.inlayAssets) {
-        for (const key of Object.keys(db.inlayAssets)) {
-            const meta = db.inlayAssets[key]
-            if (meta?.path) {
-                meta.path = replaceData(meta.path)
             }
         }
     }

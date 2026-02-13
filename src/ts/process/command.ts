@@ -7,7 +7,6 @@ import { risuChatParser } from "../parser.svelte";
 import { sendChat } from "./index.svelte";
 import { loadLoreBookV3Prompt } from "./lorebook.svelte";
 import { runTrigger } from "./triggers";
-import { removeInlayAssetsForMessages } from "./files/inlays";
 
 export async function processMultiCommand(command:string) {
     let pipe = ''
@@ -127,42 +126,28 @@ async function processCommand(command:string, pipe:string):Promise<false | strin
             return pipe
         }
         case 'cut':{
-            const originalMessages = currentChat.message ?? []
-            let removedMessages: typeof originalMessages = []
             if(arg.includes('-')){
                 const [start, end] = arg.split('-')
-                const startIndex = parseInt(start)
-                const endIndex = parseInt(end)
-                removedMessages = originalMessages.filter((_msg, index) => index < startIndex || index >= endIndex)
-                currentChat.message = originalMessages.slice(startIndex, endIndex)
+                currentChat.message = currentChat.message.slice(parseInt(start), parseInt(end))
                 setDatabase(db)
-                await removeInlayAssetsForMessages(removedMessages, db)
             }
             else if(!isNaN(parseInt(arg))){
                 const index = parseInt(arg)
-                removedMessages = originalMessages.slice(index, index + 1)
-                currentChat.message = originalMessages.splice(index, 1)
+                currentChat.message = currentChat.message.splice(index, 1)
                 setDatabase(db)
-                await removeInlayAssetsForMessages(removedMessages, db)
             }
             else{ //For risu, doesn'ts work for STScript
                 const id = arg
-                removedMessages = originalMessages.filter((e)=>e.chatId === id)
-                currentChat.message = originalMessages.filter((e)=>e.chatId !== id)
+                currentChat.message = currentChat.message.filter((e)=>e.chatId !== id)
                 setDatabase(db)
-                await removeInlayAssetsForMessages(removedMessages, db)
             }
             return pipe
         }
         case 'del': {
             const size = parseInt(arg)
             if(!isNaN(size)){
-                const originalMessages = currentChat.message ?? []
-                const startIndex = Math.max(originalMessages.length - size, 0)
-                const removedMessages = originalMessages.slice(0, startIndex)
-                currentChat.message = originalMessages.slice(startIndex)
+                currentChat.message = currentChat.message.slice(currentChat.message.length-size)
                 setDatabase(db)
-                await removeInlayAssetsForMessages(removedMessages, db)
             }
             return pipe
         }
@@ -182,7 +167,6 @@ async function processCommand(command:string, pipe:string):Promise<false | strin
                 clearMode = true
                 splited.shift()
             }
-            const removedMessages = clearMode ? (currentChat.message ?? []) : []
             for(const e of splited){
                 if(clearMode){
                     currentChat.message = []
@@ -192,9 +176,6 @@ async function processCommand(command:string, pipe:string):Promise<false | strin
                     data: e
                 })
                 await sendChat(-1)
-            }
-            if(clearMode){
-                await removeInlayAssetsForMessages(removedMessages, db)
             }
             return ''
         }

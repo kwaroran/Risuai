@@ -1370,15 +1370,6 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         card.data.assets[i].uri = `data:application/octet-stream;base64,${b64encoded}`
                     }
                     else{
-                        const originalExt = card.data.assets[i].ext === 'unknown'
-                            ? key.split('.').at(-1)
-                            : card.data.assets[i].ext
-                        const converted = await convertImageWithMeta(rData, {
-                            originalExt: originalExt?.toLowerCase()
-                        })
-                        const resolvedExt = converted.ext || (card.data.assets[i].ext === 'unknown' ? 'png' : card.data.assets[i].ext)
-                        card.data.assets[i].ext = resolvedExt
-
                         let type = 'other'
                         let itype = 'other'
                         switch(card.data.assets[i].type){
@@ -1395,7 +1386,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                                 type = 'icon'
                                 break
                         }
-                        switch(resolvedExt){
+                        switch(card.data.assets[i].ext){
                             case 'png':
                             case 'jpg':
                             case 'jpeg':
@@ -1443,8 +1434,10 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                         if(name.length > 100){
                             name = name.substring(0,100)
                         }
-                        const ext = resolvedExt || 'png'
-                        const baseDir = `assets/${type}/${itype}`
+                        const ext = card.data.assets[i].ext === 'unknown' ? 'png' : card.data.assets[i].ext
+                        const baseDir = card.data.assets[i].ext === 'unknown'
+                            ? `assets/${type}/image`
+                            : `assets/${type}/${itype}`
 
                         // Generate unique path to avoid duplicate filenames
                         let uniqueName = name

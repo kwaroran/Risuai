@@ -189,6 +189,10 @@ function renderMarkdown(md:markdownit, data:string){
         }).replace(/\uE9b2(.+?)\uE9b3/gum, (full, content) => {
             return `<br><br><mark risu-mark="blockquote1">${quotes[2]}${content}${quotes[3]}</mark><br><br>`
         })
+
+        //clean up any unmatched quote marks
+        text = text.replace(/\uE9b0/gu,  quotes[0]).replace(/\uE9b1/gu, quotes[1])
+        text = text.replace(/\uE9b2/gu, quotes[2]).replace(/\uE9b3/gu, quotes[3])
     }
     else{
         text = text.replace(/\uE9b0/gu, '<mark risu-mark="quote2">' + quotes[0]).replace(/\uE9b1/gu, quotes[1] + '</mark>')

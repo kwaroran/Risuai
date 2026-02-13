@@ -8,6 +8,7 @@ import type { MCPClientLike } from "./internalmcp";
 import localforage from "localforage";
 import { isTauri } from "src/ts/platform"
 import { sleep } from "src/ts/util";
+import { registeredCustomPluginMCPs } from "./pluginmcp";
 
 export type MCPToolWithURL = MCPTool & {
     mcpURL: string;
@@ -63,6 +64,14 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                 continue;
             }
 
+            if(mcp.startsWith('plugin:')){
+                const customMCP = registeredCustomPluginMCPs.get(mcp);
+                if(customMCP){
+                    MCPs[mcp] = customMCP;
+                    await MCPs[mcp].checkHandshake();
+                    continue;
+                }
+            }
             if(mcp.startsWith('stdio:')){
                 const MCPJSON = mcp.slice('stdio:'.length);
                 try {

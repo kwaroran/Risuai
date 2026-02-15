@@ -17,7 +17,7 @@ export const languageGerman = {
         "toomuchtoken": "Fehler: Die Mindestgröße für die Antwort der KI in Tokens, die Sie angegeben haben, übersteigt die maximale Kontextgröße des Modells",
         "unknownModel": "Fehler: Unbekanntes Modell ausgewählt",
         "httpError": "Fehler: Es ist ein Fehler bei der Anfrage aufgetreten:",
-        "noData": "Es befinden sich keine Daten in der Datei oder die Datei ist beschädigt",
+        "noData": "Die Datei scheint nicht gültig zu sein oder die Daten sind beschädigt.",
         "onlyOneChat": "Es muss mindestens ein Chat vorhanden sein",
         "alreadyCharInGroup": "Es gibt bereits einen Charakter mit dem selben Namen in der Gruppe",
         "noUserIcon": "Sie müssen zuerst Ihr Icon festlegen",

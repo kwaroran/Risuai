@@ -17,7 +17,7 @@ export const languageKorean = {
         "toomuchtoken": "에러: 요청에 필요한 최소 토큰이 최대 토큰보다 큽니다.",
         "unknownModel": "에러: 알수없는 모델 선택됨",
         "httpError": "요청 에러:",
-        "noData": "파일에 데이터가 없거나 데이터가 손상됨",
+        "noData": "올바른 파일이 아니거나 데이터가 손상됐습니다.",
         "onlyOneChat": "채팅이 하나 이상 필요합니다",
         "alreadyCharInGroup": "이미 같은 캐릭터가 그룹에 존재합니다.",
         "noUserIcon": "유저 아이콘이 없습니다.",

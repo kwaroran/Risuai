@@ -17,7 +17,7 @@ export const languageEnglish = {
         toomuchtoken: "Error: The minimum required token is greater than the Max Context Size.",
         unknownModel: "Error: Unknown model selected",
         httpError: "Error: error in request:",
-        noData: "There is no data in file, or the file is corrupted",
+        noData: "The file is invalid, or its data is corrupted.",
         onlyOneChat: "There must be least one chat",
         alreadyCharInGroup: "There is already a character with the same name in the group.",
         noUserIcon: "You must set your icon first.",

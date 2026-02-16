@@ -645,7 +645,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
             method: 'POST',
             chatId: arg.chatId,
             signal: arg.abortSignal,
-            interceptor: 'gemini'
+            interceptor: 'gemini_base_stream'
         })
 
         if(f.status !== 200){
@@ -675,7 +675,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
         method: 'POST',
         chatId: arg.chatId,
         signal: arg.abortSignal,
-        interceptor: 'gemini'
+        interceptor: 'gemini_base'
     })
     
 
@@ -1145,7 +1145,7 @@ function wrapToolStream(
                                 method: 'POST',
                                 chatId: arg.chatId,
                                 signal: arg.abortSignal,
-                                interceptor: 'gemini'
+                                interceptor: 'gemini_tool'
                             })
                         
                             if(resRec.status == 200){

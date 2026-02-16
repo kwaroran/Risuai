@@ -4,6 +4,7 @@ import type { MCPTool, RPCToolCallContent } from "./mcplib";
 
 //template for MCPClient-like classes that can be used in the MCP system
 //Original MCPClient is located in src/ts/process/mcp/mcplib.ts
+
 export class MCPClientLike {
     url: string;
     serverInfo: {

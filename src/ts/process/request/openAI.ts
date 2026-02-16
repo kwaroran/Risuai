@@ -299,7 +299,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 "Authorization": "Bearer " + (arg.key ?? db.mistralKey),
             },
             abortSignal: arg.abortSignal,
-            chatId: arg.chatId
+            chatId: arg.chatId,
+            interceptor: 'mistral'
         } as const
 
         if(arg.previewBody){
@@ -572,7 +573,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             method: "POST",
             headers: headers,
             signal: arg.abortSignal,
-            chatId: arg.chatId
+            chatId: arg.chatId,
+            interceptor: 'openai_streaming'
         })
 
         if(da.status !== 200){
@@ -696,7 +698,8 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
         body: body,
         headers: headers,
         abortSignal: arg.abortSignal,
-        chatId: arg.chatId
+        chatId: arg.chatId,
+        interceptor: 'openai_basic'
     })
 
     function processTextResponse(dat: any):string{
@@ -1148,7 +1151,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body: body,
         headers: headers,
         chatId: arg.chatId,
-        abortSignal: arg.abortSignal
+        abortSignal: arg.abortSignal,
+        interceptor: 'openai_response_api'
     });
 
     if(!response.ok){
@@ -1421,7 +1425,8 @@ function wrapToolStream(
                                 method: "POST",
                                 headers: headers,
                                 signal: arg.abortSignal,
-                                chatId: arg.chatId
+                                chatId: arg.chatId,
+                                interceptor: 'openai_tool'
                             })
                             
                             if(resRec.status == 200 && resRec.headers.get('Content-Type').includes('text/event-stream')) {

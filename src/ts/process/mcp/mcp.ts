@@ -182,11 +182,16 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                 return DBState.db.authRefreshes.find(refresh => refresh.url === mcp);
             }
 
-            const mcpClient = new MCPClient(mcpUrl);
-            mcpClient.registerRefreshToken = registerRefresh;
-            mcpClient.getRefreshToken = getRefresh;
-            await mcpClient.checkHandshake()
-            MCPs[mcp] = mcpClient;
+            try {
+                    
+                const mcpClient = new MCPClient(mcpUrl);
+                mcpClient.registerRefreshToken = registerRefresh;
+                mcpClient.getRefreshToken = getRefresh;
+                await mcpClient.checkHandshake()
+                MCPs[mcp] = mcpClient;   
+            } catch (error) {
+                console.error(`Failed to initialize MCP at ${mcp}:`, error);
+            }
         }
     }
 

@@ -3,7 +3,7 @@ import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
-import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
+import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, bodyIntercepterStore, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
 import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
@@ -514,6 +514,7 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
         : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
+        : permissionDesc === 'replacer' ? language.replacerPermissionConsent.replace("{}", pluginName)
         : `Error`
     if(alertTitle === 'Error'){
         return false;
@@ -709,6 +710,33 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             )
             return {id:id};
         },
+        registerBodyIntercepter: async (callback: (body: any, type: string) => any) => {
+
+            if(await getPluginPermission(plugin.name, 'replacer') === false){
+                return null;
+            }
+            
+            const id = v4();
+            bodyIntercepterStore.push({
+                id,
+                callback
+            })
+            addPluginUnloadCallback(plugin.name, () => {
+                const index = bodyIntercepterStore.findIndex(item => item.id === id);
+                if(index !== -1){
+                    bodyIntercepterStore.splice(index, 1);
+                }
+            })
+            return {id:id};
+        },
+        
+        unregisterBodyIntercepter: (id: string) => {
+            const index = bodyIntercepterStore.findIndex(item => item.id === id);
+            if(index !== -1){
+                bodyIntercepterStore.splice(index, 1);
+            }
+        },
+            
         registerButton: (
             arg: {
                 name: string,

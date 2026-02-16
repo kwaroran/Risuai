@@ -40,6 +40,8 @@ export type SettingType =
 export interface SelectOption {
     value: string;
     label: string;
+    /** Optional condition — when provided, the option is only shown if this returns true */
+    condition?: (ctx: SettingContext) => boolean;
 }
 
 /**

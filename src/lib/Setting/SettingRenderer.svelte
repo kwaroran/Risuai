@@ -153,7 +153,7 @@
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
             </span>
             <SelectInput bind:value={(DBState.db as any)[item.bindKey]}>
-                {#each item.options?.selectOptions ?? [] as opt}
+                {#each (item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)) as opt}
                     <OptionInput value={opt.value}>{opt.label}</OptionInput>
                 {/each}
             </SelectInput>

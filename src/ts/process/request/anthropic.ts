@@ -356,8 +356,11 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         'thinking_tokens': 'thinking.budget_tokens'
     }, arg.mode)
 
-    // Handle thinking mode: adaptive vs budget
-    if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
+    // Handle thinking mode: off, adaptive, or budget
+    if(db.thinkingType === 'off'){
+        delete body.thinking
+    }
+    else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
         // Adaptive thinking mode
         delete body.thinking
         body.thinking = { type: 'adaptive' }

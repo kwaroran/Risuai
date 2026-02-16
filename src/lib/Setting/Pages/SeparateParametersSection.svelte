@@ -39,10 +39,11 @@
                 <SliderInput min={0} max={200} marginBottom step={0.01} fixed={2} bind:value={DBState.db.seperateParameters[param].presence_penalty} disableable/>
                 <span class="text-textcolor">{language.thinkingType ?? 'Thinking Mode'}</span>
                 <SelectInput bind:value={DBState.db.seperateParameters[param].thinking_type}>
+                    <OptionInput value="off">Off</OptionInput>
                     <OptionInput value="budget">Budget (Manual Tokens)</OptionInput>
                     <OptionInput value="adaptive">Adaptive</OptionInput>
                 </SelectInput>
-                {#if DBState.db.seperateParameters[param].thinking_type !== 'adaptive'}
+                {#if DBState.db.seperateParameters[param].thinking_type === 'budget'}
                     <span class="text-textcolor">{language.thinkingTokens}</span>
                     <SliderInput min={0} max={64000} marginBottom step={200} fixed={0} bind:value={DBState.db.seperateParameters[param].thinking_tokens} disableable/>
                 {/if}

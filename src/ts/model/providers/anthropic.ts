@@ -14,7 +14,8 @@ export const AnthropicModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.hasFirstSystemPrompt,
             LLMFlags.hasStreaming,
-            LLMFlags.claudeThinking
+            LLMFlags.claudeThinking,
+            LLMFlags.claudeAdaptiveThinking
         ],
         parameters: [...ClaudeParameters, 'thinking_tokens'],
         tokenizer: LLMTokenizer.Claude,

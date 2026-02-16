@@ -1349,6 +1349,8 @@ export const languageEnglish = {
     alwaysActiveInChat: "Always Active (Current Chat)",
     childLoreDesc: "This is a copy of Character lore that remains 'Always Active' until removed or manually deactivated in the original.",
     thinkingTokens: "Thinking Tokens",
+    thinkingType: "Thinking Mode",
+    adaptiveThinkingEffort: "Adaptive Thinking Effort",
     antiServerOverload: "Anti-Server Overload",
     localActivationInGlobalLorebook: "Local Activation in Global Lorebook",
     cachePoint: "Cache Point",

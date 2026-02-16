@@ -2,7 +2,7 @@ import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
 import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { replaceAsync, simplifySchema, sleep } from "src/ts/util"
@@ -356,7 +356,14 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         'thinking_tokens': 'thinking.budget_tokens'
     }, arg.mode)
 
-    if(body?.thinking?.budget_tokens === 0){
+    // Handle thinking mode: adaptive vs budget
+    if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
+        // Adaptive thinking mode
+        delete body.thinking
+        body.thinking = { type: 'adaptive' }
+        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'medium' }
+    }
+    else if(body?.thinking?.budget_tokens === 0){
         delete body.thinking
     }
     else if(body?.thinking?.budget_tokens && body?.thinking?.budget_tokens > 0){
@@ -412,7 +419,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         params.anthropic_version = "bedrock-2023-05-31"
         delete params.model
         delete params.stream
-        if (params.thinking?.type === "enabled"){
+        if (params.thinking?.type === "enabled" || params.thinking?.type === "adaptive"){
             params.temperature = 1.0
             delete params.top_k
             delete params.top_p

@@ -634,6 +634,7 @@ export function setDatabase(data:Database){
         data.promptInfoInsideChat = false
     }
     data.createFolderOnBranch ??= true
+    data.hamburgerButtonBottom ??= false
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1143,6 +1144,7 @@ export interface Database{
     echoMessage?:string
     echoDelay?:number
     createFolderOnBranch?:boolean
+    hamburgerButtonBottom?:boolean
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
 }

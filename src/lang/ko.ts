@@ -1420,4 +1420,5 @@ export const languageKorean = {
         "save": "저장",
         "cancel": "취소",
     },
+    "hamburgerButtonBottom": "메뉴 버튼을 사이드바 하단으로 이동",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

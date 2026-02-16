@@ -1394,5 +1394,6 @@ export const languageChineseTraditional = {
     "newMessageButtonRightCenter": "右中",
     "mainDomAccessConsent": "外掛程式 {} 正在要求存取主要文件，這可能會導致敏感資訊外洩。是否要允許？",
     "enableScrollToActiveChar": "啟用捲動至當前角色",
-    "fetchLogConsent": "插件 {} 正在請求擷取記錄，這可能會洩露敏感資訊。您要允許嗎？"
+    "fetchLogConsent": "插件 {} 正在請求擷取記錄，這可能會洩露敏感資訊。您要允許嗎？",
+    "hamburgerButtonBottom": "將選單按鈕移至側邊欄底部"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

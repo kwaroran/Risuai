@@ -1394,5 +1394,6 @@ export const languageGerman = {
     "mainDomAccessConsent": "Plugin {} möchte auf das Hauptdokument zugreifen, wodurch sensible Informationen offengelegt werden könnten. Möchten Sie dies zulassen?",
     "enableScrollToActiveChar": "Scrollen zum aktiven Charakter aktivieren",
     "newMessageButtonRightCenter": "Mitte rechts",
-    "trimStartNewChat": "„Neuen Chat starten“-Nachrichten kürzen"
+    "trimStartNewChat": "„Neuen Chat starten“-Nachrichten kürzen",
+    "hamburgerButtonBottom": "Menüschaltfläche an den unteren Rand der Seitenleiste verschieben"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

@@ -669,12 +669,6 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
         }
     }
 
-    // const res = await globalFetch(url, {
-    //     headers: headers,
-    //     body: body,
-    //     chatId: arg.chatId,
-    //     abortSignal: arg.abortSignal,
-    // })
     const res = await fetchNative(url, {
         headers: headers,
         body: JSON.stringify(body),

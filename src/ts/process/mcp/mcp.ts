@@ -183,6 +183,13 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
             }
 
             try {
+                
+                if(
+                    !mcpUrl.startsWith('https://') &&
+                    !mcpUrl.startsWith('http://')
+                ){
+                    throw new Error('Invalid MCP URL');
+                }
                     
                 const mcpClient = new MCPClient(mcpUrl);
                 mcpClient.registerRefreshToken = registerRefresh;

@@ -1,7 +1,7 @@
 import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
-import { tagWhitelist } from "../pluginSafeClass";
+import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
 import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
 import { v4 } from "uuid";
@@ -826,6 +826,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     forageStorage.isAccount ? 'account' :
                     'local',
             }
+        },
+        getLocalPluginStorage: () => {
+            return new SafeLocalPluginStorage()
         },
         checkCharOrder: checkCharOrder,
         requestPluginPermission: (permission:string) => {

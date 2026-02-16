@@ -136,7 +136,7 @@ export const additionalHamburgerMenu = $state([] as MenuDef[])
 export const additionalChatMenu = $state([] as MenuDef[])
 export const bodyIntercepterStore = $state([] as {
     id: string,
-    callback: (body: any, type: string) => any
+    callback: (body: any, type: string) => Promise<any>
 }[])
 export const popupStore = $state({
     children: null as null | import("svelte").Snippet,

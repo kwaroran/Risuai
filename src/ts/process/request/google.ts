@@ -1,4 +1,4 @@
-import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { fetchNative, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { language } from "src/lang"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { getDatabase, setDatabase } from "src/ts/storage/database.svelte"
@@ -638,12 +638,14 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                 })      
             }
         }
+        
         const f = await fetchNative(url, {
             headers: headers,
             body: JSON.stringify(body),
             method: 'POST',
             chatId: arg.chatId,
             signal: arg.abortSignal,
+            interceptor: 'gemini'
         })
 
         if(f.status !== 200){
@@ -667,22 +669,31 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
         }
     }
 
-    const res = await globalFetch(url, {
+    // const res = await globalFetch(url, {
+    //     headers: headers,
+    //     body: body,
+    //     chatId: arg.chatId,
+    //     abortSignal: arg.abortSignal,
+    // })
+    const res = await fetchNative(url, {
         headers: headers,
-        body: body,
+        body: JSON.stringify(body),
+        method: 'POST',
         chatId: arg.chatId,
-        abortSignal: arg.abortSignal,
+        signal: arg.abortSignal,
+        interceptor: 'gemini'
     })
     
 
     if(!res.ok){
-        const text = JSON.stringify(res.data)
+        const data = await res.text()
+        const text = JSON.stringify(data)
         if(text.includes('RESOURCE_EXHAUSTED')){
             return fallBackGemini(text)
         }
         return {
             type: 'fail',
-            result: `${JSON.stringify(res.data)}`
+            result: `${text} (status: ${res.status})`
         }
     }
 
@@ -735,14 +746,15 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
 
     // traverse responded data if it contains multipart contents
     let parts:GeminiPart[] = []
-    if(Array.isArray(res.data)){
-        for(const data of res.data){
+    const resData = await res.json()
+    if(Array.isArray(resData)){
+        for(const data of resData){
             const p = await processDataItem(data)
             parts = parts.concat(p)
         }
     }
     else{
-        const p = await processDataItem(res.data)
+        const p = await processDataItem(resData)
         parts = parts.concat(p)
     }
     parts = parts.filter((p) => p)
@@ -891,7 +903,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     if(!result) {
         return {
             type: 'fail',
-            result: `Got empty response: ${JSON.stringify(res.data)}`
+            result: `Got empty response: ${JSON.stringify(resData)}`
         }
     }
 
@@ -1139,6 +1151,7 @@ function wrapToolStream(
                                 method: 'POST',
                                 chatId: arg.chatId,
                                 signal: arg.abortSignal,
+                                interceptor: 'gemini'
                             })
                         
                             if(resRec.status == 200){

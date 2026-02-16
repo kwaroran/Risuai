@@ -506,7 +506,7 @@ const unloadV3Plugin = async (pluginName: string) => {
 
 const permissionGivenPlugins: Set<string> = new Set();
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom') => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
@@ -539,7 +539,14 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         addProvider: oldApis.addProvider,
         addRisuScriptHandler: oldApis.addRisuScriptHandler,
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
-        addRisuReplacer: oldApis.addRisuReplacer,
+        addRisuReplacer: async (name:string,func:Function) => {
+            //permission check for replacer
+            const conf = await getPluginPermission(plugin.name, 'replacer');
+            if(!conf){
+                return;
+            }
+            oldApis.addRisuReplacer(name, func as any);
+        },
         removeRisuReplacer: oldApis.removeRisuReplacer,
         setDatabaseLite: oldApis.setDatabaseLite,
         setDatabase: oldApis.setDatabase,

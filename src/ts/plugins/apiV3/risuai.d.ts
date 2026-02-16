@@ -934,6 +934,66 @@ interface PluginStorage {
 }
 
 /**
+ * Device-local storage that persists outside of save files.
+ * Uses generic types for flexible value storage.
+ * Storage is shared between all plugins under a common prefix.
+ *
+ * **All methods return Promises** due to iframe message passing.
+ *
+ * @example
+ * ```typescript
+ * const storage = await risuai.getLocalPluginStorage();
+ *
+ * // Store any JSON-serializable data
+ * await storage.setItem('config', { theme: 'dark', fontSize: 14 });
+ *
+ * // Retrieve data with type safety
+ * const config = await storage.getItem<{ theme: string; fontSize: number }>('config');
+ *
+ * // List all keys
+ * const keys = await storage.keys();
+ *
+ * // Clear all plugin data
+ * await storage.clear();
+ * ```
+ */
+interface SafeLocalPluginStorage {
+    /**
+     * Gets an item from storage
+     * @param key - Storage key
+     * @returns Promise resolving to stored value or null
+     */
+    getItem<T>(key: string): Promise<T | null>;
+
+    /**
+     * Sets an item in storage
+     * @param key - Storage key
+     * @param value - Value to store (any JSON-serializable value)
+     * @returns Promise that resolves when item is stored
+     */
+    setItem<T>(key: string, value: T): Promise<void>;
+
+    /**
+     * Removes an item from storage
+     * @param key - Storage key
+     * @returns Promise that resolves when item is removed
+     */
+    removeItem(key: string): Promise<void>;
+
+    /**
+     * Gets all storage keys
+     * @returns Promise resolving to array of key names
+     */
+    keys(): Promise<string[]>;
+
+    /**
+     * Clears all items from storage
+     * @returns Promise that resolves when storage is cleared
+     */
+    clear(): Promise<void>;
+}
+
+/**
  * Device-specific storage shared between plugins
  * Same API as PluginStorage but only supports string values
  *
@@ -1180,6 +1240,19 @@ interface RisuaiPluginAPI {
 
     /** Device-specific storage (shared between plugins) */
     safeLocalStorage: SafeLocalStorage;
+
+    /**
+     * Gets a device-local storage instance shared between plugins
+     * @returns SafeLocalPluginStorage instance for device-local storage
+     *
+     * @example
+     * ```typescript
+     * const storage = await risuai.getLocalPluginStorage();
+     * await storage.setItem('myKey', { data: 'value' });
+     * const value = await storage.getItem('myKey');
+     * ```
+     */
+    getLocalPluginStorage(): Promise<SafeLocalPluginStorage>;
 
     /**
      * Gets a plugin argument value

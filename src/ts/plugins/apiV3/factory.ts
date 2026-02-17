@@ -15,6 +15,7 @@ interface RpcMessage {
     args?: any[];
     result?: any;
     error?: string;
+    abortId?: string;
 }
 
 interface RemoteRef {

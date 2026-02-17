@@ -169,6 +169,7 @@ await (async function() {
         else if (data.type === 'INVOKE_CALLBACK' && data.id) {
             const fn = callbackRegistry.get(data.id);
             const response = { type: 'CALLBACK_RETURN', reqId: data.reqId };
+            const usedAbortIds = [];
 
             try {
                 if (!fn) throw new Error("Callback not found or released");
@@ -176,6 +177,7 @@ await (async function() {
                     if (a && typeof a === 'object' && a.__type === 'ABORT_SIGNAL_REF') {
                         const controller = new AbortController();
                         abortControllers.set(a.abortId, controller);
+                        usedAbortIds.push(a.abortId);
                         if (a.aborted) { controller.abort(); }
                         return controller.signal;
                     }
@@ -185,6 +187,10 @@ await (async function() {
                 response.result = result;
             } catch (e) {
                 response.error = e.message || "Guest callback error";
+            }
+            // Clean up abort controllers after callback completes
+            for (const id of usedAbortIds) {
+                abortControllers.delete(id);
             }
             const transferables = collectTransferables(response);
             send(response, transferables);

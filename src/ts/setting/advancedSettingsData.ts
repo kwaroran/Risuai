@@ -163,6 +163,7 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.tokCache', type: 'check', labelKey: 'useTokenizerCaching', bindKey: 'useTokenizerCaching', classes: 'mt-4' },
     { id: 'adv.auxModelUnderModelSettings', type: 'check', labelKey: 'auxModelUnderModelSettings', bindKey: 'auxModelUnderModelSettings', classes: 'mt-4' },
     { id: 'adv.devMode', type: 'check', labelKey: 'pluginDevelopMode', bindKey: 'pluginDevelopMode', classes: 'mt-4' },
+    { id: 'adv.keepBackground', type: 'check', labelKey: 'keepBackground', bindKey: 'keepBackground', helpKey: 'keepBackground', classes: 'mt-4' },
 
     // More Experimental (Condition: useExperimental)
     {

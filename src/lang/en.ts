@@ -248,6 +248,7 @@ export const languageEnglish = {
             "- **Trigger Scripts**: Similarity conditions in trigger scripts\n" +
             "- **File Attachments**: Searching within PDF/TXT/XML attachments\n" +
             "- **Playground**: Embedding testing in Playground",
+        keepBackground: "Plays silent audio in the background to prevent the app from being paused. requires refresh.",
     },
     setup: {
         chooseProvider: "Choose AI Provider",
@@ -1508,6 +1509,7 @@ export const languageEnglish = {
     partialBackupSecondConfirm: "⚠️⚠️ FINAL WARNING ⚠️⚠️\n\nThis backup saves only character profile images and does NOT save most other assets!\n\nWhat will be saved:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\nWhat will NOT be saved:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other media files\n\n⚠️ Proceed ONLY if you don't need character assets in your backup file! ⚠️\n\nAre you really sure you want to proceed with partial backup?",
     savePartialLocalBackup: "Save Partial Backup Locally (Excluding Character Assets)",
     pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin.",
+    keepBackground: "Keep Background",
     bootstrap: {
         dataCorruptionDetected: (name: string, type: string) => `Data Corruption Detected\n\nModule "${name}" has corrupted lorebook format.\n\nCorrupted data type: ${type}`,
         reportErrorQuestion: "Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)",

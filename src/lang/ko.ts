@@ -155,7 +155,8 @@ export const languageKorean = {
         "openRouterProviderIgnore": "이 목록의 제공자를 무시합니다. 모든 제공자가 무시되면 요청이 실패합니다. 자세한 내용은 https://openrouter.ai/docs/guides/routing/provider-selection#ignoring-providers 를 참조하세요",
         "additionalPrompt": "프롬프트 선보정이 활성화되어 있을 때 메인 프롬프트 끝에 추가되는 텍스트입니다. 기본값은 'The assistant must act as {{char}}. user is {{user}}.'이며, 이를 통해 기본적인 롤플레이 맥락을 설정합니다.",
         "hideAllImagesDesc": "봇 아이콘, 봇 이미지 에셋, RisuRealm 표지 사진을 가립니다.",
-        "embedding": "임베딩 모델은 여러 기능에서 유사도 검색에 사용됩니다:\n\n- **장기 기억**: HypaV2, HypaV3, Hanurai Memory, SupaMemory (HypaMemory 활성화 시)\n- **추가 텍스트**: 컨텍스트 기반 캐릭터 추가 정보 매칭\n- **동적 에셋**: 정확한 에셋 이름을 찾지 못했을 때 유사한 이름 검색\n- **감정 이미지**: 감정 방식이 'embedding'으로 설정된 경우\n- **트리거 스크립트**: 트리거 스크립트의 유사도 조건\n- **파일 첨부**: PDF/TXT/XML 첨부 파일 내 검색\n- **Playground**: Playground에서 임베딩 테스트"
+        "embedding": "임베딩 모델은 여러 기능에서 유사도 검색에 사용됩니다:\n\n- **장기 기억**: HypaV2, HypaV3, Hanurai Memory, SupaMemory (HypaMemory 활성화 시)\n- **추가 텍스트**: 컨텍스트 기반 캐릭터 추가 정보 매칭\n- **동적 에셋**: 정확한 에셋 이름을 찾지 못했을 때 유사한 이름 검색\n- **감정 이미지**: 감정 방식이 'embedding'으로 설정된 경우\n- **트리거 스크립트**: 트리거 스크립트의 유사도 조건\n- **파일 첨부**: PDF/TXT/XML 첨부 파일 내 검색\n- **Playground**: Playground에서 임베딩 테스트",
+        "keepBackground": "백그라운드에 빈 오디오를 재생해 일시정지되지 않도록 유지합니다. 새로고침이 필요합니다."
     },
     "setup": {
         "chooseProvider": "AI 제공자를 선택해 주세요",
@@ -1394,6 +1395,7 @@ export const languageKorean = {
     "partialBackupFirstConfirm": "⚠️ 경고: 부분 로컬 백업 ⚠️\n\n이 백업은 최소한의 필수 정보만 빠르게 저장하는 기능입니다.\n\n포함되는 것:\n- 데이터베이스 (채팅 기록, 캐릭터, 모듈, 플러그인, 프롬프트, 설정 등)\n- 캐릭터 프로필 아이콘 (메인 이미지)\n- 사용자 아이콘 및 커스텀 배경\n- 페르소나 아이콘\n- 폴더 이미지\n- 봇 프리셋 이미지\n\n⚠️ 포함되지 않는 것:\n- 감정 이미지\n- 추가 캐릭터 에셋\n- VITS 음성 파일\n- 기타 모든 추가 미디어 파일\n\n이 백업 파일에는 모든 캐릭터 에셋이 포함되지 않습니다!\n완전한 백업이 필요하다면 일반 로컬 백업을 사용하세요.\n\n그래도 계속하시겠습니까?",
     "partialBackupSecondConfirm": "⚠️⚠️ 최종 경고 ⚠️⚠️\n\n이 백업은 캐릭터의 프로필 이미지만 저장하며, 나머지 대부분의 에셋은 저장하지 않습니다!\n\n저장되는 것:\n- 데이터베이스 (채팅 기록, 캐릭터, 모듈, 플러그인, 프롬프트, 설정 등)\n- 캐릭터 프로필 아이콘 (메인 이미지)\n- 사용자 아이콘 및 커스텀 배경\n- 페르소나 아이콘\n- 폴더 이미지\n- 봇 프리셋 이미지\n\n저장되지 않는 것:\n- 감정 이미지\n- 추가 캐릭터 에셋\n- VITS 음성 파일\n- 기타 모든 미디어 파일\n\n⚠️ 백업 파일에 캐릭터 에셋이 필요하지 않은 경우에만 진행하세요! ⚠️\n\n정말로 부분 백업을 진행하시겠습니까?",
     "savePartialLocalBackup": "부분 로컬 백업 저장 (캐릭터 에셋 제외)",
+    "keepBackground": "백그라운드 유지",
     "bootstrap": {
         "dataCorruptionDetected": (name: string, type: string) => `데이터 손상 감지\n\n모듈 "${name}"의 로어북 형식이 손상되었습니다.\n\n손상된 데이터 타입: ${type}`,
         "reportErrorQuestion": "다음 팝업 창에서 오류 정보를 복사한 후 개발자에게 보고하시겠습니까?\n같은 오류가 다시 발생하는 것을 막는 것에 큰 도움이 됩니다.\n(오류가 난 모듈 정보만 포함되며 다른 정보는 포함되지 않습니다)",

@@ -634,6 +634,7 @@ export function setDatabase(data:Database){
         data.promptInfoInsideChat = false
     }
     data.createFolderOnBranch ??= true
+    data.keepBackground ??= false
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1145,6 +1146,7 @@ export interface Database{
     createFolderOnBranch?:boolean
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
+    keepBackground?:boolean
 }
 
 interface SeparateParameters{

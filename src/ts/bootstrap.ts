@@ -42,6 +42,7 @@ import {
     checkCharOrder
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
+import { initBackground } from "./util/background";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -243,6 +244,7 @@ export async function loadData() {
             makeColdData()
             saveDb()
             moduleUpdate()
+            initBackground();
             if (import.meta.env.VITE_RISU_TOS === 'TRUE') {
                 alertTOS().then((a) => {
                     if (a === false) {

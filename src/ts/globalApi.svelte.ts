@@ -1444,17 +1444,20 @@ export async function fetchNative(url: string, arg: {
         realBody = undefined
     }
     else if (typeof arg.body === 'string') {
+        let body: string = arg.body
         if(useInterceptor) {
             for (const interceptor of bodyIntercepterStore) {
-                try {
-                    realBody = await interceptor.callback(arg.body, arg.interceptor) || realBody
-                }
-                catch (e) {
-                    console.error(e)
+                if(interceptor.id === arg.interceptor){
+                    try {
+                        body = await interceptor.callback(body, arg.interceptor) || body
+                    }
+                    catch (e) {
+                        console.error(e)
+                    }
                 }
             }
         }
-        realBody = new TextEncoder().encode(arg.body)
+        realBody = new TextEncoder().encode(body)
     }
     else if (arg.body instanceof Uint8Array) {
         realBody = arg.body

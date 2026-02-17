@@ -627,13 +627,11 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
 
         if(arg.interceptor){
             for (const interceptor of bodyIntercepterStore) {
-                if(interceptor.id === arg.interceptor){
-                    try {
-                        arg.body = await interceptor.callback(arg.body, arg.interceptor) || arg.body
-                    }
-                    catch (e) {
-                        console.error(e)
-                    }
+                try {
+                    arg.body = await interceptor.callback(arg.body, arg.interceptor) || arg.body
+                }
+                catch (e) {
+                    console.error(e)
                 }
             }
         }
@@ -1447,13 +1445,11 @@ export async function fetchNative(url: string, arg: {
         let body: string = arg.body
         if(useInterceptor) {
             for (const interceptor of bodyIntercepterStore) {
-                if(interceptor.id === arg.interceptor){
-                    try {
-                        body = await interceptor.callback(body, arg.interceptor) || body
-                    }
-                    catch (e) {
-                        console.error(e)
-                    }
+                try {
+                    body = await interceptor.callback(body, arg.interceptor) || body
+                }
+                catch (e) {
+                    console.error(e)
                 }
             }
         }

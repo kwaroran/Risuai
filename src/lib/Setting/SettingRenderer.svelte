@@ -55,6 +55,22 @@
     }
 
     /**
+     * When a select has conditional options, reset the value if it no longer matches any visible option
+     * It selects last selectable entry when reset happens
+     */
+    $effect(() => {
+        for (const item of items) {
+            if (item.type === 'select' && item.options?.selectOptions && checkCondition(item)) {
+                const filteredOpts = item.options.selectOptions.filter(opt => !opt.condition || opt.condition(ctx));
+                const currentVal = (DBState.db as any)[item.bindKey];
+                if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
+                    (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
+                }
+            }
+        }
+    });
+
+    /**
      * Get value from nested path (e.g., 'ooba.top_p')
      */
     function getBindValue(item: SettingItem): any {

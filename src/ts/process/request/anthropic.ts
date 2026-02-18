@@ -364,7 +364,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         // Adaptive thinking mode
         delete body.thinking
         body.thinking = { type: 'adaptive' }
-        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'medium' }
+        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
     }
     else if(body?.thinking?.budget_tokens === 0){
         delete body.thinking

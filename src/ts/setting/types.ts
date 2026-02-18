@@ -28,6 +28,7 @@ export type SettingType =
     | 'textarea'   // Multiline text (TextAreaInput)
     | 'slider'     // Slider (SliderInput)
     | 'select'     // Dropdown (SelectInput)
+    | 'segmented'  // Sliding segmented control (SegmentedControl)
     | 'color'      // Color picker (ColorInput)
     | 'header'     // Section header (h2, span, warning)
     | 'button'     // Action button (Button)
@@ -39,6 +40,14 @@ export type SettingType =
  */
 export interface SelectOption {
     value: string;
+    label: string;
+}
+
+/**
+ * Segment option for sliding segmented control
+ */
+export interface SegmentOption {
+    value: string | number;
     label: string;
 }
 
@@ -57,6 +66,9 @@ export interface SettingOptions {
     
     // select
     selectOptions?: SelectOption[];
+    
+    // segmented control
+    segmentOptions?: SegmentOption[];
     
     // text, textarea
     placeholder?: string;

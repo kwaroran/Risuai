@@ -11,6 +11,7 @@
     import TextAreaInput from 'src/lib/UI/GUI/TextAreaInput.svelte';
     import SliderInput from 'src/lib/UI/GUI/SliderInput.svelte';
     import SelectInput from 'src/lib/UI/GUI/SelectInput.svelte';
+    import SegmentedControl from 'src/lib/UI/GUI/SegmentedControl.svelte';
     import OptionInput from 'src/lib/UI/GUI/OptionInput.svelte';
     import ColorInput from 'src/lib/UI/GUI/ColorInput.svelte';
     import Button from 'src/lib/UI/GUI/Button.svelte';
@@ -157,6 +158,14 @@
                     <OptionInput value={opt.value}>{opt.label}</OptionInput>
                 {/each}
             </SelectInput>
+        {:else if item.type === 'segmented'}
+            <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
+                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
+            </span>
+            <SegmentedControl
+                bind:value={(DBState.db as any)[item.bindKey]}
+                options={item.options?.segmentOptions ?? []}
+            />
         {:else if item.type === 'color'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">
                 <ColorInput bind:value={(DBState.db as any)[item.bindKey]} />

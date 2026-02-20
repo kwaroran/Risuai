@@ -3,7 +3,7 @@
     
     import { DBState } from 'src/ts/stores.svelte';
     import { getCharImage } from '../../ts/characters';
-    import { ParseMarkdown } from '../../ts/parser.svelte';
+    import { ParseMarkdown } from '../../ts/parser/parser.svelte';
     import BarIcon from '../SideBars/BarIcon.svelte';
     import { ChevronRightIcon, User } from '@lucide/svelte';
     import { hubURL, isCharacterHasAssets } from 'src/ts/characterCards';

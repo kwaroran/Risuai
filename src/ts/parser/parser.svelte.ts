@@ -1,24 +1,24 @@
 import DOMPurify from 'dompurify';
 import markdownit from 'markdown-it'
-import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from './storage/database.svelte';
-import { DBState, selIdState } from './stores.svelte';
-import { aiWatermarkingLawApplies, getFileSrc } from './globalApi.svelte';
+import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from '../storage/database.svelte';
+import { DBState, selIdState } from '../stores.svelte';
+import { aiWatermarkingLawApplies, getFileSrc } from '../globalApi.svelte';
 import { isTauri, isNodeServer } from "src/ts/platform"
-import { getChatVar, setChatVar, getGlobalChatVar } from './parser/chatVar.svelte';
-import { processScriptFull } from './process/scripts';
+import { getChatVar, setChatVar, getGlobalChatVar } from './chatVar.svelte';
+import { processScriptFull } from '../process/scripts';
 import { get } from 'svelte/store';
 import css, { type CssAtRuleAST } from '@adobe/css-tools'
-import { selectedCharID } from './stores.svelte';
-import { calcString } from './process/infunctions';
-import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from './util';
-import { getInlayAssetBlob } from './process/files/inlays';
-import { getModuleAssets, getModuleLorebooks, getModules } from './process/modules';
+import { selectedCharID } from '../stores.svelte';
+import { calcString } from '../process/infunctions';
+import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from '../util';
+import { getInlayAssetBlob } from '../process/files/inlays';
+import { getModuleAssets, getModuleLorebooks, getModules } from '../process/modules';
 import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/atom-one-dark.min.css'
 import { language } from 'src/lang';
 import katex from 'katex'
-import { getModelInfo } from './model/modellist';
-import { registerCBS, type matcherArg, type RegisterCallback } from './cbs';
+import { getModelInfo } from '../model/modellist';
+import { registerCBS, type matcherArg, type RegisterCallback } from '../cbs';
 import cssSelectorParser from 'postcss-selector-parser'
 
 const markdownItOptions = {

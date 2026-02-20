@@ -434,6 +434,7 @@
   class:hidden={hidden}
   class:flex={!hidden}
 >
+  {#if !DBState.db.hamburgerButtonBottom}
   <button
     class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
     onclick={() => {
@@ -495,6 +496,7 @@
     </div>
     {/if}
   </div>
+  {/if}
   <div class="flex grow w-full flex-col items-center overflow-x-hidden overflow-y-auto pr-0">
     <div class="h-4 min-h-4 w-14" role="listitem" ondragover={(e) => {
       e.preventDefault()
@@ -755,6 +757,69 @@
       >
     </div>
   </div>
+  {#if DBState.db.hamburgerButtonBottom}
+  <div class="border-t border-t-selected w-full relative text-white ">
+    {#if menuMode === 1}
+      <div class="absolute bottom-full w-20 min-w-20 flex border-t-selected border-t bg-bgcolor flex-col items-center pt-2 rounded-t-md z-20 pb-2">
+        <BarIcon
+        onClick={() => {
+          if ($settingsOpen) {
+            reseter();
+            settingsOpen.set(false);
+          } else {
+            reseter();
+            settingsOpen.set(true);
+          }
+        }}><Settings /></BarIcon
+      >
+      <div class="mt-2"></div>
+      <BarIcon
+        onClick={() => {
+          reseter();
+          selectedCharID.set(-1)
+          PlaygroundStore.set(0)
+          OpenRealmStore.set(false)
+        }}><HomeIcon /></BarIcon>
+      <div class="mt-2"></div>
+      <BarIcon
+        onClick={() => {
+          reseter()
+          if($selectedCharID === -1 && $PlaygroundStore !== 0){
+            PlaygroundStore.set(0)
+            return
+          }
+          selectedCharID.set(-1)
+          PlaygroundStore.set(1)
+        }}
+      ><ShellIcon /></BarIcon>
+      {#each additionalHamburgerMenu as menu}
+        <div class="mt-2"></div>
+        <BarIcon
+          onClick={() => {
+            reseter();
+            menu.callback();
+          }}>
+            <PluginDefinedIcon ico={menu} />
+          </BarIcon
+        >
+      {/each}
+      <div class="mt-2"></div>
+      <BarIcon
+        onClick={() => {
+          reseter();
+          openGrid();
+        }}><LayoutGridIcon /></BarIcon
+      >
+    </div>
+    {/if}
+  </div>
+  <button
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
+    onclick={() => {
+      menuMode = 1 - menuMode;
+    }}><ListIcon />
+  </button>
+  {/if}
 </div>
 {/if}
 <div

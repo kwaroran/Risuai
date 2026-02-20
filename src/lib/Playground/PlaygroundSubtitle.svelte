@@ -9,7 +9,7 @@
     import { requestChatData } from "src/ts/process/request/request";
     import { asBuffer, selectFileByDom, selectSingleFile, sleep } from "src/ts/util";
     import { alertError, alertSelect } from "src/ts/alert";
-    import { risuChatParser } from "src/ts/parser.svelte";
+    import { risuChatParser } from "src/ts/parser/parser.svelte";
     import { AppendableBuffer, downloadFile, getLanguageCodes } from "src/ts/globalApi.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
@@ -121,7 +121,7 @@
         vttB64 = `data:text/vtt;base64,${Buffer.from(outputText).toString('base64')}`
 
         const audio = new Audio(sendSound);
-        audio.play();
+        audio.play().catch(() => {});
     }
 
     async function runWhisperMode() {
@@ -347,7 +347,7 @@
         vobj = convertWebVTTtoObj(outputText)
 
         const audio = new Audio(sendSound);
-        audio.play();
+        audio.play().catch(() => {});
     }
 
     

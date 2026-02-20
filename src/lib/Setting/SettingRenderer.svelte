@@ -11,6 +11,7 @@
     import TextAreaInput from 'src/lib/UI/GUI/TextAreaInput.svelte';
     import SliderInput from 'src/lib/UI/GUI/SliderInput.svelte';
     import SelectInput from 'src/lib/UI/GUI/SelectInput.svelte';
+    import SegmentedControl from 'src/lib/UI/GUI/SegmentedControl.svelte';
     import OptionInput from 'src/lib/UI/GUI/OptionInput.svelte';
     import ColorInput from 'src/lib/UI/GUI/ColorInput.svelte';
     import Button from 'src/lib/UI/GUI/Button.svelte';
@@ -53,6 +54,22 @@
         if (!item.condition) return true;
         return item.condition(ctx);
     }
+
+    /**
+     * When a select has conditional options, reset the value if it no longer matches any visible option
+     * It selects last selectable entry when reset happens
+     */
+    $effect(() => {
+        for (const item of items) {
+            if (item.type === 'select' && item.options?.selectOptions && checkCondition(item)) {
+                const filteredOpts = item.options.selectOptions.filter(opt => !opt.condition || opt.condition(ctx));
+                const currentVal = (DBState.db as any)[item.bindKey];
+                if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
+                    (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
+                }
+            }
+        }
+    });
 
     /**
      * Get value from nested path (e.g., 'ooba.top_p')
@@ -153,10 +170,18 @@
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
             </span>
             <SelectInput bind:value={(DBState.db as any)[item.bindKey]}>
-                {#each item.options?.selectOptions ?? [] as opt}
+                {#each (item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)) as opt}
                     <OptionInput value={opt.value}>{opt.label}</OptionInput>
                 {/each}
             </SelectInput>
+        {:else if item.type === 'segmented'}
+            <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
+                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
+            </span>
+            <SegmentedControl
+                bind:value={(DBState.db as any)[item.bindKey]}
+                options={item.options?.segmentOptions ?? []}
+            />
         {:else if item.type === 'color'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">
                 <ColorInput bind:value={(DBState.db as any)[item.bindKey]} />

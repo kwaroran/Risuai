@@ -6,7 +6,7 @@ import { isTauri, isNodeServer } from "src/ts/platform"
 import { alertError } from "../alert"
 import { requestChatData } from "../process/request/request"
 import { doingChat, type OpenAIChat } from "../process/index.svelte"
-import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser.svelte"
+import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser/parser.svelte"
 import { selectedCharID } from "../stores.svelte"
 import { getModuleRegexScripts } from "../process/modules"
 import { getNodetextToSentence, sleep } from "../util"
@@ -280,7 +280,7 @@ export async function translateHTML(html: string, reverse:boolean, charArg:simpl
         const r = await translateLLM(html, {to: tr, from: from, regenerate})
         if(db.playMessageOnTranslateEnd){
             const audio = new Audio(sendSound);
-            audio.play();
+            audio.play().catch(() => {});
         }
 
         return applyEdittransRegex(r, charArg, alwaysExistChar)
@@ -565,6 +565,16 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
 
 export async function getLLMCache(text:string):Promise<string | null>{
     return await LLMCacheStorage.getItem(text)
+}
+
+export async function searchLLMCache(partialKey:string):Promise<{key: string, value: string}[]>{
+    const results:{key: string, value: string}[] = []
+    await LLMCacheStorage.iterate<string, void>((value, key) => {
+        if(key.includes(partialKey)){
+            results.push({key, value})
+        }
+    })
+    return results
 }
 
 

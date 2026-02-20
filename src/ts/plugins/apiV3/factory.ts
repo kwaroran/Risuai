@@ -4,7 +4,8 @@ type MsgType =
     | 'INVOKE_CALLBACK'
     | 'CALLBACK_RETURN'
     | 'RESPONSE'
-    | 'RELEASE_INSTANCE';
+    | 'RELEASE_INSTANCE'
+    | 'ABORT_SIGNAL';
 
 interface RpcMessage {
     type: MsgType;
@@ -14,6 +15,7 @@ interface RpcMessage {
     args?: any[];
     result?: any;
     error?: string;
+    abortId?: string;
 }
 
 interface RemoteRef {
@@ -26,12 +28,19 @@ interface CallbackRef {
     id: string;
 }
 
+interface AbortSignalRef {
+    __type: 'ABORT_SIGNAL_REF';
+    abortId: string;
+    aborted: boolean;
+}
+
 
 const GUEST_BRIDGE_SCRIPT = `
 await (async function() {
     const pendingRequests = new Map();
     const callbackRegistry = new Map();
     const proxyRefRegistry = new Map();
+    const abortControllers = new Map();
 
     function serializeArg(arg) {
         if (typeof arg === 'function') {
@@ -150,16 +159,39 @@ await (async function() {
             send(response);
         }
 
+        else if (data.type === 'ABORT_SIGNAL' && data.abortId) {
+            const controller = abortControllers.get(data.abortId);
+            if (controller) {
+                controller.abort();
+                abortControllers.delete(data.abortId);
+            }
+        }
+
         else if (data.type === 'INVOKE_CALLBACK' && data.id) {
             const fn = callbackRegistry.get(data.id);
             const response = { type: 'CALLBACK_RETURN', reqId: data.reqId };
+            const usedAbortIds = [];
 
             try {
                 if (!fn) throw new Error("Callback not found or released");
-                const result = await fn(...(data.args || []));
+                const deserializedArgs = (data.args || []).map(function(a) {
+                    if (a && typeof a === 'object' && a.__type === 'ABORT_SIGNAL_REF') {
+                        const controller = new AbortController();
+                        abortControllers.set(a.abortId, controller);
+                        usedAbortIds.push(a.abortId);
+                        if (a.aborted) { controller.abort(); }
+                        return controller.signal;
+                    }
+                    return a;
+                });
+                const result = await fn(...deserializedArgs);
                 response.result = result;
             } catch (e) {
                 response.error = e.message || "Guest callback error";
+            }
+            // Clean up abort controllers after callback completes
+            for (const id of usedAbortIds) {
+                abortControllers.delete(id);
             }
             const transferables = collectTransferables(response);
             send(response, transferables);
@@ -351,11 +383,37 @@ export class SandboxHost {
                         const reqId = 'cb_req_' + Math.random().toString(36).substring(2);
                         this.pendingCallbacks.set(reqId, { resolve, reject });
 
+                        // AbortSignal cannot be structured-cloned for postMessage.
+                        // Convert to a serializable ref and forward abort events
+                        // via a separate ABORT_SIGNAL message.
+                        const sanitizedArgs = innerArgs.map(arg => {
+                            if (arg instanceof AbortSignal) {
+                                const abortId = 'abort_' + Math.random().toString(36).substring(2);
+                                const ref: AbortSignalRef = {
+                                    __type: 'ABORT_SIGNAL_REF',
+                                    abortId,
+                                    aborted: arg.aborted
+                                };
+                                if (!arg.aborted) {
+                                    arg.addEventListener('abort', () => {
+                                        try {
+                                            this.iframe.contentWindow?.postMessage({
+                                                type: 'ABORT_SIGNAL',
+                                                abortId
+                                            } as RpcMessage, '*');
+                                        } catch (_) { /* iframe already removed */ }
+                                    }, { once: true });
+                                }
+                                return ref;
+                            }
+                            return arg;
+                        });
+
                         const message = {
                             type: 'INVOKE_CALLBACK',
                             id: cbRef.id,
                             reqId,
-                            args: innerArgs
+                            args: sanitizedArgs
                         };
                         const transferables = this.collectTransferables(message);
                         this.iframe.contentWindow?.postMessage(message, '*', transferables);

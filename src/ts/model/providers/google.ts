@@ -1,6 +1,18 @@
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from '../types'
 
 export const GoogleModels: LLMModel[] = [
+
+    // ===== Gemini 3.1 Series (2026) =====
+    {
+        name: "Gemini Pro 3.1 Preview",
+        id: 'gemini-3.1-pro-preview',
+        provider: LLMProvider.GoogleCloud,
+        format: LLMFormat.GoogleCloud,
+        flags: [LLMFlags.hasImageInput, LLMFlags.poolSupported, LLMFlags.hasAudioInput, LLMFlags.hasVideoInput, LLMFlags.hasStreaming, LLMFlags.requiresAlternateRole, LLMFlags.geminiThinking],
+        parameters: ['thinking_tokens', 'temperature', 'top_k', 'top_p', 'presence_penalty', 'frequency_penalty'],
+        tokenizer: LLMTokenizer.GoogleCloud,
+        recommended: true
+    },
     // ===== Gemini 3 Series (2025) =====
     {
         name: "Gemini Pro 3 Preview",

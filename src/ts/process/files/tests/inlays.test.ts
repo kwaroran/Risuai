@@ -54,10 +54,6 @@ vi.mock('uuid', () => ({
     v4: vi.fn(() => 'test-uuid-1234'),
 }))
 
-vi.mock(import('src/ts/parser.svelte'), () => ({
-    checkImageType: vi.fn(),
-}))
-
 vi.mock(import('src/ts/storage/database.svelte'), () => ({
     getDatabase: vi.fn(),
 }))

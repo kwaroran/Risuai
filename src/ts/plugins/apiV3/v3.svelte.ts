@@ -13,7 +13,7 @@ import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
-import { hasher } from "src/ts/parser.svelte";
+import { hasher } from "src/ts/parser/parser.svelte";
 import localforage from "localforage";
 
 /*

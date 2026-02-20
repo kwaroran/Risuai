@@ -1,4 +1,4 @@
-import type { Parameter } from "../process/request/request"
+import type { LLMParameter } from '../process/request/shared'
 
 export enum LLMFlags{
     hasImageInput,
@@ -23,6 +23,7 @@ export enum LLMFlags{
     deepSeekThinkingOutput,
     noCivilIntegrity,
     claudeThinking,
+    claudeAdaptiveThinking
 }
 
 export enum LLMProvider{
@@ -92,7 +93,7 @@ export interface LLMModel{
     provider: LLMProvider
     flags: LLMFlags[]
     format: LLMFormat
-    parameters: Parameter[],
+    parameters: LLMParameter[],
     tokenizer: LLMTokenizer
     recommended?: boolean
     keyIdentifier?: string
@@ -117,6 +118,6 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.Echo, 'For Developer']
 ])
 
-export const OpenAIParameters:Parameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']
-export const GPT5Parameters:Parameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort','verbosity']
-export const ClaudeParameters:Parameter[] = ['temperature', 'top_k', 'top_p']
+export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']
+export const GPT5Parameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort','verbosity']
+export const ClaudeParameters:LLMParameter[] = ['temperature', 'top_k', 'top_p']

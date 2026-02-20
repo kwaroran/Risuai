@@ -1,11 +1,12 @@
 /**
  * Bot Settings - Parameters Tab Data
- * 
+ *
  * Data-driven definition for BotSettings Parameters tab (submenu === 1).
  * Contains standard parameter settings like context size, temperature, etc.
  */
 
 import type { SettingItem } from './types';
+import { LLMFlags } from '../model/types';
 
 /**
  * Basic parameter settings that are always visible
@@ -122,11 +123,30 @@ export const penaltyParameterItems: SettingItem[] = [
  */
 export const modelSpecificParameterItems: SettingItem[] = [
     {
+        id: 'params.thinkingType',
+        type: 'select',
+        labelKey: 'thinkingType',
+        bindKey: 'thinkingType',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
+        options: {
+            selectOptions: [
+                { value: 'off', label: 'Off' },
+                { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking)  },
+                { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
+            ]
+        },
+        keywords: ['thinking', 'type', 'mode', 'adaptive', 'budget'],
+    },
+    {
         id: 'params.thinkingTokens',
         type: 'slider',
         labelKey: 'thinkingTokens',
         bindKey: 'thinkingTokens',
-        condition: (ctx) => ctx.modelInfo.parameters.includes('thinking_tokens'),
+        condition: (ctx) =>
+            ctx.modelInfo.parameters.includes('thinking_tokens') &&
+            ctx.db.thinkingType === 'budget',
         options: {
             min: -1,
             max: 64000,
@@ -134,6 +154,24 @@ export const modelSpecificParameterItems: SettingItem[] = [
             disableable: true,
         },
         keywords: ['thinking', 'tokens', 'reasoning'],
+    },
+    {
+        id: 'params.adaptiveThinkingEffort',
+        type: 'select',
+        labelKey: 'adaptiveThinkingEffort',
+        bindKey: 'adaptiveThinkingEffort',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
+            ctx.db.thinkingType === 'adaptive',
+        options: {
+            selectOptions: [
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+                { value: 'max', label: 'Max' },
+            ]
+        },
+        keywords: ['adaptive', 'thinking', 'effort'],
     },
     {
         id: 'params.topK',
@@ -228,15 +266,17 @@ export const modelSpecificParameterItems: SettingItem[] = [
 
 /**
  * All basic parameter items combined for Parameters tab
- * Order: maxContext, maxResponse, seed, thinkingTokens, temperature, topK, minP, topA, repetitionPenalty, reasoningEffort, verbosity, topP, frequencyPenalty, presencePenalty
+ * Order: maxContext, maxResponse, seed, thinkingType, thinkingTokens, adaptiveThinkingEffort, temperature, topK, minP, topA, repetitionPenalty, reasoningEffort, verbosity, topP, frequencyPenalty, presencePenalty
  */
 export const allBasicParameterItems: SettingItem[] = [
     // Basic settings (always shown)
     ...basicParameterItems,
     seedSetting,
-    
+
     // Model-specific sampling parameters (in user-specified order)
+    modelSpecificParameterItems.find(i => i.id === 'params.thinkingType')!,
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingTokens')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.adaptiveThinkingEffort')!,
     ...samplingParameterItems, // temperature
     modelSpecificParameterItems.find(i => i.id === 'params.topK')!,
     modelSpecificParameterItems.find(i => i.id === 'params.minP')!,

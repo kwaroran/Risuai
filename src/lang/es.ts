@@ -17,7 +17,7 @@ export const languageSpanish = {
         "toomuchtoken": "Error: El mínimo requerido de tokens es mayor que el Tamaño Máximo del Contexto.",
         "unknownModel": "Error: Modelo seleccionado desconocido",
         "httpError": "Error: error en la solicitud:",
-        "noData": "No hay datos en el archivo o el archivo está corrupto",
+        "noData": "Ese archivo no parece válido o sus datos están dañados.",
         "onlyOneChat": "Debe haber al menos un chat",
         "alreadyCharInGroup": "Ya hay un personaje con el mismo nombre en el grupo.",
         "noUserIcon": "Debes establecer tu icono primero.",
@@ -528,12 +528,15 @@ export const languageSpanish = {
     },
     "playground": {
         "playground": "Playground",
+        "inlayDeleteConfirm": "¿Estás seguro de que deseas eliminar \"{name}\"?",
+        "inlayDeleteMultipleConfirm": "¿Estás seguro de que deseas eliminar los {count} recursos seleccionados?",
         "inlayDeleteSelected": "Eliminar seleccionados",
         "inlayDeselectAll": "Deseleccionar todo",
         "inlayEmpty": "Sin recursos inlay guardados",
         "inlayEmptyDesc": "Las imágenes, audios y videos adjuntos o generados en chats aparecerán aquí",
         "inlayExplorer": "Explorador de Recursos Inlay",
-        "inlaySelectAll": "Seleccionar todo"
+        "inlaySelectAll": "Seleccionar todo",
+        "inlayTotalAssets": "Total {count} recursos",
     },
     "confirm": "Confirmar",
     "goback": "Volver",
@@ -1393,5 +1396,6 @@ export const languageSpanish = {
     "trimStartNewChat": "Recortar mensajes de «Iniciar nuevo chat»",
     "getFullDatabaseConsent": "El plugin {} está solicitando acceso a la base de datos completa, lo que podría exponer información confidencial. ¿Desea permitir esto?",
     "fetchLogConsent": "El complemento {} está solicitando obtener registros, lo cual podría exponer información confidencial. ¿Desea permitir esto?",
-    "disableAbove": "Mensajes cortados para la IA"
+    "disableAbove": "Mensajes cortados para la IA",
+    "hamburgerButtonBottom": "Mover el botón de menú a la parte inferior de la barra lateral"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

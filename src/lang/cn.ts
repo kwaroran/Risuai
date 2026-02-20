@@ -17,7 +17,7 @@ export const languageChinese = {
         "toomuchtoken": "错误：所需的 Token 数超过了可用的最大上下文大小",
         "unknownModel": "错误：无法识别所选的模型",
         "httpError": "错误：请求发生错误：",
-        "noData": "无法找到文件中的数据，或者文件已经损毁",
+        "noData": "这个文件好像不太对，或者数据已经损坏了。",
         "onlyOneChat": "至少需要一个聊天室",
         "alreadyCharInGroup": "该群组中已经有一个同名角色。",
         "noUserIcon": "请先设置你的个人头像。",
@@ -528,12 +528,15 @@ export const languageChinese = {
     },
     "playground": {
         "playground": "Playground",
+        "inlayDeleteConfirm": "确定要删除\"{name}\"吗？",
+        "inlayDeleteMultipleConfirm": "确定要删除选中的{count}个资源吗？",
         "inlayDeleteSelected": "删除选中项",
         "inlayDeselectAll": "取消全选",
         "inlayEmpty": "没有保存的内联资源",
         "inlayEmptyDesc": "在聊天中附加或生成的图像、音频和视频将显示在这里",
         "inlayExplorer": "内联资源浏览器",
-        "inlaySelectAll": "全选"
+        "inlaySelectAll": "全选",
+        "inlayTotalAssets": "共{count}个资源",
     },
     "confirm": "确定",
     "goback": "返回",
@@ -1394,5 +1397,6 @@ export const languageChinese = {
     "getFullDatabaseConsent": "插件 {} 正在请求访问完整数据库，这可能会泄露敏感信息。是否允许？",
     "fetchLogConsent": "插件 {} 正在请求获取日志，这可能会泄露敏感信息。是否允许？",
     "enableScrollToActiveChar": "启用滚动至当前角色",
-    "trimStartNewChat": "修剪“开始新对话”消息"
+    "trimStartNewChat": "修剪“开始新对话”消息",
+    "hamburgerButtonBottom": "将菜单按钮移至侧边栏底部"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

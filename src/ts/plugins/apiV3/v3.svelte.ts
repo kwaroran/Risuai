@@ -13,6 +13,8 @@ import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
+import { hasher } from "src/ts/parser.svelte";
+import localforage from "localforage";
 
 /*
     V3 API for RisuAI Plugins
@@ -32,7 +34,6 @@ import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
         - Callback functions (only as parameters)
         - Note that Class or Callbacks inside arrays or objects are not supported
 */
-
 
 class SafeElement {
     #element: HTMLElement;
@@ -506,11 +507,30 @@ const unloadV3Plugin = async (pluginName: string) => {
 }
 
 const permissionGivenPlugins: Set<string> = new Set();
+const permissionDeniedPlugins: Set<string> = new Set();
+const permissionForage = localforage.createInstance({
+    name: 'plugin_permissions',
+    storeName: 'plugin_permissions'
+});
 
 const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
+    if(permissionDeniedPlugins.has(pluginName)){
+        return false;
+    }
+    const pluginHash = await hasher(
+        new TextEncoder().encode(
+            DBState.db.plugins.find(p => p.name === pluginName)?.script
+        )
+    ) + `_${permissionDesc}`;
+
+    if(await permissionForage.getItem(pluginHash)){
+        permissionGivenPlugins.add(pluginName);
+        return true;
+    }
+
     let alertTitle =
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
@@ -523,8 +543,10 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     const conf = await alertConfirm(alertTitle)
     if(conf){
         permissionGivenPlugins.add(pluginName);
+        await permissionForage.setItem(pluginHash, true);
         return true;
     }
+    permissionDeniedPlugins.add(pluginName);
     return false;
 }
 

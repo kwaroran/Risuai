@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { risuChatParser } from '../../../parser.svelte'
+import { risuChatParser } from '../../parser.svelte'
 import { resetChatVariables } from './lib'
 import { setChatVar } from '../../chatVar.svelte'
 

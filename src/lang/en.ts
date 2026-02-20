@@ -1540,6 +1540,7 @@ export const languageEnglish = {
     },
     enableRemoteSaving: "Enable Remote Saving",
     blockquoteStyling: "Blockquote Styling",
+    dynamicModelRegistry: "Dynamic Model Registry",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

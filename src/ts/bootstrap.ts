@@ -42,6 +42,7 @@ import {
     checkCharOrder
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
+import { registerModelDynamic } from "./model/modellist";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -241,6 +242,7 @@ export async function loadData() {
             startObserveDom()
             assignIds()
             makeColdData()
+            registerModelDynamic()
             saveDb()
             moduleUpdate()
             if (import.meta.env.VITE_RISU_TOS === 'TRUE') {

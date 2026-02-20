@@ -637,6 +637,7 @@ export function setDatabase(data:Database){
     }
     data.createFolderOnBranch ??= true
     data.hamburgerButtonBottom ??= false
+    data.dynamicModelRegistry ??= true
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1151,6 +1152,7 @@ export interface Database{
     hamburgerButtonBottom?:boolean
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
+    dynamicModelRegistry?:boolean
 }
 
 interface SeparateParameters{

@@ -1,4 +1,3 @@
-import type { Parameter } from "../process/request/request"
 import { getDatabase } from "../storage/database.svelte"
 import {
     LLMFlags,

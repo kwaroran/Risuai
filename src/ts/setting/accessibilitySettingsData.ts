@@ -181,5 +181,12 @@ export const accessibilitySettingsItems: SettingItem[] = [
         labelKey: 'createFolderOnBranch',
         bindKey: 'createFolderOnBranch',
         keywords: ['create', 'folder', 'branch'],
+    },
+    {
+        id: 'acc.hamburgerButtonBottom',
+        type: 'check',
+        labelKey: 'hamburgerButtonBottom',
+        bindKey: 'hamburgerButtonBottom',
+        keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
     }
 ];

@@ -1397,5 +1397,6 @@ export const languageChinese = {
     "getFullDatabaseConsent": "插件 {} 正在请求访问完整数据库，这可能会泄露敏感信息。是否允许？",
     "fetchLogConsent": "插件 {} 正在请求获取日志，这可能会泄露敏感信息。是否允许？",
     "enableScrollToActiveChar": "启用滚动至当前角色",
-    "trimStartNewChat": "修剪“开始新对话”消息"
+    "trimStartNewChat": "修剪“开始新对话”消息",
+    "hamburgerButtonBottom": "将菜单按钮移至侧边栏底部"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

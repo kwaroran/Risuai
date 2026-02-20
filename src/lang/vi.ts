@@ -1397,5 +1397,6 @@ export const languageVietnamese = {
     "getFullDatabaseConsent": "Plugin {} đang yêu cầu truy cập vào toàn bộ cơ sở dữ liệu, điều này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép điều này không?",
     "enableScrollToActiveChar": "Bật cuộn đến nhân vật đang hoạt động",
     "trimStartNewChat": "Rút gọn các tin nhắn 'Bắt đầu đoạn chat mới'",
-    "newMessageButtonRightCenter": "Trung tâm bên phải"
+    "newMessageButtonRightCenter": "Trung tâm bên phải",
+    "hamburgerButtonBottom": "Di chuyển nút menu xuống dưới cùng của thanh bên"
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

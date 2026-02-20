@@ -323,7 +323,7 @@
         $doingChat = false
         if(DBState.db.playMessage){
             const audio = new Audio(sendSound);
-            audio.play();
+            audio.play().catch(() => {});
         }
     }
 

@@ -528,12 +528,15 @@ export const languageKorean = {
     },
     "playground": {
         "playground": "플레이그라운드",
+        "inlayDeleteConfirm": "\"{name}\"을(를) 정말 삭제하시겠습니까?",
+        "inlayDeleteMultipleConfirm": "선택한 {count}개의 에셋을 정말 삭제하시겠습니까?",
         "inlayDeleteSelected": "선택 항목 삭제",
         "inlayDeselectAll": "모두 선택 해제",
         "inlayEmpty": "저장된 인레이 에셋이 없습니다",
         "inlayEmptyDesc": "채팅에서 첨부 또는 생성된 이미지, 오디오 및 비디오가 여기에 나타납니다",
         "inlayExplorer": "인레이 에셋 탐색기",
-        "inlaySelectAll": "모두 선택"
+        "inlaySelectAll": "모두 선택",
+        "inlayTotalAssets": "총 {count}개 에셋",
     },
     "confirm": "확인",
     "goback": "뒤로",

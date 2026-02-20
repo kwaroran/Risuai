@@ -84,10 +84,10 @@ export const advancedSettingsItems: SettingItem[] = [
 
     // Request Location (Non-Node/Tauri)
     {
-        id: 'adv.reqLoc', type: 'select', labelKey: 'requestLocation', bindKey: 'requestLocation',
+        id: 'adv.reqLoc', type: 'segmented', labelKey: 'requestLocation', bindKey: 'requestLocation',
         condition: () => !isNodeServer && !isTauri,
         options: {
-            selectOptions: [
+            segmentOptions: [
                 { value: '', label: 'Default' },
                 { value: 'eu', label: 'EU (GDPR)' },
                 { value: 'fedramp', label: 'US (FedRAMP)' }

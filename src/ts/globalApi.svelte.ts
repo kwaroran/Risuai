@@ -20,7 +20,7 @@ import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingS
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
 import { checkDriverInit, syncDrive } from "./drive/drive";
-import { hasher } from "./parser.svelte";
+import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { loadRisuAccountData } from "./drive/accounter";
@@ -627,13 +627,11 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
 
         if(arg.interceptor){
             for (const interceptor of bodyIntercepterStore) {
-                if(interceptor.id === arg.interceptor){
-                    try {
-                        arg.body = await interceptor.callback(arg.body, arg.interceptor) || arg.body
-                    }
-                    catch (e) {
-                        console.error(e)
-                    }
+                try {
+                    arg.body = await interceptor.callback(arg.body, arg.interceptor) || arg.body
+                }
+                catch (e) {
+                    console.error(e)
                 }
             }
         }
@@ -1444,17 +1442,18 @@ export async function fetchNative(url: string, arg: {
         realBody = undefined
     }
     else if (typeof arg.body === 'string') {
+        let body: string = arg.body
         if(useInterceptor) {
             for (const interceptor of bodyIntercepterStore) {
                 try {
-                    realBody = await interceptor.callback(arg.body, arg.interceptor) || realBody
+                    body = await interceptor.callback(body, arg.interceptor) || body
                 }
                 catch (e) {
                     console.error(e)
                 }
             }
         }
-        realBody = new TextEncoder().encode(arg.body)
+        realBody = new TextEncoder().encode(body)
     }
     else if (arg.body instanceof Uint8Array) {
         realBody = arg.body

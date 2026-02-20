@@ -1,7 +1,7 @@
 import fc from 'fast-check'
 import { writable } from 'svelte/store'
 import { expect, test, vi } from 'vitest'
-import { risuChatParser } from '../../../parser.svelte'
+import { risuChatParser } from '../../parser.svelte'
 import { cbs, trimVarPrefix, validCBSArgProp } from './lib'
 
 //#region module mocks

@@ -1,15 +1,15 @@
 import { fetchNative, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { language } from "src/lang"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { getDatabase, setDatabase } from "src/ts/storage/database.svelte"
 import { simplifySchema } from "src/ts/util"
 import { v4 } from "uuid"
 import { setInlayAsset, writeInlayImage } from "../files/inlays"
 import { extractJSON, getGeneralJSONSchema } from "../templates/jsonSchema"
-import { applyParameters, type Parameter, type RequestDataArgumentExtended, type requestDataResponse, type StreamResponseChunk } from "./request"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
-import { alertError, alertNormal, alertWait, showHypaV2Alert } from "src/ts/alert";
+import { alertError } from "src/ts/alert";
 import { addFetchLog } from "src/ts/globalApi.svelte"
+import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
+import { applyParameters, type LLMParameter } from './shared'
 
 type GeminiFunctionCall = {
     id?: string;
@@ -300,7 +300,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         }
     }
 
-    let para:Parameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
+    let para:LLMParameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
 
     if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
         para.push('thinking_tokens')

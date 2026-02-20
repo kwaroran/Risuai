@@ -2,14 +2,14 @@ import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
 import { globalFetch } from "../../globalApi.svelte";
 import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
-import { risuChatParser, risuEscape, risuUnescape } from "../../parser.svelte";
+import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
 import { getCurrentCharacter, getCurrentChat, getDatabase, type character } from "../../storage/database.svelte";
 import { tokenizeNum } from "../../tokenizer";
 import { sleep } from "../../util";
 import type { MultiModal, OpenAIChat } from "../index.svelte";
 import { getTools } from "../mcp/mcp";
-import type { MCPTool, RPCToolCallContent } from "../mcp/mcplib";
+import type { MCPTool } from "../mcp/mcplib";
 import { NovelAIBadWordIds, stringlizeNAIChat } from "../models/nai";
 import { OobaParams } from "../prompt";
 import { getStopStrings, stringlizeAINChat, unstringlizeAIN, unstringlizeChat } from "../stringlize";
@@ -19,14 +19,11 @@ import { runTrigger } from "../triggers";
 import { requestClaude } from './anthropic';
 import { requestGoogleCloudVertex } from './google';
 import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI";
+import { applyParameters, type ModelModeExtended } from './shared';
 
 export type ToolCall = {
     name: string;
     arguments: string;
-}
-type ToolCallResponse = {
-    caller: ToolCall;
-    result: RPCToolCallContent[]
 }
 
 interface requestDataArgument{
@@ -91,200 +88,6 @@ export type requestDataResponse = {
 }
 
 export interface StreamResponseChunk{[key:string]:string}
-
-export type Parameter = 'temperature'|'top_k'|'repetition_penalty'|'min_p'|'top_a'|'top_p'|'frequency_penalty'|'presence_penalty'|'reasoning_effort'|'thinking_tokens'|'verbosity'
-export type ModelModeExtended = 'model'|'submodel'|'memory'|'emotion'|'otherAx'|'translate'
-type ParameterMap = {
-    [key in Parameter]?: string;
-};
-
-export function setObjectValue<T>(obj: T, key: string, value: any): T {
-
-    const splitKey = key.split('.');
-    if(splitKey.length > 1){
-        const firstKey = splitKey.shift()
-        if(!obj[firstKey]){
-            obj[firstKey] = {};
-        }
-        obj[firstKey] = setObjectValue(obj[firstKey], splitKey.join('.'), value);
-        return obj;
-    }
-
-    obj[key] = value;
-    return obj;
-}
-
-export function applyParameters(data: { [key: string]: any }, parameters: Parameter[], rename: ParameterMap, ModelMode:ModelModeExtended, arg:{
-    ignoreTopKIfZero?:boolean
-} = {}): { [key: string]: any } {
-    const db = getDatabase()
-
-    function getEffort(effort:number){
-        switch(effort){
-            case -1:{
-                return 'minimal'
-            }
-            case 0:{
-                return 'low'
-            }
-            case 1:{
-                return 'medium'
-            }
-            case 2:{
-                return 'high'
-            }
-            default:{
-                return 'medium'
-            }
-        }
-    }
-
-    function getVerbosity(verbosity:number){
-        switch(verbosity){
-            case 0:{
-                return 'low'
-            }
-            case 1:{
-                return 'medium'
-            }
-            case 2:{
-                return 'high'
-            }
-            default:{
-                return 'medium'
-            }
-        }
-    }
-
-    if(db.seperateParametersEnabled && ModelMode !== 'model'){
-        if(ModelMode === 'submodel'){
-            ModelMode = 'otherAx'
-        }
-
-        for(const parameter of parameters){
-            
-            let value:number|string = 0
-            if(parameter === 'top_k' && arg.ignoreTopKIfZero && db.seperateParameters[ModelMode][parameter] === 0){
-                continue
-            }
-
-            switch(parameter){
-                case 'temperature':{
-                    value = db.seperateParameters[ModelMode].temperature === -1000 ? -1000 : (db.seperateParameters[ModelMode].temperature / 100)
-                    break
-                }
-                case 'top_k':{
-                    value = db.seperateParameters[ModelMode].top_k
-                    break
-                }
-                case 'repetition_penalty':{
-                    value = db.seperateParameters[ModelMode].repetition_penalty
-                    break
-                }
-                case 'min_p':{
-                    value = db.seperateParameters[ModelMode].min_p
-                    break
-                }
-                case 'top_a':{
-                    value = db.seperateParameters[ModelMode].top_a
-                    break
-                }
-                case 'top_p':{
-                    value = db.seperateParameters[ModelMode].top_p
-                    break
-                }
-                case 'thinking_tokens':{
-                    value = db.seperateParameters[ModelMode].thinking_tokens
-                    break
-                }
-                case 'frequency_penalty':{
-                    value = db.seperateParameters[ModelMode].frequency_penalty === -1000 ? -1000 : (db.seperateParameters[ModelMode].frequency_penalty / 100)
-                    break
-                }
-                case 'presence_penalty':{
-                    value = db.seperateParameters[ModelMode].presence_penalty === -1000 ? -1000 : (db.seperateParameters[ModelMode].presence_penalty / 100)
-                    break
-                }
-                case 'reasoning_effort':{
-                    value = getEffort(db.seperateParameters[ModelMode].reasoning_effort)
-                    break
-                }
-                case 'verbosity':{
-                    value = getVerbosity(db.seperateParameters[ModelMode].verbosity)
-                    break
-                }
-            }
-
-            if(value === -1000 || value === undefined || value === null || (typeof value === 'number' && isNaN(value))){
-                continue
-            }
-
-            data = setObjectValue(data, rename[parameter] ?? parameter, value)
-        }
-        return data
-    }
-
-
-    for(const parameter of parameters){
-        let value:number|string = 0
-        if(parameter === 'top_k' && arg.ignoreTopKIfZero && db.top_k === 0){
-            continue
-        }
-        switch(parameter){
-            case 'temperature':{
-                value = db.temperature === -1000 ? -1000 : (db.temperature / 100)
-                break
-            }
-            case 'top_k':{
-                value = db.top_k
-                break
-            }
-            case 'repetition_penalty':{
-                value = db.repetition_penalty
-                break
-            }
-            case 'min_p':{
-                value = db.min_p
-                break
-            }
-            case 'top_a':{
-                value = db.top_a
-                break
-            }
-            case 'top_p':{
-                value = db.top_p
-                break
-            }
-            case 'reasoning_effort':{
-                value = getEffort(db.reasoningEffort)
-                break
-            }
-            case 'verbosity':{
-                value = getVerbosity(db.verbosity)
-                break
-            }
-            case 'frequency_penalty':{
-                value = db.frequencyPenalty === -1000 ? -1000 : (db.frequencyPenalty / 100)
-                break
-            }
-            case 'presence_penalty':{
-                value = db.PresensePenalty === -1000 ? -1000 : (db.PresensePenalty / 100)
-                break
-            }
-            case 'thinking_tokens':{
-                value = db.thinkingTokens
-                break
-            }
-        }
-
-        if(value === -1000){
-            continue
-        }
-
-        data = setObjectValue(data, rename[parameter] ?? parameter, value)
-    }
-    return data
-}
 
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()

@@ -9,8 +9,9 @@ import { replaceAsync, simplifySchema, sleep } from "src/ts/util"
 import { v4 } from "uuid"
 import type { MultiModal } from "../index.svelte"
 import { extractJSON } from "../templates/jsonSchema"
-import { applyParameters, type RequestDataArgumentExtended, type requestDataResponse, type StreamResponseChunk } from "./request"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
+import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
+import { applyParameters } from './shared'
 
 interface Claude3TextBlock {
     type: 'text',

@@ -239,11 +239,11 @@ export async function importModule(){
             const module = await readModule(buf)
             db.modules.push(module)
             setDatabase(db)
-            return   
         } catch (error) {
             console.error(error)
             alertError(language.errors.noData)
         }
+        return
     }
     try {
         const importData = JSON.parse(Buffer.from(fileData).toString())
@@ -267,7 +267,9 @@ export async function importModule(){
             setDatabase(db)
             return
         }
-        if(importData.type === 'risu' && importData.data){
+        // importData.type === 'risu' in conflict with HypaV3 preset exports
+        // difference: record vs. array
+        if(importData.type === 'risu' && importData.data && Array.isArray(importData.data)){
             const lores:loreBook[] = importData.data
             const importModule = {
                 name: importData.name || 'Imported Lorebook',
@@ -304,8 +306,10 @@ export async function importModule(){
             return
         }
     } catch (error) {
-        alertNormal(language.errors.noData)
+        console.error(error)
     }
+
+    alertNormal(language.errors.noData)
 }
 
 function getModuleById(id:string){

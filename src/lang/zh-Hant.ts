@@ -17,7 +17,7 @@ export const languageChineseTraditional = {
         "toomuchtoken": "錯誤：所需的 Token 數超過了可用的最大上下文大小",
         "unknownModel": "錯誤：無法識別所選的模型",
         "httpError": "錯誤：請求發生錯誤：",
-        "noData": "無法找到檔案中的資料，或者檔案已經損毀",
+        "noData": "這個檔案看起來不太對，或是資料已經損壞了。",
         "onlyOneChat": "至少需要一個聊天室",
         "alreadyCharInGroup": "該群組中已經有一個同名角色。",
         "noUserIcon": "請先設定您的個人頭像。",

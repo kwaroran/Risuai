@@ -17,7 +17,7 @@ export const languageVietnamese = {
         "toomuchtoken": "Lỗi: Mã thông báo bắt buộc tối thiểu lớn hơn Kích thước ngữ cảnh tối đa.",
         "unknownModel": "Lỗi: Đã chọn mô hình không xác định",
         "httpError": "Lỗi: lỗi trong yêu cầu:",
-        "noData": "Không có dữ liệu trong tệp hoặc tệp bị hỏng",
+        "noData": "Tệp này có vẻ không hợp lệ hoặc dữ liệu đã bị hỏng.",
         "onlyOneChat": "Phải có ít nhất một cuộc trò chuyện",
         "alreadyCharInGroup": "Đã có một nhân vật có cùng tên trong nhóm.",
         "noUserIcon": "Bạn phải đặt biểu tượng của mình trước.",

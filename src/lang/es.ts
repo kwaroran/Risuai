@@ -17,7 +17,7 @@ export const languageSpanish = {
         "toomuchtoken": "Error: El mínimo requerido de tokens es mayor que el Tamaño Máximo del Contexto.",
         "unknownModel": "Error: Modelo seleccionado desconocido",
         "httpError": "Error: error en la solicitud:",
-        "noData": "No hay datos en el archivo o el archivo está corrupto",
+        "noData": "Ese archivo no parece válido o sus datos están dañados.",
         "onlyOneChat": "Debe haber al menos un chat",
         "alreadyCharInGroup": "Ya hay un personaje con el mismo nombre en el grupo.",
         "noUserIcon": "Debes establecer tu icono primero.",

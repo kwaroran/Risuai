@@ -3,7 +3,7 @@ import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentChat, setDa
 import { selectedCharID } from "../stores.svelte";
 import { alertInput, alertMd, alertNormal, alertSelect } from "../alert";
 import { sayTTS } from "./tts";
-import { risuChatParser } from "../parser.svelte";
+import { risuChatParser } from "../parser/parser.svelte";
 import { sendChat } from "./index.svelte";
 import { loadLoreBookV3Prompt } from "./lorebook.svelte";
 import { runTrigger } from "./triggers";

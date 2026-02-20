@@ -20,7 +20,7 @@ import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingS
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
 import { checkDriverInit, syncDrive } from "./drive/drive";
-import { hasher } from "./parser.svelte";
+import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { loadRisuAccountData } from "./drive/accounter";

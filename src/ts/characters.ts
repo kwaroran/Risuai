@@ -8,7 +8,7 @@ import { getImageType } from "./media";
 import { MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
 import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, getFileSrc, requiresFullEncoderReload } from "./globalApi.svelte";
 import { updateInlayScreen } from "./process/inlayScreen";
-import { parseMarkdownSafe } from "./parser.svelte";
+import { parseMarkdownSafe } from "./parser/parser.svelte";
 import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";

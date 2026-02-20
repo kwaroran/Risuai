@@ -9,7 +9,7 @@
     import { requestChatData } from "src/ts/process/request/request";
     import { asBuffer, selectFileByDom, selectSingleFile, sleep } from "src/ts/util";
     import { alertError, alertSelect } from "src/ts/alert";
-    import { risuChatParser } from "src/ts/parser.svelte";
+    import { risuChatParser } from "src/ts/parser/parser.svelte";
     import { AppendableBuffer, downloadFile, getLanguageCodes } from "src/ts/globalApi.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";

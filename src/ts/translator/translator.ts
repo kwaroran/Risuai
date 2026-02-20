@@ -567,6 +567,16 @@ export async function getLLMCache(text:string):Promise<string | null>{
     return await LLMCacheStorage.getItem(text)
 }
 
+export async function searchLLMCache(partialKey:string):Promise<{key: string, value: string}[]>{
+    const results:{key: string, value: string}[] = []
+    await LLMCacheStorage.iterate<string, void>((value, key) => {
+        if(key.includes(partialKey)){
+            results.push({key, value})
+        }
+    })
+    return results
+}
+
 
 function applyEdittransRegex(
       text: string, 

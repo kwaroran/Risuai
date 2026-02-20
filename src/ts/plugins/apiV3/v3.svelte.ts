@@ -12,6 +12,7 @@ import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.sv
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
+import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser.svelte";
 import localforage from "localforage";
 
@@ -918,6 +919,12 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         _clearSafeLocalStorage: oldApis.safeLocalStorage.clear,
         _keySafeLocalStorage: oldApis.safeLocalStorage.key,
         _keysSafeLocalStorage: oldApis.safeLocalStorage.keys,
+        searchTranslationCache: async (partialKey: string) => {
+            return searchLLMCache(partialKey)
+        },
+        getTranslationCache: async (key: string) => {
+            return getLLMCache(key)
+        },
         _getAliases: () => {
             return {
                 'pluginStorage':{

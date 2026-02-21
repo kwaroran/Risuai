@@ -1,8 +1,8 @@
 # RisuAI CBS Mode for CodeMirror 5
 
-**CodeMirror 5 syntax highlighting mode for RisuAI CBS (Character Book Script)**
+**CodeMirror 5 syntax highlighting mode for RisuAI CBS (Curly Braced Syntax)**
 
-CBS는 RisuAI에서 캐릭터 카드, 로어북, 프롬프트 등에 사용되는 템플릿 스크립팅 언어입니다.
+CBS (Curly Braced Syntax)는 RisuAI에서 캐릭터 설명, 로어북, 정규식 스크립트, 트리거 스크립트 등 다양한 텍스트박스에서 사용되는 매크로 스크립팅 언어입니다.
 
 ---
 

@@ -11,6 +11,10 @@ import {
     writeInlayImage,
 } from '../inlays'
 
+type MockInlayAsset = Omit<InlayAsset, 'data'> & {
+    data: string | Blob
+}
+
 //#region module mocks
 
 // happy-dom canvas getContext returns null
@@ -95,7 +99,7 @@ beforeEach(() => {
 
 describe('setInlayAsset', () => {
     test('stores an asset in the storage', async () => {
-        const asset: InlayAsset = {
+        const asset: MockInlayAsset = {
             data: new Blob(['hello'], { type: 'text/plain' }),
             ext: 'png',
             height: 100,
@@ -110,7 +114,7 @@ describe('setInlayAsset', () => {
     })
 
     test('overwrites an existing asset with the same id', async () => {
-        const first: InlayAsset = {
+        const first: MockInlayAsset = {
             data: new Blob(['a']),
             ext: 'png',
             height: 10,
@@ -118,7 +122,7 @@ describe('setInlayAsset', () => {
             type: 'image',
             width: 10,
         }
-        const second: InlayAsset = {
+        const second: MockInlayAsset = {
             data: new Blob(['b']),
             ext: 'png',
             height: 20,
@@ -130,7 +134,7 @@ describe('setInlayAsset', () => {
         await setInlayAsset('id-1', first)
         await setInlayAsset('id-1', second)
 
-        expect((store.get('id-1') as InlayAsset)).toMatchObject({
+        expect((store.get('id-1') as MockInlayAsset)).toMatchObject({
             height: 20,
             name: 'second.png',
             type: 'image',
@@ -147,7 +151,7 @@ describe('getInlayAsset', () => {
 
     test('returns asset with base64 data URI when stored as Blob', async () => {
         const blob = new Blob(['test-data'], { type: 'text/plain' })
-        const asset: InlayAsset = {
+        const asset: MockInlayAsset = {
             data: blob,
             ext: 'png',
             height: 50,
@@ -165,7 +169,7 @@ describe('getInlayAsset', () => {
 
     test('returns asset with string data as-is when stored as string', async () => {
         const b64 = 'data:image/png;base64,aGVsbG8='
-        const asset: InlayAsset = {
+        const asset: MockInlayAsset = {
             data: b64,
             ext: 'png',
             height: 50,
@@ -188,7 +192,7 @@ describe('getInlayAssetBlob', () => {
 
     test('returns Blob data when stored as Blob', async () => {
         const blob = new Blob(['binary-data'], { type: 'image/png' })
-        const asset: InlayAsset = {
+        const asset: MockInlayAsset = {
             data: blob,
             ext: 'png',
             height: 64,
@@ -204,7 +208,7 @@ describe('getInlayAssetBlob', () => {
 
     test('migrates string data to Blob and updates storage', async () => {
         const b64 = 'data:image/png;base64,aGVsbG8='
-        const asset: InlayAsset = {
+        const asset: MockInlayAsset = {
             data: b64,
             ext: 'png',
             height: 32,
@@ -217,7 +221,7 @@ describe('getInlayAssetBlob', () => {
         const result = await getInlayAssetBlob('legacy-id')
         expect(result!.data).toBeInstanceOf(Blob)
 
-        const updated = store.get('legacy-id') as InlayAsset
+        const updated = store.get('legacy-id') as MockInlayAsset
         expect(updated.data).toBeInstanceOf(Blob)
     })
 })
@@ -229,7 +233,7 @@ describe('listInlayAssets', () => {
     })
 
     test('returns all stored assets as [id, asset] tuples', async () => {
-        const asset1: InlayAsset = {
+        const asset1: MockInlayAsset = {
             data: new Blob(['a']),
             ext: 'png',
             height: 10,
@@ -237,7 +241,7 @@ describe('listInlayAssets', () => {
             name: 'a.png',
             type: 'image',
         }
-        const asset2: InlayAsset = {
+        const asset2: MockInlayAsset = {
             data: new Blob(['b']),
             ext: 'mp3',
             height: 0,
@@ -271,7 +275,7 @@ describe('postInlayAsset', () => {
         })
         expect(result).toBe('test-uuid-1234')
 
-        const stored = store.get('test-uuid-1234') as InlayAsset
+        const stored = store.get('test-uuid-1234') as MockInlayAsset
         expect(stored).toMatchObject({
             data: expect.any(Blob),
             ext: 'mp3',
@@ -288,7 +292,7 @@ describe('postInlayAsset', () => {
         })
         expect(result).toBe('test-uuid-1234')
 
-        const stored = store.get('test-uuid-1234') as InlayAsset
+        const stored = store.get('test-uuid-1234') as MockInlayAsset
         expect(stored).toMatchObject({
             data: expect.any(Blob),
             ext: 'webm',
@@ -322,7 +326,7 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
-                const stored = store.get(result!) as InlayAsset
+                const stored = store.get(result!) as MockInlayAsset
                 expect(stored.type).toBe('audio')
                 expect(stored.ext).toBe(ext)
             }),
@@ -338,7 +342,7 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
-                const stored = store.get(result!) as InlayAsset
+                const stored = store.get(result!) as MockInlayAsset
                 expect(stored.type).toBe('video')
                 expect(stored.ext).toBe(ext)
             }),
@@ -358,7 +362,7 @@ describe('writeInlayImage', () => {
 
         expect(result).toBe('custom-id')
 
-        const stored = store.get('custom-id') as InlayAsset
+        const stored = store.get('custom-id') as MockInlayAsset
         expect(stored).toMatchObject({
             data: expect.any(Blob),
             ext: 'png',
@@ -375,7 +379,7 @@ describe('writeInlayImage', () => {
         const result = await writeInlayImage(imgObj)
         expect(result).toBe('test-uuid-1234')
 
-        const stored = store.get('test-uuid-1234') as InlayAsset
+        const stored = store.get('test-uuid-1234') as MockInlayAsset
         expect(stored.name).toBe('test-uuid-1234')
     })
 
@@ -385,7 +389,7 @@ describe('writeInlayImage', () => {
                 store.clear()
                 const img = makeImage(w, h)
                 await writeInlayImage(img, { id: 'prop-img' })
-                const stored = store.get('prop-img') as InlayAsset
+                const stored = store.get('prop-img') as MockInlayAsset
 
                 expect(stored.width * stored.height).toBeLessThanOrEqual(1024 * 1024)
                 expect(stored.width).toBeGreaterThan(0)
@@ -403,7 +407,7 @@ describe('writeInlayImage', () => {
                     store.clear()
                     const img = makeImage(w, h)
                     await writeInlayImage(img, { id: 'ratio-img' })
-                    const stored = store.get('ratio-img') as InlayAsset
+                    const stored = store.get('ratio-img') as MockInlayAsset
 
                     const originalRatio = w / h
                     const storedRatio = stored.width / stored.height
@@ -420,7 +424,7 @@ describe('writeInlayImage', () => {
                 const img = makeImage(w, h)
                 await writeInlayImage(img, { id: 'small-img' })
 
-                const stored = store.get('small-img') as InlayAsset
+                const stored = store.get('small-img') as MockInlayAsset
                 expect(stored).toMatchObject({
                     height: h,
                     width: w,
@@ -442,7 +446,7 @@ describe('set -> get round-trip', () => {
                 async (id, name, ext, width, height) => {
                     store.clear()
                     const blob = new Blob(['data'], { type: 'application/octet-stream' })
-                    const asset: InlayAsset = {
+                    const asset: MockInlayAsset = {
                         data: blob,
                         ext,
                         height,
@@ -473,7 +477,7 @@ describe('set -> remove -> get', () => {
         await fc.assert(
             fc.asyncProperty(fc.string({ minLength: 1, maxLength: 20 }), async (id) => {
                 store.clear()
-                const asset: InlayAsset = {
+                const asset: MockInlayAsset = {
                     data: new Blob(['x']),
                     ext: 'png',
                     height: 1,

@@ -124,14 +124,14 @@ export const penaltyParameterItems: SettingItem[] = [
 export const modelSpecificParameterItems: SettingItem[] = [
     {
         id: 'params.thinkingType',
-        type: 'select',
+        type: 'segmented',
         labelKey: 'thinkingType',
         bindKey: 'thinkingType',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
         options: {
-            selectOptions: [
+            segmentOptions: [
                 { value: 'off', label: 'Off' },
                 { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking)  },
                 { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
@@ -157,14 +157,14 @@ export const modelSpecificParameterItems: SettingItem[] = [
     },
     {
         id: 'params.adaptiveThinkingEffort',
-        type: 'select',
+        type: 'segmented',
         labelKey: 'adaptiveThinkingEffort',
         bindKey: 'adaptiveThinkingEffort',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
             ctx.db.thinkingType === 'adaptive',
         options: {
-            selectOptions: [
+            segmentOptions: [
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
                 { value: 'high', label: 'High' },

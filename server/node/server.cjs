@@ -22,6 +22,7 @@ const savePath = path.join(process.cwd(), "save")
 if(!existsSync(savePath)){
     mkdirSync(savePath)
 }
+const DEFAULT_SSE_HEARTBEAT_INTERVAL_MS = 15000
 
 const passwordPath = path.join(process.cwd(), 'save', '__password')
 if(existsSync(passwordPath)){
@@ -39,6 +40,148 @@ async function hashJSON(json){
     const hash = nodeCrypto.createHash('sha256');
     hash.update(JSON.stringify(json));
     return hash.digest('hex');
+}
+
+function getRequestTimeoutMs(timeoutHeader) {
+    const raw = Array.isArray(timeoutHeader) ? timeoutHeader[0] : timeoutHeader;
+    if (!raw) {
+        return null;
+    }
+    const timeoutMs = Number.parseInt(raw, 10);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        return null;
+    }
+    return timeoutMs;
+}
+
+function createTimeoutController(timeoutMs) {
+    if (!timeoutMs) {
+        return {
+            signal: undefined,
+            cleanup: () => {}
+        };
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    return {
+        signal: controller.signal,
+        cleanup: () => clearTimeout(timer)
+    };
+}
+
+function parseHeartbeatEnabled(value) {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (raw === undefined || raw === null) {
+        return true;
+    }
+    const normalized = String(raw).trim().toLowerCase();
+    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') {
+        return false;
+    }
+    if (normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes') {
+        return true;
+    }
+    return true;
+}
+
+function parseHeartbeatIntervalMs(value) {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (!raw) {
+        return DEFAULT_SSE_HEARTBEAT_INTERVAL_MS;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return DEFAULT_SSE_HEARTBEAT_INTERVAL_MS;
+    }
+    return Math.max(1000, Math.min(120000, parsed));
+}
+
+function getHeartbeatConfig(reqHeaders) {
+    return {
+        enabled: parseHeartbeatEnabled(reqHeaders['risu-sse-heartbeat']),
+        intervalMs: parseHeartbeatIntervalMs(reqHeaders['risu-sse-heartbeat-interval-ms'])
+    };
+}
+
+async function forwardUpstreamResponse(originalResponse, res, heartbeatConfig = { enabled: true, intervalMs: DEFAULT_SSE_HEARTBEAT_INTERVAL_MS }) {
+    const head = new Headers(originalResponse.headers);
+    head.delete('content-security-policy');
+    head.delete('content-security-policy-report-only');
+    head.delete('clear-site-data');
+    head.delete('Cache-Control');
+    head.delete('Content-Encoding');
+
+    const contentType = (head.get('content-type') || '').toLowerCase();
+    const isSSE = contentType.includes('text/event-stream');
+    if (isSSE) {
+        head.set('Cache-Control', 'no-cache, no-transform');
+        head.set('Connection', 'keep-alive');
+        head.set('X-Accel-Buffering', 'no');
+        head.delete('content-length');
+    }
+
+    const headObj = {};
+    for (const [k, v] of head) {
+        headObj[k] = v;
+    }
+
+    res.header(headObj);
+    res.status(originalResponse.status);
+
+    if (!originalResponse.body) {
+        res.end();
+        return;
+    }
+
+    if (!isSSE) {
+        await pipeline(originalResponse.body, res);
+        return;
+    }
+
+    const reader = originalResponse.body.getReader();
+    const heartbeat = heartbeatConfig.enabled ? setInterval(() => {
+        if (!res.writableEnded) {
+            res.write(': ping\n\n');
+        }
+    }, heartbeatConfig.intervalMs) : null;
+
+    const onClose = () => {
+        if (heartbeat) {
+            clearInterval(heartbeat);
+        }
+        reader.cancel().catch(() => {});
+    };
+    res.on('close', onClose);
+
+    if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+    }
+
+    try {
+        while (!res.writableEnded) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            if (value && value.length > 0) {
+                res.write(Buffer.from(value));
+            }
+        }
+    } catch (error) {
+        if (!res.writableEnded) {
+            throw error;
+        }
+    } finally {
+        if (heartbeat) {
+            clearInterval(heartbeat);
+        }
+        res.off('close', onClose);
+        if (!res.writableEnded) {
+            res.end();
+        }
+    }
 }
 
 app.get('/', async (req, res, next) => {
@@ -192,6 +335,10 @@ const reverseProxyFunc = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
+    const heartbeatConfig = getHeartbeatConfig(req.headers)
+    delete header['risu-timeout-ms']
+    delete header['risu-sse-heartbeat']
+    delete header['risu-sse-heartbeat-interval-ms']
 
     if(req.headers['authorization']?.startsWith('X-SERVER-REGISTER')){
         if(!existsSync(authCodePath)){
@@ -204,39 +351,25 @@ const reverseProxyFunc = async (req, res, next) => {
             header['authorization'] = `Bearer ${authCode}`
         }
     }
+    const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     let originalResponse;
     try {
         // make request to original server
         originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
-            body: JSON.stringify(req.body)
+            body: JSON.stringify(req.body),
+            signal: timeoutController.signal
         });
-        // get response body as stream
-        const originalBody = originalResponse.body;
-        // get response headers
-        const head = new Headers(originalResponse.headers);
-        head.delete('content-security-policy');
-        head.delete('content-security-policy-report-only');
-        head.delete('clear-site-data');
-        head.delete('Cache-Control');
-        head.delete('Content-Encoding');
-        const headObj = {};
-        for (let [k, v] of head) {
-            headObj[k] = v;
-        }
-        // send response headers to client
-        res.header(headObj);
-        // send response status to client
-        res.status(originalResponse.status);
-        // send response body to client
-        await pipeline(originalResponse.body, res);
+        await forwardUpstreamResponse(originalResponse, res, heartbeatConfig);
 
 
     }
     catch (err) {
         next(err);
         return;
+    } finally {
+        timeoutController.cleanup();
     }
 }
 
@@ -257,36 +390,26 @@ const reverseProxyFunc_get = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
+    const heartbeatConfig = getHeartbeatConfig(req.headers)
+    delete header['risu-timeout-ms']
+    delete header['risu-sse-heartbeat']
+    delete header['risu-sse-heartbeat-interval-ms']
+    const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     let originalResponse;
     try {
         // make request to original server
         originalResponse = await fetch(urlParam, {
             method: 'GET',
-            headers: header
+            headers: header,
+            signal: timeoutController.signal
         });
-        // get response body as stream
-        const originalBody = originalResponse.body;
-        // get response headers
-        const head = new Headers(originalResponse.headers);
-        head.delete('content-security-policy');
-        head.delete('content-security-policy-report-only');
-        head.delete('clear-site-data');
-        head.delete('Cache-Control');
-        head.delete('Content-Encoding');
-        const headObj = {};
-        for (let [k, v] of head) {
-            headObj[k] = v;
-        }
-        // send response headers to client
-        res.header(headObj);
-        // send response status to client
-        res.status(originalResponse.status);
-        // send response body to client
-        await pipeline(originalResponse.body, res);
+        await forwardUpstreamResponse(originalResponse, res, heartbeatConfig);
     }
     catch (err) {
         next(err);
         return;
+    } finally {
+        timeoutController.cleanup();
     }
 }
 

@@ -389,6 +389,22 @@ export function setDatabase(data:Database){
     data.customProxyRequestModel ??= ''
     data.generationSeed ??= -1
     data.newOAIHandle ??= true
+    data.localNetworkMode ??= false
+    data.localNetworkTimeoutSec ??= 600
+    data.experimentalProxySSEHeartbeat ??= true
+    data.experimentalProxySSEHeartbeatIntervalSec ??= 15
+    if (typeof data.localNetworkMode !== 'boolean') {
+        data.localNetworkMode = false
+    }
+    if (typeof data.localNetworkTimeoutSec !== 'number' || Number.isNaN(data.localNetworkTimeoutSec)) {
+        data.localNetworkTimeoutSec = 600
+    }
+    if (typeof data.experimentalProxySSEHeartbeat !== 'boolean') {
+        data.experimentalProxySSEHeartbeat = true
+    }
+    if (typeof data.experimentalProxySSEHeartbeatIntervalSec !== 'number' || Number.isNaN(data.experimentalProxySSEHeartbeatIntervalSec)) {
+        data.experimentalProxySSEHeartbeatIntervalSec = 15
+    }
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
     data.fishSpeechKey ??= ''
@@ -448,6 +464,14 @@ export function setDatabase(data:Database){
     }
     if (data.botPresets) {
         for (const preset of data.botPresets) {
+            preset.localNetworkMode ??= false
+            preset.localNetworkTimeoutSec ??= 600
+            if (typeof preset.localNetworkMode !== 'boolean') {
+                preset.localNetworkMode = false
+            }
+            if (typeof preset.localNetworkTimeoutSec !== 'number' || Number.isNaN(preset.localNetworkTimeoutSec)) {
+                preset.localNetworkTimeoutSec = 600
+            }
             if (typeof preset.openrouterProvider === 'string') {
                 const oldProvider = preset.openrouterProvider as unknown as string;
                 preset.openrouterProvider = {
@@ -794,6 +818,10 @@ export interface Database{
         FontColorQuote2 : string
     }
     requestRetrys:number
+    localNetworkMode:boolean
+    localNetworkTimeoutSec:number
+    experimentalProxySSEHeartbeat:boolean
+    experimentalProxySSEHeartbeatIntervalSec:number
     emotionPrompt2:string
     useSayNothing:boolean
     didFirstSetup: boolean
@@ -1537,6 +1565,8 @@ export interface botPreset{
     fallbackWhenBlankResponse?: boolean
     verbosity?:number
     dynamicOutput?:DynamicOutput
+    localNetworkMode?:boolean
+    localNetworkTimeoutSec?:number
 }
 
 
@@ -1868,6 +1898,8 @@ export const presetTemplate:botPreset = {
     },
     top_p: 1,
     useInstructPrompt: false,
+    localNetworkMode: false,
+    localNetworkTimeoutSec: 600,
     verbosity: 1
 }
 
@@ -1924,6 +1956,8 @@ export function saveCurrentPreset(){
         customProxyRequestModel: db.customProxyRequestModel,
         reverseProxyOobaArgs: safeStructuredClone(db.reverseProxyOobaArgs) ?? null,
         top_p: db.top_p ?? 1,
+        localNetworkMode: db.localNetworkMode ?? false,
+        localNetworkTimeoutSec: db.localNetworkTimeoutSec ?? 600,
         promptSettings: safeStructuredClone(db.promptSettings) ?? null,
         repetition_penalty: db.repetition_penalty,
         min_p: db.min_p,
@@ -2042,6 +2076,10 @@ export function setPreset(db:Database, newPres: botPreset){
         mode: 'instruct'
     }
     db.top_p = newPres.top_p ?? 1
+    db.localNetworkMode = newPres.localNetworkMode ?? false
+    db.localNetworkTimeoutSec = (typeof newPres.localNetworkTimeoutSec === 'number' && !Number.isNaN(newPres.localNetworkTimeoutSec))
+        ? newPres.localNetworkTimeoutSec
+        : 600
     db.promptSettings = safeStructuredClone(newPres.promptSettings) ?? {
         assistantPrefill: '',
         postEndInnerFormat: '',

@@ -41,6 +41,7 @@ import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
 import { isTauri, isNodeServer } from "./platform";
+import { isLocalNetworkUrl } from "./network/localNetwork";
 
 export const forageStorage = new AutoStorage()
 
@@ -525,6 +526,56 @@ export function getFetchData(id: string) {
 }
 
 const knownHostes = ["localhost", "127.0.0.1", "0.0.0.0"];
+const webLocalNetworkBlockedMessage = "웹에서는 사설망 직접 호출 불가. Tauri 또는 LAN Node self-host 사용";
+
+export type NetworkRoute = 'auto' | 'local_network';
+
+function getProxy2Url() {
+    return !isTauri && !isNodeServer ? `${hubURL}/proxy2` : `/proxy2`;
+}
+
+function buildTimeoutSignal(originalSignal?: AbortSignal, timeoutMs?: number) {
+    if (!timeoutMs || timeoutMs <= 0) {
+        return {
+            signal: originalSignal,
+            cleanup: () => { /* no-op */ }
+        };
+    }
+
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    if (originalSignal) {
+        if (originalSignal.aborted) {
+            controller.abort();
+        }
+        else {
+            originalSignal.addEventListener('abort', onAbort, { once: true });
+        }
+    }
+
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    return {
+        signal: controller.signal,
+        cleanup: () => {
+            clearTimeout(timeoutId);
+            originalSignal?.removeEventListener('abort', onAbort);
+        }
+    };
+}
+
+function getProxySSEHeartbeatHeaders() {
+    const db = DBState?.db ?? getDatabase();
+    const enabled = (db.experimentalProxySSEHeartbeat ?? true) ? "1" : "0";
+    const rawIntervalSec = db.experimentalProxySSEHeartbeatIntervalSec ?? 15;
+    const intervalSec = Number.isFinite(rawIntervalSec) ? rawIntervalSec : 15;
+    const intervalMs = Math.max(1000, Math.min(120000, Math.floor(intervalSec * 1000)));
+
+    return {
+        "risu-sse-heartbeat": enabled,
+        "risu-sse-heartbeat-interval-ms": intervalMs.toString()
+    };
+}
 
 /**
  * Interface representing the arguments for the global fetch function.
@@ -539,7 +590,7 @@ const knownHostes = ["localhost", "127.0.0.1", "0.0.0.0"];
  * @property {boolean} [useRisuToken] - Whether to use the Risu token.
  * @property {string} [chatId] - The chat ID associated with the request.
  */
-interface GlobalFetchArgs {
+export interface GlobalFetchArgs {
     plainFetchForce?: boolean;
     plainFetchDeforce?: boolean;
     body?: any;
@@ -550,6 +601,8 @@ interface GlobalFetchArgs {
     useRisuToken?: boolean;
     chatId?: string;
     interceptor?: string;
+    networkRoute?: NetworkRoute;
+    requestTimeoutMs?: number;
 }
 
 /**
@@ -614,12 +667,15 @@ export function addFetchLog(arg: {
 export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promise<GlobalFetchResult> {
     try {
         const db = getDatabase();
-        const method = arg.method ?? "POST";
-
         if (arg.abortSignal?.aborted) { return { ok: false, data: 'aborted', headers: {}, status: 400 }; }
 
         const urlHost = new URL(url).hostname
+        const localNetworkRequested = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
         const forcePlainFetch = ((knownHostes.includes(urlHost) && !isTauri) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce
+
+        if (localNetworkRequested && !isTauri && !isNodeServer) {
+            return { ok: false, headers: {}, status: 400, data: webLocalNetworkBlockedMessage };
+        }
 
         if (knownHostes.includes(urlHost) && !isTauri && !isNodeServer) {
             return { ok: false, headers: {}, status: 400, data: 'You are trying local request on web version. This is not allowed due to browser security policy. Use the desktop version instead, or use a tunneling service like ngrok and set the CORS to allow all.' };
@@ -636,17 +692,35 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
             }
         }
 
-        if (forcePlainFetch) {
-            return await fetchWithPlainFetch(url, arg);
+        const timeoutSignal = buildTimeoutSignal(arg.abortSignal, arg.requestTimeoutMs)
+        const requestArg = timeoutSignal.signal === arg.abortSignal
+            ? arg
+            : { ...arg, abortSignal: timeoutSignal.signal }
+
+        try {
+            if (localNetworkRequested) {
+                if (isNodeServer) {
+                    return await fetchWithProxy(url, requestArg);
+                }
+                if (isTauri) {
+                    return await fetchWithTauri(url, requestArg);
+                }
+            }
+
+            if (forcePlainFetch) {
+                return await fetchWithPlainFetch(url, requestArg);
+            }
+            //userScriptFetch is provided by userscript
+            if (window.userScriptFetch) {
+                return await fetchWithUSFetch(url, requestArg);
+            }
+            if (isTauri) {
+                return await fetchWithTauri(url, requestArg);
+            }
+            return await fetchWithProxy(url, requestArg);
+        } finally {
+            timeoutSignal.cleanup();
         }
-        //userScriptFetch is provided by userscript
-        if (window.userScriptFetch) {
-            return await fetchWithUSFetch(url, arg);
-        }
-        if (isTauri) {
-            return await fetchWithTauri(url, arg);
-        }
-        return await fetchWithProxy(url, arg);
 
     } catch (error) {
         console.error(error);
@@ -762,13 +836,16 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
  */
 async function fetchWithProxy(url: string, arg: GlobalFetchArgs): Promise<GlobalFetchResult> {
     try {
-        const furl = !isTauri && !isNodeServer ? `${hubURL}/proxy2` : `/proxy2`;
+        const furl = getProxy2Url();
+        arg.headers ??= {};
         arg.headers["Content-Type"] ??= arg.body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json";
         const headers = {
             "risu-header": encodeURIComponent(JSON.stringify(arg.headers)),
             "risu-url": encodeURIComponent(url),
             "Content-Type": arg.body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json",
             ...(arg.useRisuToken && { "x-risu-tk": "use" }),
+            ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
+            ...getProxySSEHeartbeatHeaders(),
             ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
         };
 
@@ -1425,6 +1502,8 @@ export async function fetchNative(url: string, arg: {
     useRisuTk?: boolean,
     chatId?: string
     interceptor?: string
+    networkRoute?: NetworkRoute
+    requestTimeoutMs?: number
 }): Promise<Response> {
 
     const useInterceptor = !!arg.interceptor
@@ -1466,7 +1545,21 @@ export async function fetchNative(url: string, arg: {
     }
 
     const db = getDatabase()
+    const localNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
+    if (localNetworkRoute && !isTauri && !isNodeServer) {
+        return new Response(webLocalNetworkBlockedMessage, {
+            status: 400,
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8"
+            }
+        })
+    }
     let throughProxy = (!isTauri) && (!isNodeServer) && (!db.usePlainFetch)
+    if (localNetworkRoute && isNodeServer) {
+        throughProxy = true
+    }
+    const timeoutSignal = buildTimeoutSignal(arg.signal, arg.requestTimeoutMs)
+    const requestSignal = timeoutSignal.signal
     let fetchLogIndex = addFetchLog({
         body: new TextDecoder().decode(realBody),
         headers: arg.headers,
@@ -1476,17 +1569,18 @@ export async function fetchNative(url: string, arg: {
         resType: 'stream',
         chatId: arg.chatId,
     })
-    if (window.userScriptFetch) {
-        return await window.userScriptFetch(url, {
+    try {
+        if (window.userScriptFetch && !(localNetworkRoute && isNodeServer)) {
+            return await window.userScriptFetch(url, {
             body: realBody as any,
             headers: headers,
             method: arg.method,
-            signal: arg.signal
+            signal: requestSignal
         })
-    }
-    else if (isTauri) {
+        }
+        else if (isTauri) {
         fetchIndex++
-        if (arg.signal && arg.signal.aborted) {
+        if (requestSignal && requestSignal.aborted) {
             throw new Error('aborted')
         }
         if (fetchIndex >= 100000) {
@@ -1506,7 +1600,8 @@ export async function fetchNative(url: string, arg: {
                 url: url,
                 headers: JSON.stringify(headers),
                 body: realBody ? Buffer.from(realBody).toString('base64') : '',
-                method: arg.method
+                method: arg.method,
+                timeout_secs: arg.requestTimeoutMs ? Math.max(1, Math.ceil(arg.requestTimeoutMs / 1000)) : undefined
             }).then((res) => {
                 try {
                     const parsedRes = JSON.parse(res as string)
@@ -1581,24 +1676,28 @@ export async function fetchNative(url: string, arg: {
     }
     else if (throughProxy) {
 
-        const r = await fetch(hubURL + `/proxy2`, {
+        const r = await fetch(getProxy2Url(), {
             body: realBody as any,
             headers: arg.useRisuTk ? {
                 "risu-header": encodeURIComponent(JSON.stringify(headers)),
                 "risu-url": encodeURIComponent(url),
                 "Content-Type": "application/json",
                 "x-risu-tk": "use",
+                ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
+                ...getProxySSEHeartbeatHeaders(),
                 ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             } : {
                 "risu-header": encodeURIComponent(JSON.stringify(headers)),
                 "risu-url": encodeURIComponent(url),
                 "Content-Type": "application/json",
+                ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
+                ...getProxySSEHeartbeatHeaders(),
                 ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             },
             method: arg.method,
-            signal: arg.signal
+            signal: requestSignal
         })
 
         return new Response(r.body, {
@@ -1611,8 +1710,11 @@ export async function fetchNative(url: string, arg: {
             body: realBody as any,
             headers: headers,
             method: arg.method,
-            signal: arg.signal,
+            signal: requestSignal,
         })
+    }
+    } finally {
+        timeoutSignal.cleanup()
     }
 }
 

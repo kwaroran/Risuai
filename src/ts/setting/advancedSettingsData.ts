@@ -48,6 +48,14 @@ export const advancedSettingsItems: SettingItem[] = [
         helpKey: 'requestretrys', options: { min: 0, max: 20 }
     },
     {
+        id: 'adv.localNetworkMode', type: 'check', fallbackLabel: 'Local Network Mode', bindKey: 'localNetworkMode', classes: 'mt-4'
+    },
+    {
+        id: 'adv.localNetworkTimeout', type: 'number', fallbackLabel: 'Local Network Timeout (sec)', bindKey: 'localNetworkTimeoutSec',
+        condition: (ctx) => ctx.db.localNetworkMode === true,
+        options: { min: 30, max: 3600 }
+    },
+    {
         id: 'adv.genTime', type: 'number', labelKey: 'genTimes', bindKey: 'genTime',
         helpKey: 'genTimes', options: { min: 0, max: 4096 }
     },
@@ -124,6 +132,15 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
+    },
+    {
+        id: 'adv.exp.proxyHeartbeat', type: 'check', fallbackLabel: 'Proxy SSE Heartbeat (Experimental)', bindKey: 'experimentalProxySSEHeartbeat',
+        condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'
+    },
+    {
+        id: 'adv.exp.proxyHeartbeatInterval', type: 'number', fallbackLabel: 'Proxy SSE Heartbeat Interval (sec)', bindKey: 'experimentalProxySSEHeartbeatIntervalSec',
+        condition: (ctx) => ctx.db.useExperimental && ctx.db.experimentalProxySSEHeartbeat, showExperimental: true,
+        options: { min: 5, max: 120 }
     },
 
     // Unrecommended Section

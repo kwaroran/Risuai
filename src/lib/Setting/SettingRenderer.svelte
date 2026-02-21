@@ -180,7 +180,7 @@
             </span>
             <SegmentedControl
                 bind:value={(DBState.db as any)[item.bindKey]}
-                options={item.options?.segmentOptions ?? []}
+                options={(item.options?.segmentOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx))}
             />
         {:else if item.type === 'color'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">

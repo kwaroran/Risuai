@@ -4,13 +4,13 @@
 
   import { language } from 'src/lang'
   import { alertConfirm } from 'src/ts/alert'
-  import { getInlayAssetBlob, listInlayAssets, removeInlayAsset, type InlayAsset } from 'src/ts/process/files/inlays'
+  import { getInlayAssetBlob, listInlayAssets, removeInlayAsset, type InlayAssetBlob } from 'src/ts/process/files/inlays'
   import Button from '../UI/GUI/Button.svelte'
   import CheckInput from '../UI/GUI/CheckInput.svelte'
 
   const PAGE_SIZE = 36
 
-  let allAssets = $state<[string, InlayAsset][]>([])
+  let allAssets = $state<[string, InlayAssetBlob][]>([])
   let displayCount = $state(PAGE_SIZE)
   let loading = $state(true)
   let loadMoreSentinel: HTMLDivElement | null = $state(null)
@@ -84,11 +84,8 @@
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  const getAssetSize = (asset: InlayAsset) => {
-    if (asset.data instanceof Blob) {
-      return formatSize(asset.data.size)
-    }
-    return formatSize(asset.data.length * 0.75) // base64 estimate
+  const getAssetSize = (asset: InlayAssetBlob) => {
+    return formatSize(asset.data.size)
   }
 
   let observer: IntersectionObserver | null = null

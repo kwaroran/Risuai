@@ -1,0 +1,510 @@
+/*
+ * RisuAI CBS Mode — Custom Theme for CodeMirror 5
+ * Designed for dark and light mode compatibility.
+ */
+
+/* ─── Editor Base ──────────────────────────────────────── */
+
+.cm-s-risuai-cbs.CodeMirror {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  border-radius: 8px;
+  border: 1px solid #45475a;
+}
+
+.cm-s-risuai-cbs .CodeMirror-gutters {
+  background: #181825;
+  border-right: 1px solid #313244;
+  color: #6c7086;
+}
+
+.cm-s-risuai-cbs .CodeMirror-linenumber {
+  color: #6c7086;
+  padding: 0 8px;
+}
+
+.cm-s-risuai-cbs .CodeMirror-cursor {
+  border-left: 2px solid #f5e0dc;
+}
+
+.cm-s-risuai-cbs .CodeMirror-selected {
+  background: #45475a !important;
+}
+
+.cm-s-risuai-cbs .CodeMirror-focused .CodeMirror-selected {
+  background: #585b70 !important;
+}
+
+.cm-s-risuai-cbs .CodeMirror-activeline-background {
+  background: #1e1e2e;
+}
+
+.cm-s-risuai-cbs .CodeMirror-matchingbracket {
+  background: #585b70;
+  color: #f9e2af !important;
+  font-weight: bold;
+  outline: 1px solid #f9e2af;
+}
+
+/* ─── CBS Brackets {{ }} ──────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-bracket-open,
+.cm-s-risuai-cbs .cm-cbs-bracket-close {
+  color: #f9e2af;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-block-open {
+  color: #fab387;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-block-close {
+  color: #fab387;
+}
+
+.cm-s-risuai-cbs .cm-cbs-else {
+  color: #fab387;
+  font-style: italic;
+}
+
+/* ─── Separator :: ────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-separator {
+  color: #7f849c;
+  font-weight: bold;
+}
+
+/* ─── Block Keywords (#when, #each, etc.) ─────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-block-keyword {
+  color: #cba6f7;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-block-close-tag {
+  color: #f38ba8;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-else-keyword {
+  color: #fab387;
+  font-weight: bold;
+  font-style: italic;
+}
+
+/* ─── Function Categories ─────────────────────────────── */
+
+/* Character / User */
+.cm-s-risuai-cbs .cm-cbs-function-char {
+  color: #89dceb;
+  font-weight: bold;
+}
+
+/* Chat history */
+.cm-s-risuai-cbs .cm-cbs-function-chat {
+  color: #89b4fa;
+}
+
+/* Variable mutating (setvar, addvar) */
+.cm-s-risuai-cbs .cm-cbs-function-mutating {
+  color: #f38ba8;
+  font-weight: bold;
+}
+
+/* Variable reading (getvar, tempvar) */
+.cm-s-risuai-cbs .cm-cbs-function-var {
+  color: #f5c2e7;
+}
+
+/* String functions */
+.cm-s-risuai-cbs .cm-cbs-function-string {
+  color: #a6e3a1;
+}
+
+/* Numeric functions */
+.cm-s-risuai-cbs .cm-cbs-function-numeric {
+  color: #fab387;
+}
+
+/* Array / Object functions */
+.cm-s-risuai-cbs .cm-cbs-function-array {
+  color: #94e2d5;
+}
+
+/* Logic functions */
+.cm-s-risuai-cbs .cm-cbs-function-logic {
+  color: #cba6f7;
+}
+
+/* Date / Time */
+.cm-s-risuai-cbs .cm-cbs-function-date {
+  color: #74c7ec;
+}
+
+/* Random functions */
+.cm-s-risuai-cbs .cm-cbs-function-random {
+  color: #f9e2af;
+}
+
+/* Asset / Display */
+.cm-s-risuai-cbs .cm-cbs-function-asset {
+  color: #eba0ac;
+  font-weight: bold;
+}
+
+/* Prompt functions */
+.cm-s-risuai-cbs .cm-cbs-function-prompt {
+  color: #b4befe;
+  font-style: italic;
+}
+
+/* Metadata */
+.cm-s-risuai-cbs .cm-cbs-function-metadata {
+  color: #f2cdcd;
+}
+
+/* State */
+.cm-s-risuai-cbs .cm-cbs-function-state {
+  color: #89b4fa;
+}
+
+/* Crypto */
+.cm-s-risuai-cbs .cm-cbs-function-crypto {
+  color: #a6e3a1;
+  font-style: italic;
+}
+
+/* Aggregate */
+.cm-s-risuai-cbs .cm-cbs-function-aggregate {
+  color: #fab387;
+}
+
+/* Special / utility */
+.cm-s-risuai-cbs .cm-cbs-function-special {
+  color: #f5e0dc;
+}
+
+/* Escape characters */
+.cm-s-risuai-cbs .cm-cbs-function-escape {
+  color: #7f849c;
+  font-style: italic;
+}
+
+/* Unknown function */
+.cm-s-risuai-cbs .cm-cbs-function-unknown {
+  color: #cdd6f4;
+  text-decoration: underline wavy #f38ba8;
+}
+
+/* ─── Arguments ───────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-arg-string {
+  color: #a6e3a1;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-number {
+  color: #fab387;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-boolean {
+  color: #cba6f7;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-dice {
+  color: #f9e2af;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-json {
+  color: #94e2d5;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-varname {
+  color: #f5c2e7;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-asset {
+  color: #eba0ac;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-keyvalue {
+  color: #89dceb;
+}
+
+.cm-s-risuai-cbs .cm-cbs-arg-slot {
+  color: #b4befe;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-metadata-key {
+  color: #f2cdcd;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-nested-ref {
+  color: #89dceb;
+  font-weight: bold;
+}
+
+/* ─── #when Operators ─────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-when-operator {
+  color: #cba6f7;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-when-comparison {
+  color: #fab387;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs .cm-cbs-when-value {
+  color: #a6e3a1;
+}
+
+/* ─── #each ───────────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-each-array {
+  color: #94e2d5;
+}
+
+.cm-s-risuai-cbs .cm-cbs-each-as {
+  color: #cba6f7;
+  font-style: italic;
+}
+
+.cm-s-risuai-cbs .cm-cbs-each-keep {
+  color: #7f849c;
+}
+
+.cm-s-risuai-cbs .cm-cbs-each-variable {
+  color: #f5c2e7;
+  font-weight: bold;
+}
+
+/* ─── Comments ────────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-comment-keyword,
+.cm-s-risuai-cbs .cm-cbs-comment-text,
+.cm-s-risuai-cbs .cm-cbs-comment-close {
+  color: #6c7086;
+  font-style: italic;
+}
+
+/* ─── Plain text ──────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-cbs-plaintext {
+  color: #cdd6f4;
+}
+
+/* ─── Error ───────────────────────────────────────────── */
+
+.cm-s-risuai-cbs .cm-error {
+  color: #f38ba8;
+  text-decoration: underline wavy;
+}
+
+/* ─── Autocomplete Hints ──────────────────────────────── */
+
+.CodeMirror-hints {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 13px;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.CodeMirror-hint {
+  color: #cdd6f4;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.CodeMirror-hint-active {
+  background: #45475a;
+  color: #f5e0dc;
+}
+
+/* Hint category colors */
+.cbs-hint-character { color: #89dceb; }
+.cbs-hint-chat { color: #89b4fa; }
+.cbs-hint-variable { color: #f5c2e7; }
+.cbs-hint-string { color: #a6e3a1; }
+.cbs-hint-numeric { color: #fab387; }
+.cbs-hint-array { color: #94e2d5; }
+.cbs-hint-logic { color: #cba6f7; }
+.cbs-hint-datetime { color: #74c7ec; }
+.cbs-hint-random { color: #f9e2af; }
+.cbs-hint-asset { color: #eba0ac; }
+.cbs-hint-prompt { color: #b4befe; }
+.cbs-hint-metadata { color: #f2cdcd; }
+.cbs-hint-state { color: #89b4fa; }
+.cbs-hint-crypto { color: #a6e3a1; }
+.cbs-hint-aggregate { color: #fab387; }
+.cbs-hint-special { color: #f5e0dc; }
+.cbs-hint-escape { color: #7f849c; }
+.cbs-hint-block { color: #cba6f7; font-weight: bold; }
+
+/* ─── Light Theme ─────────────────────────────────────── */
+
+.cm-s-risuai-cbs-light.CodeMirror {
+  background: #eff1f5;
+  color: #4c4f69;
+  border: 1px solid #ccd0da;
+}
+
+.cm-s-risuai-cbs-light .CodeMirror-gutters {
+  background: #e6e9ef;
+  border-right: 1px solid #ccd0da;
+  color: #8c8fa1;
+}
+
+.cm-s-risuai-cbs-light .CodeMirror-cursor {
+  border-left: 2px solid #dc8a78;
+}
+
+.cm-s-risuai-cbs-light .CodeMirror-selected {
+  background: #ccd0da !important;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-bracket-open,
+.cm-s-risuai-cbs-light .cm-cbs-bracket-close {
+  color: #df8e1d;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-separator {
+  color: #8c8fa1;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-block-keyword {
+  color: #8839ef;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-block-close-tag {
+  color: #d20f39;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-else-keyword {
+  color: #fe640b;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-char {
+  color: #04a5e5;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-chat {
+  color: #1e66f5;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-mutating {
+  color: #d20f39;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-var {
+  color: #ea76cb;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-string {
+  color: #40a02b;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-numeric {
+  color: #fe640b;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-array {
+  color: #179299;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-logic {
+  color: #8839ef;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-date {
+  color: #209fb5;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-random {
+  color: #df8e1d;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-asset {
+  color: #e64553;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-prompt {
+  color: #7287fd;
+  font-style: italic;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-function-unknown {
+  color: #4c4f69;
+  text-decoration: underline wavy #d20f39;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-arg-string {
+  color: #40a02b;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-arg-number {
+  color: #fe640b;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-arg-boolean {
+  color: #8839ef;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-when-operator {
+  color: #8839ef;
+  font-weight: bold;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-comment-keyword,
+.cm-s-risuai-cbs-light .cm-cbs-comment-text {
+  color: #9ca0b0;
+  font-style: italic;
+}
+
+.cm-s-risuai-cbs-light .cm-cbs-plaintext {
+  color: #4c4f69;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────── */
+
+.cm-s-risuai-cbs .CodeMirror-vscrollbar::-webkit-scrollbar,
+.cm-s-risuai-cbs .CodeMirror-hscrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.cm-s-risuai-cbs .CodeMirror-vscrollbar::-webkit-scrollbar-track,
+.cm-s-risuai-cbs .CodeMirror-hscrollbar::-webkit-scrollbar-track {
+  background: #181825;
+}
+
+.cm-s-risuai-cbs .CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+.cm-s-risuai-cbs .CodeMirror-hscrollbar::-webkit-scrollbar-thumb {
+  background: #45475a;
+  border-radius: 4px;
+}
+
+.cm-s-risuai-cbs .CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+.cm-s-risuai-cbs .CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover {
+  background: #585b70;
+}

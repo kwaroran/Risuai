@@ -175,7 +175,7 @@
                 {/each}
             </SelectInput>
         {:else if item.type === 'segmented'}
-            <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
+            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
             </span>
             <SegmentedControl

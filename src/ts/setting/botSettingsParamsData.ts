@@ -127,7 +127,6 @@ export const modelSpecificParameterItems: SettingItem[] = [
         type: 'segmented',
         labelKey: 'thinkingType',
         bindKey: 'thinkingType',
-        classes: 'mt-2',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
@@ -161,7 +160,6 @@ export const modelSpecificParameterItems: SettingItem[] = [
         type: 'segmented',
         labelKey: 'adaptiveThinkingEffort',
         bindKey: 'adaptiveThinkingEffort',
-        classes: 'mt-4',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
             ctx.db.thinkingType === 'adaptive',

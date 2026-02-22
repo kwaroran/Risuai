@@ -394,7 +394,11 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
             'TEXT', 'IMAGE'
         ]
         arg.useStreaming = false
-    }    let headers:{[key:string]:string} = {}
+    }
+
+    let headers:{[key:string]:string} = {
+        'Content-Type': 'application/json'
+    }
 
     if(db.gptVisionQuality === 'high'){
         body.generation_config.mediaResolution = "MEDIA_RESOLUTION_MEDIUM"
@@ -626,7 +630,6 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     }
 
     if((arg.modelInfo.format === LLMFormat.GoogleCloud || arg.modelInfo.format === LLMFormat.VertexAIGemini) && arg.useStreaming){
-        headers['Content-Type'] = 'application/json'
 
         if(arg.previewBody){
             return {

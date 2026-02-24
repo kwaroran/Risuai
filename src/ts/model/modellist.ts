@@ -14,6 +14,9 @@ import { AnthropicModels } from './providers/anthropic'
 import { GoogleModels } from './providers/google'
 import { fetchNative } from "../globalApi.svelte"
 import { DBState } from "../stores.svelte"
+import { customProviderStore, pluginV2 } from "../plugins/plugins.svelte"
+import { get } from "svelte/store"
+import { customV3ProviderMetaStore } from "../plugins/apiV3/v3.svelte"
 
 // Re-export types for backwards compatibility
 export { LLMFlags, LLMProvider, LLMFormat, LLMTokenizer, ProviderNames, OpenAIParameters, ClaudeParameters }
@@ -497,11 +500,10 @@ export const LLMModels: LLMModel[] = [
     // Plugin and Custom API
     {
         id: 'custom',
-        name: "Plugin",
+        name: "Plugin Legacy",
         provider: LLMProvider.AsIs,
         format: LLMFormat.Plugin,
         flags: [LLMFlags.hasFullSystemPrompt],
-        recommended: true,
         parameters: ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'repetition_penalty', 'min_p', 'top_a', 'top_k', 'thinking_tokens'],
         tokenizer: LLMTokenizer.Unknown
     },
@@ -677,7 +679,7 @@ export function getModelInfo(id?: string | null): LLMModel{
         }
     }
     const found:LLMModel = safeStructuredClone(LLMModels.find(model => model.id === id))
-
+    
     if(found){
         if(db.enableCustomFlags){
             found.flags = db.customFlags
@@ -735,6 +737,13 @@ export function getModelInfo(id?: string | null): LLMModel{
         }
     }
 
+    if(id.startsWith('pluginmodel:::')){
+        const pluginModel = customV3ProviderMetaStore.find(model => model.id === id)
+        if(pluginModel){
+            return pluginModel
+        }
+    }
+
     return {
         id,
         name: id,
@@ -758,10 +767,15 @@ export function getModelList<T extends boolean>(arg:{
     recommendedOnly?:boolean,
     groupedByProvider?:T
 } = {}): T extends true ? GetModelListGroup[] : LLMModel[]{
-   let models = LLMModels
+    let models = LLMModels
     if(arg.recommendedOnly){
          models = models.filter(model => model.recommended)
     }
+    const pluginGroup: GetModelListGroup = {
+        providerName: 'Plugins',
+        models: customV3ProviderMetaStore
+    }
+
     if(arg.groupedByProvider){
         let group: GetModelListGroup[] = []
         for(let model of models){
@@ -784,7 +798,17 @@ export function getModelList<T extends boolean>(arg:{
                 group[groupIndex].models.push(model)
             }
         }
+
+        if(pluginGroup.models.length > 0){
+            group.push(pluginGroup)
+        }
         return group as any
     }
+    else{
+        for(const model of pluginGroup.models){
+            models.push(model)
+        }
+    }
+
     return models as any
 }

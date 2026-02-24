@@ -15,6 +15,7 @@ import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/plugi
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser/parser.svelte";
 import localforage from "localforage";
+import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
 
 /*
     V3 API for RisuAI Plugins
@@ -513,6 +514,12 @@ const permissionForage = localforage.createInstance({
     storeName: 'plugin_permissions'
 });
 
+type PluginV3ProviderOptions = PluginV2ProviderOptions & {
+    model?: LLMModel
+}
+
+export const customV3ProviderMetaStore:LLMModel[] = []
+
 const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
@@ -581,7 +588,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         getChar: oldApis.getChar,
         setChar: oldApis.setChar,
-        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV2ProviderOptions) => {
+        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV3ProviderOptions) => {
             let provs = get(customProviderStore)
             provs.push(name)
             pluginV2.providers.set(name, async (arg, abortSignal) => {
@@ -593,6 +600,20 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }),
             pluginV2.providerOptions.set(name, options ?? {})
             customProviderStore.set(provs)
+
+            const modelData:LLMModel = {
+                id: `pluginmodel:::${name}`,
+                name: options?.model?.name ?? name,
+                shortName: options?.model?.shortName ?? name,
+                fullName: options?.model?.fullName ?? name,
+                internalID: options?.model?.internalID ?? `pluginmodel:::${name}`,
+                provider: LLMProvider.AsIs,
+                format: LLMFormat.Plugin,
+                flags: options?.model?.flags ?? [LLMFlags.hasFullSystemPrompt],
+                parameters: options?.model?.parameters ?? ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'repetition_penalty', 'min_p', 'top_a', 'top_k', 'thinking_tokens'],
+                tokenizer:options?.model?.tokenizer ??  LLMTokenizer.Unknown
+            }
+            customV3ProviderMetaStore.push(modelData);
         },
         addRisuScriptHandler: oldApis.addRisuScriptHandler,
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,

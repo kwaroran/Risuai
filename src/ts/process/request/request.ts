@@ -771,7 +771,8 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
         const formated = arg.formated
         const maxTokens = arg.maxTokens
         const bias = arg.biasString
-        const v2Function = pluginV2.providers.get(db.currentPluginProvider)
+        const model = arg.aiModel.startsWith('pluginmodel:::') ? arg.aiModel.replace('pluginmodel:::', '') : db.currentPluginProvider
+        const v2Function = pluginV2.providers.get(model)
 
         if(arg.previewBody){
             return {

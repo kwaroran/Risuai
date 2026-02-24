@@ -566,7 +566,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             provs.push(name)
             pluginV2.providers.set(name, async (arg, abortSignal) => {
                await getPluginPermission(plugin.name, 'provider');
-               arg.mode = 'v3' //mode is overridden to v3, due to vulnerabilities using mode.
+               //mode is overridden to v3, due to vulnerabilities using mode.
+               //Alternative to mode will be added in future
+               arg.mode = 'v3'
                return await func(arg, abortSignal);
             }),
             pluginV2.providerOptions.set(name, options ?? {})

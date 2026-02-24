@@ -528,8 +528,6 @@ export function getFetchData(id: string) {
 const knownHostes = ["localhost", "127.0.0.1", "0.0.0.0"];
 const webLocalNetworkBlockedMessage = "웹에서는 사설망 직접 호출 불가. Tauri 또는 LAN Node self-host 사용";
 
-export type NetworkRoute = 'auto' | 'local_network';
-
 function getProxy2Url() {
     return !isTauri && !isNodeServer ? `${hubURL}/proxy2` : `/proxy2`;
 }
@@ -564,19 +562,6 @@ function buildTimeoutSignal(originalSignal?: AbortSignal, timeoutMs?: number) {
     };
 }
 
-function getProxySSEHeartbeatHeaders() {
-    const db = DBState?.db ?? getDatabase();
-    const enabled = (db.experimentalProxySSEHeartbeat ?? true) ? "1" : "0";
-    const rawIntervalSec = db.experimentalProxySSEHeartbeatIntervalSec ?? 15;
-    const intervalSec = Number.isFinite(rawIntervalSec) ? rawIntervalSec : 15;
-    const intervalMs = Math.max(1000, Math.min(120000, Math.floor(intervalSec * 1000)));
-
-    return {
-        "risu-sse-heartbeat": enabled,
-        "risu-sse-heartbeat-interval-ms": intervalMs.toString()
-    };
-}
-
 /**
  * Interface representing the arguments for the global fetch function.
  * 
@@ -601,8 +586,8 @@ export interface GlobalFetchArgs {
     useRisuToken?: boolean;
     chatId?: string;
     interceptor?: string;
-    networkRoute?: NetworkRoute;
     requestTimeoutMs?: number;
+    networkRoute?: 'auto' | 'local_network';
 }
 
 /**
@@ -670,10 +655,10 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
         if (arg.abortSignal?.aborted) { return { ok: false, data: 'aborted', headers: {}, status: 400 }; }
 
         const urlHost = new URL(url).hostname
-        const localNetworkRequested = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
-        const forcePlainFetch = ((knownHostes.includes(urlHost) && !isTauri) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce
+        const useLocalNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
+        const forcePlainFetch = ((knownHostes.includes(urlHost) && !isTauri) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce && !useLocalNetworkRoute
 
-        if (localNetworkRequested && !isTauri && !isNodeServer) {
+        if (useLocalNetworkRoute && !isTauri && !isNodeServer) {
             return { ok: false, headers: {}, status: 400, data: webLocalNetworkBlockedMessage };
         }
 
@@ -698,15 +683,12 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
             : { ...arg, abortSignal: timeoutSignal.signal }
 
         try {
-            if (localNetworkRequested) {
-                if (isNodeServer) {
-                    return await fetchWithProxy(url, requestArg);
-                }
+            if (useLocalNetworkRoute) {
                 if (isTauri) {
                     return await fetchWithTauri(url, requestArg);
                 }
+                return await fetchWithProxy(url, requestArg);
             }
-
             if (forcePlainFetch) {
                 return await fetchWithPlainFetch(url, requestArg);
             }
@@ -845,7 +827,6 @@ async function fetchWithProxy(url: string, arg: GlobalFetchArgs): Promise<Global
             "Content-Type": arg.body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json",
             ...(arg.useRisuToken && { "x-risu-tk": "use" }),
             ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
-            ...getProxySSEHeartbeatHeaders(),
             ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
         };
 
@@ -1502,8 +1483,8 @@ export async function fetchNative(url: string, arg: {
     useRisuTk?: boolean,
     chatId?: string
     interceptor?: string
-    networkRoute?: NetworkRoute
     requestTimeoutMs?: number
+    networkRoute?: 'auto' | 'local_network'
 }): Promise<Response> {
 
     const useInterceptor = !!arg.interceptor
@@ -1545,18 +1526,18 @@ export async function fetchNative(url: string, arg: {
     }
 
     const db = getDatabase()
-    const localNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
-    if (localNetworkRoute && !isTauri && !isNodeServer) {
-        return new Response(webLocalNetworkBlockedMessage, {
-            status: 400,
-            headers: {
-                "Content-Type": "text/plain; charset=utf-8"
-            }
-        })
+    const useLocalNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
+    if (useLocalNetworkRoute && !isTauri && !isNodeServer) {
+        throw new Error(webLocalNetworkBlockedMessage)
     }
     let throughProxy = (!isTauri) && (!isNodeServer) && (!db.usePlainFetch)
-    if (localNetworkRoute && isNodeServer) {
-        throughProxy = true
+    if (useLocalNetworkRoute) {
+        if (isNodeServer) {
+            throughProxy = true
+        }
+        else if (isTauri) {
+            throughProxy = false
+        }
     }
     const timeoutSignal = buildTimeoutSignal(arg.signal, arg.requestTimeoutMs)
     const requestSignal = timeoutSignal.signal
@@ -1570,7 +1551,7 @@ export async function fetchNative(url: string, arg: {
         chatId: arg.chatId,
     })
     try {
-        if (window.userScriptFetch && !(localNetworkRoute && isNodeServer)) {
+        if (window.userScriptFetch && !throughProxy) {
             return await window.userScriptFetch(url, {
             body: realBody as any,
             headers: headers,
@@ -1684,7 +1665,6 @@ export async function fetchNative(url: string, arg: {
                 "Content-Type": "application/json",
                 "x-risu-tk": "use",
                 ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
-                ...getProxySSEHeartbeatHeaders(),
                 ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             } : {
@@ -1692,7 +1672,6 @@ export async function fetchNative(url: string, arg: {
                 "risu-url": encodeURIComponent(url),
                 "Content-Type": "application/json",
                 ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
-                ...getProxySSEHeartbeatHeaders(),
                 ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             },

@@ -450,6 +450,8 @@ export class SandboxHost {
         this.iframe.sandbox.add('allow-modals')
         this.iframe.sandbox.add('allow-downloads')
 
+        this.iframe.setAttribute('csp', "connect-src 'none'");
+
         const messageHandler = async (event: MessageEvent) => {
             if (event.source !== this.iframe.contentWindow) return;
             const data = event.data as RpcMessage;

@@ -314,6 +314,7 @@ export type triggerV2RunLLM = {
     value: string,
     valueType: 'var'|'value',
     model: 'model'|'submodel',
+    streaming?: boolean,
     outputVar: string,
     indent: number
 }
@@ -1033,6 +1034,26 @@ export const requestAllowList = [
     'v2GetRequestStateLength',
     ...safeSubset
 ]
+
+async function collectStreamingText(stream: ReadableStream<{ [key: string]: string }>): Promise<string> {
+    const reader = stream.getReader()
+    let lastChunk = ''
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (value) {
+            const firstKey = Object.keys(value)[0]
+            if (firstKey) {
+                lastChunk = value[firstKey] ?? lastChunk
+            }
+        }
+        if (done) {
+            break
+        }
+    }
+
+    return lastChunk
+}
 
 export async function runTrigger(char:character,mode:triggerMode, arg:{
     chat: Chat,
@@ -1884,12 +1905,16 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                     let result = await requestChatData({
                         formated: promptbody,
                         bias: {},
-                        useStreaming: false,
+                        useStreaming: effect.streaming ?? false,
                         noMultiGen: true,
                     }, effect.model)
 
-                    if(result.type === 'fail' || result.type === 'streaming' || result.type === 'multiline'){
+                    if(result.type === 'fail' || result.type === 'multiline'){
                         setVar(risuChatParser(effect.outputVar, {chara:char}), 'null')
+                    }
+                    else if(result.type === 'streaming'){
+                        const text = await collectStreamingText(result.result)
+                        setVar(risuChatParser(effect.outputVar, {chara:char}), text)
                     }
                     else{
                         setVar(risuChatParser(effect.outputVar, {chara:char}), result.result)

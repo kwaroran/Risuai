@@ -632,7 +632,6 @@ export const languageEnglish = {
         inlaySelectAll: "Select All",
         inlayDeleteConfirm: "Are you sure you want to delete {name}?",
         inlayDeleteMultipleConfirm: "Are you sure you want to delete the selected {count} assets?",
-        inlayLoadMore: "Load More ({remaining} remaining)",
         inlayTotalAssets: "Total {count} assets",
     },
     confirm: "Confirm",

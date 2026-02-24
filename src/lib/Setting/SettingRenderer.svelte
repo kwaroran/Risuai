@@ -56,13 +56,19 @@
     }
 
     /**
-     * When a select has conditional options, reset the value if it no longer matches any visible option
+     * When a select or segmented control has conditional options, reset the value if it no longer matches any visible option
      * It selects last selectable entry when reset happens
      */
     $effect(() => {
         for (const item of items) {
             if (item.type === 'select' && item.options?.selectOptions && checkCondition(item)) {
                 const filteredOpts = item.options.selectOptions.filter(opt => !opt.condition || opt.condition(ctx));
+                const currentVal = (DBState.db as any)[item.bindKey];
+                if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
+                    (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
+                }
+            } else if (item.type === 'segmented' && item.options?.segmentOptions && checkCondition(item)) {
+                const filteredOpts = item.options.segmentOptions.filter(opt => !opt.condition || opt.condition(ctx));
                 const currentVal = (DBState.db as any)[item.bindKey];
                 if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
                     (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
@@ -175,12 +181,12 @@
                 {/each}
             </SelectInput>
         {:else if item.type === 'segmented'}
-            <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
+            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
             </span>
             <SegmentedControl
                 bind:value={(DBState.db as any)[item.bindKey]}
-                options={item.options?.segmentOptions ?? []}
+                options={(item.options?.segmentOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx))}
             />
         {:else if item.type === 'color'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">

@@ -51,6 +51,8 @@ export interface SelectOption {
 export interface SegmentOption {
     value: string | number;
     label: string;
+    /** Optional condition — when provided, the option is only shown if this returns true */
+    condition?: (ctx: SettingContext) => boolean;
 }
 
 /**

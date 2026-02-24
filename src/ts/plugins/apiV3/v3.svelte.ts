@@ -551,14 +551,34 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     return false;
 }
 
+const urlBlacklist = [
+    'risuai.xyz',
+    'risuai.net',
+    'sionyw.com',
+]
+
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
     return {
 
         //Old APIs from v2.1
-        risuFetch: oldApis.risuFetch,
-        nativeFetch: oldApis.nativeFetch,
+        risuFetch: (url, options) => {
+            for(const blocked of urlBlacklist){
+                if(url.toLowerCase().includes(blocked)){
+                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+            return oldApis.risuFetch(url, options);
+        },
+        nativeFetch: (url, options) => {
+            for(const blocked of urlBlacklist){
+                if(url.toLowerCase().includes(blocked)){
+                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+            return oldApis.nativeFetch(url, options);
+        },
         getChar: oldApis.getChar,
         setChar: oldApis.setChar,
         addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV2ProviderOptions) => {

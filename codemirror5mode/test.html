@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RisuAI CBS Mode — CodeMirror 5 Test</title>
+
+  <!-- CodeMirror 5 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.css">
+
+  <!-- Custom CBS Theme -->
+  <link rel="stylesheet" href="test.css">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #11111b;
+      color: #cdd6f4;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: #181825;
+      border-bottom: 1px solid #313244;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #cba6f7;
+    }
+
+    .header h1 span {
+      color: #f9e2af;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #45475a;
+      background: #313244;
+      color: #cdd6f4;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: #45475a;
+      border-color: #585b70;
+    }
+
+    .btn.active {
+      background: #cba6f7;
+      color: #1e1e2e;
+      border-color: #cba6f7;
+      font-weight: 600;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: calc(100vh - 60px);
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: #181825;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #a6adc8;
+      border-bottom: 1px solid #313244;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #313244;
+      color: #7f849c;
+    }
+
+    .editor-panel {
+      border-right: 1px solid #313244;
+    }
+
+    .editor-panel .CodeMirror {
+      height: 100%;
+      flex: 1;
+    }
+
+    .preview-panel {
+      overflow-y: auto;
+      padding: 16px 20px;
+      background: #1e1e2e;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    /* Token preview styling */
+    .preview-panel .token {
+      display: inline;
+      padding: 1px 3px;
+      border-radius: 3px;
+    }
+
+    .preview-panel .t-bracket { color: #f9e2af; font-weight: bold; }
+    .preview-panel .t-separator { color: #7f849c; font-weight: bold; }
+    .preview-panel .t-block-kw { color: #cba6f7; font-weight: bold; }
+    .preview-panel .t-block-close { color: #f38ba8; font-weight: bold; }
+    .preview-panel .t-else { color: #fab387; font-weight: bold; }
+    .preview-panel .t-func-char { color: #89dceb; font-weight: bold; }
+    .preview-panel .t-func-var { color: #f5c2e7; }
+    .preview-panel .t-func-mutating { color: #f38ba8; font-weight: bold; }
+    .preview-panel .t-func-string { color: #a6e3a1; }
+    .preview-panel .t-func-numeric { color: #fab387; }
+    .preview-panel .t-func-array { color: #94e2d5; }
+    .preview-panel .t-func-logic { color: #cba6f7; }
+    .preview-panel .t-func-asset { color: #eba0ac; font-weight: bold; }
+    .preview-panel .t-func-random { color: #f9e2af; }
+    .preview-panel .t-func-date { color: #74c7ec; }
+    .preview-panel .t-func-special { color: #f5e0dc; }
+    .preview-panel .t-arg { color: #a6e3a1; }
+    .preview-panel .t-arg-num { color: #fab387; }
+    .preview-panel .t-comment { color: #6c7086; font-style: italic; }
+    .preview-panel .t-plain { color: #cdd6f4; }
+    .preview-panel .t-operator { color: #cba6f7; font-weight: bold; }
+
+    .preview-panel .line-info {
+      display: block;
+      color: #45475a;
+      font-size: 11px;
+      border-top: 1px solid #313244;
+      margin-top: 4px;
+      padding-top: 4px;
+    }
+
+    /* Examples sidebar */
+    .examples-drawer {
+      position: fixed;
+      right: 0;
+      top: 60px;
+      bottom: 0;
+      width: 380px;
+      background: #181825;
+      border-left: 1px solid #313244;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      z-index: 100;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .examples-drawer.open {
+      transform: translateX(0);
+    }
+
+    .examples-drawer h3 {
+      color: #cba6f7;
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+
+    .example-item {
+      background: #1e1e2e;
+      border: 1px solid #313244;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .example-item:hover {
+      border-color: #585b70;
+    }
+
+    .example-item h4 {
+      color: #f9e2af;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .example-item pre {
+      color: #a6adc8;
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      max-height: 80px;
+      overflow: hidden;
+    }
+
+    /* Fullscreen single panel mode */
+    .container.single-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .container.single-panel .preview-wrapper {
+      display: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+      .editor-panel { border-right: none; border-bottom: 1px solid #313244; }
+    }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #181825;
+      border-top: 1px solid #313244;
+      padding: 4px 16px;
+      font-size: 12px;
+      color: #7f849c;
+      display: flex;
+      justify-content: space-between;
+      z-index: 50;
+    }
+
+    .status-bar .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-bar .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #a6e3a1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><span>{{</span> RisuAI CBS Mode <span>}}</span></h1>
+    <div class="header-controls">
+      <button class="btn" id="btnTheme" title="Toggle dark/light theme">Theme</button>
+      <button class="btn" id="btnExamples" title="Show example snippets">Examples</button>
+      <button class="btn" id="btnFullscreen" title="Toggle fullscreen editor">Fullscreen</button>
+    </div>
+  </div>
+
+  <div class="container" id="mainContainer">
+    <!-- Editor Panel -->
+    <div class="panel editor-panel">
+      <div class="panel-header">
+        Editor
+        <span class="badge">Ctrl+Space = autocomplete</span>
+      </div>
+      <textarea id="code">{{//::=== RisuAI CBS 테스트 문서 ===}}
+{{comment::캐릭터 카드 스크립팅 예제}}
+
+안녕하세요! 저는 {{char}}입니다.
+{{user}}님, 만나서 반갑습니다.
+
+{{//::─── 변수 초기화 ───}}
+{{setdefaultvar::hp::100}}
+{{setdefaultvar::affinity::50}}
+{{setdefaultvar::gold::0}}
+
+현재 HP: {{getvar::hp}}
+호감도: {{getvar::affinity}}
+소지금: {{getvar::gold}}G
+
+{{//::─── 조건부 응답 (#when) ───}}
+{{#when::{{getvar::affinity}}::>=::80}}
+  {{char}}가 활짝 웃습니다. "정말 좋아해요, {{user}}!"
+  {{emotion::happy}}
+{{:else}}
+  {{#when::{{getvar::affinity}}::>=::50}}
+    {{char}}가 미소짓습니다. "좋은 하루예요."
+  {{:else}}
+    {{#when::{{getvar::affinity}}::<::20}}
+      {{char}}가 차갑게 대합니다. "...뭐요?"
+      {{emotion::cold}}
+    {{:else}}
+      {{char}}가 무덤덤하게 바라봅니다.
+    {{/}}
+  {{/}}
+{{/}}
+
+{{//::─── 전투 시스템 (주사위) ───}}
+공격 주사위: {{roll::2d6}}
+방어력: {{calc::10+{{getvar::level}}*2}}
+랜덤 아이템: {{random::검,방패,물약,두루마리}}
+해시 기반 선택: {{pick::초원::숲::동굴::성}}
+
+{{//::─── 반복문 (#each) ───}}
+{{#each ["사과", "빵", "물약"] as item}}
+  인벤토리: {{slot::item}}
+{{/}}
+
+{{//::─── 문자열 함수 ───}}
+대문자: {{upper::hello world}}
+소문자: {{lower::HELLO WORLD}}
+캐피탈라이즈: {{capitalize::hello world}}
+길이: {{length::안녕하세요}}
+치환: {{replace::Hello World::World::RisuAI}}
+포함 확인: {{contains::abcdef::cde}}
+트림: {{trim::  공백 제거  }}
+뒤집기: {{reverse::ABCDE}}
+
+{{//::─── 숫자 함수 ───}}
+계산: {{calc::2+3*4-1}}
+반올림: {{round::3.7}}
+내림: {{floor::3.7}}
+올림: {{ceil::3.2}}
+절대값: {{abs::-42}}
+거듭제곱: {{pow::2::10}}
+나머지: {{remaind::17::5}}
+소수점 고정: {{fixnum::3.14159::2}}
+
+{{//::─── 배열 함수 ───}}
+배열 생성: {{makearray::a::b::c::d}}
+배열 길이: {{arraylength::["x","y","z"]}}
+배열 요소: {{arrayelement::["alpha","beta","gamma"]::1}}
+배열 추가: {{arraypush::["a","b"]::c}}
+딕셔너리: {{makedict::name=Risu::type=AI::version=4}}
+딕셔너리 접근: {{dictelement::{"name":"Risu"}::name}}
+
+{{//::─── 비교 & 논리 ───}}
+같음: {{equal::hello::hello}}
+다름: {{notequal::a::b}}
+크다: {{greater::10::5}}
+논리 AND: {{and::1::1}}
+논리 OR: {{or::0::1}}
+논리 NOT: {{not::0}}
+전체: {{all::1::1::1}}
+부분: {{any::0::0::1}}
+
+{{//::─── 날짜 & 시간 ───}}
+현재 시간: {{time}}
+현재 날짜: {{date}}
+ISO 시간: {{isotime}}
+Unix 시간: {{unixtime}}
+커스텀 포맷: {{date::YYYY년 MM월 DD일}}
+
+{{//::─── 에셋 & 표시 ───}}
+{{bg::sunset_beach}}
+{{bgm::calm_ocean}}
+{{image::character_portrait.png}}
+{{emotion::smile}}
+{{asset::standing_pose}}
+
+{{//::─── 랜덤 & 확률 ───}}
+랜덤 정수: {{randint::1::100}}
+주사위: {{dice::3d8}}
+해시: {{hash::deterministic_seed}}
+
+{{//::─── 집계 함수 ───}}
+최솟값: {{min::5::2::8::1::9}}
+최댓값: {{max::5::2::8::1::9}}
+합계: {{sum::10::20::30}}
+평균: {{average::85::90::78::92}}
+
+{{//::─── 메타데이터 ───}}
+버전: {{metadata::VERSION}}
+언어: {{metadata::LANGUAGE}}
+모델: {{metadata::MODELNAME}}
+플랫폼: {{metadata::RISUTYPE}}
+
+{{//::─── 암호화 ───}}
+XOR: {{xor::비밀 메시지}}
+시저: {{crypt::Hello::5}}
+16진수: {{tohex::ABC}}
+
+{{//::─── 특수 함수 ───}}
+{{button::공격하기::attack_trigger}}
+{{tex::E = mc^2}}
+{{ruby::漢字::かんじ}}
+{{risu::48}}
+
+{{//::─── 이스케이프 문자 ───}}
+여는 괄호: {{bo}}
+닫는 괄호: {{bc}}
+줄바꿈: {{br}}
+소괄호: {{(}} {{)}}
+꺾쇠: {{<}} {{>}}
+
+{{//::─── 프롬프트 참조 ───}}
+메인 프롬프트: {{mainprompt}}
+페르소나: {{persona}}
+시나리오: {{scenario}}
+역할: {{role}}
+채팅 인덱스: {{chatindex}}
+첫 메시지 여부: {{isfirstmsg}}
+
+{{//::─── 중첩 CBS ───}}
+{{setvar::greeting::{{replace::Hello {{user}}::Hello::안녕}}}}
+{{#when::{{equal::{{getvar::language}}::ko}}::is::1}}
+  한국어 모드 활성화
+{{:else}}
+  English mode activated
+{{/}}
+
+{{//::끝}}</textarea>
+    </div>
+
+    <!-- Token Preview Panel -->
+    <div class="panel preview-wrapper">
+      <div class="panel-header">
+        Token Inspector
+        <span class="badge" id="tokenCount">0 tokens</span>
+      </div>
+      <div class="preview-panel" id="tokenPreview">
+        Click or edit to see token analysis...
+      </div>
+    </div>
+  </div>
+
+  <!-- Examples Drawer -->
+  <div class="examples-drawer" id="examplesDrawer">
+    <h3>CBS 예제 스니펫</h3>
+
+    <div class="example-item" data-example="greeting">
+      <h4>기본 인사</h4>
+      <pre>안녕하세요! 저는 {{char}}입니다.
+{{user}}님, 환영합니다!</pre>
+    </div>
+
+    <div class="example-item" data-example="variables">
+      <h4>변수 시스템</h4>
+      <pre>{{setdefaultvar::score::0}}
+{{addvar::score::10}}
+점수: {{getvar::score}}</pre>
+    </div>
+
+    <div class="example-item" data-example="conditional">
+      <h4>조건부 분기</h4>
+      <pre>{{#when::{{getvar::hp}}::<=::0}}
+  게임 오버!
+{{:else}}
+  남은 HP: {{getvar::hp}}
+{{/}}</pre>
+    </div>
+
+    <div class="example-item" data-example="loop">
+      <h4>반복문</h4>
+      <pre>{{#each ["검", "방패", "물약"] as item}}
+  - {{slot::item}}
+{{/}}</pre>
+    </div>
+
+    <div class="example-item" data-example="dice">
+      <h4>주사위 시스템</h4>
+      <pre>{{//::전투 판정}}
+공격: {{roll::1d20}}
+데미지: {{calc::{{roll::2d6}}+3}}
+크리티컬: {{randint::1::100}}</pre>
+    </div>
+
+    <div class="example-item" data-example="assets">
+      <h4>에셋 표시</h4>
+      <pre>{{bg::forest_morning}}
+{{bgm::birds_singing}}
+{{emotion::happy}}
+{{image::scene01.png}}</pre>
+    </div>
+
+    <div class="example-item" data-example="affinity">
+      <h4>호감도 시스템</h4>
+      <pre>{{setdefaultvar::love::0}}
+{{addvar::love::5}}
+{{#when::{{getvar::love}}::>=::100}}
+  {{emotion::blush}}
+  "사...사랑해요, {{user}}..."
+{{:else}}
+  {{#when::{{getvar::love}}::>=::50}}
+    "{{user}}... 좋아해요."
+  {{:else}}
+    "안녕하세요."
+  {{/}}
+{{/}}</pre>
+    </div>
+
+    <div class="example-item" data-example="inventory">
+      <h4>인벤토리 관리</h4>
+      <pre>{{setdefaultvar::inv::["검","방패"]}}
+{{setvar::inv::{{arraypush::{{getvar::inv}}::물약}}}}
+소지품 ({{arraylength::{{getvar::inv}}}}개):
+{{#each {{getvar::inv}} as item}}
+  [{{slot::item}}]
+{{/}}</pre>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="dot"></span>
+      <span>risuai-cbs mode</span>
+    </div>
+    <div class="status-item">
+      <span id="cursorPos">Line 1, Col 1</span>
+    </div>
+  </div>
+
+  <!-- CodeMirror 5 CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/display/placeholder.min.js"></script>
+
+  <!-- RisuAI CBS Mode -->
+  <script src="risuai-cbs-mode.js"></script>
+
+  <script>
+    // ─── Editor Setup ───────────────────────────────────
+    var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+      mode: "risuai-cbs",
+      theme: "risuai-cbs",
+      lineNumbers: true,
+      lineWrapping: true,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true,
+      indentUnit: 2,
+      tabSize: 2,
+      indentWithTabs: false,
+      placeholder: "CBS 코드를 입력하세요...",
+      extraKeys: {
+        "Ctrl-Space": function(cm) {
+          CodeMirror.showHint(cm, CodeMirror.hint["risuai-cbs"]);
+        },
+        "Tab": function(cm) {
+          if (cm.somethingSelected()) {
+            cm.indentSelection("add");
+          } else {
+            cm.replaceSelection("  ", "end");
+          }
+        }
+      }
+    });
+
+    // ─── Token Inspector ────────────────────────────────
+    var tokenPreview = document.getElementById("tokenPreview");
+    var tokenCountEl = document.getElementById("tokenCount");
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function getTokenClass(tokenType) {
+      if (!tokenType) return "t-plain";
+      if (tokenType.indexOf("cbs-bracket") >= 0) return "t-bracket";
+      if (tokenType.indexOf("cbs-separator") >= 0) return "t-separator";
+      if (tokenType.indexOf("cbs-block-keyword") >= 0) return "t-block-kw";
+      if (tokenType.indexOf("cbs-block-close") >= 0) return "t-block-close";
+      if (tokenType.indexOf("cbs-else") >= 0) return "t-else";
+      if (tokenType.indexOf("cbs-function-char") >= 0) return "t-func-char";
+      if (tokenType.indexOf("cbs-function-mutating") >= 0) return "t-func-mutating";
+      if (tokenType.indexOf("cbs-function-var") >= 0) return "t-func-var";
+      if (tokenType.indexOf("cbs-function-string") >= 0) return "t-func-string";
+      if (tokenType.indexOf("cbs-function-numeric") >= 0) return "t-func-numeric";
+      if (tokenType.indexOf("cbs-function-array") >= 0) return "t-func-array";
+      if (tokenType.indexOf("cbs-function-logic") >= 0) return "t-func-logic";
+      if (tokenType.indexOf("cbs-function-asset") >= 0) return "t-func-asset";
+      if (tokenType.indexOf("cbs-function-random") >= 0) return "t-func-random";
+      if (tokenType.indexOf("cbs-function-date") >= 0) return "t-func-date";
+      if (tokenType.indexOf("cbs-function-special") >= 0) return "t-func-special";
+      if (tokenType.indexOf("comment") >= 0) return "t-comment";
+      if (tokenType.indexOf("cbs-when-operator") >= 0) return "t-operator";
+      if (tokenType.indexOf("number") >= 0) return "t-arg-num";
+      if (tokenType.indexOf("cbs-arg") >= 0) return "t-arg";
+      if (tokenType.indexOf("string") >= 0) return "t-arg";
+      return "t-plain";
+    }
+
+    function updateTokenPreview() {
+      var totalTokens = 0;
+      var html = [];
+      var lineCount = editor.lineCount();
+
+      for (var i = 0; i < lineCount; i++) {
+        var tokens = editor.getLineTokens(i);
+        var lineHtml = '<span style="color:#45475a;font-size:11px">' +
+                       String(i + 1).padStart(3, " ") + " </span>";
+
+        for (var j = 0; j < tokens.length; j++) {
+          var tok = tokens[j];
+          var cls = getTokenClass(tok.type);
+          var text = escapeHtml(tok.string);
+
+          if (text.trim() !== "" || tok.type) {
+            totalTokens++;
+          }
+          lineHtml += '<span class="token ' + cls + '" title="' +
+                      escapeHtml(tok.type || "null") + '">' + text + '</span>';
+        }
+
+        html.push(lineHtml);
+      }
+
+      tokenPreview.innerHTML = html.join("\n");
+      tokenCountEl.textContent = totalTokens + " tokens";
+    }
+
+    editor.on("change", function() {
+      clearTimeout(editor._previewTimer);
+      editor._previewTimer = setTimeout(updateTokenPreview, 150);
+    });
+
+    editor.on("cursorActivity", function() {
+      var pos = editor.getCursor();
+      document.getElementById("cursorPos").textContent =
+        "Line " + (pos.line + 1) + ", Col " + (pos.ch + 1);
+    });
+
+    // Initial render
+    setTimeout(updateTokenPreview, 100);
+
+    // ─── Theme Toggle ──────────────────────────────────
+    var isDark = true;
+    document.getElementById("btnTheme").addEventListener("click", function() {
+      isDark = !isDark;
+      if (isDark) {
+        editor.setOption("theme", "risuai-cbs");
+        document.body.style.background = "#11111b";
+        document.body.style.color = "#cdd6f4";
+      } else {
+        editor.setOption("theme", "risuai-cbs-light");
+        document.body.style.background = "#eff1f5";
+        document.body.style.color = "#4c4f69";
+      }
+    });
+
+    // ─── Examples Drawer ───────────────────────────────
+    var drawer = document.getElementById("examplesDrawer");
+    var drawerOpen = false;
+    document.getElementById("btnExamples").addEventListener("click", function() {
+      drawerOpen = !drawerOpen;
+      drawer.classList.toggle("open", drawerOpen);
+      this.classList.toggle("active", drawerOpen);
+    });
+
+    // Example snippets
+    var examples = {
+      greeting: '안녕하세요! 저는 {{char}}입니다.\n{{user}}님, 환영합니다!\n\n{{personality}}',
+      variables: '{{setdefaultvar::score::0}}\n{{setdefaultvar::level::1}}\n{{addvar::score::10}}\n\n점수: {{getvar::score}}\n레벨: {{getvar::level}}',
+      conditional: '{{#when::{{getvar::hp}}::<=::0}}\n  게임 오버! 당신은 쓰러졌습니다.\n  {{emotion::sad}}\n{{:else}}\n  {{#when::{{getvar::hp}}::<::30}}\n    위험! HP가 낮습니다: {{getvar::hp}}\n    {{emotion::worried}}\n  {{:else}}\n    HP: {{getvar::hp}} / 100\n    {{emotion::normal}}\n  {{/}}\n{{/}}',
+      loop: '{{//::인벤토리 표시}}\n인벤토리:\n{{#each ["검", "방패", "물약", "두루마리"] as item}}\n  - {{slot::item}}\n{{/}}\n\n총 아이템 수: {{arraylength::["검","방패","물약","두루마리"]}}',
+      dice: '{{//::전투 판정 시스템}}\n{{setdefaultvar::atk::5}}\n\n주사위 굴림: {{roll::1d20}}\n공격력 보정: {{calc::{{roll::1d20}}+{{getvar::atk}}}}\n\n데미지: {{roll::2d6}}\n크리티컬 확률: {{randint::1::100}}%\n\n랜덤 효과: {{random::화상,빙결,마비,독}}',
+      assets: '{{//::씬 연출}}\n{{bg::forest_morning}}\n{{bgm::birds_singing}}\n\n아침의 숲이 눈앞에 펼쳐집니다.\n{{image::forest_scene.png}}\n\n{{char}}가 다가옵니다.\n{{emotion::happy}}\n{{asset::standing_pose}}\n\n"좋은 아침이에요, {{user}}!"',
+      affinity: '{{setdefaultvar::love::0}}\n{{addvar::love::5}}\n\n{{//::호감도 분기}}\n{{#when::{{getvar::love}}::>=::100}}\n  {{emotion::blush}}\n  "사...사랑해요, {{user}}..."\n  {{bg::sunset_romantic}}\n  {{bgm::love_theme}}\n{{:else}}\n  {{#when::{{getvar::love}}::>=::50}}\n    {{emotion::smile}}\n    "{{user}}님... 좋아해요."\n  {{:else}}\n    {{#when::{{getvar::love}}::>=::20}}\n      "안녕하세요, {{user}}님."\n    {{:else}}\n      "..."\n    {{/}}\n  {{/}}\n{{/}}\n\n현재 호감도: {{getvar::love}}',
+      inventory: '{{setdefaultvar::inv::["검","방패"]}}\n{{setvar::inv::{{arraypush::{{getvar::inv}}::물약}}}}\n\n소지품 ({{arraylength::{{getvar::inv}}}}개):\n{{#each {{getvar::inv}} as item}}\n  [{{slot::item}}]\n{{/}}\n\n첫 번째 아이템: {{arrayelement::{{getvar::inv}}::0}}'
+    };
+
+    document.querySelectorAll(".example-item").forEach(function(el) {
+      el.addEventListener("click", function() {
+        var key = this.getAttribute("data-example");
+        if (examples[key]) {
+          editor.setValue(examples[key]);
+          drawerOpen = false;
+          drawer.classList.remove("open");
+          document.getElementById("btnExamples").classList.remove("active");
+        }
+      });
+    });
+
+    // ─── Fullscreen Toggle ─────────────────────────────
+    var isFullscreen = false;
+    document.getElementById("btnFullscreen").addEventListener("click", function() {
+      isFullscreen = !isFullscreen;
+      var container = document.getElementById("mainContainer");
+      container.classList.toggle("single-panel", isFullscreen);
+      this.classList.toggle("active", isFullscreen);
+      editor.refresh();
+    });
+  </script>
+
+</body>
+</html>

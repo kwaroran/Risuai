@@ -427,7 +427,7 @@ export async function loadPlugins() {
     await loadV3Plugins(pluginV3)
 }
 
-type PluginV2ProviderArgument = {
+export type PluginV2ProviderArgument = {
     prompt_chat: OpenAIChat[]
     frequency_penalty: number
     min_p: number
@@ -440,12 +440,12 @@ type PluginV2ProviderArgument = {
     max_tokens: number
 }
 
-type PluginV2ProviderOptions = {
+export type PluginV2ProviderOptions = {
     tokenizer?: string
     tokenizerFunc?: (content: string) => number[] | Promise<number[]>
 }
 
-type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
+export type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
 type ReplacerFunction = (content: OpenAIChat[], type: string) => OpenAIChat[] | Promise<OpenAIChat[]>
 
 export const pluginV2 = {

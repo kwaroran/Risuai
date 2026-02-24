@@ -1,4 +1,4 @@
-import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins.svelte";
+import { allowedDbKeys, customProviderStore, getV2PluginAPIs, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
@@ -513,7 +513,7 @@ const permissionForage = localforage.createInstance({
     storeName: 'plugin_permissions'
 });
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer') => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider') => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
@@ -536,6 +536,7 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
         : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
         : permissionDesc === 'replacer' ? language.replacerPermissionConsent.replace("{}", pluginName)
+        : permissionDesc === 'provider' ? language.providerPermissionConsent.replace("{}", pluginName)
         : `Error`
     if(alertTitle === 'Error'){
         return false;
@@ -560,7 +561,17 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         nativeFetch: oldApis.nativeFetch,
         getChar: oldApis.getChar,
         setChar: oldApis.setChar,
-        addProvider: oldApis.addProvider,
+        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV2ProviderOptions) => {
+            let provs = get(customProviderStore)
+            provs.push(name)
+            pluginV2.providers.set(name, async (arg, abortSignal) => {
+               await getPluginPermission(plugin.name, 'provider');
+               arg.mode = 'v3' //mode is overridden to v3, due to vulnerabilities using mode.
+               return await func(arg, abortSignal);
+            }),
+            pluginV2.providerOptions.set(name, options ?? {})
+            customProviderStore.set(provs)
+        },
         addRisuScriptHandler: oldApis.addRisuScriptHandler,
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
         addRisuReplacer: async (name:string,func:Function) => {

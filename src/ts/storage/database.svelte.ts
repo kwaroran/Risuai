@@ -390,20 +390,12 @@ export function setDatabase(data:Database){
     data.generationSeed ??= -1
     data.newOAIHandle ??= true
     data.localNetworkMode ??= false
-    data.localNetworkTimeoutSec ??= 600
-    data.experimentalProxySSEHeartbeat ??= true
-    data.experimentalProxySSEHeartbeatIntervalSec ??= 15
     if (typeof data.localNetworkMode !== 'boolean') {
         data.localNetworkMode = false
     }
+    data.localNetworkTimeoutSec ??= 600
     if (typeof data.localNetworkTimeoutSec !== 'number' || Number.isNaN(data.localNetworkTimeoutSec)) {
         data.localNetworkTimeoutSec = 600
-    }
-    if (typeof data.experimentalProxySSEHeartbeat !== 'boolean') {
-        data.experimentalProxySSEHeartbeat = true
-    }
-    if (typeof data.experimentalProxySSEHeartbeatIntervalSec !== 'number' || Number.isNaN(data.experimentalProxySSEHeartbeatIntervalSec)) {
-        data.experimentalProxySSEHeartbeatIntervalSec = 15
     }
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
@@ -821,8 +813,6 @@ export interface Database{
     requestRetrys:number
     localNetworkMode:boolean
     localNetworkTimeoutSec:number
-    experimentalProxySSEHeartbeat:boolean
-    experimentalProxySSEHeartbeatIntervalSec:number
     emotionPrompt2:string
     useSayNothing:boolean
     didFirstSetup: boolean
@@ -1472,6 +1462,8 @@ export interface botPreset{
     name?:string
     apiType?: string
     openAIKey?: string
+    localNetworkMode?: boolean
+    localNetworkTimeoutSec?: number
     mainPrompt: string
     jailbreak: string
     globalNote:string
@@ -1567,8 +1559,6 @@ export interface botPreset{
     fallbackWhenBlankResponse?: boolean
     verbosity?:number
     dynamicOutput?:DynamicOutput
-    localNetworkMode?:boolean
-    localNetworkTimeoutSec?:number
 }
 
 
@@ -1883,6 +1873,8 @@ export const presetTemplate:botPreset = {
     name: "New Preset",
     apiType: "gemini-3-flash-preview",
     openAIKey: "",
+    localNetworkMode: false,
+    localNetworkTimeoutSec: 600,
     mainPrompt: defaultMainPrompt,
     jailbreak: defaultJailbreak,
     globalNote: "",
@@ -1909,8 +1901,6 @@ export const presetTemplate:botPreset = {
     },
     top_p: 1,
     useInstructPrompt: false,
-    localNetworkMode: false,
-    localNetworkTimeoutSec: 600,
     verbosity: 1
 }
 
@@ -1935,6 +1925,8 @@ export function saveCurrentPreset(){
         name: pres[db.botPresetsId].name,
         apiType: db.apiType,
         openAIKey: db.openAIKey,
+        localNetworkMode: db.localNetworkMode,
+        localNetworkTimeoutSec: db.localNetworkTimeoutSec,
         mainPrompt:db.mainPrompt,
         jailbreak: db.jailbreak,
         globalNote: db.globalNote,
@@ -1967,8 +1959,6 @@ export function saveCurrentPreset(){
         customProxyRequestModel: db.customProxyRequestModel,
         reverseProxyOobaArgs: safeStructuredClone(db.reverseProxyOobaArgs) ?? null,
         top_p: db.top_p ?? 1,
-        localNetworkMode: db.localNetworkMode ?? false,
-        localNetworkTimeoutSec: db.localNetworkTimeoutSec ?? 600,
         promptSettings: safeStructuredClone(db.promptSettings) ?? null,
         repetition_penalty: db.repetition_penalty,
         min_p: db.min_p,
@@ -2048,6 +2038,8 @@ export function changeToPreset(id =0, savecurrent = true){
 
 export function setPreset(db:Database, newPres: botPreset){
     db.apiType = newPres.apiType ?? db.apiType
+    db.localNetworkMode = newPres.localNetworkMode ?? db.localNetworkMode
+    db.localNetworkTimeoutSec = newPres.localNetworkTimeoutSec ?? db.localNetworkTimeoutSec
     db.mainPrompt = newPres.mainPrompt ?? db.mainPrompt
     db.jailbreak = newPres.jailbreak ?? db.jailbreak
     db.globalNote = newPres.globalNote ?? db.globalNote
@@ -2087,10 +2079,6 @@ export function setPreset(db:Database, newPres: botPreset){
         mode: 'instruct'
     }
     db.top_p = newPres.top_p ?? 1
-    db.localNetworkMode = newPres.localNetworkMode ?? false
-    db.localNetworkTimeoutSec = (typeof newPres.localNetworkTimeoutSec === 'number' && !Number.isNaN(newPres.localNetworkTimeoutSec))
-        ? newPres.localNetworkTimeoutSec
-        : 600
     db.promptSettings = safeStructuredClone(newPres.promptSettings) ?? {
         assistantPrefill: '',
         postEndInnerFormat: '',

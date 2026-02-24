@@ -18,13 +18,14 @@ import { applyParameters, setObjectValue } from '../shared'
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
 
-function getOpenAICompatibleNetworkFetchArgs(url: string) {
-    const db = getDatabase()
+interface LocalNetworkRequestOptions {
+    networkRoute?: 'auto' | 'local_network'
+    requestTimeoutMs?: number
+}
+
+function getLocalNetworkRequestOptions(url: string, db = getDatabase()): LocalNetworkRequestOptions {
     if (!db.localNetworkMode || !isLocalNetworkUrl(url)) {
-        return {
-            networkRoute: 'auto' as const,
-            requestTimeoutMs: undefined
-        }
+        return {}
     }
 
     const timeoutSec = Number.isFinite(db.localNetworkTimeoutSec) && db.localNetworkTimeoutSec > 0
@@ -32,8 +33,8 @@ function getOpenAICompatibleNetworkFetchArgs(url: string) {
         : 600
 
     return {
-        networkRoute: 'local_network' as const,
-        requestTimeoutMs: Math.floor(timeoutSec * 1000)
+        networkRoute: 'local_network',
+        requestTimeoutMs: Math.max(1, Math.floor(timeoutSec * 1000))
     }
 }
 
@@ -275,7 +276,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
 
         const requestURL = arg.customURL ?? "https://api.mistral.ai/v1/chat/completions"
-        const networkFetchArgs = getOpenAICompatibleNetworkFetchArgs(requestURL)
+        const networkOptions = getLocalNetworkRequestOptions(requestURL, db)
 
         const targs = {
             body: applyParameters({
@@ -292,7 +293,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             abortSignal: arg.abortSignal,
             chatId: arg.chatId,
             interceptor: 'mistral',
-            ...networkFetchArgs
+            networkRoute: networkOptions.networkRoute,
+            requestTimeoutMs: networkOptions.requestTimeoutMs
         } as const
 
         if(arg.previewBody){
@@ -516,8 +518,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    const openAINetworkFetchArgs = getOpenAICompatibleNetworkFetchArgs(replacerURL)
-
     let headers = {
         "Authorization": "Bearer " + (arg.key ?? (aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
         "Content-Type": "application/json"
@@ -543,70 +543,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         body.n = db.genTime
     }
-    if(arg.useStreaming){
-        body.stream = true
-        let urlHost = new URL(replacerURL).host
-        if(urlHost.includes("localhost") || urlHost.includes("172.0.0.1") || urlHost.includes("0.0.0.0")){
-            if(!isTauri && !isNodeServer){
-                return {
-                    type: 'fail',
-                    result: 'You are trying local request on streaming. this is not allowed dude to browser/os security policy. turn off streaming.',
-                }
-            }
-        }
-
-        if(arg.previewBody){
-            return {
-                type: 'success',
-                result: JSON.stringify({
-                    url: replacerURL,
-                    body: body,
-                    headers: headers
-                })
-            }
-        }
-        const da = await fetchNative(replacerURL, {
-            body: JSON.stringify(body),
-            method: "POST",
-            headers: headers,
-            signal: arg.abortSignal,
-            chatId: arg.chatId,
-            interceptor: 'openai_streaming',
-            ...openAINetworkFetchArgs
-        })
-
-        if(da.status !== 200){
-            return {
-                type: "fail",
-                result: await textifyReadableStream(da.body)
-            }
-        }
-
-        if (!da.headers.get('Content-Type').includes('text/event-stream')){
-            return {
-                type: "fail",
-                result: await textifyReadableStream(da.body)
-            }
-        }
-
-        addFetchLog({
-            body: body,
-            response: "Streaming",
-            success: true,
-            url: replacerURL,
-            status: da.status,
-        })
-
-        const transtream = getTranStream(arg)
-
-        da.body.pipeTo(transtream.writable)
-
-        return {
-            type: 'streaming',
-            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg)
-        }
-    }
-
     if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
         let additionalParams = aiModel === 'reverse_proxy' ? db.additionalParams : []
 
@@ -674,6 +610,79 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
+    // Some aux flows are intentionally non-streaming (e.g. memory/translate).
+    // If custom Additional Parameters contains stream=true, force non-stream mode back.
+    if(!arg.useStreaming){
+        body.stream = false
+    }
+
+    const localNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db)
+
+    if(arg.useStreaming){
+        body.stream = true
+        let urlHost = new URL(replacerURL).host
+        if(urlHost.includes("localhost") || urlHost.includes("172.0.0.1") || urlHost.includes("0.0.0.0")){
+            if(!isTauri && !isNodeServer){
+                return {
+                    type: 'fail',
+                    result: 'You are trying local request on streaming. this is not allowed dude to browser/os security policy. turn off streaming.',
+                }
+            }
+        }
+
+        if(arg.previewBody){
+            return {
+                type: 'success',
+                result: JSON.stringify({
+                    url: replacerURL,
+                    body: body,
+                    headers: headers
+                })
+            }
+        }
+        const da = await fetchNative(replacerURL, {
+            body: JSON.stringify(body),
+            method: "POST",
+            headers: headers,
+            signal: arg.abortSignal,
+            chatId: arg.chatId,
+            interceptor: 'openai_streaming',
+            networkRoute: localNetworkOptions.networkRoute,
+            requestTimeoutMs: localNetworkOptions.requestTimeoutMs
+        })
+
+        if(da.status !== 200){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(da.body)
+            }
+        }
+
+        if (!da.headers.get('Content-Type').includes('text/event-stream')){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(da.body)
+            }
+        }
+
+        addFetchLog({
+            body: body,
+            response: "Streaming",
+            success: true,
+            url: replacerURL,
+            status: da.status,
+        })
+
+        const transtream = getTranStream(arg)
+
+        da.body.pipeTo(transtream.writable)
+
+        return {
+            type: 'streaming',
+            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg, localNetworkOptions)
+        }
+    }
+
     if(arg.previewBody){
         return {
             type: 'success',
@@ -685,21 +694,27 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    return requestHTTPOpenAI(replacerURL, body, headers, arg)
+    return requestHTTPOpenAI(replacerURL, body, headers, arg, localNetworkOptions)
 
 }
 
-async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
+export async function requestHTTPOpenAI(
+    replacerURL:string,
+    body:any,
+    headers:Record<string,string>,
+    arg:RequestDataArgumentExtended,
+    networkOptions: LocalNetworkRequestOptions = {}
+):Promise<requestDataResponse>{
     
     const db = getDatabase()
-    const openAINetworkFetchArgs = getOpenAICompatibleNetworkFetchArgs(replacerURL)
     const res = await globalFetch(replacerURL, {
         body: body,
         headers: headers,
         abortSignal: arg.abortSignal,
         chatId: arg.chatId,
         interceptor: 'openai_basic',
-        ...openAINetworkFetchArgs
+        networkRoute: networkOptions.networkRoute,
+        requestTimeoutMs: networkOptions.requestTimeoutMs
     })
 
     function processTextResponse(dat: any):string{
@@ -842,7 +857,7 @@ async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<str
                 
                 do {
                     attempt++
-                    resRec = await requestHTTPOpenAI(replacerURL, body, headers, arg)
+                    resRec = await requestHTTPOpenAI(replacerURL, body, headers, arg, networkOptions)
                     
                     if (resRec.type != 'fail') {
                         break
@@ -1145,7 +1160,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.tools.push('web_search_preview')
     }
 
-    const responseNetworkFetchArgs = getOpenAICompatibleNetworkFetchArgs(requestURL)
+    const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db)
 
     const response = await globalFetch(requestURL, {
         body: body,
@@ -1153,7 +1168,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
         interceptor: 'openai_response_api',
-        ...responseNetworkFetchArgs
+        networkRoute: localNetworkOptions.networkRoute,
+        requestTimeoutMs: localNetworkOptions.requestTimeoutMs
     });
 
     if(!response.ok){
@@ -1323,13 +1339,13 @@ function wrapToolStream(
     body:any,
     headers:Record<string,string>,
     replacerURL:string,
-    arg:RequestDataArgumentExtended
+    arg:RequestDataArgumentExtended,
+    networkOptions: LocalNetworkRequestOptions = {}
 ):ReadableStream<StreamResponseChunk> {
     return new ReadableStream<StreamResponseChunk>({
         async start(controller) {
 
             const db = getDatabase()
-            const openAINetworkFetchArgs = getOpenAICompatibleNetworkFetchArgs(replacerURL)
             let reader = stream.getReader()
             let prefix = ''
             let lastValue
@@ -1429,7 +1445,8 @@ function wrapToolStream(
                                 signal: arg.abortSignal,
                                 chatId: arg.chatId,
                                 interceptor: 'openai_tool',
-                                ...openAINetworkFetchArgs
+                                networkRoute: networkOptions.networkRoute,
+                                requestTimeoutMs: networkOptions.requestTimeoutMs
                             })
                             
                             if(resRec.status == 200 && resRec.headers.get('Content-Type').includes('text/event-stream')) {

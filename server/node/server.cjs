@@ -22,7 +22,6 @@ const savePath = path.join(process.cwd(), "save")
 if(!existsSync(savePath)){
     mkdirSync(savePath)
 }
-const DEFAULT_SSE_HEARTBEAT_INTERVAL_MS = 15000
 
 const passwordPath = path.join(process.cwd(), 'save', '__password')
 if(existsSync(passwordPath)){
@@ -71,41 +70,7 @@ function createTimeoutController(timeoutMs) {
     };
 }
 
-function parseHeartbeatEnabled(value) {
-    const raw = Array.isArray(value) ? value[0] : value;
-    if (raw === undefined || raw === null) {
-        return true;
-    }
-    const normalized = String(raw).trim().toLowerCase();
-    if (normalized === '0' || normalized === 'false' || normalized === 'off' || normalized === 'no') {
-        return false;
-    }
-    if (normalized === '1' || normalized === 'true' || normalized === 'on' || normalized === 'yes') {
-        return true;
-    }
-    return true;
-}
-
-function parseHeartbeatIntervalMs(value) {
-    const raw = Array.isArray(value) ? value[0] : value;
-    if (!raw) {
-        return DEFAULT_SSE_HEARTBEAT_INTERVAL_MS;
-    }
-    const parsed = Number.parseInt(raw, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-        return DEFAULT_SSE_HEARTBEAT_INTERVAL_MS;
-    }
-    return Math.max(1000, Math.min(120000, parsed));
-}
-
-function getHeartbeatConfig(reqHeaders) {
-    return {
-        enabled: parseHeartbeatEnabled(reqHeaders['risu-sse-heartbeat']),
-        intervalMs: parseHeartbeatIntervalMs(reqHeaders['risu-sse-heartbeat-interval-ms'])
-    };
-}
-
-async function forwardUpstreamResponse(originalResponse, res, heartbeatConfig = { enabled: true, intervalMs: DEFAULT_SSE_HEARTBEAT_INTERVAL_MS }) {
+async function forwardUpstreamResponse(originalResponse, res) {
     const head = new Headers(originalResponse.headers);
     head.delete('content-security-policy');
     head.delete('content-security-policy-report-only');
@@ -141,16 +106,8 @@ async function forwardUpstreamResponse(originalResponse, res, heartbeatConfig = 
     }
 
     const reader = originalResponse.body.getReader();
-    const heartbeat = heartbeatConfig.enabled ? setInterval(() => {
-        if (!res.writableEnded) {
-            res.write(': ping\n\n');
-        }
-    }, heartbeatConfig.intervalMs) : null;
 
     const onClose = () => {
-        if (heartbeat) {
-            clearInterval(heartbeat);
-        }
         reader.cancel().catch(() => {});
     };
     res.on('close', onClose);
@@ -174,9 +131,6 @@ async function forwardUpstreamResponse(originalResponse, res, heartbeatConfig = 
             throw error;
         }
     } finally {
-        if (heartbeat) {
-            clearInterval(heartbeat);
-        }
         res.off('close', onClose);
         if (!res.writableEnded) {
             res.end();
@@ -335,10 +289,7 @@ const reverseProxyFunc = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
-    const heartbeatConfig = getHeartbeatConfig(req.headers)
     delete header['risu-timeout-ms']
-    delete header['risu-sse-heartbeat']
-    delete header['risu-sse-heartbeat-interval-ms']
 
     if(req.headers['authorization']?.startsWith('X-SERVER-REGISTER')){
         if(!existsSync(authCodePath)){
@@ -352,17 +303,15 @@ const reverseProxyFunc = async (req, res, next) => {
         }
     }
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
-    let originalResponse;
     try {
         // make request to original server
-        originalResponse = await fetch(urlParam, {
+        const originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
             body: JSON.stringify(req.body),
             signal: timeoutController.signal
         });
-        await forwardUpstreamResponse(originalResponse, res, heartbeatConfig);
-
+        await forwardUpstreamResponse(originalResponse, res);
 
     }
     catch (err) {
@@ -390,20 +339,16 @@ const reverseProxyFunc_get = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
-    const heartbeatConfig = getHeartbeatConfig(req.headers)
     delete header['risu-timeout-ms']
-    delete header['risu-sse-heartbeat']
-    delete header['risu-sse-heartbeat-interval-ms']
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
-    let originalResponse;
     try {
         // make request to original server
-        originalResponse = await fetch(urlParam, {
+        const originalResponse = await fetch(urlParam, {
             method: 'GET',
             headers: header,
             signal: timeoutController.signal
         });
-        await forwardUpstreamResponse(originalResponse, res, heartbeatConfig);
+        await forwardUpstreamResponse(originalResponse, res);
     }
     catch (err) {
         next(err);

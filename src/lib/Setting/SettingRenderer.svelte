@@ -138,16 +138,19 @@
                 hideText={item.options?.hideText}
             />
         {:else if item.type === 'number'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <NumberInput
-                marginBottom={true}
-                size="sm"
-                min={item.options?.min}
-                max={item.options?.max}
-                bind:value={(DBState.db as any)[item.bindKey]}
-            />
+            <div class={item.containerClasses ?? ''}>
+                <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
+                    {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
+                </span>
+                <NumberInput
+                    marginBottom={item.options?.marginBottom ?? true}
+                    className={item.options?.inputClassName ?? ''}
+                    size="sm"
+                    min={item.options?.min}
+                    max={item.options?.max}
+                    bind:value={(DBState.db as any)[item.bindKey]}
+                />
+            </div>
         {:else if item.type === 'textarea'}
             <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
@@ -214,4 +217,3 @@
         {/if}
     {/if}
 {/each}
-

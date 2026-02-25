@@ -265,7 +265,7 @@ await (async function() {
 export class SandboxHost {
     private iframe: HTMLIFrameElement;
     private apiFactory: any;
-
+    private csp = "connect-src 'none'"
 
     private instanceRegistry = new Map<string, any>();
 
@@ -450,7 +450,7 @@ export class SandboxHost {
         this.iframe.sandbox.add('allow-modals')
         this.iframe.sandbox.add('allow-downloads')
 
-        this.iframe.setAttribute('csp', "connect-src 'none'");
+        this.iframe.setAttribute('csp', this.csp);
 
         const messageHandler = async (event: MessageEvent) => {
             if (event.source !== this.iframe.contentWindow) return;
@@ -523,6 +523,10 @@ export class SandboxHost {
         const html = `
       <!DOCTYPE html>
       <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Security-Policy" content="${this.csp}">
+      </head>
       <body>
         <style>
             body {

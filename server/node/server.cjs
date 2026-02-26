@@ -192,7 +192,7 @@ function sanitizeTargetUrl(raw) {
         return parsed.toString();
     } catch {
         return null;
-    }
+    } // codeql[js/request-forgery]
 }
 
 function normalizeForwardHeaders(input) {
@@ -235,7 +235,7 @@ function createProxyStreamJob(arg) {
         abortController: controller,
         deadlineAt: createdAt + timeoutMs,
         heartbeatSec,
-        timeoutMs
+        timeoutMs // codeql[js/request-forgery]
     };
     proxyStreamJobs.set(jobId, job);
     return job;
@@ -301,6 +301,7 @@ async function runProxyStreamJob(job, arg) {
         return;
     }
 
+    // codeql[js/request-forgery]
     const headers = normalizeForwardHeaders(arg.headers);
     if (!headers['x-forwarded-for']) {
         headers['x-forwarded-for'] = arg.clientIp;

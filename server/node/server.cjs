@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const http = require('http');
 const path = require('path');
+const net = require('net');
 const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('fs');
 const fs = require('fs/promises')
@@ -33,11 +34,16 @@ if(existsSync(passwordPath)){
 const authCodePath = path.join(process.cwd(), 'save', '__authcode')
 const hexRegex = /^[0-9a-fA-F]+$/;
 const PROXY_STREAM_DEFAULT_TIMEOUT_MS = 600000;
+const PROXY_STREAM_MAX_TIMEOUT_MS = 3600000;
 const PROXY_STREAM_DEFAULT_HEARTBEAT_SEC = 15;
 const PROXY_STREAM_HEARTBEAT_MIN_SEC = 5;
 const PROXY_STREAM_HEARTBEAT_MAX_SEC = 60;
 const PROXY_STREAM_GC_INTERVAL_MS = 60000;
 const PROXY_STREAM_DONE_GRACE_MS = 30000;
+const PROXY_STREAM_MAX_ACTIVE_JOBS = 64;
+const PROXY_STREAM_MAX_PENDING_EVENTS = 512;
+const PROXY_STREAM_MAX_PENDING_BYTES = 2 * 1024 * 1024;
+const PROXY_STREAM_MAX_BODY_BASE64_BYTES = 8 * 1024 * 1024;
 const proxyStreamJobs = new Map();
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
@@ -87,7 +93,8 @@ function normalizeProxyStreamTimeoutMs(timeoutMs) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
         return PROXY_STREAM_DEFAULT_TIMEOUT_MS;
     }
-    return Math.max(1, Math.floor(timeoutMs));
+    const parsed = Math.max(1, Math.floor(timeoutMs));
+    return Math.min(PROXY_STREAM_MAX_TIMEOUT_MS, parsed);
 }
 
 function normalizeHeartbeatSec(heartbeatSec) {
@@ -96,6 +103,68 @@ function normalizeHeartbeatSec(heartbeatSec) {
     }
     const parsed = Math.floor(heartbeatSec);
     return Math.min(PROXY_STREAM_HEARTBEAT_MAX_SEC, Math.max(PROXY_STREAM_HEARTBEAT_MIN_SEC, parsed));
+}
+
+function isPrivateIPv4Host(hostname) {
+    const parts = hostname.split('.');
+    if (parts.length !== 4) {
+        return false;
+    }
+    const octets = parts.map((part) => Number.parseInt(part, 10));
+    if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+        return false;
+    }
+    const [a, b] = octets;
+    if (a === 10) {
+        return true;
+    }
+    if (a === 127) {
+        return true;
+    }
+    if (a === 0) {
+        return true;
+    }
+    if (a === 192 && b === 168) {
+        return true;
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+        return true;
+    }
+    if (a === 169 && b === 254) {
+        return true;
+    }
+    return false;
+}
+
+function isLocalNetworkHost(hostname) {
+    if (typeof hostname !== 'string' || hostname.trim() === '') {
+        return false;
+    }
+
+    const normalizedHost = hostname.toLowerCase().replace(/\.$/, '').split('%')[0];
+    if (normalizedHost === 'localhost' || normalizedHost === '::1' || normalizedHost.endsWith('.local')) {
+        return true;
+    }
+
+    if (net.isIP(normalizedHost) === 4) {
+        return isPrivateIPv4Host(normalizedHost);
+    }
+
+    if (net.isIP(normalizedHost) === 6) {
+        if (normalizedHost.startsWith('::ffff:')) {
+            const mapped = normalizedHost.substring(7);
+            return net.isIP(mapped) === 4 && isPrivateIPv4Host(mapped);
+        }
+        if (normalizedHost.startsWith('fc') || normalizedHost.startsWith('fd')) {
+            return true;
+        }
+        if (/^fe[89ab]/.test(normalizedHost)) {
+            return true;
+        }
+        return normalizedHost === '::1';
+    }
+
+    return false;
 }
 
 function sanitizeTargetUrl(raw) {
@@ -107,6 +176,11 @@ function sanitizeTargetUrl(raw) {
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
             return null;
         }
+        if (!isLocalNetworkHost(parsed.hostname)) {
+            return null;
+        }
+        parsed.username = '';
+        parsed.password = '';
         return parsed.toString();
     } catch {
         return null;
@@ -139,7 +213,6 @@ function createProxyStreamJob(arg) {
     const timeoutMs = normalizeProxyStreamTimeoutMs(arg.timeoutMs);
     const heartbeatSec = normalizeHeartbeatSec(arg.heartbeatSec);
     const controller = new AbortController();
-    const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
     const createdAt = Date.now();
     const job = {
         id: jobId,
@@ -147,10 +220,12 @@ function createProxyStreamJob(arg) {
         updatedAt: createdAt,
         done: false,
         cleanupAt: 0,
+        targetUrl: arg.targetUrl,
         clients: new Set(),
         pendingEvents: [],
+        pendingBytes: 0,
         abortController: controller,
-        timeoutTimer,
+        deadlineAt: createdAt + timeoutMs,
         heartbeatSec,
         timeoutMs
     };
@@ -160,14 +235,22 @@ function createProxyStreamJob(arg) {
 
 function pushJobEvent(job, event) {
     job.updatedAt = Date.now();
+    const text = JSON.stringify(event);
     if (job.clients.size === 0) {
-        job.pendingEvents.push(event);
-        if (job.pendingEvents.length > 4000) {
-            job.pendingEvents.shift();
+        job.pendingEvents.push(text);
+        job.pendingBytes += Buffer.byteLength(text);
+        while (
+            job.pendingEvents.length > PROXY_STREAM_MAX_PENDING_EVENTS
+            || job.pendingBytes > PROXY_STREAM_MAX_PENDING_BYTES
+        ) {
+            const removed = job.pendingEvents.shift();
+            if (!removed) {
+                break;
+            }
+            job.pendingBytes -= Buffer.byteLength(removed);
         }
         return;
     }
-    const text = JSON.stringify(event);
     for (const client of job.clients) {
         if (client.readyState === client.OPEN) {
             client.send(text);
@@ -188,7 +271,6 @@ function cleanupJob(jobId) {
     if (!job) {
         return;
     }
-    clearTimeout(job.timeoutTimer);
     for (const client of job.clients) {
         try {
             client.close();
@@ -200,6 +282,17 @@ function cleanupJob(jobId) {
 }
 
 async function runProxyStreamJob(job, arg) {
+    const targetUrl = sanitizeTargetUrl(job.targetUrl);
+    if (!targetUrl) {
+        pushJobEvent(job, {
+            type: 'error',
+            status: 400,
+            message: 'Blocked non-local target URL'
+        });
+        markJobDone(job);
+        return;
+    }
+
     const headers = normalizeForwardHeaders(arg.headers);
     if (!headers['x-forwarded-for']) {
         headers['x-forwarded-for'] = arg.clientIp;
@@ -207,7 +300,7 @@ async function runProxyStreamJob(job, arg) {
     const bodyBuffer = arg.bodyBase64 ? Buffer.from(arg.bodyBase64, 'base64') : undefined;
 
     try {
-        const upstreamResponse = await fetch(arg.url, {
+        const upstreamResponse = await fetch(targetUrl, {
             method: arg.method,
             headers,
             body: bodyBuffer,
@@ -719,7 +812,7 @@ app.post('/proxy-stream-jobs', async (req, res) => {
 
     const url = sanitizeTargetUrl(req.body?.url);
     if (!url) {
-        res.status(400).send({ error: 'Invalid target URL' });
+        res.status(400).send({ error: 'Invalid target URL. Only local/private network http(s) endpoints are allowed.' });
         return;
     }
 
@@ -730,16 +823,24 @@ app.post('/proxy-stream-jobs', async (req, res) => {
     }
 
     const bodyBase64 = typeof req.body?.bodyBase64 === 'string' ? req.body.bodyBase64 : '';
+    if (bodyBase64.length > PROXY_STREAM_MAX_BODY_BASE64_BYTES) {
+        res.status(413).send({ error: 'Request body too large' });
+        return;
+    }
+    if (proxyStreamJobs.size >= PROXY_STREAM_MAX_ACTIVE_JOBS) {
+        res.status(429).send({ error: 'Too many active stream jobs. Retry shortly.' });
+        return;
+    }
     const headers = normalizeForwardHeaders(req.body?.headers);
     const timeoutMs = normalizeProxyStreamTimeoutMs(Number(req.body?.timeoutMs));
     const heartbeatSec = normalizeHeartbeatSec(Number(req.body?.heartbeatSec));
     const job = createProxyStreamJob({
         timeoutMs,
-        heartbeatSec
+        heartbeatSec,
+        targetUrl: url
     });
 
     void runProxyStreamJob(job, {
-        url,
         headers,
         method,
         bodyBase64,
@@ -1127,9 +1228,10 @@ function setupProxyStreamWebSocket(server) {
         job.clients.add(ws);
         ws.send(JSON.stringify({ type: 'job_accepted', jobId }));
         for (const event of job.pendingEvents) {
-            ws.send(JSON.stringify(event));
+            ws.send(event);
         }
         job.pendingEvents = [];
+        job.pendingBytes = 0;
 
         const pingTimer = setInterval(() => {
             if (ws.readyState !== ws.OPEN) {
@@ -1190,6 +1292,9 @@ async function startServer() {
     setInterval(() => {
         const now = Date.now();
         for (const [jobId, job] of proxyStreamJobs.entries()) {
+            if (!job.done && now >= job.deadlineAt && !job.abortController.signal.aborted) {
+                job.abortController.abort();
+            }
             if (job.done && job.clients.size === 0 && job.cleanupAt > 0 && now >= job.cleanupAt) {
                 cleanupJob(jobId);
                 continue;

@@ -127,6 +127,20 @@ export const languageEnglish = {
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
         forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. this can cause CORS errors.",
         autoFillRequestURL: "If enabled, it will autofill request url to match the current model.",
+        localNetworkModeDesc:
+            "Routes private/LAN model URLs through the local runtime path instead of browser direct fetch.\n\n" +
+            "**Purpose**\n" +
+            "- Avoid browser private-network/CORS restrictions for `192.168.x.x`, `10.x.x.x`, `localhost`, `.local`, and similar local hosts.\n" +
+            "- Keep long local-model requests on server-side routing in self-host mode.\n\n" +
+            "**How it works**\n" +
+            "- Applies only when Local Network Mode is enabled and the target URL is detected as local/private.\n" +
+            "- Node self-host: forces local `/proxy2` path.\n" +
+            "- Tauri: uses native/direct path.\n" +
+            "- Public web mode: blocked for local/private direct calls by design.\n\n" +
+            "**Constraints**\n" +
+            "- Scope is OpenAI-compatible request paths only.\n" +
+            "- This does not bypass Cloudflare origin limits between two public domains.\n" +
+            "- Use your self-host URL (where `globalThis.__NODE__ === true`) for this feature to take effect.",
         chainOfThought: "If enabled, it will add chain of thought prompt to the prompt.",
         gptVisionQuality: "This option is used to set the quality of the image detection model. the higher the quality, the more accurate the detection, but more tokens are used.",
         genTimes:

@@ -104,7 +104,14 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.forceProxy', type: 'check', labelKey: 'forceProxyAsOpenAI', bindKey: 'forceProxyAsOpenAI', helpKey: 'forceProxyAsOpenAI', classes: 'mt-4' },
     { id: 'adv.legacyMedia', type: 'check', labelKey: 'legacyMediaFindings', bindKey: 'legacyMediaFindings', helpKey: 'legacyMediaFindings', classes: 'mt-4' },
     { id: 'adv.autoFill', type: 'check', labelKey: 'autoFillRequestURL', bindKey: 'autofillRequestUrl', helpKey: 'autoFillRequestURL', classes: 'mt-4' },
-    { id: 'adv.localNetworkMode', type: 'check', fallbackLabel: 'Local Network Mode', bindKey: 'localNetworkMode', classes: 'mt-4' },
+    {
+        id: 'adv.localNetworkMode',
+        type: 'check',
+        fallbackLabel: 'Local Network Mode',
+        bindKey: 'localNetworkMode',
+        helpKey: 'localNetworkModeDesc',
+        classes: 'mt-4'
+    },
     {
         id: 'adv.localNetworkTimeout', type: 'number', fallbackLabel: 'Local Network Timeout (sec)', bindKey: 'localNetworkTimeoutSec',
         condition: (ctx) => ctx.db.localNetworkMode,

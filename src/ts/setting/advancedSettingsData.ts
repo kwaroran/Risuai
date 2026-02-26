@@ -107,7 +107,7 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.localNetworkMode',
         type: 'check',
-        fallbackLabel: 'Local Network Mode',
+        fallbackLabel: 'Local Network Mode (Experimental)',
         bindKey: 'localNetworkMode',
         helpKey: 'localNetworkModeDesc',
         classes: 'mt-4'

@@ -131,10 +131,10 @@ export const languageEnglish = {
             "Routes private/LAN model URLs through the local runtime path instead of browser direct fetch.\n\n" +
             "**Purpose**\n" +
             "- Avoid browser private-network/CORS restrictions for `192.168.x.x`, `10.x.x.x`, `localhost`, `.local`, and similar local hosts.\n" +
-            "- Keep long local-model requests on server-side routing in self-host mode.\n\n" +
+            "- Mitigate timeout risk for slow first-token local inference in Node self-host mode.\n\n" +
             "**How it works**\n" +
             "- Applies only when Local Network Mode is enabled and the target URL is detected as local/private.\n" +
-            "- Node self-host: forces local `/proxy2` path.\n" +
+            "- Node self-host: streaming uses experimental Job+WebSocket relay first (fallback to `/proxy2` on failure); non-streaming uses `/proxy2`.\n" +
             "- Tauri: uses native/direct path.\n" +
             "- Public web mode: blocked for local/private direct calls by design.\n\n" +
             "**Constraints**\n" +

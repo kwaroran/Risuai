@@ -84,7 +84,8 @@
     "uuid": "^9.0.1",
     "wasmoon": "^1.16.0",
     "wavefile": "^11.0.0",
-    "web-streams-polyfill": "^3.3.3"
+    "web-streams-polyfill": "^3.3.3",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@rollup/plugin-strip": "^3.0.4",

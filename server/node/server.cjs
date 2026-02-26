@@ -97,12 +97,6 @@ function createTimeoutController(timeoutMs) {
     };
 }
 
-async function fetchForwardingTarget(url, options) {
-    // codeql[js/request-forgery]: authenticated proxy flow; caller-side validation and policy checks apply.
-    // lgtm[js/request-forgery]
-    return await fetch(url, options);
-}
-
 function normalizeProxyStreamTimeoutMs(timeoutMs) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
         return PROXY_STREAM_DEFAULT_TIMEOUT_MS;
@@ -314,10 +308,17 @@ async function runProxyStreamJob(job, arg) {
     const bodyBuffer = arg.bodyBase64 ? Buffer.from(arg.bodyBase64, 'base64') : undefined;
 
     try {
-        const upstreamResponse = await fetchForwardingTarget(targetUrl, {
+        const internalPort = process.env.PORT || 6001;
+        const upstreamResponse = await fetch(`http://127.0.0.1:${internalPort}/proxy2`, {
             method: arg.method,
-            headers,
-            body: bodyBuffer,
+            headers: {
+                'Content-Type': 'application/json',
+                'risu-auth': password,
+                'risu-url': encodeURIComponent(targetUrl),
+                'risu-header': encodeURIComponent(JSON.stringify(headers)),
+                'risu-timeout-ms': String(Math.max(1, Math.floor(job.timeoutMs)))
+            },
+            body: (arg.method !== 'GET' && arg.method !== 'HEAD') ? bodyBuffer : undefined,
             signal: job.abortController.signal
         });
 
@@ -598,7 +599,7 @@ const reverseProxyFunc = async (req, res, next) => {
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     try {
         // make request to original server
-        const originalResponse = await fetchForwardingTarget(urlParam, {
+        const originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
             body: JSON.stringify(req.body),
@@ -636,7 +637,7 @@ const reverseProxyFunc_get = async (req, res, next) => {
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     try {
         // make request to original server
-        const originalResponse = await fetchForwardingTarget(urlParam, {
+        const originalResponse = await fetch(urlParam, {
             method: 'GET',
             headers: header,
             signal: timeoutController.signal
@@ -753,7 +754,7 @@ async function hubProxyFunc(req, res) {
         }
         
         
-        const response = await fetchForwardingTarget(externalURL, {
+        const response = await fetch(externalURL, {
             method: req.method,
             headers: headersToSend,
             body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
@@ -773,7 +774,7 @@ async function hubProxyFunc(req, res) {
         if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
             const redirectUrl = response.headers.get('location');
             const newHeaders = { ...headersToSend };
-            const redirectResponse = await fetchForwardingTarget(redirectUrl, {
+            const redirectResponse = await fetch(redirectUrl, {
                 method: req.method,
                 headers: newHeaders,
                 body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,

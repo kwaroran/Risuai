@@ -42,6 +42,7 @@ import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
 import { isTauri, isNodeServer } from "./platform";
 import { isLocalNetworkUrl } from "./network/localNetwork";
+import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 
 export const forageStorage = new AutoStorage()
 
@@ -527,9 +528,14 @@ export function getFetchData(id: string) {
 
 const knownHostes = ["localhost", "127.0.0.1", "0.0.0.0"];
 const webLocalNetworkBlockedMessage = "웹에서는 사설망 직접 호출 불가. Tauri 또는 LAN Node self-host 사용";
+const defaultProxyJobHeartbeatSec = 15;
 
 function getProxy2Url() {
     return !isTauri && !isNodeServer ? `${hubURL}/proxy2` : `/proxy2`;
+}
+
+function getProxyStreamJobBaseUrl() {
+    return isNodeServer ? '' : `${hubURL}`;
 }
 
 function buildTimeoutSignal(originalSignal?: AbortSignal, timeoutMs?: number) {
@@ -1459,6 +1465,179 @@ const pipeFetchLog = (fetchLogIndex: number, readableStream: ReadableStream<Uint
     return splited[1]
 }
 
+async function fetchViaProxyJobWs(url: string, arg: {
+    body: Uint8Array,
+    headers?: { [key: string]: string },
+    method: "POST" | "GET" | "PUT" | "DELETE",
+    signal?: AbortSignal,
+    requestTimeoutMs?: number,
+    chatId?: string,
+    fetchLogIndex: number
+}): Promise<Response> {
+    const auth = localStorage.getItem('risuauth');
+    if (!auth) {
+        throw new Error('No risu-auth set for proxy job stream');
+    }
+
+    const requestSignal = arg.signal;
+    const baseUrl = getProxyStreamJobBaseUrl();
+
+    let jobId = '';
+    const createRes = await fetch(`${baseUrl}/proxy-stream-jobs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'risu-auth': auth
+        },
+        body: JSON.stringify({
+            url,
+            method: arg.method,
+            headers: arg.headers ?? {},
+            bodyBase64: Buffer.from(arg.body).toString('base64'),
+            timeoutMs: arg.requestTimeoutMs,
+            heartbeatSec: defaultProxyJobHeartbeatSec
+        }),
+        signal: requestSignal
+    });
+
+    if (!createRes.ok) {
+        const errText = await createRes.text();
+        throw new Error(`Proxy stream job creation failed: ${createRes.status} ${errText}`);
+    }
+
+    const created = await createRes.json() as { jobId?: string };
+    if (!created.jobId) {
+        throw new Error('Proxy stream job creation returned no jobId');
+    }
+    jobId = created.jobId;
+
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${location.host}/proxy-stream-jobs/${encodeURIComponent(jobId)}/ws?risu-auth=${encodeURIComponent(auth)}`;
+
+    let headersReady = false;
+    let status = 200;
+    let responseHeaders: HeadersInit = { 'content-type': 'text/event-stream' };
+    let settled = false;
+    let resolveHeaders: () => void = () => {};
+    const waitHeaders = new Promise<void>((resolve) => {
+        resolveHeaders = resolve;
+    });
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const encoder = new TextEncoder();
+
+    const ws = new WebSocket(wsUrl);
+    const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+            streamController = controller;
+        },
+        cancel() {
+            try {
+                ws.close();
+            } catch {
+                // no-op
+            }
+        }
+    });
+    const pipedReadable = pipeFetchLog(arg.fetchLogIndex, readable);
+
+    const ensureHeadersReady = () => {
+        if (!headersReady) {
+            headersReady = true;
+            resolveHeaders();
+        }
+    };
+
+    const closeAndEnd = () => {
+        if (settled) {
+            return;
+        }
+        settled = true;
+        if (streamController) {
+            try {
+                streamController.close();
+            } catch {
+                // no-op
+            }
+        }
+        try {
+            ws.close();
+        } catch {
+            // no-op
+        }
+    };
+
+    ws.onmessage = (event) => {
+        const parsed = parseProxyJobWsEvent(typeof event.data === 'string' ? event.data : '');
+        if (!parsed || !streamController) {
+            return;
+        }
+        switch (parsed.type) {
+            case 'job_accepted':
+            case 'ping':
+                return;
+            case 'upstream_headers':
+                status = parsed.status;
+                responseHeaders = parsed.headers ?? {};
+                ensureHeadersReady();
+                return;
+            case 'chunk':
+                ensureHeadersReady();
+                streamController.enqueue(decodeProxyJobWsChunk(parsed.dataBase64));
+                return;
+            case 'error': {
+                status = parsed.status ?? 502;
+                responseHeaders = { 'content-type': 'text/plain; charset=utf-8' };
+                ensureHeadersReady();
+                const msg = formatProxyStreamErrorMessage(parsed.status, parsed.message);
+                streamController.enqueue(encoder.encode(msg));
+                closeAndEnd();
+                return;
+            }
+            case 'done':
+                ensureHeadersReady();
+                closeAndEnd();
+                return;
+        }
+    };
+
+    ws.onerror = () => {
+        if (!streamController) {
+            return;
+        }
+        status = 502;
+        responseHeaders = { 'content-type': 'text/plain; charset=utf-8' };
+        ensureHeadersReady();
+        streamController.enqueue(encoder.encode('Proxy WebSocket stream error'));
+        closeAndEnd();
+    };
+
+    ws.onclose = () => {
+        if (!headersReady) {
+            status = 502;
+            responseHeaders = { 'content-type': 'text/plain; charset=utf-8' };
+            ensureHeadersReady();
+        }
+        closeAndEnd();
+    };
+
+    const abortHandler = () => {
+        void fetch(`${baseUrl}/proxy-stream-jobs/${encodeURIComponent(jobId)}`, {
+            method: 'DELETE',
+            headers: {
+                'risu-auth': auth
+            }
+        }).catch(() => {});
+        closeAndEnd();
+    };
+    requestSignal?.addEventListener('abort', abortHandler, { once: true });
+
+    await waitHeaders;
+    return new Response(pipedReadable, {
+        status,
+        headers: new Headers(responseHeaders)
+    });
+}
+
 /**
  * Fetches data from a given URL using native fetch or through a proxy.
  * @param {string} url - The URL to fetch data from.
@@ -1656,6 +1835,26 @@ export async function fetchNative(url: string, arg: {
 
     }
     else if (throughProxy) {
+        const useProxyJobWs = isNodeServer
+            && arg.interceptor === 'openai_streaming'
+            && arg.method === 'POST'
+            && useLocalNetworkRoute;
+
+        if (useProxyJobWs) {
+            try {
+                return await fetchViaProxyJobWs(url, {
+                    body: realBody,
+                    headers,
+                    method: arg.method,
+                    signal: requestSignal,
+                    requestTimeoutMs: arg.requestTimeoutMs,
+                    chatId: arg.chatId,
+                    fetchLogIndex
+                });
+            } catch (wsErr) {
+                console.warn('[ProxyJobWS] fallback to /proxy2 due to error:', wsErr);
+            }
+        }
 
         const r = await fetch(getProxy2Url(), {
             body: realBody as any,

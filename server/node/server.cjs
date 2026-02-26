@@ -1,10 +1,12 @@
 const express = require('express');
 const app = express();
+const http = require('http');
 const path = require('path');
 const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('fs');
 const fs = require('fs/promises')
-const nodeCrypto = require('crypto')
+const crypto = require('crypto')
+const { WebSocketServer } = require('ws');
 app.use(express.static(path.join(process.cwd(), 'dist'), {index: false}));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.raw({ type: 'application/octet-stream', limit: '100mb' }));
@@ -30,15 +32,26 @@ if(existsSync(passwordPath)){
 
 const authCodePath = path.join(process.cwd(), 'save', '__authcode')
 const hexRegex = /^[0-9a-fA-F]+$/;
-
+const PROXY_STREAM_DEFAULT_TIMEOUT_MS = 600000;
+const PROXY_STREAM_DEFAULT_HEARTBEAT_SEC = 15;
+const PROXY_STREAM_HEARTBEAT_MIN_SEC = 5;
+const PROXY_STREAM_HEARTBEAT_MAX_SEC = 60;
+const PROXY_STREAM_GC_INTERVAL_MS = 60000;
+const PROXY_STREAM_DONE_GRACE_MS = 30000;
+const proxyStreamJobs = new Map();
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
 }
 
 async function hashJSON(json){
-    const hash = nodeCrypto.createHash('sha256');
+    const hash = crypto.createHash('sha256');
     hash.update(JSON.stringify(json));
     return hash.digest('hex');
+}
+
+function isAuthorizedRequest(req) {
+    const authHeader = req.headers['risu-auth'];
+    return !!authHeader && authHeader.trim() === password.trim();
 }
 
 function getRequestTimeoutMs(timeoutHeader) {
@@ -68,6 +81,179 @@ function createTimeoutController(timeoutMs) {
         signal: controller.signal,
         cleanup: () => clearTimeout(timer)
     };
+}
+
+function normalizeProxyStreamTimeoutMs(timeoutMs) {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        return PROXY_STREAM_DEFAULT_TIMEOUT_MS;
+    }
+    return Math.max(1, Math.floor(timeoutMs));
+}
+
+function normalizeHeartbeatSec(heartbeatSec) {
+    if (!Number.isFinite(heartbeatSec)) {
+        return PROXY_STREAM_DEFAULT_HEARTBEAT_SEC;
+    }
+    const parsed = Math.floor(heartbeatSec);
+    return Math.min(PROXY_STREAM_HEARTBEAT_MAX_SEC, Math.max(PROXY_STREAM_HEARTBEAT_MIN_SEC, parsed));
+}
+
+function sanitizeTargetUrl(raw) {
+    if (typeof raw !== 'string' || raw.trim() === '') {
+        return null;
+    }
+    try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return null;
+        }
+        return parsed.toString();
+    } catch {
+        return null;
+    }
+}
+
+function normalizeForwardHeaders(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return {};
+    }
+    const normalized = {};
+    for (const [key, value] of Object.entries(input)) {
+        if (typeof key !== 'string') {
+            continue;
+        }
+        if (typeof value === 'string') {
+            normalized[key] = value;
+        }
+    }
+    delete normalized['risu-auth'];
+    delete normalized['risu-timeout-ms'];
+    delete normalized['host'];
+    delete normalized['connection'];
+    delete normalized['content-length'];
+    return normalized;
+}
+
+function createProxyStreamJob(arg) {
+    const jobId = crypto.randomUUID();
+    const timeoutMs = normalizeProxyStreamTimeoutMs(arg.timeoutMs);
+    const heartbeatSec = normalizeHeartbeatSec(arg.heartbeatSec);
+    const controller = new AbortController();
+    const timeoutTimer = setTimeout(() => controller.abort(), timeoutMs);
+    const createdAt = Date.now();
+    const job = {
+        id: jobId,
+        createdAt,
+        updatedAt: createdAt,
+        done: false,
+        cleanupAt: 0,
+        clients: new Set(),
+        pendingEvents: [],
+        abortController: controller,
+        timeoutTimer,
+        heartbeatSec,
+        timeoutMs
+    };
+    proxyStreamJobs.set(jobId, job);
+    return job;
+}
+
+function pushJobEvent(job, event) {
+    job.updatedAt = Date.now();
+    if (job.clients.size === 0) {
+        job.pendingEvents.push(event);
+        if (job.pendingEvents.length > 4000) {
+            job.pendingEvents.shift();
+        }
+        return;
+    }
+    const text = JSON.stringify(event);
+    for (const client of job.clients) {
+        if (client.readyState === client.OPEN) {
+            client.send(text);
+        }
+    }
+}
+
+function markJobDone(job) {
+    if (job.done) {
+        return;
+    }
+    job.done = true;
+    job.cleanupAt = Date.now() + PROXY_STREAM_DONE_GRACE_MS;
+}
+
+function cleanupJob(jobId) {
+    const job = proxyStreamJobs.get(jobId);
+    if (!job) {
+        return;
+    }
+    clearTimeout(job.timeoutTimer);
+    for (const client of job.clients) {
+        try {
+            client.close();
+        } catch {
+            // ignore
+        }
+    }
+    proxyStreamJobs.delete(jobId);
+}
+
+async function runProxyStreamJob(job, arg) {
+    const headers = normalizeForwardHeaders(arg.headers);
+    if (!headers['x-forwarded-for']) {
+        headers['x-forwarded-for'] = arg.clientIp;
+    }
+    const bodyBuffer = arg.bodyBase64 ? Buffer.from(arg.bodyBase64, 'base64') : undefined;
+
+    try {
+        const upstreamResponse = await fetch(arg.url, {
+            method: arg.method,
+            headers,
+            body: bodyBuffer,
+            signal: job.abortController.signal
+        });
+
+        const filteredHeaders = {};
+        for (const [key, value] of upstreamResponse.headers.entries()) {
+            if (key === 'content-security-policy' || key === 'content-security-policy-report-only' || key === 'clear-site-data') {
+                continue;
+            }
+            filteredHeaders[key] = value;
+        }
+
+        pushJobEvent(job, {
+            type: 'upstream_headers',
+            status: upstreamResponse.status,
+            headers: filteredHeaders
+        });
+
+        if (upstreamResponse.body) {
+            const reader = upstreamResponse.body.getReader();
+            while (!job.abortController.signal.aborted) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+                if (value && value.length > 0) {
+                    pushJobEvent(job, {
+                        type: 'chunk',
+                        dataBase64: Buffer.from(value).toString('base64')
+                    });
+                }
+            }
+        }
+        pushJobEvent(job, { type: 'done' });
+        markJobDone(job);
+    } catch (error) {
+        const message = error?.name === 'AbortError' ? 'Proxy stream job aborted' : `${error}`;
+        pushJobEvent(job, {
+            type: 'error',
+            status: 504,
+            message
+        });
+        markJobDone(job);
+    }
 }
 
 async function forwardUpstreamResponse(originalResponse, res) {
@@ -525,6 +711,62 @@ app.get('/hub-proxy/*', hubProxyFunc);
 app.post('/proxy', reverseProxyFunc);
 app.post('/proxy2', reverseProxyFunc);
 app.post('/hub-proxy/*', hubProxyFunc);
+app.post('/proxy-stream-jobs', async (req, res) => {
+    if (!isAuthorizedRequest(req)) {
+        res.status(401).send({ error: 'Password Incorrect' });
+        return;
+    }
+
+    const url = sanitizeTargetUrl(req.body?.url);
+    if (!url) {
+        res.status(400).send({ error: 'Invalid target URL' });
+        return;
+    }
+
+    const method = typeof req.body?.method === 'string' ? req.body.method.toUpperCase() : 'POST';
+    if (!['POST', 'GET', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+        res.status(400).send({ error: 'Invalid method' });
+        return;
+    }
+
+    const bodyBase64 = typeof req.body?.bodyBase64 === 'string' ? req.body.bodyBase64 : '';
+    const headers = normalizeForwardHeaders(req.body?.headers);
+    const timeoutMs = normalizeProxyStreamTimeoutMs(Number(req.body?.timeoutMs));
+    const heartbeatSec = normalizeHeartbeatSec(Number(req.body?.heartbeatSec));
+    const job = createProxyStreamJob({
+        timeoutMs,
+        heartbeatSec
+    });
+
+    void runProxyStreamJob(job, {
+        url,
+        headers,
+        method,
+        bodyBase64,
+        clientIp: req.ip
+    });
+
+    res.send({
+        jobId: job.id,
+        heartbeatSec: job.heartbeatSec
+    });
+});
+
+app.delete('/proxy-stream-jobs/:jobId', async (req, res) => {
+    if (!isAuthorizedRequest(req)) {
+        res.status(401).send({ error: 'Password Incorrect' });
+        return;
+    }
+    const job = proxyStreamJobs.get(req.params.jobId);
+    if (!job) {
+        res.send({ success: true });
+        return;
+    }
+    job.abortController.abort();
+    markJobDone(job);
+    cleanupJob(job.id);
+    res.send({ success: true });
+});
 
 // app.get('/api/password', async(req, res)=> {
 //     if(password === ''){
@@ -840,21 +1082,100 @@ async function getHttpsOptions() {
     }
 }
 
+function setupProxyStreamWebSocket(server) {
+    const wsServer = new WebSocketServer({ noServer: true });
+    server.on('upgrade', (req, socket, head) => {
+        try {
+            const reqUrl = new URL(req.url, `http://${req.headers.host}`);
+            if (!reqUrl.pathname.startsWith('/proxy-stream-jobs/') || !reqUrl.pathname.endsWith('/ws')) {
+                socket.destroy();
+                return;
+            }
+
+            const auth = reqUrl.searchParams.get('risu-auth') || req.headers['risu-auth'];
+            if (!auth || auth.trim() !== password.trim()) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            const pathParts = reqUrl.pathname.split('/').filter(Boolean);
+            const jobId = pathParts.length >= 3 ? pathParts[1] : '';
+            const job = proxyStreamJobs.get(jobId);
+            if (!job) {
+                socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            wsServer.handleUpgrade(req, socket, head, (ws) => {
+                wsServer.emit('connection', ws, req, jobId);
+            });
+        } catch {
+            socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+            socket.destroy();
+        }
+    });
+
+    wsServer.on('connection', (ws, _req, jobId) => {
+        const job = proxyStreamJobs.get(jobId);
+        if (!job) {
+            ws.close();
+            return;
+        }
+
+        job.clients.add(ws);
+        ws.send(JSON.stringify({ type: 'job_accepted', jobId }));
+        for (const event of job.pendingEvents) {
+            ws.send(JSON.stringify(event));
+        }
+        job.pendingEvents = [];
+
+        const pingTimer = setInterval(() => {
+            if (ws.readyState !== ws.OPEN) {
+                return;
+            }
+            ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+        }, job.heartbeatSec * 1000);
+
+        ws.on('close', () => {
+            clearInterval(pingTimer);
+            const currentJob = proxyStreamJobs.get(jobId);
+            if (!currentJob) {
+                return;
+            }
+            currentJob.clients.delete(ws);
+            if (currentJob.done && currentJob.clients.size === 0) {
+                cleanupJob(jobId);
+            }
+        });
+
+        ws.on('error', () => {
+            clearInterval(pingTimer);
+        });
+    });
+}
+
 async function startServer() {
     try {
       
         const port = process.env.PORT || 6001;
         const httpsOptions = await getHttpsOptions();
+        let server = null;
 
         if (httpsOptions) {
             // HTTPS
-            https.createServer(httpsOptions, app).listen(port, () => {
+            server = https.createServer(httpsOptions, app);
+            setupProxyStreamWebSocket(server);
+            server.listen(port, () => {
                 console.log("[Server] HTTPS server is running.");
                 console.log(`[Server] https://localhost:${port}/`);
             });
         } else {
             // HTTP
-            app.listen(port, () => {
+            server = http.createServer(app);
+            setupProxyStreamWebSocket(server);
+            server.listen(port, () => {
                 console.log("[Server] HTTP server is running.");
                 console.log(`[Server] http://localhost:${port}/`);
             });
@@ -866,5 +1187,17 @@ async function startServer() {
 }
 
 (async () => {
+    setInterval(() => {
+        const now = Date.now();
+        for (const [jobId, job] of proxyStreamJobs.entries()) {
+            if (job.done && job.clients.size === 0 && job.cleanupAt > 0 && now >= job.cleanupAt) {
+                cleanupJob(jobId);
+                continue;
+            }
+            if (!job.done && now - job.updatedAt > Math.max(PROXY_STREAM_DEFAULT_TIMEOUT_MS, job.timeoutMs * 2)) {
+                cleanupJob(jobId);
+            }
+        }
+    }, PROXY_STREAM_GC_INTERVAL_MS);
     await startServer();
 })();

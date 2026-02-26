@@ -218,7 +218,7 @@ function normalizeForwardHeaders(input) {
 
 function createProxyStreamJob(arg) {
     const jobId = crypto.randomUUID();
-    const timeoutMs = normalizeProxyStreamTimeoutMs(arg.timeoutMs);
+    const timeoutMs = PROXY_STREAM_DEFAULT_TIMEOUT_MS;
     const heartbeatSec = normalizeHeartbeatSec(arg.heartbeatSec);
     const controller = new AbortController();
     const createdAt = Date.now();
@@ -228,7 +228,6 @@ function createProxyStreamJob(arg) {
         updatedAt: createdAt,
         done: false,
         cleanupAt: 0,
-        targetUrl: arg.targetUrl,
         clients: new Set(),
         pendingEvents: [],
         pendingBytes: 0,
@@ -290,7 +289,7 @@ function cleanupJob(jobId) {
 }
 
 async function runProxyStreamJob(job, arg) {
-    const targetUrl = sanitizeTargetUrl(job.targetUrl);
+    const targetUrl = sanitizeTargetUrl(arg.targetUrl);
     if (!targetUrl) {
         pushJobEvent(job, {
             type: 'error',
@@ -825,7 +824,9 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
         return;
     }
 
-    const url = sanitizeTargetUrl(req.body?.url);
+    const rawUrl = typeof req.body?.url === 'string' ? req.body.url : '';
+    const encodedUrl = encodeURIComponent(rawUrl);
+    const url = sanitizeTargetUrl(decodeURIComponent(encodedUrl));
     if (!url) {
         res.status(400).send({ error: 'Invalid target URL. Only local/private network http(s) endpoints are allowed.' });
         return;
@@ -847,15 +848,13 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
         return;
     }
     const headers = normalizeForwardHeaders(req.body?.headers);
-    const timeoutMs = normalizeProxyStreamTimeoutMs(Number(req.body?.timeoutMs));
     const heartbeatSec = normalizeHeartbeatSec(Number(req.body?.heartbeatSec));
     const job = createProxyStreamJob({
-        timeoutMs,
-        heartbeatSec,
-        targetUrl: url
+        heartbeatSec
     });
 
     void runProxyStreamJob(job, {
+        targetUrl: url,
         headers,
         method,
         bodyBase64,

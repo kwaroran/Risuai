@@ -7,6 +7,7 @@ const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('fs');
 const fs = require('fs/promises')
 const crypto = require('crypto')
+const rateLimit = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 app.use(express.static(path.join(process.cwd(), 'dist'), {index: false}));
 app.use(express.json({ limit: '100mb' }));
@@ -45,6 +46,13 @@ const PROXY_STREAM_MAX_PENDING_EVENTS = 512;
 const PROXY_STREAM_MAX_PENDING_BYTES = 2 * 1024 * 1024;
 const PROXY_STREAM_MAX_BODY_BASE64_BYTES = 8 * 1024 * 1024;
 const proxyStreamJobs = new Map();
+const authenticatedRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 90,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please retry shortly.' }
+});
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
 }
@@ -584,6 +592,7 @@ const reverseProxyFunc = async (req, res, next) => {
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     try {
         // make request to original server
+        // codeql[js/request-forgery]: authenticated reverse-proxy endpoint; destination control is intentional.
         const originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
@@ -622,6 +631,7 @@ const reverseProxyFunc_get = async (req, res, next) => {
     const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
     try {
         // make request to original server
+        // codeql[js/request-forgery]: authenticated reverse-proxy endpoint; destination control is intentional.
         const originalResponse = await fetch(urlParam, {
             method: 'GET',
             headers: header,
@@ -739,6 +749,7 @@ async function hubProxyFunc(req, res) {
         }
         
         
+        // codeql[js/request-forgery]: authenticated hub proxy that intentionally forwards to configured upstream.
         const response = await fetch(externalURL, {
             method: req.method,
             headers: headersToSend,
@@ -797,14 +808,14 @@ async function hubProxyFunc(req, res) {
     }
 }
 
-app.get('/proxy', reverseProxyFunc_get);
-app.get('/proxy2', reverseProxyFunc_get);
+app.get('/proxy', authenticatedRouteLimiter, reverseProxyFunc_get);
+app.get('/proxy2', authenticatedRouteLimiter, reverseProxyFunc_get);
 app.get('/hub-proxy/*', hubProxyFunc);
 
-app.post('/proxy', reverseProxyFunc);
-app.post('/proxy2', reverseProxyFunc);
+app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
+app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/hub-proxy/*', hubProxyFunc);
-app.post('/proxy-stream-jobs', async (req, res) => {
+app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
     if (!isAuthorizedRequest(req)) {
         res.status(401).send({ error: 'Password Incorrect' });
         return;
@@ -853,7 +864,7 @@ app.post('/proxy-stream-jobs', async (req, res) => {
     });
 });
 
-app.delete('/proxy-stream-jobs/:jobId', async (req, res) => {
+app.delete('/proxy-stream-jobs/:jobId', authenticatedRouteLimiter, async (req, res) => {
     if (!isAuthorizedRequest(req)) {
         res.status(401).send({ error: 'Password Incorrect' });
         return;

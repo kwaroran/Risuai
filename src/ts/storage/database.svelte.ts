@@ -523,8 +523,10 @@ export function setDatabase(data:Database){
         memory: {},
         emotion: {},
         translate: {},
-        otherAx: {}
+        otherAx: {},
+        overrides: {}
     }
+    data.seperateParameters.overrides ??= {}
     data.customFlags ??= []
     data.enableCustomFlags ??= false
     data.assetMaxDifference ??= 4
@@ -1013,6 +1015,7 @@ export interface Database{
         emotion: SeparateParameters,
         translate: SeparateParameters,
         otherAx: SeparateParameters
+        overrides: Record<string, SeparateParameters>
     }
     translateBeforeHTMLFormatting:boolean
     autoTranslateCachedOnly:boolean
@@ -1155,9 +1158,11 @@ export interface Database{
     blockquoteStyling?:boolean
     dynamicModelRegistry?:boolean
     enableRisuaiProTools?:boolean
+    epEnabled?:boolean
+    seperateParametersByModel?:boolean
 }
 
-interface SeparateParameters{
+export interface SeparateParameters{
     temperature?:number
     top_k?:number
     repetition_penalty?:number
@@ -1495,6 +1500,7 @@ export interface botPreset{
         emotion: SeparateParameters,
         translate: SeparateParameters,
         otherAx: SeparateParameters
+        overrides: Record<string, SeparateParameters>
     }
     customAPIFormat?:LLMFormat
     systemContentReplacement?: string
@@ -2061,7 +2067,8 @@ export function setPreset(db:Database, newPres: botPreset){
         memory: {},
         emotion: {},
         translate: {},
-        otherAx: {}
+        otherAx: {},
+        overrides: {}
     }
     db.customAPIFormat = safeStructuredClone(newPres.customAPIFormat) ?? LLMFormat.OpenAICompatible
     db.systemContentReplacement = newPres.systemContentReplacement ?? ''

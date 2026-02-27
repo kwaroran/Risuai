@@ -638,6 +638,7 @@ export function setDatabase(data:Database){
     data.createFolderOnBranch ??= true
     data.hamburgerButtonBottom ??= false
     data.dynamicModelRegistry ??= true
+    data.enableRisuaiProTools ??= true //migration
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1153,6 +1154,7 @@ export interface Database{
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
     dynamicModelRegistry?:boolean
+    enableRisuaiProTools?:boolean
 }
 
 interface SeparateParameters{

@@ -582,7 +582,6 @@ const reverseProxyFunc = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
-    delete header['risu-timeout-ms']
 
     if(req.headers['authorization']?.startsWith('X-SERVER-REGISTER')){
         if(!existsSync(authCodePath)){
@@ -595,23 +594,38 @@ const reverseProxyFunc = async (req, res, next) => {
             header['authorization'] = `Bearer ${authCode}`
         }
     }
-    const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
+    let originalResponse;
     try {
         // make request to original server
-        const originalResponse = await fetch(urlParam, {
+        originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
-            body: JSON.stringify(req.body),
-            signal: timeoutController.signal
+            body: JSON.stringify(req.body)
         });
-        await forwardUpstreamResponse(originalResponse, res);
+        // get response body as stream
+        const originalBody = originalResponse.body;
+        // get response headers
+        const head = new Headers(originalResponse.headers);
+        head.delete('content-security-policy');
+        head.delete('content-security-policy-report-only');
+        head.delete('clear-site-data');
+        head.delete('Cache-Control');
+        head.delete('Content-Encoding');
+        const headObj = {};
+        for (let [k, v] of head) {
+            headObj[k] = v;
+        }
+        // send response headers to client
+        res.header(headObj);
+        // send response status to client
+        res.status(originalResponse.status);
+        // send response body to client
+        await pipeline(originalResponse.body, res);
 
     }
     catch (err) {
         next(err);
         return;
-    } finally {
-        timeoutController.cleanup();
     }
 }
 
@@ -632,22 +646,36 @@ const reverseProxyFunc_get = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
-    delete header['risu-timeout-ms']
-    const timeoutController = createTimeoutController(getRequestTimeoutMs(req.headers['risu-timeout-ms']))
+    let originalResponse;
     try {
         // make request to original server
-        const originalResponse = await fetch(urlParam, {
+        originalResponse = await fetch(urlParam, {
             method: 'GET',
-            headers: header,
-            signal: timeoutController.signal
+            headers: header
         });
-        await forwardUpstreamResponse(originalResponse, res);
+        // get response body as stream
+        const originalBody = originalResponse.body;
+        // get response headers
+        const head = new Headers(originalResponse.headers);
+        head.delete('content-security-policy');
+        head.delete('content-security-policy-report-only');
+        head.delete('clear-site-data');
+        head.delete('Cache-Control');
+        head.delete('Content-Encoding');
+        const headObj = {};
+        for (let [k, v] of head) {
+            headObj[k] = v;
+        }
+        // send response headers to client
+        res.header(headObj);
+        // send response status to client
+        res.status(originalResponse.status);
+        // send response body to client
+        await pipeline(originalResponse.body, res);
     }
     catch (err) {
         next(err);
         return;
-    } finally {
-        timeoutController.cleanup();
     }
 }
 

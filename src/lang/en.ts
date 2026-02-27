@@ -1541,6 +1541,7 @@ export const languageEnglish = {
     enableRemoteSaving: "Enable Remote Saving",
     blockquoteStyling: "Blockquote Styling",
     dynamicModelRegistry: "Dynamic Model Registry",
+    confirmInstallPluginViaPlugin: "You are trying to install a plugin via another plugin. This can be dangerous if the source plugin is not trustworthy. Do you want to continue?",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

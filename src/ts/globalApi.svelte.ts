@@ -1661,6 +1661,12 @@ async function fetchViaProxyJobWs(url: string, arg: {
     };
 
     const abortHandler = () => {
+        status = 499;
+        responseHeaders = { 'content-type': 'text/plain; charset=utf-8' };
+        ensureHeadersReady();
+        if (streamController && !settled) {
+            streamController.enqueue(encoder.encode('Aborted'));
+        }
         void fetch(`${baseUrl}/proxy-stream-jobs/${encodeURIComponent(jobId)}`, {
             method: 'DELETE',
             headers: {
@@ -1669,9 +1675,15 @@ async function fetchViaProxyJobWs(url: string, arg: {
         }).catch(() => {});
         closeAndEnd();
     };
-    requestSignal?.addEventListener('abort', abortHandler, { once: true });
+    if (requestSignal?.aborted) {
+        abortHandler();
+    }
+    else {
+        requestSignal?.addEventListener('abort', abortHandler, { once: true });
+    }
 
     await waitHeaders;
+    requestSignal?.removeEventListener('abort', abortHandler);
     return new Response(pipedReadable, {
         status,
         headers: new Headers(responseHeaders)

@@ -265,7 +265,8 @@ await (async function() {
 export class SandboxHost {
     private iframe: HTMLIFrameElement;
     private apiFactory: any;
-    private csp = "connect-src 'none'"
+    private nonce = crypto.randomUUID();
+    private csp = `connect-src 'none'; default-src 'none'; script-src 'nonce-${this.nonce}'; frame-src 'none'; object-src 'none';`;
 
     private instanceRegistry = new Map<string, any>();
 
@@ -533,7 +534,7 @@ export class SandboxHost {
                 background-color: transparent;
             }
         </style>
-        <script>
+        <script nonce="${this.nonce}">
             (async () => {
                 ${GUEST_BRIDGE_SCRIPT}
                     

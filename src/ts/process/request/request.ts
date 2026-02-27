@@ -7,7 +7,7 @@ import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
 import { getCurrentCharacter, getCurrentChat, getDatabase, type character } from "../../storage/database.svelte";
 import { tokenizeNum } from "../../tokenizer";
 import { sleep } from "../../util";
-import type { MultiModal, OpenAIChat } from "../index.svelte";
+import type { OpenAIChat } from "../index.svelte";
 import { getTools } from "../mcp/mcp";
 import type { MCPTool } from "../mcp/mcplib";
 import { NovelAIBadWordIds, stringlizeNAIChat } from "../models/nai";
@@ -18,7 +18,7 @@ import { runTransformers } from "../transformers";
 import { runTrigger } from "../triggers";
 import { requestClaude } from './anthropic';
 import { requestGoogleCloudVertex } from './google';
-import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI";
+import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI/requests";
 import { applyParameters, type ModelModeExtended } from './shared';
 
 export type ToolCall = {
@@ -228,52 +228,6 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
         type: 'fail',
         result: "All models failed"
     }
-}
-
-export interface OpenAITextContents {
-    type: 'text'
-    text: string
-}
-
-export interface OpenAIImageContents {
-    type: 'image'|'image_url'
-    image_url: {
-        url: string
-        detail: string
-    }
-}
-
-export type OpenAIContents = OpenAITextContents|OpenAIImageContents
-
-export interface OpenAIToolCall {
-    id:string,
-    type:'function',
-    function:{
-        name:string,
-        arguments:string
-    },
-}
-
-export interface OpenAIChatExtra {
-    role: 'system'|'user'|'assistant'|'function'|'developer'|'tool'
-    content: string|OpenAIContents[]
-    memo?:string
-    name?:string
-    removable?:boolean
-    attr?:string[]
-    multimodals?:MultiModal[]
-    thoughts?:string[]
-    prefix?:boolean
-    reasoning_content?:string
-    cachePoint?:boolean
-    function?: {
-        name: string
-        description?: string
-        parameters: any
-        strict: boolean
-    }
-    tool_call_id?: string
-    tool_calls?: OpenAIToolCall[]
 }
 
 export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){

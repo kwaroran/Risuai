@@ -7,7 +7,7 @@ export interface CheckResult {
     modifiedCode: string;
 }
 
-type DangerousNodeType = 'CallExpression' | 'NewExpression' | 'Identifier' | 'ThisExpression';
+type DangerousNodeType = 'CallExpression' | 'NewExpression' | 'Identifier' | 'ThisExpression' | 'DefaultWarning'
 type UserFriendlyRuleAlertKey = 'eval' | 'globalAccess' | 'thisOutsideClass' | 'errorInVerification' | 'storageAccess';
 
 interface BlacklistRule {
@@ -41,7 +41,7 @@ const SAFETY_BLACKLIST: BlacklistRule[] = [
         identifierName: 'cookieStore',
         message: 'Access to "cookieStore" is forbidden.',
         userAlertKey: 'storageAccess'
-    }
+    },
 ];
 
 export type PluginSafetyErrors = {
@@ -144,6 +144,11 @@ export async function checkCodeSafety(code: string): Promise<CheckResult> {
             modifiedCode: code
         };
     }
+
+    errors.push({
+        message: 'Code passed safety checks but may still be unsafe due to limitations in static analysis.',
+        userAlertKey: 'errorInVerification'
+    })
 
     localStorage.setItem(cacheKey, JSON.stringify({ isSafe: errors.length === 0, errors, checkerVersion, modifiedCode:code }));
     return { isSafe: errors.length === 0, errors, checkerVersion, modifiedCode: code};

@@ -10,6 +10,7 @@ import { alertError } from "src/ts/alert";
 import { addFetchLog } from "src/ts/globalApi.svelte"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
 import { applyParameters, type LLMParameter } from './shared'
+import { bodyIntercepterStore } from "src/ts/stores.svelte"
 
 type GeminiFunctionCall = {
     id?: string;
@@ -738,6 +739,22 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                 }
             }   
         }
+
+        if(data?.usageMetadata){
+            
+            for (const interceptor of bodyIntercepterStore) {
+                try {
+                    await interceptor.callback({
+                        usageMetadata: data.usageMetadata,
+                        modelStatus: data.modelStatus,
+                        promptFeedback: data.promptFeedback
+                    }, 'meta_gemini')
+                }
+                catch (e) {
+                    console.error(e)
+                }
+            }
+        }
         return parts
     }
 
@@ -975,6 +992,13 @@ function getTranStream():TransformStream<Uint8Array, StreamResponseChunk> {
                                 }
                             }
                         }
+
+                        if(jsonData.usageMetadata){
+                            readed['__usageMetadata'] = JSON.stringify(jsonData.usageMetadata)
+                        }
+                        if(jsonData.modelStatus){
+                            readed['__modelStatus'] = JSON.stringify(jsonData.modelStatus)
+                        }
                     } 
                 }
                 control.enqueue(readed)
@@ -1187,6 +1211,15 @@ function wrapToolStream(
                         controller.enqueue({"0": prefix})
                         
                         continue
+                    }
+
+                    for (const interceptor of bodyIntercepterStore) {
+                        try {
+                            await interceptor.callback(value, 'meta_gemini_stream')
+                        }
+                        catch (e) {
+                            console.error(e)
+                        }
                     }
                     return controller.close()
                 }

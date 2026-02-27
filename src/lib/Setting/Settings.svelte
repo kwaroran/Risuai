@@ -231,7 +231,9 @@
                     {:else if $SettingsMenuIndex === 15 && window.innerWidth >= 768}
                         <HotkeySettings/>
                     {:else if $SettingsMenuIndex === 16}
-                        <ProTools/>
+                        <ProTools onClose={() => {
+                            $SettingsMenuIndex = -1
+                        }}/>
                     {:else if $SettingsMenuIndex === 77}
                         <ThanksPage/>
                     {/if}

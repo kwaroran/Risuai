@@ -322,7 +322,8 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
             'frequency_penalty': "frequencyPenalty",
             'thinking_tokens': "thinkingBudget"
         }, arg.mode, {
-            ignoreTopKIfZero: true
+            ignoreTopKIfZero: true,
+            modelId: arg.modelInfo.id
         }),
         safetySettings: uncensoredCatagory,
         systemInstruction: {

@@ -352,10 +352,12 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         messages: finalChat,
         system: systemPrompt.trim(),
         max_tokens: maxTokens,
-        stream: useStreaming ?? false
+        stream: useStreaming ?? false,
     }, arg.modelInfo.parameters, {
         'thinking_tokens': 'thinking.budget_tokens'
-    }, arg.mode)
+    }, arg.mode, {
+        modelId: arg.modelInfo.id
+    })
 
     // Handle thinking mode: off, adaptive, or budget
     if(db.thinkingType === 'off'){

@@ -260,13 +260,15 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 messages: reformatedChat,
                 safe_prompt: false,
                 max_tokens: arg.maxTokens,
-            }, ['temperature', 'presence_penalty', 'frequency_penalty', 'top_p'], {}, arg.mode ),
+            }, ['temperature', 'presence_penalty', 'frequency_penalty', 'top_p'], {}, arg.mode, {
+                modelId: arg.modelInfo.id
+            } ),
             headers: {
                 "Authorization": "Bearer " + (arg.key ?? db.mistralKey),
             },
             abortSignal: arg.abortSignal,
             chatId: arg.chatId,
-            interceptor: 'mistral'
+            interceptor: 'mistral',
         } as const
 
         if(arg.previewBody){
@@ -416,7 +418,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body,
         arg.modelInfo.parameters,
         {},
-        arg.mode
+        arg.mode,
+        {
+            modelId: arg.modelInfo.id
+        }
     )
 
     if(arg.tools && arg.tools.length > 0){
@@ -1027,7 +1032,9 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         max_output_tokens: maxTokens,
         tools: [],
         store: false
-    }, ['temperature', 'top_p'], {}, arg.mode)
+    }, ['temperature', 'top_p'], {}, arg.mode, {
+        modelId: arg.modelInfo.id
+    })
 
     let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
     if(arg.modelInfo?.endpoint){

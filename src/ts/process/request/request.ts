@@ -744,7 +744,9 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
             max_tokens: maxTokens,
         }, [
             'frequency_penalty','min_p','presence_penalty','repetition_penalty','top_k','top_p','temperature'
-        ], {}, arg.mode) as any, arg.abortSignal)) : await pluginProcess({
+        ], {}, arg.mode, {
+            modelId: arg.aiModel
+        }) as any, arg.abortSignal)) : await pluginProcess({
             bias: bias,
             prompt_chat: formated,
             temperature: (db.temperature / 100),
@@ -842,7 +844,9 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
         'top_a'
     ], {
         'repetition_penalty': 'rep_pen'
-    }, arg.mode) as KoboldGenerationInputSchema
+    }, arg.mode, {
+        modelId: arg.aiModel
+    }) as KoboldGenerationInputSchema
 
     if(arg.previewBody){
         return {
@@ -1071,7 +1075,9 @@ async function requestCohere(arg:RequestDataArgumentExtended):Promise<requestDat
     ], {
         'top_k': 'k',
         'top_p': 'p',
-    }, arg.mode)
+    }, arg.mode, {
+        modelId: arg.aiModel
+    })
 
     if(aiModel !== 'cohere-command-r-03-2024' && aiModel !== 'cohere-command-r-plus-04-2024'){
         body.safety_mode = "NONE"

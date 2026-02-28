@@ -36,6 +36,8 @@ import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "s
         - Note that Class or Callbacks inside arrays or objects are not supported
 */
 
+const pluginChannel = new Map<string, Function>();
+
 class SafeElement {
     #element: HTMLElement;
     __classType = 'REMOTE_REQUIRED' as const;
@@ -1003,6 +1005,15 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     'key': '_keySafeLocalStorage',
                     'keys': '_keysSafeLocalStorage',
                 }
+            }
+        },
+        addPluginChannelListener: (channelName: string, callback: Function) => {
+            pluginChannel.set(channelName, callback);
+        },
+        postPluginChannelMessage: (channelName: string, message: any) => {
+            const callback = pluginChannel.get(channelName);
+            if(callback){
+                callback(message);
             }
         }
     }

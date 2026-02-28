@@ -520,22 +520,26 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 
 export const customV3ProviderMetaStore:LLMModel[] = []
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider') => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider', requireReconfirm: boolean = false) => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
     if(permissionDeniedPlugins.has(pluginName)){
         return false;
     }
-    const pluginHash = await hasher(
-        new TextEncoder().encode(
-            DBState.db.plugins.find(p => p.name === pluginName)?.script
-        )
-    ) + `_${permissionDesc}`;
 
-    if(await permissionForage.getItem(pluginHash)){
-        permissionGivenPlugins.add(pluginName);
-        return true;
+    let pluginHash = ''
+    if(!requireReconfirm){
+        pluginHash = await hasher(
+            new TextEncoder().encode(
+                DBState.db.plugins.find(p => p.name === pluginName)?.script
+            )
+        ) + `_${permissionDesc}`;
+
+        if(await permissionForage.getItem(pluginHash)){
+            permissionGivenPlugins.add(pluginName);
+            return true;
+        }   
     }
 
     let alertTitle =
@@ -549,7 +553,7 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         return false;
     }
     const conf = await alertConfirm(alertTitle)
-    if(conf){
+    if(conf && pluginHash){
         permissionGivenPlugins.add(pluginName);
         await permissionForage.setItem(pluginHash, true);
         return true;

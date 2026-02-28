@@ -31,6 +31,7 @@ export type SettingType =
     | 'segmented'  // Sliding segmented control (SegmentedControl)
     | 'color'      // Color picker (ColorInput)
     | 'header'     // Section header (h2, span, warning)
+    | 'divider'    // Horizontal divider
     | 'button'     // Action button (Button)
     | 'accordion'  // Collapsible section (Accordion)
     | 'custom';    // Custom component from registry

@@ -82,7 +82,11 @@ export function applyParameters(
     if (db.seperateParametersEnabled && modelMode !== 'model') {
         let sepParams = db.seperateParameters[modelMode]
         if (db.seperateParametersByModel){
-            sepParams = db.seperateParameters.overrides[arg.modelId] ?? sepParams
+            sepParams = db.seperateParameters.overrides[arg.modelId]
+
+            if(!sepParams){
+                throw new Error(`No seperate parameters found for model ${arg.modelId} in model mode ${modelMode}. Please set parameters for this model`)
+            }
         }
         if (modelMode === 'submodel') {
             sepParams = db.seperateParameters['otherAx']

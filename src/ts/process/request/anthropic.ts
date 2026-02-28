@@ -1,7 +1,7 @@
 import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
-import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
 import { getDatabase } from "src/ts/storage/database.svelte"
@@ -588,13 +588,16 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             delete body.stream
         }
         const id = v4()
-        const resp = await fetchNative(replacerURL + '/batches', {
-            "body": JSON.stringify({
-                "requests": [{
-                    "custom_id": id,
-                    "params": body,
-                }]
-            }),
+        const batchRequestUrl = replacerURL + '/batches'
+        const batchRequestBody = {
+            "requests": [{
+                "custom_id": id,
+                "params": body,
+            }]
+        }
+
+        const resp = await fetchNative(batchRequestUrl, {
+            "body": JSON.stringify(batchRequestBody),
             "method": "POST",
             signal: arg.abortSignal,
             headers: headers,
@@ -602,19 +605,60 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         })
 
         if(resp.status !== 200){
+            const responseText = await textifyReadableStream(resp.body)
+            addFetchLog({
+                body: batchRequestBody,
+                headers: headers,
+                response: responseText,
+                success: false,
+                url: batchRequestUrl,
+                chatId: arg.chatId,
+                status: resp.status
+            })
             return {
                 type: 'fail',
-                result: await textifyReadableStream(resp.body)
+                result: responseText
             }
         }
 
         const r = (await resp.json())
 
         if(!r.id){
+            addFetchLog({
+                body: batchRequestBody,
+                headers: headers,
+                response: r,
+                success: false,
+                url: batchRequestUrl,
+                chatId: arg.chatId,
+                status: resp.status
+            })
             return {
                 type: 'fail',
                 result: 'No results URL returned from Claude batch request'
             }
+        }
+
+        addFetchLog({
+            body: batchRequestBody,
+            headers: headers,
+            response: r,
+            success: true,
+            url: batchRequestUrl,
+            chatId: arg.chatId,
+            status: resp.status
+        })
+
+        const addClaudeBatchResultLog = (response: any, success: boolean, status?: number) => {
+            addFetchLog({
+                body: batchRequestBody,
+                headers: headers,
+                response: response,
+                success: success,
+                url: batchRequestUrl,
+                chatId: arg.chatId,
+                status: status
+            })
         }
 
         const statusUrl = replacerURL + `/batches/${r.id}`
@@ -659,7 +703,13 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                         })
 
                         if(statusRes.status !== 200){
-                            controller.error(new Error(await textifyReadableStream(statusRes.body)))
+                            const statusResponseText = await textifyReadableStream(statusRes.body)
+                            addClaudeBatchResultLog({
+                                batch_id: r.id,
+                                result_type: 'status_error',
+                                response: statusResponseText
+                            }, false, statusRes.status)
+                            controller.error(new Error(statusResponseText))
                             return
                         }
 
@@ -677,12 +727,19 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                         })
 
                         if(batchRes.status !== 200){
-                            controller.error(new Error(await textifyReadableStream(batchRes.body)))
+                            const resultResponseText = await textifyReadableStream(batchRes.body)
+                            addClaudeBatchResultLog({
+                                batch_id: r.id,
+                                result_type: 'results_error',
+                                response: resultResponseText
+                            }, false, batchRes.status)
+                            controller.error(new Error(resultResponseText))
                             return
                         }
 
                         //since jsonl
-                        const batchTextData = (await batchRes.text()).split('\n').filter((v) => v.trim() !== ''). map((v) => {
+                        const batchResultRawText = await batchRes.text()
+                        const batchTextData = batchResultRawText.split('\n').filter((v) => v.trim() !== ''). map((v) => {
                             try {
                                 return JSON.parse(v)
                             } catch (error) {
@@ -727,6 +784,13 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 }
 
                                 controller.enqueue({ "0": resText })
+                                addClaudeBatchResultLog({
+                                    batch_id: r.id,
+                                    result_type: 'succeeded',
+                                    response: batchData,
+                                    text_result: resText,
+                                    raw_result: batchResultRawText
+                                }, true, batchRes.status)
                                 controller.close()
                                 return
                             }
@@ -737,14 +801,32 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 `${batchError.error.type}: ${batchError.error.message}` : 
                                 JSON.stringify(batchError)
 
+                                addClaudeBatchResultLog({
+                                    batch_id: r.id,
+                                    result_type: 'errored',
+                                    response: batchData,
+                                    raw_result: batchResultRawText
+                                }, false, batchRes.status)
                                 controller.error(new Error(message))
                                 return
                             }
                             if(batchData?.result?.type === 'canceled'){
+                                addClaudeBatchResultLog({
+                                    batch_id: r.id,
+                                    result_type: 'canceled',
+                                    response: batchData,
+                                    raw_result: batchResultRawText
+                                }, false, batchRes.status)
                                 controller.close()
                                 return
                             }
                             if(batchData?.result?.type === 'expired'){
+                                addClaudeBatchResultLog({
+                                    batch_id: r.id,
+                                    result_type: 'expired',
+                                    response: batchData,
+                                    raw_result: batchResultRawText
+                                }, false, batchRes.status)
                                 controller.error(new Error('Claude batch request expired'))
                                 return
                             }

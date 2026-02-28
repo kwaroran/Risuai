@@ -928,7 +928,6 @@
                     {/if}
 
                     {#each additionalChatMenu as menu}
-                        <div class="mt-2"></div>
                         <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
                             menu.callback()
                             openMenu = false

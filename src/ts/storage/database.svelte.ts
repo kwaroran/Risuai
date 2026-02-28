@@ -1160,6 +1160,7 @@ export interface Database{
     enableRisuaiProTools?:boolean
     epEnabled?:boolean
     seperateParametersByModel?:boolean
+    disableSeperateParameterChangeOnPresetChange?:boolean
 }
 
 export interface SeparateParameters{
@@ -2063,13 +2064,6 @@ export function setPreset(db:Database, newPres: botPreset){
     db.groupOtherBotRole = newPres.groupOtherBotRole ?? 'user'
     db.groupTemplate = newPres.groupTemplate ?? ''
     db.seperateParametersEnabled = newPres.seperateParametersEnabled ?? false
-    db.seperateParameters = newPres.seperateParameters ? safeStructuredClone(newPres.seperateParameters) : {
-        memory: {},
-        emotion: {},
-        translate: {},
-        otherAx: {},
-        overrides: {}
-    }
     db.customAPIFormat = safeStructuredClone(newPres.customAPIFormat) ?? LLMFormat.OpenAICompatible
     db.systemContentReplacement = newPres.systemContentReplacement ?? ''
     db.systemRoleReplacement = newPres.systemRoleReplacement ?? 'user'
@@ -2099,6 +2093,18 @@ export function setPreset(db:Database, newPres: botPreset){
             model: []
         }
         db.fallbackWhenBlankResponse = newPres.fallbackWhenBlankResponse ?? false
+    }
+    if(db.disableSeperateParameterChangeOnPresetChange){
+        db.seperateParameters = safeStructuredClone(db.seperateParameters)
+    }
+    else{
+         db.seperateParameters = newPres.seperateParameters ? safeStructuredClone(newPres.seperateParameters) : {
+            memory: {},
+            emotion: {},
+            translate: {},
+            otherAx: {},
+            overrides: {}
+        }   
     }
     db.modelTools = safeStructuredClone(newPres.modelTools ?? [])
     db.verbosity = newPres.verbosity ?? 1

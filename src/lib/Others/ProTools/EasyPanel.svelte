@@ -20,7 +20,8 @@
         return  DBState.db.seperateParametersEnabled &&
                 DBState.db.doNotChangeSeperateModels &&
                 DBState.db.seperateModels &&
-                DBState.db.epEnabled
+                DBState.db.epEnabled &&
+                DBState.db.disableSeperateParameterChangeOnPresetChange
     })
 
     let {onClose}:{
@@ -65,6 +66,7 @@
                     otherAx: ''
                 }
                 DBState.db.epEnabled = true
+                DBState.db.disableSeperateParameterChangeOnPresetChange = true
             }}>
                 {language.run}
             </Button>

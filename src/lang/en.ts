@@ -1549,6 +1549,7 @@ export const languageEnglish = {
     epEnabled: "Easy Panel Override",
     epRequirementsNotMet: "Easy Panel requirements not met. Click the button below to automatically adjust your settings for optimal Easy Panel settings.",
     seperateParametersByModel: "Separate Parameters by Model",
+    disableSeperateParameterChangeOnPresetChange: "Disable Separate Parameter Change on Preset Change",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

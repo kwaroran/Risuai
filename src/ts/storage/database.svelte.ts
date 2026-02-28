@@ -640,7 +640,10 @@ export function setDatabase(data:Database){
     data.createFolderOnBranch ??= true
     data.hamburgerButtonBottom ??= false
     data.dynamicModelRegistry ??= true
-    data.enableRisuaiProTools ??= true //migration
+    
+    // If the user uses plugins, its probably better to enable RisuAI Pro Tools by default
+    // Because its likely they are power users who would benefit from the features
+    data.enableRisuaiProTools ??= data.plugins.length > 0
     changeLanguage(data.language)
     setDatabaseLite(data)
 }

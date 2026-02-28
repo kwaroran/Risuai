@@ -79,7 +79,7 @@ export function applyParameters(
         }
     }
 
-    if (db.seperateParametersEnabled && modelMode !== 'model') {
+    if (db.seperateParametersEnabled && (modelMode !== 'model' || db.seperateParametersByModel)) {
         let sepParams = db.seperateParameters[modelMode]
         if (db.seperateParametersByModel){
             sepParams = db.seperateParameters.overrides[arg.modelId]

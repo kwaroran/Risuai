@@ -89,6 +89,9 @@ export interface SettingOptions {
     // header
     level?: 'h2' | 'span' | 'warning';
     
+    // divider
+    alignment?: 'left' | 'center' | 'right';
+    
     // accordion
     styled?: boolean;        // Use styled accordion
     children?: SettingItem[]; // Nested items inside accordion

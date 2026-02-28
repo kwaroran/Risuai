@@ -45,7 +45,8 @@
             options={[
                 { label: language.model, value: 'models' },
                 { label: language.parameters, value: 'parameters' },
-                { label: language.settings, value: 'settings' }
+                { label: language.customModels, value: 'customModels' },
+                { label: language.settings, value: 'settings' },
             ]}
             bind:value={selectedOption}
             size="md"
@@ -138,6 +139,8 @@
                 </div>
 
             {/if}
+        {:else if selectedOption === 'customModels'}
+            TODO
         {:else if selectedOption === 'settings'}
              <CheckInput name={language.seperateParametersByModel} bind:check={DBState.db.seperateParametersByModel}/>
         {/if}

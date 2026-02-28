@@ -4,7 +4,7 @@
     import SegmentedControl from "src/lib/UI/GUI/SegmentedControl.svelte";
     import SliderInput from "src/lib/UI/GUI/SliderInput.svelte";
     import ModelList from "src/lib/UI/ModelList.svelte";
-    import { DBState } from "src/ts/stores.svelte";
+    import { DBState, easyPanelStore } from "src/ts/stores.svelte";
     import Help from "../Help.svelte";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
@@ -24,9 +24,9 @@
                 DBState.db.disableSeperateParameterChangeOnPresetChange
     })
 
-    let {onClose}:{
-        onClose: () => void
-    } = $props()
+    const onClose = () => {
+        easyPanelStore.open = false
+    }
 
 </script>
 
@@ -36,7 +36,7 @@
             {language.easyPanel}
             <div class="ml-2 bg-blue-800 p-1 rounded text-sm">Beta</div>
             <button class="ml-auto p-1 rounded hover:bg-selected" onclick={() => {
-                onClose
+                onClose()
             }}>
                 <XIcon size={28} class="ml-auto hover:bg-selected rounded"></XIcon>
             </button>

@@ -8,7 +8,7 @@
     import PluginSettings from "./Pages/PluginSettings.svelte";
     import FilesSettings from "./Pages/FilesSettings.svelte";
     import AdvancedSettings from "./Pages/AdvancedSettings.svelte";
-    import { additionalSettingsMenu, MobileGUI, SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
+    import { additionalSettingsMenu, easyPanelStore, MobileGUI, SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
     import { DBState } from "src/ts/stores.svelte";
     import Communities from "./Pages/Communities.svelte";
     import GlobalLoreBookSettings from "./Pages/GlobalLoreBookSettings.svelte";
@@ -23,7 +23,6 @@
   import { isLite } from "src/ts/lite";
     import HotkeySettings from "./Pages/HotkeySettings.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
-    import ProTools from "../Others/ProTools/EasyPanel.svelte";
 
     let openLoreList = $state(false)
     if(window.innerWidth >= 900 && $SettingsMenuIndex === -1 && !$MobileGUI){
@@ -168,7 +167,7 @@
                             class:text-textcolor={$SettingsMenuIndex === 16}
                             class:text-textcolor2={$SettingsMenuIndex !== 16}
                             onclick={() => {
-                            $SettingsMenuIndex = 16
+                            easyPanelStore.open = true
                         }}>
                             <!-- From Lucide Icons, licensed under MIT/ISC License, modified to fit the design. see license from bundled lucide icons. -->
                             <svg width={24} height={24}>
@@ -230,10 +229,6 @@
                         }}/>
                     {:else if $SettingsMenuIndex === 15 && window.innerWidth >= 768}
                         <HotkeySettings/>
-                    {:else if $SettingsMenuIndex === 16}
-                        <ProTools onClose={() => {
-                            $SettingsMenuIndex = -1
-                        }}/>
                     {:else if $SettingsMenuIndex === 77}
                         <ThanksPage/>
                     {/if}

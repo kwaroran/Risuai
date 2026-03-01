@@ -323,6 +323,7 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
 
     
     targ.aiModel = arg.staticModel ? arg.staticModel : (model === 'model' ? db.aiModel : db.subModel)
+    targ.modelInfo = getModelInfo(targ.aiModel)
     if(db.seperateModelsForAxModels && !arg.staticModel){
         if(db.seperateModels[model]){
             targ.aiModel = db.seperateModels[model]
@@ -340,7 +341,6 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     targ.biasString = arg.biasString ?? []
     targ.multiGen = ((db.genTime > 1 && targ.aiModel.startsWith('gpt') && (!arg.continue)) && (!arg.noMultiGen))
     targ.abortSignal = abortSignal
-    targ.modelInfo = getModelInfo(targ.aiModel)
     targ.mode = model
     targ.extractJson = arg.extractJson ?? db.extractJson
     if(targ.aiModel === 'reverse_proxy'){

@@ -320,6 +320,16 @@ export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
 export async function requestChatDataMain(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
     const targ:RequestDataArgumentExtended = arg
+
+    
+    targ.aiModel = arg.staticModel ? arg.staticModel : (model === 'model' ? db.aiModel : db.subModel)
+    if(db.seperateModelsForAxModels && !arg.staticModel){
+        if(db.seperateModels[model]){
+            targ.aiModel = db.seperateModels[model]
+            targ.modelInfo = getModelInfo(targ.aiModel)
+        }
+    }
+
     targ.formated = safeStructuredClone(arg.formated)
     targ.maxTokens = arg.maxTokens ??db.maxResponse
     targ.temperature = arg.temperature ?? (db.temperature / 100)
@@ -328,7 +338,6 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     targ.useStreaming = db.useStreaming && arg.useStreaming
     targ.continue = arg.continue ?? false
     targ.biasString = arg.biasString ?? []
-    targ.aiModel = arg.staticModel ? arg.staticModel : (model === 'model' ? db.aiModel : db.subModel)
     targ.multiGen = ((db.genTime > 1 && targ.aiModel.startsWith('gpt') && (!arg.continue)) && (!arg.noMultiGen))
     targ.abortSignal = abortSignal
     targ.modelInfo = getModelInfo(targ.aiModel)
@@ -344,13 +353,6 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
         const found = db.customModels.find(m => m.id === targ.aiModel)
         targ.customURL = found?.url
         targ.key = found?.key
-    }
-
-    if(db.seperateModelsForAxModels && !arg.staticModel){
-        if(db.seperateModels[model]){
-            targ.aiModel = db.seperateModels[model]
-            targ.modelInfo = getModelInfo(targ.aiModel)
-        }
     }
 
     const format = targ.modelInfo.format

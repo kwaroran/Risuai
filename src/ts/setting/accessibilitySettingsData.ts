@@ -16,27 +16,12 @@ export const accessibilitySettingsItems: SettingItem[] = [
         options: { level: 'h2' }
     },
     
-    // Checkboxes
+    // Message Input & Automation
     {
-        id: 'acc.askRemoval',
-        type: 'check',
-        labelKey: 'askRemoval',
-        bindKey: 'askRemoval',
-        keywords: ['ask', 'removal', 'confirm', 'delete']
-    },
-    {
-        id: 'acc.swipe',
-        type: 'check',
-        labelKey: 'SwipeRegenerate',
-        bindKey: 'swipe',
-        keywords: ['swipe', 'regenerate', 'gesture']
-    },
-    {
-        id: 'acc.instantRemove',
-        type: 'check',
-        labelKey: 'instantRemove',
-        bindKey: 'instantRemove',
-        keywords: ['instant', 'remove', 'delete']
+        id: 'acc.divider.input',
+        type: 'divider',
+        labelKey: 'accDividerInput',
+        options: { alignment: 'center' }
     },
     {
         id: 'acc.sendWithEnter',
@@ -51,6 +36,69 @@ export const accessibilitySettingsItems: SettingItem[] = [
         labelKey: 'fixedChatTextarea',
         bindKey: 'fixedChatTextarea',
         keywords: ['fixed', 'chat', 'textarea', 'input']
+    },
+    {
+        id: 'acc.autoScrollToNewMessage',
+        type: 'check',
+        labelKey: 'autoScrollToNewMessage',
+        bindKey: 'autoScrollToNewMessage',
+        keywords: ['auto', 'scroll', 'new', 'message']
+    },
+    {
+        id: 'acc.alwaysScrollToNewMessage',
+        type: 'check',
+        labelKey: 'alwaysScrollToNewMessage',
+        bindKey: 'alwaysScrollToNewMessage',
+        condition: (ctx) => ctx.db.autoScrollToNewMessage,
+        keywords: ['always', 'scroll', 'new', 'message']
+    },
+
+    {
+        id: 'acc.swipe',
+        type: 'check',
+        labelKey: 'SwipeRegenerate',
+        bindKey: 'swipe',
+        keywords: ['swipe', 'regenerate', 'gesture']
+    },
+    {
+        id: 'acc.requestInfoInsideChat',
+        type: 'check',
+        labelKey: 'requestInfoInsideChat',
+        bindKey: 'requestInfoInsideChat',
+        keywords: ['request', 'info', 'chat']
+    },
+    {
+        id: 'acc.inlayErrorResponse',
+        type: 'check',
+        labelKey: 'inlayErrorResponse',
+        bindKey: 'inlayErrorResponse',
+        keywords: ['inlay', 'error', 'response']
+    },
+    
+    {
+        id: 'acc.newMessageButtonStyle',
+        type: 'select',
+        labelKey: 'newMessageButtonStyle',
+        bindKey: 'newMessageButtonStyle',
+        condition: (ctx) => ctx.db.autoScrollToNewMessage && !ctx.db.alwaysScrollToNewMessage,
+        options: {
+            selectOptions: [
+                { value: 'bottom-center', label: language.newMessageButtonBottomCenter },
+                { value: 'bottom-right', label: language.newMessageButtonBottomRight },
+                { value: 'bottom-left', label: language.newMessageButtonBottomLeft },
+                { value: 'floating-circle', label: language.newMessageButtonFloatingCircle },
+                { value: 'right-center', label: language.newMessageButtonRightCenter },
+                { value: 'top-bar', label: language.newMessageButtonTopBar }
+            ]
+        }
+    },
+    
+    // Editing & Interaction
+    {
+        id: 'acc.divider.editing',
+        type: 'divider',
+        labelKey: 'accDividerEditing',
+        options: { alignment: 'center' }
     },
     {
         id: 'acc.clickToEdit',
@@ -73,12 +121,35 @@ export const accessibilitySettingsItems: SettingItem[] = [
         bindKey: 'enableDragPartialEdit',
         keywords: ['partial', 'edit', 'drag', 'selection']
     },
+    
+    // Message Deletion
     {
-        id: 'acc.botSettingAtStart',
+        id: 'acc.divider.deletion',
+        type: 'divider',
+        labelKey: 'accDividerDeletion',
+        options: { alignment: 'center' }
+    },
+    {
+        id: 'acc.askRemoval',
         type: 'check',
-        labelKey: 'botSettingAtStart',
-        bindKey: 'botSettingAtStart',
-        keywords: ['bot', 'setting', 'start', 'open']
+        labelKey: 'askRemoval',
+        bindKey: 'askRemoval',
+        keywords: ['ask', 'removal', 'confirm', 'delete']
+    },
+    {
+        id: 'acc.instantRemove',
+        type: 'check',
+        labelKey: 'instantRemove',
+        bindKey: 'instantRemove',
+        keywords: ['instant', 'remove', 'delete']
+    },
+    
+    // Navigation & Menus
+    {
+        id: 'acc.divider.navigation',
+        type: 'divider',
+        labelKey: 'accDividerNavigation',
+        options: { alignment: 'center' }
     },
     {
         id: 'acc.showMenuChatList',
@@ -95,13 +166,6 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['menu', 'hypa', 'memory', 'modal']
     },
     {
-        id: 'acc.goCharacterOnImport',
-        type: 'check',
-        labelKey: 'goCharacterOnImport',
-        bindKey: 'goCharacterOnImport',
-        keywords: ['character', 'import', 'navigate']
-    },
-    {
         id: 'acc.sideMenuRerollButton',
         type: 'check',
         labelKey: 'sideMenuRerollButton',
@@ -109,25 +173,40 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['side', 'menu', 'reroll', 'button']
     },
     {
+        id: 'acc.hamburgerButtonBottom',
+        type: 'check',
+        labelKey: 'hamburgerButtonBottom',
+        bindKey: 'hamburgerButtonBottom',
+        keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
+    },
+    
+    // Other Features & Behaviors
+    {
+        id: 'acc.divider.others',
+        type: 'divider',
+        labelKey: 'accDividerOthers',
+        options: { alignment: 'center' }
+    },
+    {
+        id: 'acc.botSettingAtStart',
+        type: 'check',
+        labelKey: 'botSettingAtStart',
+        bindKey: 'botSettingAtStart',
+        keywords: ['bot', 'setting', 'start', 'open']
+    },
+    {
+        id: 'acc.goCharacterOnImport',
+        type: 'check',
+        labelKey: 'goCharacterOnImport',
+        bindKey: 'goCharacterOnImport',
+        keywords: ['character', 'import', 'navigate']
+    },
+    {
         id: 'acc.localActivationInGlobalLorebook',
         type: 'check',
         labelKey: 'localActivationInGlobalLorebook',
         bindKey: 'localActivationInGlobalLorebook',
         keywords: ['local', 'activation', 'global', 'lorebook']
-    },
-    {
-        id: 'acc.requestInfoInsideChat',
-        type: 'check',
-        labelKey: 'requestInfoInsideChat',
-        bindKey: 'requestInfoInsideChat',
-        keywords: ['request', 'info', 'chat']
-    },
-    {
-        id: 'acc.inlayErrorResponse',
-        type: 'check',
-        labelKey: 'inlayErrorResponse',
-        bindKey: 'inlayErrorResponse',
-        keywords: ['inlay', 'error', 'response']
     },
     {
         id: 'acc.bulkEnabling',
@@ -144,50 +223,11 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['translation', 'loading', 'indicator']
     },
     {
-        id: 'acc.autoScrollToNewMessage',
-        type: 'check',
-        labelKey: 'autoScrollToNewMessage',
-        bindKey: 'autoScrollToNewMessage',
-        keywords: ['auto', 'scroll', 'new', 'message']
-    },
-    {
-        id: 'acc.alwaysScrollToNewMessage',
-        type: 'check',
-        labelKey: 'alwaysScrollToNewMessage',
-        bindKey: 'alwaysScrollToNewMessage',
-        condition: (ctx) => ctx.db.autoScrollToNewMessage,
-        keywords: ['always', 'scroll', 'new', 'message']
-    },
-    {
-        id: 'acc.newMessageButtonStyle',
-        type: 'select',
-        labelKey: 'newMessageButtonStyle',
-        bindKey: 'newMessageButtonStyle',
-        condition: (ctx) => ctx.db.autoScrollToNewMessage && !ctx.db.alwaysScrollToNewMessage,
-        options: {
-            selectOptions: [
-                { value: 'bottom-center', label: language.newMessageButtonBottomCenter },
-                { value: 'bottom-right', label: language.newMessageButtonBottomRight },
-                { value: 'bottom-left', label: language.newMessageButtonBottomLeft },
-                { value: 'floating-circle', label: language.newMessageButtonFloatingCircle },
-                { value: 'right-center', label: language.newMessageButtonRightCenter },
-                { value: 'top-bar', label: language.newMessageButtonTopBar }
-            ]
-        }
-    },
-    {
         id: 'acc.createFolderOnBranch',
         type: 'check',
         labelKey: 'createFolderOnBranch',
         bindKey: 'createFolderOnBranch',
         keywords: ['create', 'folder', 'branch'],
-    },
-    {
-        id: 'acc.hamburgerButtonBottom',
-        type: 'check',
-        labelKey: 'hamburgerButtonBottom',
-        bindKey: 'hamburgerButtonBottom',
-        keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
     },
     {
         id: 'acc.enableRisuaiProTools',

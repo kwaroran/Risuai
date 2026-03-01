@@ -601,7 +601,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             "method": "POST",
             signal: arg.abortSignal,
             headers: headers,
-            interceptor: 'anthropic_batching'
+            interceptor: 'anthropic_batching',
+            logFetch: false
         })
 
         if(resp.status !== 200){
@@ -684,7 +685,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     "body": "{}",
                                     "method": "POST",
                                     "headers": headers,
-                                    "interceptor": 'anthropic_batching_cancel'
+                                    "interceptor": 'anthropic_batching_cancel',
+                                    logFetch: false
                                 })
                             } catch(e) {
                                 // ignore cancel request errors
@@ -699,7 +701,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_status'
+                            "interceptor": 'anthropic_batching_status',
+                            logFetch: false
                         })
 
                         if(statusRes.status !== 200){
@@ -723,7 +726,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_results'
+                            "interceptor": 'anthropic_batching_results',
+                            logFetch: false
                         })
 
                         if(batchRes.status !== 200){

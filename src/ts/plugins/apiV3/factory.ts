@@ -266,7 +266,7 @@ export class SandboxHost {
     private iframe: HTMLIFrameElement;
     private apiFactory: any;
     private nonce = crypto.randomUUID();
-    private csp = `connect-src 'none'; script-src 'nonce-${this.nonce}' https:; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline';`;
+    private csp = `connect-src 'none'; script-src 'nonce-${this.nonce}' https:; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline'; default-src 'none';`;
 
     private instanceRegistry = new Map<string, any>();
 

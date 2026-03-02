@@ -153,6 +153,22 @@ export interface SettingItem {
      * Props to pass to custom component
      */
     componentProps?: CustomComponentProps;
+
+    /**
+     * Optional getter function for the setting's value. 
+     * Recommended over bindKey/bindPath for complete type safety and reactivity.
+     */
+    getValue?: (db: Database, ctx?: SettingContext) => any;
+
+    /**
+     * Optional setter function for the setting's value.
+     */
+    setValue?: (db: Database, val: any, ctx?: SettingContext) => void;
+
+    /**
+     * Optional callback fired when the value changes (useful for side-effects like CSS updates)
+     */
+    onChange?: (val: any, ctx: SettingContext) => void;
 }
 
 /**

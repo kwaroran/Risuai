@@ -393,9 +393,9 @@ export function registerCBS(arg:CBSRegisterArg) {
         name: 'authornote',
         callback: (str, matcherArg, args, vars) => {
             const db = getDatabase()
-            const selchar = db.characters[getSelectedCharID()]
-            const chat = selchar.chats[selchar.chatPage]
-            if(chat.note){
+            const selchar = db.characters?.[getSelectedCharID()]
+            const chat = selchar?.chats?.[selchar.chatPage]
+            if(chat?.note){
                 return risuChatParser(chat.note, matcherArg)
             }
             const template = db.promptTemplate

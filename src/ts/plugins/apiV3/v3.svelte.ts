@@ -537,7 +537,7 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     if(reconfirm === 'periodically'){
         const lastGrantTime:number = await permissionForage.getItem(pluginName + '_' + permissionDesc + '_lastGrantTime');
         const now = Date.now();
-        if(!lastGrantTime || now - lastGrantTime > 7 * 24 * 60 * 60 * 1000){ //7 days
+        if(!lastGrantTime || now - lastGrantTime > 3 * 24 * 60 * 60 * 1000){ //3 days
             requiresReconfirm = true;
         }
     }

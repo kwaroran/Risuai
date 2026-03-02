@@ -1269,3 +1269,69 @@ export class Semaphore {
         }
     }
 }
+
+export function openKeypairStoreDB(name:string):Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("DPoPDB", 1);
+
+        request.onupgradeneeded = (event) => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            if (!db.objectStoreNames.contains(name || "DPoPStore")) {
+                db.createObjectStore(name || "DPoPStore");
+            }
+        };
+
+        request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
+        request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
+    });
+}
+
+export async function saveKeypairStore(name:string, keyPair: CryptoKeyPair) {
+    const db = await openKeypairStoreDB(name);
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(name || "DPoPStore", 'readwrite');
+        const store = tx.objectStore(name || "DPoPStore");
+
+        const data = {
+            privateKey: keyPair.privateKey,
+            publicKey: keyPair.publicKey,
+        };
+
+        const request = store.put(data, 'dpop');
+
+        request.onsuccess = () => resolve(true);
+        request.onerror = (event) => reject((event.target as IDBRequest).error);
+    });
+}
+
+export async function getKeypairStore(name:string):Promise<CryptoKeyPair | null> {
+    const db = await openKeypairStoreDB(name);
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(name || "DPoPStore", 'readonly');
+        const store = tx.objectStore(name || "DPoPStore");
+        const request = store.get('dpop');
+
+        request.onsuccess = (event) => {
+            const result = (event.target as IDBRequest).result;
+            if (result) {
+                resolve({
+                    privateKey: result.privateKey,
+                    publicKey: result.publicKey,
+                } as CryptoKeyPair);
+            } else {
+                resolve(null);
+            }
+        };
+
+        request.onerror = (event) => reject((event.target as IDBRequest).error);
+    })
+}
+
+export function base64url(source: Uint8Array | ArrayBuffer): string {
+    const bytes = source instanceof ArrayBuffer ? new Uint8Array(source) : source;
+    let encodedSource = btoa(String.fromCharCode.apply(null, [...bytes]))
+        .replace(/=+$/, "")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_");
+    return encodedSource;
+}

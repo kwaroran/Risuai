@@ -4,7 +4,7 @@ const path = require('path');
 const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('fs');
 const fs = require('fs/promises')
-const crypto = require('crypto')
+const nodeCrypto = require('crypto')
 app.use(express.static(path.join(process.cwd(), 'dist'), {index: false}));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.raw({ type: 'application/octet-stream', limit: '100mb' }));
@@ -16,6 +16,7 @@ const hubURL = 'https://sv.risuai.xyz';
 const openid = require('openid-client');
 
 let password = ''
+let knownPublicKeysHashes = []
 
 const savePath = path.join(process.cwd(), "save")
 if(!existsSync(savePath)){
@@ -29,8 +30,15 @@ if(existsSync(passwordPath)){
 
 const authCodePath = path.join(process.cwd(), 'save', '__authcode')
 const hexRegex = /^[0-9a-fA-F]+$/;
+
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
+}
+
+async function hashJSON(json){
+    const hash = nodeCrypto.createHash('sha256');
+    hash.update(JSON.stringify(json));
+    return hash.digest('hex');
 }
 
 app.get('/', async (req, res, next) => {
@@ -52,14 +60,124 @@ app.get('/', async (req, res, next) => {
     }
 })
 
-const reverseProxyFunc = async (req, res, next) => {
-    const authHeader = req.headers['risu-auth'];
-    if(!authHeader || authHeader.trim() !== password.trim()){
-        console.log('incorrect', 'received:', authHeader, 'expected:', password)
-        res.status(400).send({
-            error:'Password Incorrect'
+async function checkAuth(req, res, returnOnlyStatus = false){
+    try {
+        const authHeader = req.headers['risu-auth'];
+
+        if(!authHeader){
+            console.log('No auth header')
+            if(returnOnlyStatus){
+                return false;
+            }
+            res.status(400).send({
+                error:'No auth header'
+            });
+            return false
+        }
+
+
+        //jwt token
+        const [
+            jsonHeaderB64,
+            jsonPayloadB64,
+            signatureB64,
+        ] = authHeader.split('.');
+
+        //alg, typ
+        const jsonHeader = JSON.parse(Buffer.from(jsonHeaderB64, 'base64url').toString('utf-8'));
+
+        //iat, exp, pub
+        const jsonPayload = JSON.parse(Buffer.from(jsonPayloadB64, 'base64url').toString('utf-8'));
+
+        //signature
+        const signature = Buffer.from(signatureB64, 'base64url');
+
+        
+        //check expiration
+        const now = Math.floor(Date.now() / 1000);
+        if(jsonPayload.exp < now){
+            console.log('Token expired')
+            if(returnOnlyStatus){
+                return false;
+            }
+            res.status(400).send({
+                error:'Token Expired'
+            });
+            return false
+        }
+
+        //check if public key is known
+        const pubKeyHash = await hashJSON(jsonPayload.pub)
+        if(!knownPublicKeysHashes.includes(pubKeyHash)){
+            console.log('Unknown public key')
+            if(returnOnlyStatus){
+                return false;
+            }
+            res.status(400).send({
+                error:'Unknown Public Key'
+            });
+            return false
+        }
+
+        //check signature
+        if(jsonHeader.alg !== "ES256"){
+            //only support ECDSA for now
+            console.log('Unsupported algorithm')
+            if(returnOnlyStatus){
+                return false;
+            }
+            res.status(400).send({
+                error:'Unsupported Algorithm'
+            });
+            return false
+        }
+
+        const isValid = await crypto.subtle.verify(
+            {
+                name: 'ECDSA',
+                hash: {name: 'SHA-256'},
+            },
+            await crypto.subtle.importKey(
+                'jwk',
+                jsonPayload.pub,
+                {
+                    name: 'ECDSA',
+                    namedCurve: 'P-256',
+                },
+                false,
+                ['verify']
+            ),
+            signature,
+            Buffer.from(`${jsonHeaderB64}.${jsonPayloadB64}`)
+        );
+
+        if(!isValid){
+            console.log('Invalid signature')
+            if(returnOnlyStatus){
+                return false;
+            }
+            res.status(400).send({
+                error:'Invalid Signature'
+            });
+            return false
+        }
+        
+        return true   
+    } catch (error) {
+        console.log(error)
+        if(returnOnlyStatus){
+            return false;
+        }
+        res.status(500).send({
+            error:'Internal Server Error'
         });
-        return
+        return false
+    }
+}
+
+const reverseProxyFunc = async (req, res, next) => {
+    if(!await checkAuth(req, res)){
+        return;
     }
     
     const urlParam = req.headers['risu-url'] ? decodeURIComponent(req.headers['risu-url']) : req.query.url;
@@ -80,7 +198,9 @@ const reverseProxyFunc = async (req, res, next) => {
             delete header['authorization']
         }
         else{
-            const authCode = fs.readFileSync(authCodePath, 'utf-8')
+            const authCode = await fs.readFile(authCodePath, {
+                encoding: 'utf-8'
+            })
             header['authorization'] = `Bearer ${authCode}`
         }
     }
@@ -121,13 +241,8 @@ const reverseProxyFunc = async (req, res, next) => {
 }
 
 const reverseProxyFunc_get = async (req, res, next) => {
-    const authHeader = req.headers['risu-auth'];
-    if(!authHeader || authHeader.trim() !== password.trim()){
-        console.log('incorrect', 'received:', authHeader, 'expected:', password)
-        res.status(400).send({
-            error:'Password Incorrect'
-        });
-        return
+    if(!await checkAuth(req, res)){
+        return;
     }
     
     const urlParam = req.headers['risu-url'] ? decodeURIComponent(req.headers['risu-url']) : req.query.url;
@@ -268,10 +383,8 @@ async function hubProxyFunc(req, res) {
         //if Authorization header is "Server-Auth, set the token to be Server-Auth
         if(headersToSend['Authorization'] === 'X-Node-Server-Auth'){
             //this requires password auth
-            const authHeader = req.headers['risu-auth'];
-            if(!authHeader || authHeader.trim() !== password.trim()){
-                console.log('incorrect', 'received:', authHeader, 'expected:', password)
-                throw new Error('Incorrect password for server auth');
+            if(!await checkAuth(req, res)){
+                return;
             }
 
             headersToSend['Authorization'] = "Bearer " + await getSionywAccessToken();
@@ -345,25 +458,68 @@ app.post('/proxy', reverseProxyFunc);
 app.post('/proxy2', reverseProxyFunc);
 app.post('/hub-proxy/*', hubProxyFunc);
 
-app.get('/api/password', async(req, res)=> {
-    if(password === ''){
+// app.get('/api/password', async(req, res)=> {
+//     if(password === ''){
+//         res.send({status: 'unset'})
+//     }
+//     else if(req.body.password && req.body.password.trim() === password.trim()){
+//         res.send({status:'correct'})
+//     }
+//     else{
+//         res.send({status:'incorrect'})
+//     }
+// })
+
+app.get('/api/test_auth', async(req, res) => {
+
+    if(!password){
         res.send({status: 'unset'})
     }
-    else if(req.headers['risu-auth']  === password){
-        res.send({status:'correct'})
+    else if(!await checkAuth(req, res, true)){
+        res.send({status: 'incorrect'})
     }
     else{
-        res.send({status:'incorrect'})
+        res.send({status: 'success'})
+    }
+})
+
+let loginTries = 0;
+let loginTriesResetsIn = 0;
+app.post('/api/login', async (req, res) => {
+
+    if(loginTriesResetsIn < Date.now()){
+        loginTriesResetsIn = Date.now() + (30 * 1000); //30 seconds
+        loginTries = 0;
+    }
+
+    if(loginTries >= 10){
+        res.status(429).send({error: 'Too many attempts. Please wait and try again later.'})
+        return;
+    }
+    else{
+        loginTries++;
+    }
+
+    if(password === ''){
+        res.status(400).send({error: 'Password not set'})
+        return;
+    }
+    if(req.body.password && req.body.password.trim() === password.trim()){
+        knownPublicKeysHashes.push(await hashJSON(req.body.publicKey))
+        res.send({status:'success'})
+    }
+    else{
+        res.status(400).send({error: 'Password incorrect'})
     }
 })
 
 app.post('/api/crypto', async (req, res) => {
     try {
-        const hash = crypto.createHash('sha256')
+        const hash = nodeCrypto.createHash('sha256')
         hash.update(Buffer.from(req.body.data, 'utf-8'))
         res.send(hash.digest('hex'))
     } catch (error) {
-        next(error)
+        res.status(500).send({ error: 'Crypto operation failed' });
     }
 })
 
@@ -372,17 +528,16 @@ app.post('/api/set_password', async (req, res) => {
     if(password === ''){
         password = req.body.password
         writeFileSync(passwordPath, password, 'utf-8')
+        res.send({status: 'success'})
     }
-    res.status(400).send("already set")
+    else{
+        res.status(400).send("already set")
+    }
 })
 
 app.get('/api/read', async (req, res, next) => {
-    if(req.headers['risu-auth'].trim() !== password.trim()){
-        console.log('incorrect')
-        res.status(400).send({
-            error:'Password Incorrect'
-        });
-        return
+    if(!await checkAuth(req, res)){
+        return;
     }
     const filePath = req.headers['file-path'];
     if (!filePath) {
@@ -413,12 +568,8 @@ app.get('/api/read', async (req, res, next) => {
 });
 
 app.get('/api/remove', async (req, res, next) => {
-    if(req.headers['risu-auth'].trim() !== password.trim()){
-        console.log('incorrect')
-        res.status(400).send({
-            error:'Password Incorrect'
-        });
-        return
+    if(!await checkAuth(req, res)){
+        return;
     }
     const filePath = req.headers['file-path'];
     if (!filePath) {
@@ -445,12 +596,8 @@ app.get('/api/remove', async (req, res, next) => {
 });
 
 app.get('/api/list', async (req, res, next) => {
-    if(req.headers['risu-auth'].trim() !== password.trim()){
-        console.log('incorrect')
-        res.status(400).send({
-            error:'Password Incorrect'
-        });
-        return
+    if(!await checkAuth(req, res)){
+        return;
     }
     try {
         const data = (await fs.readdir(path.join(savePath))).map((v) => {
@@ -466,12 +613,8 @@ app.get('/api/list', async (req, res, next) => {
 });
 
 app.post('/api/write', async (req, res, next) => {
-    if(req.headers['risu-auth'].trim() !== password.trim()){
-        console.log('incorrect')
-        res.status(400).send({
-            error:'Password Incorrect'
-        });
-        return
+    if(!await checkAuth(req, res)){
+        return;
     }
     const filePath = req.headers['file-path'];
     const fileContent = req.body

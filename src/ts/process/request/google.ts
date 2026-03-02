@@ -1,7 +1,7 @@
 import { fetchNative, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { getDatabase, setDatabase } from "src/ts/storage/database.svelte"
-import { simplifySchema } from "src/ts/util"
+import { base64url, simplifySchema } from "src/ts/util"
 import { v4 } from "uuid"
 import { setInlayAsset, writeInlayImage } from "../files/inlays"
 import { extractJSON, getGeneralJSONSchema } from "../templates/jsonSchema"
@@ -435,15 +435,6 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                 bytes[i] = binaryString.charCodeAt(i);
             }
             return bytes.buffer;
-        }
-
-        function base64url(source: Uint8Array | ArrayBuffer): string {
-            const bytes = source instanceof ArrayBuffer ? new Uint8Array(source) : source;
-            let encodedSource = btoa(String.fromCharCode.apply(null, [...bytes]))
-                .replace(/=+$/, "")
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_");
-            return encodedSource;
         }
 
         const time = Math.floor(Date.now() / 1000);

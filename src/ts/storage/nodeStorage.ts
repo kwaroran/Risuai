@@ -1,10 +1,65 @@
 import { language } from "src/lang"
-import { alertInput } from "../alert"
+import { alertError, alertInput, waitAlert } from "../alert"
+import { base64url, getKeypairStore, saveKeypairStore } from "../util"
 
-let auth:string = null
-let authChecked = false
 
 export class NodeStorage{
+
+    authChecked = false
+    JSONStringlifyAndbase64Url(obj:any){
+        return base64url(Buffer.from(JSON.stringify(obj), 'utf-8'))
+    }
+
+    async createAuth(){
+        const keyPair = await this.getKeyPair()
+        const date = Math.floor(Date.now() / 1000)
+        
+        const header = {
+            alg: "ES256",
+            typ: "JWT",   
+        }
+        const payload = {
+            iat: date,
+            exp: date + 5 * 60, //5 minutes expiration
+            pub: await crypto.subtle.exportKey('jwk', keyPair.publicKey)
+        }
+        const sig = await crypto.subtle.sign(
+            {
+                name: "ECDSA",
+                hash: "SHA-256"
+            },
+            keyPair.privateKey,
+            Buffer.from(
+                this.JSONStringlifyAndbase64Url(header) + "." + this.JSONStringlifyAndbase64Url(payload)
+            )
+        )
+        const sigString = base64url(new Uint8Array(sig))
+        return this.JSONStringlifyAndbase64Url(header) + "." + this.JSONStringlifyAndbase64Url(payload) + "." + sigString
+    }
+
+    async getKeyPair():Promise<CryptoKeyPair>{
+        
+        const storedKey = await getKeypairStore('node')
+
+        if(storedKey){
+            return storedKey
+        }
+
+        const keyPair = await crypto.subtle.generateKey(
+            {
+                name: "ECDSA",
+                namedCurve: "P-256"
+            },
+            false,
+            ["sign", "verify"],
+        );
+
+        await saveKeypairStore('node', keyPair)
+
+        return keyPair
+
+    }
+
     async setItem(key:string, value:Uint8Array) {
         await this.checkAuth()
         const da = await fetch('/api/write', {
@@ -13,7 +68,7 @@ export class NodeStorage{
             headers: {
                 'content-type': 'application/octet-stream',
                 'file-path': Buffer.from(key, 'utf-8').toString('hex'),
-                'risu-auth': auth
+                'risu-auth': await this.createAuth()
             }
         })
         if(da.status < 200 || da.status >= 300){
@@ -30,7 +85,7 @@ export class NodeStorage{
             method: "GET",
             headers: {
                 'file-path': Buffer.from(key, 'utf-8').toString('hex'),
-                'risu-auth': auth
+                'risu-auth': await this.createAuth()
             }
         })
         if(da.status < 200 || da.status >= 300){
@@ -48,13 +103,13 @@ export class NodeStorage{
         const da = await fetch('/api/list', {
             method: "GET",
             headers:{
-                'risu-auth': auth
+                'risu-auth': await this.createAuth()
             }
         })
-        const data = await da.json()
         if(da.status < 200 || da.status >= 300){
             throw "listItem Error"
         }
+        const data = await da.json()
         if(data.error){
             throw data.error
         }
@@ -66,7 +121,7 @@ export class NodeStorage{
             method: "GET",
             headers: {
                 'file-path': Buffer.from(key, 'utf-8').toString('hex'),
-                'risu-auth': auth
+                'risu-auth': await this.createAuth()
             }
         })
         if(da.status < 200 || da.status >= 300){
@@ -79,14 +134,11 @@ export class NodeStorage{
     }
 
     private async checkAuth(){
-        if(!auth){
-            auth = localStorage.getItem('risuauth')
-        }
 
-        if(!authChecked){
-            const data = await (await fetch('/api/password',{
+        if(!this.authChecked){
+            const data = await (await fetch('/api/test_auth',{
                 headers: {
-                    'risu-auth': auth ?? ''
+                    'risu-auth': await this.createAuth()
                 }
             })).json()
 
@@ -101,33 +153,38 @@ export class NodeStorage{
                         'content-type': 'application/json'
                     }
                 })
-                auth = input
-                localStorage.setItem('risuauth', auth)
+                return await this.createAuth()
             }
             else if(data.status === 'incorrect'){
-                while(true){
-                    const input = await digestPassword(await alertInput(language.inputNodePassword))
-                    const data = await (await fetch('/api/password',{
-                        headers: {
-                            'risu-auth': input ?? ''
-                        }
-                    })).json()
-                    if(data.status !== 'unset'){
-                        auth = input
-                        localStorage.setItem('risuauth', auth)
-                        await this.checkAuth()
-                        break
+                const keypair = await this.getKeyPair()
+                const publicKey = await crypto.subtle.exportKey('jwk', keypair.publicKey)
+                const input = await digestPassword(await alertInput(language.inputNodePassword))
+
+                const s = await fetch('/api/login',{
+                    method: "POST",
+                    body: JSON.stringify({
+                        password: input,
+                        publicKey: publicKey
+                    }),
+                    headers: {
+                        'content-type': 'application/json'
                     }
+                })
+
+                //too many requests
+                if(s.status === 429){
+                    alertError(`Too many attempts. Please wait and try again later.`)
+                    await waitAlert()
                 }
+                
+
+                return await this.createAuth()
+            
             }
             else{
-                authChecked = true
+                this.authChecked = true
             }
         }
-    }
-
-    getAuth():string{
-        return auth
     }
 
     listItem = this.keys

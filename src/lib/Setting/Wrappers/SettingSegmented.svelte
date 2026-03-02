@@ -12,15 +12,18 @@
 
     let { item, ctx }: Props = $props();
 
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+    
 
-    function handleChange() {
-        setSettingValue(item, value, ctx);
-    }
+    
 
     // Transform options for translation
     let processedOptions = $derived((item.options?.segmentOptions ?? [])
@@ -44,7 +47,7 @@
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
 <SegmentedControl
-    bind:value={value}
+    bind:value={valueProxy.value}
     options={processedOptions}
-    onchange={handleChange}
+    
 />

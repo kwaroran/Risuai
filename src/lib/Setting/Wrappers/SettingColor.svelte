@@ -10,18 +10,21 @@
 
     let { item, ctx }: Props = $props();
 
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+    
 
-    function handleChange() {
-        setSettingValue(item, value, ctx);
-    }
+    
 </script>
 
 <div class="flex items-center {item.classes ?? 'mt-2'}">
-    <ColorInput bind:value={value} oninput={handleChange} />
+    <ColorInput bind:value={valueProxy.value}  />
     <span class="ml-2">{getLabel(item)}</span>
 </div>

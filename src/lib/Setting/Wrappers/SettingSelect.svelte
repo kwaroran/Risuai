@@ -13,15 +13,18 @@
 
     let { item, ctx }: Props = $props();
 
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+    
 
-    function handleChange() {
-        setSettingValue(item, value, ctx);
-    }
+    
 
     // Process options to support labelKey translation and conditional rendering
     let processedOptions = $derived((item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)));
@@ -39,7 +42,7 @@
     {getLabel(item)}
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
-<SelectInput bind:value={value} onchange={handleChange}>
+<SelectInput bind:value={valueProxy.value} >
     {#each processedOptions as opt}
         <OptionInput value={opt.value}>
             {('labelKey' in opt && opt.labelKey) ? (language as any)[opt.labelKey] : opt.label}

@@ -11,15 +11,18 @@
 
     let { item, ctx }: Props = $props();
 
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+    
 
-    function handleChange() {
-        setSettingValue(item, value, ctx);
-    }
+    
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
@@ -31,6 +34,6 @@
     size="sm"
     min={item.options?.min}
     max={item.options?.max}
-    bind:value={value}
-    onChange={handleChange}
+    bind:value={valueProxy.value}
+    
 />

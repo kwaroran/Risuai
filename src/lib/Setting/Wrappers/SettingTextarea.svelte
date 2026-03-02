@@ -11,15 +11,18 @@
 
     let { item, ctx }: Props = $props();
 
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+    
 
-    function handleChange() {
-        setSettingValue(item, value, ctx);
-    }
+    
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
@@ -27,7 +30,7 @@
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
 <TextAreaInput
-    bind:value={value}
+    bind:value={valueProxy.value}
     placeholder={item.options?.placeholder}
-    onInput={handleChange}
+    
 />

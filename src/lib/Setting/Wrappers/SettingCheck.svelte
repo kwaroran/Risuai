@@ -11,22 +11,22 @@
 
     let { item, ctx }: Props = $props();
 
-    // Proxy object for two-way binding
-    let value = $state(getSettingValue(item, ctx));
+    let valueProxy = {
+        get value() {
+            return getSettingValue(item, ctx);
+        },
+        set value(v) {
+            setSettingValue(item, v, ctx);
+        }
+    };
 
-    // Synchronize internal state when external changes occur
-    $effect(() => {
-        value = getSettingValue(item, ctx);
-    });
+        
 
-    function handleChange(e?: any) {
-        // Reflect to DB when component internal state changes
-        setSettingValue(item, value, ctx);
-    }
+    
 </script>
 
 <div class="flex items-center {item.classes ?? 'mt-2'}">
-    <Check bind:check={value} name={getLabel(item)} onChange={handleChange}>
+    <Check bind:check={valueProxy.value} name={getLabel(item)} >
         {#if item.showExperimental}<Help key="experimental"/>{/if}
         {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
     </Check>

@@ -545,18 +545,17 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         requiresReconfirm = true;
     }
 
-    if(requiresReconfirm){
-        pluginHash = await hasher(
-            new TextEncoder().encode(
-                DBState.db.plugins.find(p => p.name === pluginName)?.script
-            )
-        ) + `_${permissionDesc}`;
+    pluginHash = await hasher(
+        new TextEncoder().encode(
+            DBState.db.plugins.find(p => p.name === pluginName)?.script
+        )
+    ) + `_${permissionDesc}`;
 
-        if(await permissionForage.getItem(pluginHash)){
-            permissionGivenPlugins.add(pluginName);
-            return true;
-        }   
-    }
+    if(!requiresReconfirm &&await permissionForage.getItem(pluginHash)){
+        permissionGivenPlugins.add(pluginName);
+        return true;
+    }   
+    
 
     let alertTitle =
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)

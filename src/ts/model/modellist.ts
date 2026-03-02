@@ -555,7 +555,7 @@ for(let i=0; i<LLMModels.length; i++){
             name: `${LLMModels[i].name} Vertex`,
             fullName: `${LLMModels[i].fullName ?? LLMModels[i].name} Vertex`,
             flags: [...LLMModels[i].flags],
-            recommended: false,
+            recommended: !!LLMModels[i].recommended,
             provider: LLMProvider.VertexAI,
             format: LLMFormat.VertexAIGemini
         })

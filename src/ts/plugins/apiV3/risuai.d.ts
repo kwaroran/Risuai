@@ -331,6 +331,38 @@ interface DatabaseSubset {
 }
 
 // ============================================================================
+// Color Scheme & Text Theme Types
+// ============================================================================
+
+/**
+ * Color scheme definition for UI theming.
+ */
+interface ColorScheme {
+    bgcolor: string;
+    darkbg: string;
+    borderc: string;
+    selected: string;
+    draculared: string;
+    textcolor: string;
+    textcolor2: string;
+    darkBorderc: string;
+    darkbutton: string;
+    type: 'light' | 'dark';
+}
+
+/**
+ * Custom text theme definition for chat text colors.
+ */
+interface CustomTextTheme {
+    FontColorStandard: string;
+    FontColorBold: string;
+    FontColorItalic: string;
+    FontColorItalicBold: string;
+    FontColorQuote1: string;
+    FontColorQuote2: string;
+}
+
+// ============================================================================
 // SafeElement API
 // ============================================================================
 
@@ -1320,6 +1352,47 @@ interface RisuaiPluginAPI {
      * @param db - DatabaseSubset object to save
      */
     setDatabase(db: DatabaseSubset): Promise<void>;
+
+    // ========== Color Scheme APIs ==========
+
+    /**
+     * Change to a preset color scheme by name.
+     * Available presets: 'default', 'dark', 'light', 'cherry', 'galaxy', 'nature', 'realblack', 'monokai-light', 'monokai-black'
+     * @param name - Preset color scheme name
+     */
+    changeColorScheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom color scheme. Automatically sets colorSchemeName to 'custom'.
+     * @param scheme - ColorScheme object with all color values
+     */
+    setColorScheme(scheme: ColorScheme): Promise<void>;
+
+    /**
+     * Get the current color scheme name and values.
+     * @returns Object with name and scheme
+     */
+    getColorScheme(): Promise<{ name: string; scheme: ColorScheme }>;
+
+    // ========== Text Theme APIs ==========
+
+    /**
+     * Change to a preset text theme.
+     * @param name - 'standard' | 'highcontrast' | 'custom'
+     */
+    changeTextTheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom text theme. Automatically sets textTheme to 'custom'.
+     * @param theme - CustomTextTheme object with all font color values
+     */
+    setCustomTextTheme(theme: CustomTextTheme): Promise<void>;
+
+    /**
+     * Get the current text theme name and custom theme values.
+     * @returns Object with name and customTheme
+     */
+    getTextTheme(): Promise<{ name: string; customTheme: CustomTextTheme }>;
 
     // ========== Network APIs ==========
 

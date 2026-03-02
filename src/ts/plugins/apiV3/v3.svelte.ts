@@ -1008,10 +1008,10 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
         },
         addPluginChannelListener: (channelName: string, callback: Function) => {
-            pluginChannel.set(channelName, callback);
+            pluginChannel.set(plugin.name + channelName, callback);
         },
-        postPluginChannelMessage: (channelName: string, message: any) => {
-            const callback = pluginChannel.get(channelName);
+        postPluginChannelMessage: (pluginName: string, channelName: string, message: any) => {
+            const callback = pluginChannel.get(pluginName + channelName);
             if(callback){
                 callback(message);
             }

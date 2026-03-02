@@ -35,9 +35,9 @@
 
     // Reset value if current selection becomes hidden
     $effect(() => {
-        if (processedOptions.length > 0 && value !== undefined && !processedOptions.some(o => o.value === value)) {
-            value = processedOptions[processedOptions.length - 1].value;
-            handleChange();
+        const currentValue = valueProxy.value;
+        if (processedOptions.length > 0 && currentValue !== undefined && !processedOptions.some(o => o.value === currentValue)) {
+            valueProxy.value = processedOptions[processedOptions.length - 1].value;
         }
     });
 </script>

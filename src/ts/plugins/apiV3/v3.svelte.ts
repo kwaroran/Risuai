@@ -686,7 +686,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
         // --- Text Theme APIs ---
         changeTextTheme: (name: string) => {
-            if (!['standard','highcontrast','custom'].includes(name)) {
+            if (!['standard','highcontrast'].includes(name)) {
                 throw new Error(`Invalid text theme: ${name}`)
             }
             const db = DBState.db

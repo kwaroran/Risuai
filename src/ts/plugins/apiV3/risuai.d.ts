@@ -1378,7 +1378,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Change to a preset text theme.
-     * @param name - 'standard' | 'highcontrast' | 'custom'
+     * @param name - 'standard' | 'highcontrast'
      */
     changeTextTheme(name: string): Promise<void>;
 

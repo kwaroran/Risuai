@@ -3,7 +3,8 @@
  *
  * This file provides TypeScript type definitions for the Risuai Plugin API v3.0.
  * All API methods are accessed through the global `risuai` object.
- *
+ * All API methods that isn't documented here are considered internal or subject to change without deprecation, and should not be used by plugin developers.
+ * 
  * @important **ALL METHODS RETURN PROMISES**
  *
  * Due to the iframe-based sandboxing architecture, ALL method calls go through

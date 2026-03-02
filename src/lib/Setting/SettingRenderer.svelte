@@ -148,7 +148,7 @@
                 min={item.options?.min}
                 max={item.options?.max}
                 bind:value={(DBState.db as any)[item.bindKey]}
-                onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
+                onChange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'textarea'}
             <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}

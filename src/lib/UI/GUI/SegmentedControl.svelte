@@ -10,6 +10,7 @@
         options: SegmentOption[];
         size?: 'sm' | 'md' | 'lg';
         className?: string;
+        onchange?: () => void;
     }
 
     let {
@@ -17,6 +18,7 @@
         options = [],
         size = 'md',
         className = '',
+        onchange = () => {},
     }: Props = $props();
 
     let containerRef: HTMLDivElement | undefined = $state();
@@ -59,6 +61,7 @@
 
     function handleSelect(opt: SegmentOption) {
         value = opt.value;
+        onchange();
     }
 </script>
 

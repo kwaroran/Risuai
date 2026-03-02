@@ -522,7 +522,7 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 
 export const customV3ProviderMetaStore:LLMModel[] = []
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider', requireReconfirm: boolean = false) => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider', reconfirm: boolean|'periodically' = false) => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
@@ -531,7 +531,21 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     }
 
     let pluginHash = ''
-    if(!requireReconfirm){
+
+    let requiresReconfirm = false;
+
+    if(reconfirm === 'periodically'){
+        const lastGrantTime:number = await permissionForage.getItem(pluginName + '_' + permissionDesc + '_lastGrantTime');
+        const now = Date.now();
+        if(!lastGrantTime || now - lastGrantTime > 7 * 24 * 60 * 60 * 1000){ //7 days
+            requiresReconfirm = true;
+        }
+    }
+    else if(reconfirm === true){
+        requiresReconfirm = true;
+    }
+
+    if(requiresReconfirm){
         pluginHash = await hasher(
             new TextEncoder().encode(
                 DBState.db.plugins.find(p => p.name === pluginName)?.script
@@ -558,6 +572,9 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     if(conf && pluginHash){
         permissionGivenPlugins.add(pluginName);
         await permissionForage.setItem(pluginHash, true);
+        if(reconfirm === 'periodically'){
+            await permissionForage.setItem(pluginName + '_' + permissionDesc + '_lastGrantTime', Date.now());
+        }
         return true;
     }
     permissionDeniedPlugins.add(pluginName);

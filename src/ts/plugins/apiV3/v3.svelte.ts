@@ -277,6 +277,7 @@ class SafeElement {
                     type: event.type,
                     key: event.key,
                     code: event.code,
+                    repeat: event.repeat,
                     altKey: event.altKey,
                     ctrlKey: event.ctrlKey,
                     shiftKey: event.shiftKey,

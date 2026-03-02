@@ -181,7 +181,7 @@
             </span>
             <SelectInput bind:value={(DBState.db as any)[item.bindKey]} onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}>
                 {#each (item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)) as opt}
-                    <OptionInput value={opt.value}>{opt.label}</OptionInput>
+                    <OptionInput value={opt.value}>{opt.labelKey ? language[opt.labelKey as any] : opt.label}</OptionInput>
                 {/each}
             </SelectInput>
         {:else if item.type === 'segmented'}

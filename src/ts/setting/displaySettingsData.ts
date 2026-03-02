@@ -11,7 +11,6 @@ import { updateGuisize, guiSizeText } from '../gui/guisize';
 import { updateAnimationSpeed } from '../gui/animation';
 import { CustomGUISettingMenuStore } from '../stores.svelte';
 import { changeFullscreen } from '../util';
-import { language } from "src/lang";
 
 // ==========================================
 // 1. THEME TAB
@@ -110,8 +109,8 @@ export const displayThemeItems: SettingItem[] = [
         onChange: () => updateTextThemeAndCSS(),
         options: {
             selectOptions: [
-                { value: 'standard', label: language.classicRisu },
-                { value: 'highcontrast', label: language.highcontrast },
+                { value: 'standard', labelKey: 'classicRisu' },
+                { value: 'highcontrast', labelKey: 'highcontrast' },
                 { value: 'custom', label: 'Custom' }
             ]
         },
@@ -252,12 +251,12 @@ export const displayOthersItems: SettingItem[] = [
     { id: 'disp.roundIcons', type: 'check', labelKey: 'roundIcons', bindKey: 'roundIcons' },
     
     // Toggleable Colors
-    { id: 'disp.textScreenColor', type: 'custom', componentId: 'ToggleableColorSettings', componentProps: { bindKey: 'textScreenColor', label: language.textBackgrounds } },
+    { id: 'disp.textScreenColor', type: 'custom', componentId: 'ToggleableColorSettings', componentProps: { bindKey: 'textScreenColor', labelKey: 'textBackgrounds' } },
     { id: 'disp.textBorder', type: 'check', labelKey: 'textBorder', bindKey: 'textBorder' },
     { id: 'disp.textScreenRound', type: 'check', labelKey: 'textScreenRound', bindKey: 'textScreenRounded' },
     { id: 'disp.showSavingIcon', type: 'check', labelKey: 'showSavingIcon', bindKey: 'showSavingIcon' },
     { id: 'disp.showPromptComparison', type: 'check', labelKey: 'showPromptComparison', bindKey: 'showPromptComparison' },
-    { id: 'disp.textScreenBorder', type: 'custom', componentId: 'ToggleableColorSettings', componentProps: { bindKey: 'textScreenBorder', label: language.textScreenBorder } },
+    { id: 'disp.textScreenBorder', type: 'custom', componentId: 'ToggleableColorSettings', componentProps: { bindKey: 'textScreenBorder', labelKey: 'textScreenBorder' } },
 
     { id: 'disp.useChatCopy', type: 'check', labelKey: 'useChatCopy', bindKey: 'useChatCopy' },
     { id: 'disp.useAdditionalAssetsPreview', type: 'check', labelKey: 'useAdditionalAssetsPreview', bindKey: 'useAdditionalAssetsPreview' },

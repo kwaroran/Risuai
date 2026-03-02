@@ -121,7 +121,7 @@
             {/if}
         {:else if item.type === 'check'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">
-                <Check bind:check={(DBState.db as any)[item.bindKey]} name={getLabel(item)}>
+                <Check bind:check={(DBState.db as any)[item.bindKey]} name={getLabel(item)} onChange={(e) => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}>
                     {#if item.showExperimental}<Help key="experimental"/>{/if}
                     {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
                 </Check>
@@ -136,6 +136,7 @@
                 bind:value={(DBState.db as any)[item.bindKey]}
                 placeholder={item.options?.placeholder}
                 hideText={item.options?.hideText}
+                onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'number'}
             <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
@@ -147,6 +148,7 @@
                 min={item.options?.min}
                 max={item.options?.max}
                 bind:value={(DBState.db as any)[item.bindKey]}
+                onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'textarea'}
             <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
@@ -155,6 +157,7 @@
             <TextAreaInput
                 bind:value={(DBState.db as any)[item.bindKey]}
                 placeholder={item.options?.placeholder}
+                onInput={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'slider'}
             <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
@@ -168,14 +171,15 @@
                 fixed={item.options?.fixed}
                 multiple={item.options?.multiple}
                 disableable={item.options?.disableable}
-                customText={item.options?.customText}
+                customText={item.options?.customTextFn ? item.options.customTextFn((DBState.db as any)[item.bindKey], ctx) : item.options?.customText}
                 bind:value={(DBState.db as any)[item.bindKey]}
+                onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'select'}
             <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
                 {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
             </span>
-            <SelectInput bind:value={(DBState.db as any)[item.bindKey]}>
+            <SelectInput bind:value={(DBState.db as any)[item.bindKey]} onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}>
                 {#each (item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)) as opt}
                     <OptionInput value={opt.value}>{opt.label}</OptionInput>
                 {/each}
@@ -187,10 +191,11 @@
             <SegmentedControl
                 bind:value={(DBState.db as any)[item.bindKey]}
                 options={(item.options?.segmentOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx))}
+                onchange={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)}
             />
         {:else if item.type === 'color'}
             <div class="flex items-center {item.classes ?? 'mt-2'}">
-                <ColorInput bind:value={(DBState.db as any)[item.bindKey]} />
+                <ColorInput bind:value={(DBState.db as any)[item.bindKey]} oninput={() => item.onChange?.((DBState.db as any)[item.bindKey], ctx)} />
                 <span class="ml-2">{getLabel(item)}</span>
             </div>
         {:else if item.type === 'button'}

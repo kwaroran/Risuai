@@ -66,6 +66,7 @@ export interface SettingOptions {
     fixed?: number;         // Decimal places for slider
     disableable?: boolean;  // Allow -1 to disable
     customText?: string;    // Custom display text for slider
+    customTextFn?: (value: number, ctx: SettingContext) => string; // Dynamic custom display text for slider
     multiple?: number;      // Multiplier for display value
     
     // select
@@ -143,6 +144,13 @@ export interface SettingItem {
     /** Custom CSS classes for the main container or label */
     classes?: string;
         
+    /**
+     * Optional callback fired when the value changes.
+     * Useful for settings that require immediate side-effects (e.g., updating CSS variables).
+     * @param value The new value
+     * @param ctx Current setting context
+     */
+    onChange?: (value: any, ctx: SettingContext) => void | Promise<void>;
     /**
      * Component ID for custom components (type: 'custom')
      * Must be a key in customComponents registry

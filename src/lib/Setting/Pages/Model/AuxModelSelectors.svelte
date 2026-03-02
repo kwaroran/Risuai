@@ -12,17 +12,17 @@
 {#if DBState.db.seperateModelsForAxModels}
   <Check bind:check={DBState.db.doNotChangeSeperateModels} name={language.doNotChangeSeperateModels}></Check>
   <Accordion name={language.axModelsDef} styled>
-    <span class="text-textcolor mt-4"> Memory </span>
+    <span class="text-textcolor mt-4">  Memory (하이파) </span>
     <ModelList bind:value={DBState.db.seperateModels.memory} blankable />
 
-    <span class="text-textcolor mt-4"> Translations </span>
+    <span class="text-textcolor mt-4">  Translations (번역) </span>
     <ModelList bind:value={DBState.db.seperateModels.translate} blankable />
 
-    <span class="text-textcolor mt-4"> Emotion </span>
+    <span class="text-textcolor mt-4">  Emotion (감정) </span>
 
     <ModelList bind:value={DBState.db.seperateModels.emotion} blankable />
 
-    <span class="text-textcolor mt-4"> OtherAx </span>
+    <span class="text-textcolor mt-4">  OtherAx (트리거) </span>
 
     <ModelList bind:value={DBState.db.seperateModels.otherAx} blankable />
   </Accordion>

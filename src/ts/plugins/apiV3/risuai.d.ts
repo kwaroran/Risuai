@@ -1689,6 +1689,23 @@ interface RisuaiPluginAPI {
      * @returns The cached translation or null if not found
      */
     getTranslationCache(key: string): Promise<string | null>;
+
+    /**
+     * Registers a listener for a named plugin channel (IPC between plugins).
+     * @param channelName - The channel name to listen on (scoped to this plugin)
+     * @param callback - Function to call when a message is received on this channel
+     * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
+     */
+    addPluginChannelListener(channelName: string, callback: Function): Promise<void>;
+
+    /**
+     * Sends a message to another plugin's named channel (IPC between plugins).
+     * @param pluginName - The internal name of the target plugin
+     * @param channelName - The channel name to post to
+     * @param message - The message payload to send
+     * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
+     */
+    postPluginChannelMessage(pluginName: string, channelName: string, message: any): Promise<void>;
 }
 
 // ============================================================================

@@ -788,7 +788,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             name:string,
             callback: any,
             icon:string = '',
-            iconType:'html'|'img'|'none' = 'none'
+            iconType:'html'|'img'|'none' = 'none',
+            id?:string
         ) => {
             if(iconType !== 'html' && iconType !== 'img' && iconType !== 'none'){
                 throw new Error("iconType must be 'html', 'img' or 'none'");
@@ -796,19 +797,29 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(typeof name !== 'string' || name.trim() === ''){
                 throw new Error("name must be a non-empty string");
             }
-            const id = v4()
-            additionalSettingsMenu.push({
-                id,
+            const menuId = id || v4()
+            const menuDef:MenuDef = {
+                id: menuId,
                 name,
                 icon,
                 iconType,
                 callback
-            })
+            }
+            const existingIndex = additionalSettingsMenu.findIndex(item => item.id === menuId)
+            if(existingIndex !== -1){
+                additionalSettingsMenu[existingIndex] = menuDef
+                addPluginUnloadCallback(
+                    plugin.name,
+                    makeMenuUnloadCallback(menuId, additionalSettingsMenu)
+                )
+                return {id: menuId}
+            }
+            additionalSettingsMenu.push(menuDef)
             addPluginUnloadCallback(
                 plugin.name,
-                makeMenuUnloadCallback(id, additionalSettingsMenu)
+                makeMenuUnloadCallback(menuId, additionalSettingsMenu)
             )
-            return {id:id};
+            return {id: menuId};
         },
         registerBodyIntercepter: async (callback: (body: any, type: string) => any) => {
 
@@ -842,13 +853,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 name: string,
                 icon: string,
                 iconType: 'html'|'img'|'none',
-                location?: 'action'|'chat'|'hamburger'
+                location?: 'action'|'chat'|'hamburger',
+                id?: string
             },
             callback: () => void
         ) => {
-            let { name, icon, iconType, location } = arg;
+            let { name, icon, iconType, location, id: providedId } = arg;
             location = location || 'action';
-            //Reserved for future use
             if(iconType !== 'html' && iconType !== 'img' && iconType !== 'none'){
                 throw new Error("iconType must be 'html', 'img' or 'none'");
             }
@@ -858,13 +869,26 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(typeof icon !== 'string'){
                 throw new Error("icon must be a string");
             }
-            const id = v4()
+            const id = providedId || v4()
             const menuDef:MenuDef = {
                 name,
                 icon,
                 iconType,
                 callback,
                 id
+            }
+
+            const buttonStores = [additionalFloatingActionButtons, additionalHamburgerMenu, additionalChatMenu]
+            for(const store of buttonStores){
+                const existingIndex = store.findIndex(item => item.id === id)
+                if(existingIndex !== -1){
+                    store[existingIndex] = menuDef
+                    addPluginUnloadCallback(
+                        plugin.name,
+                        makeMenuUnloadCallback(id, store)
+                    )
+                    return {id}
+                }
             }
 
             switch(location){
@@ -896,7 +920,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     throw new Error("Invalid location for button")
                 }
             }
-            return {id:id};
+            return {id};
         },
         registerMCP: registerMCPModule,
         unregisterMCP: unregisterMCPModule,

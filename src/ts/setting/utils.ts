@@ -2,6 +2,13 @@ import type { SettingItem, SettingContext } from './types';
 import { DBState } from '../stores.svelte';
 import { language } from 'src/lang';
 
+/**
+ * Sentinel value representing an uninitialized local state in wrapper components.
+ * Used instead of `undefined` so that a legitimate `undefined` DB value
+ * can still be written back without being silently ignored.
+ */
+export const UNINITIALIZED = Symbol('uninitialized');
+
 export function getLabel(item: SettingItem): string {
     if (item.labelKey && (language as any)[item.labelKey]) {
         return (language as any)[item.labelKey];

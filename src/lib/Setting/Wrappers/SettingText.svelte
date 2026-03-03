@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
-    import { getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
+    import { UNINITIALIZED, getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
     import { untrack } from 'svelte';
     import TextInput from 'src/lib/UI/GUI/TextInput.svelte';
     import Help from 'src/lib/Others/Help.svelte';
@@ -12,7 +12,7 @@
 
     let { item, ctx }: Props = $props();
 
-    let localValue: any = $state(undefined);
+    let localValue: any = $state(untrack(() => getSettingValue(item, ctx)));
 
     // Sync: DB → local (one-way read)
     $effect(() => {
@@ -22,7 +22,7 @@
     // Write-back: local → DB (guarded)
     $effect(() => {
         const val = localValue;
-        if (val === undefined) return;
+        if (val === UNINITIALIZED) return;
         untrack(() => {
             if (val !== getSettingValue(item, ctx)) {
                 setSettingValue(item, val, ctx);

@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
     import { getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
+    import { untrack } from 'svelte';
     import ColorInput from 'src/lib/UI/GUI/ColorInput.svelte';
 
     interface Props {
@@ -10,21 +11,21 @@
 
     let { item, ctx }: Props = $props();
 
-    let valueProxy = {
-        get value() {
-            return getSettingValue(item, ctx);
-        },
-        set value(v) {
-            setSettingValue(item, v, ctx);
-        }
-    };
+    let localValue: any = $state(undefined);
 
-    
+    // Sync: DB → local
+    $effect(() => {
+        localValue = getSettingValue(item, ctx);
+    });
 
-    
+    // Sync: local → DB
+    $effect(() => {
+        const val = localValue;
+        untrack(() => setSettingValue(item, val, ctx));
+    });
 </script>
 
 <div class="flex items-center {item.classes ?? 'mt-2'}">
-    <ColorInput bind:value={valueProxy.value}  />
+    <ColorInput bind:value={localValue} />
     <span class="ml-2">{getLabel(item)}</span>
 </div>

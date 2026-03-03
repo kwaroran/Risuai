@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
     import { getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
+    import { untrack } from 'svelte';
     import NumberInput from 'src/lib/UI/GUI/NumberInput.svelte';
     import Help from 'src/lib/Others/Help.svelte';
 
@@ -11,18 +12,18 @@
 
     let { item, ctx }: Props = $props();
 
-    let valueProxy = {
-        get value() {
-            return getSettingValue(item, ctx);
-        },
-        set value(v) {
-            setSettingValue(item, v, ctx);
-        }
-    };
+    let localValue: any = $state(undefined);
 
-    
+    // Sync: DB → local
+    $effect(() => {
+        localValue = getSettingValue(item, ctx);
+    });
 
-    
+    // Sync: local → DB
+    $effect(() => {
+        const val = localValue;
+        untrack(() => setSettingValue(item, val, ctx));
+    });
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
@@ -34,6 +35,5 @@
     size="sm"
     min={item.options?.min}
     max={item.options?.max}
-    bind:value={valueProxy.value}
-    
+    bind:value={localValue}
 />

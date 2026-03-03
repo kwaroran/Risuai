@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
     import { getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
+    import { untrack } from 'svelte';
     import SelectInput from 'src/lib/UI/GUI/SelectInput.svelte';
     import OptionInput from 'src/lib/UI/GUI/OptionInput.svelte';
     import Help from 'src/lib/Others/Help.svelte';
@@ -13,27 +14,27 @@
 
     let { item, ctx }: Props = $props();
 
-    let valueProxy = {
-        get value() {
-            return getSettingValue(item, ctx);
-        },
-        set value(v) {
-            setSettingValue(item, v, ctx);
-        }
-    };
+    let localValue: any = $state(undefined);
 
-    
+    // Sync: DB → local
+    $effect(() => {
+        localValue = getSettingValue(item, ctx);
+    });
 
-    
+    // Sync: local → DB
+    $effect(() => {
+        const val = localValue;
+        untrack(() => setSettingValue(item, val, ctx));
+    });
 
     // Process options to support labelKey translation and conditional rendering
     let processedOptions = $derived((item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)));
 
     // Reset value if current selection becomes hidden
     $effect(() => {
-        const currentValue = valueProxy.value;
+        const currentValue = untrack(() => localValue);
         if (processedOptions.length > 0 && currentValue !== undefined && !processedOptions.some(o => o.value === currentValue)) {
-            valueProxy.value = processedOptions[processedOptions.length - 1].value;
+            localValue = processedOptions[processedOptions.length - 1].value;
         }
     });
 </script>
@@ -42,10 +43,10 @@
     {getLabel(item)}
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
-<SelectInput bind:value={valueProxy.value} >
+<SelectInput bind:value={localValue}>
     {#each processedOptions as opt}
         <OptionInput value={opt.value}>
-            {('labelKey' in opt && opt.labelKey) ? (language as any)[opt.labelKey] : opt.label}
+            {opt.labelKey ? (language as any)[opt.labelKey] : opt.label}
         </OptionInput>
     {/each}
 </SelectInput>

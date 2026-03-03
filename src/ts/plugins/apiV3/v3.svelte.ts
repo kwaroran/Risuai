@@ -655,18 +655,59 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         readImage: oldApis.readImage,
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
-        getDatabase: async (includeOnly:string[]|'all' = 'all') => {
+        getDatabase: async (includeOnly:string[]|'all' = 'all', options?:{exclude?: Record<string, string[]>, include?: Record<string, string[]>}) => {
             const conf = await getPluginPermission(plugin.name, 'db', 'periodically');
             if(!conf){
                 return null;
             }
             const db = DBState.db
-            let liteDB = {}
+            let liteDB:any = {}
             for(const key of allowedDbKeys){
                 if(includeOnly !== 'all' && !includeOnly.includes(key)){
                     continue;
                 }
-                (liteDB as any)[key] = $state.snapshot((db as any)[key]);
+                const includeFields = options?.include?.[key];
+                const excludeFields = options?.exclude?.[key];
+                const hasInclude = includeFields && includeFields.length > 0;
+                const hasExclude = excludeFields && excludeFields.length > 0;
+                const value = (db as any)[key];
+                if((hasInclude || hasExclude) && value && typeof value === 'object'){
+                    let filtered:any;
+                    if(Array.isArray(value)){
+                        filtered = value.map((item:any) => {
+                            if(!item || typeof item !== 'object') return $state.snapshot(item);
+                            const obj:any = {};
+                            if(hasInclude){
+                                for(const k of includeFields){
+                                    if(k in item) obj[k] = $state.snapshot(item[k]);
+                                }
+                            } else {
+                                for(const k of Object.keys(item)){
+                                    if(!excludeFields.includes(k)){
+                                        obj[k] = $state.snapshot(item[k]);
+                                    }
+                                }
+                            }
+                            return obj;
+                        });
+                    } else {
+                        filtered = {};
+                        if(hasInclude){
+                            for(const k of includeFields){
+                                if(k in value) filtered[k] = $state.snapshot(value[k]);
+                            }
+                        } else {
+                            for(const k of Object.keys(value)){
+                                if(!excludeFields.includes(k)){
+                                    filtered[k] = $state.snapshot(value[k]);
+                                }
+                            }
+                        }
+                    }
+                    liteDB[key] = filtered;
+                } else {
+                    liteDB[key] = $state.snapshot((db as any)[key]);
+                }
             }
             return liteDB;
         },

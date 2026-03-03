@@ -276,6 +276,28 @@ interface Persona {
 }
 
 /**
+ * Options for getDatabase
+ */
+interface GetDatabaseOptions {
+    /** Include only specific nested fields from array/object values.
+     * Keys are top-level DB keys, values are arrays of field names to include.
+     * If both include and exclude are specified for the same key, include takes priority.
+     */
+    include?: Record<string, string[]>;
+    /** Exclude specific nested fields from array/object values to avoid costly deep copies.
+     * Keys are top-level DB keys, values are arrays of field names to exclude.
+     */
+    exclude?: Record<string, string[]>;
+}
+
+interface SetDatabaseOptions {
+    /** Only write back these top-level keys. Other keys in the object are ignored. */
+    include?: string[];
+    /** Skip writing back these top-level keys. */
+    exclude?: string[];
+}
+
+/**
  * Database subset with limited access to allowed keys only.
  * Plugins can only access these specific database properties for security.
  */
@@ -1290,6 +1312,7 @@ interface RisuaiPluginAPI {
     /**
      * Gets the database with limited access
      * @param includeOnly - Array of keys to include or 'all' for all allowed keys. defaults to 'all'.
+     * @param options - Options for filtering nested fields
      * @returns DatabaseSubset object (limited to allowed keys) or null if consent not given
      *
      * Allowed keys: characters, modules, enabledModules, moduleIntergration,
@@ -1299,28 +1322,54 @@ interface RisuaiPluginAPI {
      * customCSS, guiHTML, colorSchemeName, characterOrder, selectedPersona
      *
      * Use includeOnly to limit which keys to retrieve for better performance.
-     * 
+     * Use options.exclude to skip heavy nested fields (e.g. chats, lorebook) from being deep-copied.
+     *
      * @example
      * ```typescript
+     * // Basic usage
      * const db = await risuai.getDatabase();
      * if(db) {
      *   console.log(db.characters);
      * }
+     *
+     * // Include only specific nested fields
+     * const db = await risuai.getDatabase(['characters'], {
+     *   include: { characters: ['chaId', 'name', 'chatPage', 'modules'] }
+     * });
+     *
+     * // Exclude heavy nested fields
+     * const db = await risuai.getDatabase(['characters', 'modules'], {
+     *   exclude: {
+     *     characters: ['chats', 'globalLore', 'emotionImages'],
+     *     modules: ['lorebook', 'cjs', 'regex', 'trigger', 'assets']
+     *   }
+     * });
      * ```
      */
-    getDatabase(includeOnly:string[]|'all' = 'all'): Promise<DatabaseSubset|null>;
+    getDatabase(includeOnly?:string[]|'all', options?: GetDatabaseOptions): Promise<DatabaseSubset|null>;
 
     /**
      * Sets the database (lightweight save)
      * @param db - DatabaseSubset object to save
+     * @param options - Options to control which top-level keys to write back
+     *
+     * @example
+     * ```typescript
+     * // Write back only specific keys (use when db contains filtered data)
+     * await risuai.setDatabaseLite(db, { include: ['enabledModules'] });
+     *
+     * // Write back everything except specific keys
+     * await risuai.setDatabaseLite(db, { exclude: ['characters', 'modules'] });
+     * ```
      */
-    setDatabaseLite(db: DatabaseSubset): Promise<void>;
+    setDatabaseLite(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
 
     /**
      * Sets the database (full save with sync)
      * @param db - DatabaseSubset object to save
+     * @param options - Options to control which top-level keys to write back
      */
-    setDatabase(db: DatabaseSubset): Promise<void>;
+    setDatabase(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
 
     // ========== Network APIs ==========
 

@@ -728,10 +728,12 @@ export const getV2PluginAPIs = () => {
                 return Object.keys(db.pluginCustomStorage).length;
             }
         },
-        setDatabaseLite: (newDb: any) => {
+        setDatabaseLite: (newDb: any, options?: {include?: string[], exclude?: string[]}) => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
             for (const key of Object.keys(newDb)) {
+                if (options?.include && !options.include.includes(key)) continue;
+                if (options?.exclude?.includes(key)) continue;
                 if (allowedDbKeys.includes(key)) {
                     (db as any)[key] = newDb[key];
                 }
@@ -741,14 +743,16 @@ export const getV2PluginAPIs = () => {
             }
             DBState.db = db;
         },
-        setDatabase: async (newDb: any) => {
+        setDatabase: async (newDb: any, options?: {include?: string[], exclude?: string[]}) => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
             for (const key of Object.keys(newDb)) {
+                if (options?.include && !options.include.includes(key)) continue;
+                if (options?.exclude?.includes(key)) continue;
                 if (key === 'plugins') {
                     newDb[key] = await handlePluginInstallViaPlugin(newDb.plugins)
                 }
-                
+
                 if (allowedDbKeys.includes(key)) {
                     (db as any)[key] = newDb[key];
                 }

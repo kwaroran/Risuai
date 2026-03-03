@@ -610,7 +610,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         getChar: oldApis.getChar,
         setChar: oldApis.setChar,
-        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV3ProviderOptions) => {
+        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string | ReadableStream<string> }>, options?: PluginV3ProviderOptions) => {
             console.warn(`addProvider is a powerful API that can potentially be unsafe if used incorrectly. addProvider's functionality might be limited or changed in future updates to ensure security. please use other APIs if possible.`);
             let provs = get(customProviderStore)
             provs.push(name)

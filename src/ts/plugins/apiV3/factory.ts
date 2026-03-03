@@ -111,6 +111,49 @@ await (async function() {
         return transferables;
     }
 
+    function replaceStreamsWithPorts(obj) {
+        const ports = [];
+        if (!obj || typeof obj !== 'object') return { result: obj, ports };
+
+        function replace(val) {
+            if (!(val instanceof ReadableStream)) return val;
+
+            const ch = new MessageChannel();
+            ports.push(ch.port2);
+
+            const reader = val.getReader();
+            ch.port1.onmessage = (e) => {
+                if (e.data?.cancel) reader.cancel();
+            };
+
+            (async () => {
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) ch.port1.postMessage({ done: true });
+                        else ch.port1.postMessage({ done: false, value });
+                    }
+                } catch (e) {
+                    try { ch.port1.postMessage({ done: true, error: e.message }); } catch(_) {}
+                } finally {
+                    ch.port1.onmessage = null;
+                    ch.port1.close();
+                }
+            })();
+
+            return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
+        }
+
+        if (obj instanceof ReadableStream) return { result: replace(obj), ports };
+        if (obj.constructor === Object) {
+            const out = {};
+            for (const k of Object.keys(obj)) out[k] = replace(obj[k]);
+            return { result: out, ports };
+        }
+
+        return { result: obj, ports };
+    }
+
     function send(payload, transferables = []) {
         window.parent.postMessage(payload, '*', transferables);
     }
@@ -193,7 +236,10 @@ await (async function() {
             for (const id of usedAbortIds) {
                 abortControllers.delete(id);
             }
+            const { result: streamResult, ports: streamPorts } = replaceStreamsWithPorts(response.result);
+            response.result = streamResult;
             const transferables = collectTransferables(response);
+            transferables.push(...streamPorts);
             send(response, transferables);
         }
     });
@@ -432,6 +478,46 @@ export class SandboxHost {
         });
     }
 
+    private reconstructStreamsFromPorts(obj: any, ports: readonly MessagePort[]): any {
+        if (!obj || typeof obj !== 'object') return obj;
+
+        const reconstruct = (val: any): any => {
+            if (val?.__type !== 'STREAM_PORT' || typeof val.portIndex !== 'number') return val;
+
+            const port = ports[val.portIndex];
+            if (!port) throw new Error(`Stream port at index ${val.portIndex} not received`);
+
+            return new ReadableStream({
+                start(controller) {
+                    port.onmessage = (e: MessageEvent) => {
+                        if (e.data.done) {
+                            if (e.data.error) controller.error(new Error(e.data.error));
+                            else controller.close();
+                            port.onmessage = null;
+                            port.close();
+                        } else {
+                            controller.enqueue(e.data.value);
+                        }
+                    };
+                },
+                cancel() {
+                    port.postMessage({ cancel: true });
+                    port.onmessage = null;
+                    port.close();
+                }
+            });
+        };
+
+        if (obj.__type === 'STREAM_PORT') return reconstruct(obj);
+        if (obj.constructor === Object) {
+            const out: any = {};
+            for (const k of Object.keys(obj)) out[k] = reconstruct(obj[k]);
+            return out;
+        }
+
+        return obj;
+    }
+
     public run(container: HTMLElement|HTMLIFrameElement, userCode: string) {
         if(container instanceof HTMLIFrameElement) {
             this.iframe = container;
@@ -462,7 +548,13 @@ export class SandboxHost {
                 const req = this.pendingCallbacks.get(data.reqId!);
                 if (req) {
                     if (data.error) req.reject(new Error(data.error));
-                    else req.resolve(data.result);
+                    else {
+                        try {
+                            req.resolve(this.reconstructStreamsFromPorts(data.result, event.ports));
+                        } catch (e) {
+                            req.reject(e);
+                        }
+                    }
                     this.pendingCallbacks.delete(data.reqId!);
                 }
                 return;

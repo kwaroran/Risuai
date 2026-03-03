@@ -41,7 +41,7 @@ export function setSettingValue(item: SettingItem, newValue: any, ctx: SettingCo
         const parts = item.bindPath.split('.');
         let obj: any = DBState.db;
         for (let i = 0; i < parts.length - 1; i++) {
-            obj = obj[parts[i]];
+            obj = obj[parts[i]] ??= {};
         }
         obj[parts[parts.length - 1]] = newValue;
     } else if (item.bindKey) {

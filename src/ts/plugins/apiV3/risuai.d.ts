@@ -861,6 +861,11 @@ interface SafeMutationObserver {
      * @returns Promise that resolves when observer is set up
      */
     observe(element: SafeElement, options: MutationObserverInit): Promise<void>;
+
+    /**
+     * Stops observing all target elements for changes
+     */
+    disconnect(): Promise<void>;
 }
 
 // ============================================================================

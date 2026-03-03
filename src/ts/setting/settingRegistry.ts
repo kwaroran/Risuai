@@ -1,3 +1,5 @@
+import type { SettingType, SettingItem, SettingContext } from './types';
+import type { Component } from 'svelte';
 import SettingCheck from 'src/lib/Setting/Wrappers/SettingCheck.svelte';
 import SettingText from 'src/lib/Setting/Wrappers/SettingText.svelte';
 import SettingNumber from 'src/lib/Setting/Wrappers/SettingNumber.svelte';
@@ -11,7 +13,9 @@ import SettingButton from 'src/lib/Setting/Wrappers/SettingButton.svelte';
 import SettingAccordion from 'src/lib/Setting/Wrappers/SettingAccordion.svelte';
 import SettingCustom from 'src/lib/Setting/Wrappers/SettingCustom.svelte';
 
-export const settingRegistry: Record<string, any> = {
+type WrapperComponent = Component<{ item: SettingItem; ctx: SettingContext }>;
+
+export const settingRegistry: Record<SettingType, WrapperComponent> = {
     'check': SettingCheck,
     'text': SettingText,
     'number': SettingNumber,
@@ -25,3 +29,4 @@ export const settingRegistry: Record<string, any> = {
     'accordion': SettingAccordion,
     'custom': SettingCustom,
 };
+

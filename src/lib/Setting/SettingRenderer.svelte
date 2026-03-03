@@ -4,6 +4,7 @@
     import { DBState } from 'src/ts/stores.svelte';
     import { getModelInfo } from 'src/ts/model/modellist';
     import { settingRegistry } from 'src/ts/setting/settingRegistry';
+    import { checkCondition } from 'src/ts/setting/utils';
 
     interface Props {
         items: SettingItem[];
@@ -25,18 +26,10 @@
         modelInfo: effectiveModelInfo,
         subModelInfo: effectiveSubModelInfo,
     });
-
-    /**
-     * Check if item should be visible based on condition
-     */
-    function checkCondition(item: SettingItem): boolean {
-        if (!item.condition) return true;
-        return item.condition(ctx);
-    }
 </script>
 
 {#each items as item (item.id)}
-    {#if checkCondition(item)}
+    {#if checkCondition(item, ctx)}
         {@const Component = settingRegistry[item.type]}
         {#if Component}
             <Component {item} {ctx} />

@@ -45,3 +45,11 @@ export function setSettingValue(item: SettingItem, newValue: any, ctx: SettingCo
         item.onChange(newValue, ctx);
     }
 }
+
+/**
+ * Check if item should be visible based on condition
+ */
+export function checkCondition(item: SettingItem, ctx: SettingContext): boolean {
+    if (!item.condition) return true;
+    return item.condition(ctx);
+}

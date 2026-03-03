@@ -787,7 +787,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 addFetchLog({
                                     body: batchRequestBody,
                                     headers: headers,
-                                    response: batchData?.result?.message ?? batchData,
+                                    response: batchData,
                                     success: true,
                                     url: batchRequestUrl,
                                     chatId: arg.chatId,
@@ -806,7 +806,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 addFetchLog({
                                     body: batchRequestBody,
                                     headers: headers,
-                                    response: batchData?.result?.error ?? batchData,
+                                    response: batchData,
                                     success: false,
                                     url: batchRequestUrl,
                                     chatId: arg.chatId,

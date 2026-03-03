@@ -15,15 +15,20 @@
 
     let localValue: any = $state(undefined);
 
-    // Sync: DB → local
+    // Sync: DB → local (one-way read)
     $effect(() => {
         localValue = getSettingValue(item, ctx);
     });
 
-    // Sync: local → DB
+    // Write-back: local → DB (guarded — only fires on actual user changes)
     $effect(() => {
         const val = localValue;
-        untrack(() => setSettingValue(item, val, ctx));
+        if (val === undefined) return;
+        untrack(() => {
+            if (val !== getSettingValue(item, ctx)) {
+                setSettingValue(item, val, ctx);
+            }
+        });
     });
 
     // Transform options for translation

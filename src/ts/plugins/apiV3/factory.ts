@@ -526,7 +526,7 @@ export class SandboxHost {
       <html>
       <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="${this.csp}">
+        <meta http-equiv="Content-Security-Policy" content="${this.csp}" id="csp-meta">
       </head>
       <body>
         <style>
@@ -535,6 +535,7 @@ export class SandboxHost {
             }
         </style>
         <script nonce="${this.nonce}">
+            document.querySelector('meta#csp-meta')?.remove();
             (async () => {
                 ${GUEST_BRIDGE_SCRIPT}
                     

@@ -1,9 +1,9 @@
 import { fetchNative, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat, type LLMModel } from "src/ts/model/modellist"
 import { getDatabase, setDatabase } from "src/ts/storage/database.svelte"
 import { base64url, simplifySchema } from "src/ts/util"
 import { v4 } from "uuid"
-import { setInlayAsset, writeInlayImage } from "../files/inlays"
+import { saveInlayedSignature, setInlayAsset, writeInlayImage, type InlaySignature } from "../files/inlays"
 import { extractJSON, getGeneralJSONSchema } from "../templates/jsonSchema"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
@@ -87,6 +87,16 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                             data: base64,
                         }
                     });
+                }
+
+                if(modal.type === 'signature' && db.saveSignatures){
+                    const sig:InlaySignature = JSON.parse(Buffer.from(modal.base64, 'base64').toString('utf-8'))
+                    if(sig.source === arg.modelInfo.internalID || sig.source === arg.modelInfo.id){
+                        geminiParts.push({
+                            thought: true,
+                            thoughtSignature: sig.signatures[0].content
+                        })
+                    }
                 }
             }
     
@@ -655,7 +665,10 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
             }
         }
 
-        const transtream = getTranStream() 
+        const transtream = getTranStream({
+            modelInfo: arg.modelInfo,
+            saveSignature: arg.saveSignatures ?? false
+        }) 
 
         f.body.pipeTo(transtream.writable)
 
@@ -703,6 +716,19 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                     })
                 }
 
+                if(part.thoughtSignature && arg.saveSignatures){
+                    const sigId = v4()
+                    await saveInlayedSignature(sigId, {
+                        source: arg.modelInfo.internalID || arg.modelInfo.id,
+                        sourceFormat: arg.modelInfo.format,
+                        signatures: [{
+                            type: 'text',
+                            content: part.text,
+                        }]
+                    })
+                    rDatas[rDatas.length - 1].text = `{{inlayeddata::${sigId}}}\n\n` + rDatas[rDatas.length - 1].text
+                }
+
                 if(part.inlineData){
                     const imgHTML = new Image()
                     const id = crypto.randomUUID()
@@ -729,6 +755,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                         })
                     }
                 }
+
             }   
         }
 
@@ -940,9 +967,12 @@ function initStreamState(state?: {[key:string]:string}): {[key:string]:string} {
     return state;
 }
 
-function getTranStream():TransformStream<Uint8Array, StreamResponseChunk> {
+function getTranStream(args:{
+    modelInfo:LLMModel,
+    saveSignature:boolean
+}):TransformStream<Uint8Array, StreamResponseChunk> {
     let buffer = '';
-
+    const { modelInfo, saveSignature } = args
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
             buffer += new TextDecoder().decode(chunk);
@@ -972,6 +1002,19 @@ function getTranStream():TransformStream<Uint8Array, StreamResponseChunk> {
                                     }
                                     if (part.thoughtSignature) {
                                         readed["__sign_text"] = part.thoughtSignature;
+                                        if(saveSignature){
+                                            //Its a promise, but we don't need to await it here
+                                            const sigId = v4()
+                                            saveInlayedSignature(sigId, {
+                                                source: modelInfo.internalID || modelInfo.id,
+                                                sourceFormat: modelInfo.format,
+                                                signatures: [{
+                                                    type: 'text',
+                                                    content: part.text,
+                                                }]
+                                            })
+                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
+                                        }
                                     }
                                 }
                                 if (part.functionCall) {
@@ -980,6 +1023,20 @@ function getTranStream():TransformStream<Uint8Array, StreamResponseChunk> {
                                     readed["__tool_calls"] = JSON.stringify(toolCallsData);
                                     if(part.thoughtSignature){
                                         readed["__sign_function"] = part.thoughtSignature;
+                                        const sigId = v4()
+
+                                        if(saveSignature){
+                                            //Its a promise, but we don't need to await it here
+                                            saveInlayedSignature(sigId, {
+                                                source: modelInfo.internalID || modelInfo.id,
+                                                sourceFormat: modelInfo.format,
+                                                signatures: [{
+                                                    type: 'function',
+                                                    content: `${part.functionCall.name}(${JSON.stringify(part.functionCall.args)})`,
+                                                }]
+                                            })
+                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
+                                        }
                                     }
                                 }
                             }
@@ -1028,6 +1085,8 @@ function wrapToolStream(
                 let content = value["0"]
                 let thoughts = value["__thoughts"]
                 let lastThought = value["__last_thought"]
+                let signText = value["__sign_text"]
+                let signFunction = value["__sign_function"]
 
                 if(done){
                     value = initStreamState(lastValue)
@@ -1037,8 +1096,8 @@ function wrapToolStream(
                     lastThought = value["__last_thought"]
 
                     // thoughtSignatures 
-                    const signText = value["__sign_text"]
-                    const signFunction = value["__sign_function"]
+                    signText = value["__sign_text"]
+                    signFunction = value["__sign_function"]
 
                     const calls = JSON.parse(value["__tool_calls"]) as GeminiFunctionCall[]
                     if(calls && calls.length > 0){
@@ -1186,7 +1245,10 @@ function wrapToolStream(
                             return controller.close()
                         }
 
-                        const transtream = getTranStream()
+                        const transtream = getTranStream({
+                            modelInfo: arg.modelInfo,
+                            saveSignature: arg.saveSignatures ?? false
+                        })
                         resRec.body.pipeTo(transtream.writable)
 
                         reader = transtream.readable.getReader()

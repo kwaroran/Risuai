@@ -60,6 +60,7 @@ export interface RequestDataArgumentExtended extends requestDataArgument{
     mode?:ModelModeExtended
     key?:string
     additionalOutput?:string
+    saveSignatures?:boolean
 }
 
 export type requestDataResponse = {

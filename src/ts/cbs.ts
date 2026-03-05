@@ -390,6 +390,29 @@ export function registerCBS(arg:CBSRegisterArg) {
     });
 
     registerFunction({
+        name: 'authornote',
+        callback: (str, matcherArg, args, vars) => {
+            const db = getDatabase()
+            const selchar = db.characters?.[getSelectedCharID()]
+            const chat = selchar?.chats?.[selchar.chatPage]
+            if(chat?.note){
+                return risuChatParser(chat.note, matcherArg)
+            }
+            const template = db.promptTemplate
+            if(template){
+                for(const v of template){
+                    if(v.type === 'authornote' && v.defaultText){
+                        return risuChatParser(v.defaultText, matcherArg)
+                    }
+                }
+            }
+            return ''
+        },
+        alias: ['author_note'],
+        description: "Returns the author's note for the current chat. Falls back to the default author's note text from the prompt template if the chat doesn't have a custom one. The text is processed through the chat parser for variable substitution.\n\nUsage:: {{authornote}}",
+    });
+
+    registerFunction({
         name: 'chatindex',
         callback: (str, matcherArg, args, vars) => {
             return matcherArg.chatID.toString()

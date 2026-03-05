@@ -700,7 +700,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 headers: headers,
                                 response: statusResponseText,
                                 success: false,
-                                url: batchRequestUrl,
+                                url: statusUrl,
                                 chatId: arg.chatId,
                                 status: statusRes.status
                             })
@@ -729,7 +729,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 headers: headers,
                                 response: resultResponseText,
                                 success: false,
-                                url: batchRequestUrl,
+                                url: resultsUrl,
                                 chatId: arg.chatId,
                                 status: batchRes.status
                             })
@@ -774,7 +774,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                             resText += "<Thoughts>\n"
                                             thinking = true
                                         }
-                                        resText += '\n{{redacted_thinking}}\n'
+                                        resText += '\nThis thinking segment below has been censored by the API provider:\n`' + content.data
                                     }
                                 }
 
@@ -789,7 +789,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     headers: headers,
                                     response: batchData,
                                     success: true,
-                                    url: batchRequestUrl,
+                                    url: resultsUrl,
                                     chatId: arg.chatId,
                                     status: batchRes.status
                                 })
@@ -808,7 +808,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     headers: headers,
                                     response: batchData,
                                     success: false,
-                                    url: batchRequestUrl,
+                                    url: resultsUrl,
                                     chatId: arg.chatId,
                                     status: batchRes.status
                                 })
@@ -821,7 +821,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     headers: headers,
                                     response: batchData,
                                     success: false,
-                                    url: batchRequestUrl,
+                                    url: resultsUrl,
                                     chatId: arg.chatId,
                                     status: batchRes.status
                                 })
@@ -834,7 +834,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     headers: headers,
                                     response: batchData,
                                     success: false,
-                                    url: batchRequestUrl,
+                                    url: resultsUrl,
                                     chatId: arg.chatId,
                                     status: batchRes.status
                                 })

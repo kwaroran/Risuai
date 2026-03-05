@@ -9,6 +9,7 @@ import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
 import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
+import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type ColorScheme } from "src/ts/gui/colorscheme";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
@@ -672,6 +673,69 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
 
         
+        // --- Color Scheme APIs ---
+        changeColorScheme: (name: string) => {
+            changeColorScheme(name)
+        },
+        setColorScheme: (scheme: ColorScheme) => {
+            const requiredKeys = ['bgcolor','darkbg','borderc','selected','draculared','textcolor','textcolor2','darkBorderc','darkbutton','type'] as const
+            for (const key of requiredKeys) {
+                if (typeof (scheme as any)[key] !== 'string') {
+                    throw new Error(`Invalid color scheme: missing or invalid '${key}'`)
+                }
+            }
+            if (scheme.type !== 'light' && scheme.type !== 'dark') {
+                throw new Error('Invalid color scheme type: must be "light" or "dark"')
+            }
+            const db = DBState.db
+            db.colorSchemeName = 'custom'
+            db.colorScheme = scheme
+            updateColorScheme()
+        },
+        getColorScheme: () => {
+            const db = DBState.db
+            return {
+                name: db.colorSchemeName,
+                scheme: $state.snapshot(db.colorScheme)
+            }
+        },
+
+        // --- Text Theme APIs ---
+        changeTextTheme: (name: string) => {
+            if (!['standard','highcontrast'].includes(name)) {
+                throw new Error(`Invalid text theme: ${name}`)
+            }
+            const db = DBState.db
+            db.textTheme = name
+            updateTextThemeAndCSS()
+        },
+        setCustomTextTheme: (theme: {
+            FontColorStandard: string,
+            FontColorBold: string,
+            FontColorItalic: string,
+            FontColorItalicBold: string,
+            FontColorQuote1: string,
+            FontColorQuote2: string
+        }) => {
+            const requiredKeys = ['FontColorStandard','FontColorBold','FontColorItalic','FontColorItalicBold','FontColorQuote1','FontColorQuote2'] as const
+            for (const key of requiredKeys) {
+                if (typeof (theme as any)[key] !== 'string') {
+                    throw new Error(`Invalid text theme: missing or invalid '${key}'`)
+                }
+            }
+            const db = DBState.db
+            db.textTheme = 'custom'
+            db.customTextTheme = theme
+            updateTextThemeAndCSS()
+        },
+        getTextTheme: () => {
+            const db = DBState.db
+            return {
+                name: db.textTheme,
+                customTheme: $state.snapshot(db.customTextTheme)
+            }
+        },
+
         //Deprecated APIs from v2.1
         //Use getArgument / setArgument instead if possible
         getArg: oldApis.getArg,

@@ -259,6 +259,8 @@ await (async function() {
             window[key] = risuai[key];
         }
     }
+
+    Object.freeze(window.postMessage);
 })();
 `;
 

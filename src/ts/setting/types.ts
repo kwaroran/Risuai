@@ -40,7 +40,9 @@ export type SettingType =
  */
 export interface SelectOption {
     value: string;
-    label: string;
+    label?: string;
+    /** i18n key for translation — takes precedence over label */
+    labelKey?: string;
     /** Optional condition — when provided, the option is only shown if this returns true */
     condition?: (ctx: SettingContext) => boolean;
 }
@@ -50,7 +52,9 @@ export interface SelectOption {
  */
 export interface SegmentOption {
     value: string | number;
-    label: string;
+    label?: string;
+    /** i18n key for translation — takes precedence over label */
+    labelKey?: string;
     /** Optional condition — when provided, the option is only shown if this returns true */
     condition?: (ctx: SettingContext) => boolean;
 }
@@ -153,6 +157,24 @@ export interface SettingItem {
      * Props to pass to custom component
      */
     componentProps?: CustomComponentProps;
+
+    /**
+     * Optional getter function for the setting's value. 
+     * Recommended over bindKey/bindPath for complete type safety and reactivity.
+     * TODO: Consider making SettingItem generic or using discriminated unions to eliminate `any` from accessor signatures.
+     */
+    getValue?: (db: Database, ctx?: SettingContext) => any;
+
+    /**
+     * Optional setter function for the setting's value.
+     * TODO: Consider making SettingItem generic or using discriminated unions to eliminate `any` from accessor signatures.
+     */
+    setValue?: (db: Database, val: any, ctx?: SettingContext) => void;
+
+    /**
+     * Optional callback fired when the value changes (useful for side-effects like CSS updates)
+     */
+    onChange?: (val: any, ctx: SettingContext) => void;
 }
 
 /**

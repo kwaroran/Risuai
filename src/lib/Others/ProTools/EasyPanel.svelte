@@ -11,6 +11,8 @@
     import AllSeperateParameters from "../AllSeperateParameters.svelte";
     import { onMount } from "svelte";
     import { XIcon } from "@lucide/svelte";
+    import TextInput from "src/lib/UI/GUI/TextInput.svelte";
+    import CustomModelsSettings from "src/lib/Setting/Pages/Advanced/CustomModelsSettings.svelte";
 
     let selectedOption = $state('models');
     let selectedParameterOption = $state('memory')
@@ -140,7 +142,7 @@
 
             {/if}
         {:else if selectedOption === 'customModels'}
-            TODO
+            <CustomModelsSettings noAccordion />
         {:else if selectedOption === 'settings'}
              <CheckInput name={language.seperateParametersByModel} bind:check={DBState.db.seperateParametersByModel}/>
         {/if}

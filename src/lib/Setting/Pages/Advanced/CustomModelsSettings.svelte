@@ -11,6 +11,10 @@
     import { v4 } from "uuid";
 
     let openedModels = $state(new Set<string>());
+
+    let { noAccordion }:{
+        noAccordion?: boolean,
+    } = $props()
 </script>
 
 {#snippet CustomFlagButton(index:number,name:string,flag:number)}
@@ -26,7 +30,7 @@
     </Button>
 {/snippet}
 
-<Accordion styled name={language.customModels} className="overflow-x-auto">
+{#snippet mainBody()}
     {#each DBState.db.customModels as model, index (model.id)}
         <div class="flex flex-col mt-2">
             <button class="hover:bg-selected px-6 py-2 text-lg rounded-t-md border-selected border flex justify-between items-center"
@@ -78,14 +82,14 @@
                 </div>
             </button>
             {#if openedModels.has(model.id)}
-                <div class="flex flex-col border border-selected p-2 rounded-b-md overflow-x-auto">
-            <span class="text-textcolor">{language.name}</span>
+            <div class="flex flex-col border border-selected p-2 rounded-b-md overflow-x-auto">
+            <span class="text-textcolor mt-4">{language.name}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].name}/>
-            <span class="text-textcolor">{language.proxyRequestModel}</span>
+            <span class="text-textcolor mt-4">{language.proxyRequestModel}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].internalId}/>
-            <span class="text-textcolor">URL</span>
+            <span class="text-textcolor mt-4">URL</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].url}/>
-            <span class="text-textcolor">{language.tokenizer}</span>
+            <span class="text-textcolor mt-4">{language.tokenizer}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].tokenizer.toString()} onchange={(e) => {
                 DBState.db.customModels[index].tokenizer = parseInt(e.currentTarget.value)
             }}>
@@ -126,11 +130,11 @@
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].key}/>
             <span class="text-textcolor">{language.additionalParams}</span>
             <TextAreaInput bind:value={DBState.db.customModels[index].params} placeholder={`temperature=0.7
-max_tokens=2000
-reasoning_effort="high"
-header::anthropic-dangerous-direct-browser-access=true
-stop=json::["</s>", "\\n\\n"]
-frequency_penalty={{none}}`}/>
+    max_tokens=2000
+    reasoning_effort="high"
+    header::anthropic-dangerous-direct-browser-access=true
+    stop=json::["</s>", "\\n\\n"]
+    frequency_penalty={{none}}`}/>
             <Accordion styled name={language.flags}>
                 {@render CustomFlagButton(index,'hasImageInput', 0)}
                 {@render CustomFlagButton(index,'hasImageOutput', 1)}
@@ -173,4 +177,15 @@ frequency_penalty={{none}}`}/>
             <PlusIcon />
         </button>
     </div>
-</Accordion>
+    
+{/snippet}
+
+
+{#if noAccordion}
+    {@render mainBody()}
+{:else}
+    <Accordion styled name={language.customModels} className="overflow-x-auto">
+        {@render mainBody()}
+    </Accordion>
+
+{/if}

@@ -170,14 +170,19 @@ export class NodeStorage{
                         'content-type': 'application/json'
                     }
                 })
-
-                //too many requests
-                if(s.status === 429){
-                    alertError(`Too many attempts. Please wait and try again later.`)
+                if(s.status < 200 || s.status >= 300){
+                    let message = `Login failed (${s.status})`
+                    try {
+                        const body = await s.json()
+                        if(body?.error){
+                            message = body.error
+                        }
+                    } catch {}
+                    alertError(message)
                     await waitAlert()
+                    throw message
                 }
-                
-
+                this.authChecked = true
                 return await this.createAuth()
             
             }
@@ -191,7 +196,7 @@ export class NodeStorage{
 }
 
 async function digestPassword(message:string) {
-    const crypt = await (await fetch('/api/crypto', {
+    const response = await fetch('/api/crypto', {
         body: JSON.stringify({
             data: message
         }),
@@ -199,7 +204,19 @@ async function digestPassword(message:string) {
             'content-type': 'application/json'
         },
         method: "POST"
-    })).text()
+    })
+
+    if(response.status < 200 || response.status >= 300){
+        let message = `Password crypto failed (${response.status})`
+        try {
+            const body = await response.json()
+            if(body?.error){
+                message = body.error
+            }
+        } catch {}
+        throw message
+    }
+    const crypt = await response.text()
     
     return crypt;
 }

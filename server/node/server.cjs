@@ -968,7 +968,7 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/crypto', async (req, res) => {
     try {
-        const hash = nodeCrypto.createHash('sha256')
+        const hash = crypto.createHash('sha256')
         hash.update(Buffer.from(req.body.data, 'utf-8'))
         res.send(hash.digest('hex'))
     } catch (error) {

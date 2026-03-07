@@ -16,7 +16,7 @@ export const basicParameterItems: SettingItem[] = [
         id: 'params.maxContext',
         type: 'number',
         labelKey: 'maxContextSize',
-        bindKey: 'maxContext',
+        getValue: (db) => (db as any).maxContext, setValue: (db, val) => (db as any).maxContext = val,
         options: { min: 0 },
         keywords: ['context', 'size', 'token', 'limit'],
     },
@@ -24,7 +24,7 @@ export const basicParameterItems: SettingItem[] = [
         id: 'params.maxResponse',
         type: 'number',
         labelKey: 'maxResponseSize',
-        bindKey: 'maxResponse',
+        getValue: (db) => (db as any).maxResponse, setValue: (db, val) => (db as any).maxResponse = val,
         options: { min: 0, max: 2048 },
         keywords: ['response', 'size', 'output', 'length'],
     },
@@ -37,7 +37,7 @@ export const seedSetting: SettingItem = {
     id: 'params.seed',
     type: 'number',
     labelKey: 'seed',
-    bindKey: 'generationSeed',
+    getValue: (db) => (db as any).generationSeed, setValue: (db, val) => (db as any).generationSeed = val,
     condition: (ctx) => 
         ctx.db.aiModel.startsWith('gpt') || 
         ctx.db.aiModel === 'reverse_proxy' || 
@@ -54,7 +54,7 @@ export const samplingParameterItems: SettingItem[] = [
         type: 'slider',
         labelKey: 'temperature',
         helpKey: 'tempature',
-        bindKey: 'temperature',
+        getValue: (db) => (db as any).temperature, setValue: (db, val) => (db as any).temperature = val,
         options: {
             min: 0,
             max: 200,
@@ -75,7 +75,7 @@ export const penaltyParameterItems: SettingItem[] = [
         id: 'params.frequencyPenalty',
         type: 'slider',
         labelKey: 'frequencyPenalty',
-        bindKey: 'frequencyPenalty',
+        getValue: (db) => (db as any).frequencyPenalty, setValue: (db, val) => (db as any).frequencyPenalty = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('frequency_penalty'),
         options: {
             min: 0,
@@ -90,7 +90,7 @@ export const penaltyParameterItems: SettingItem[] = [
         id: 'params.presencePenalty',
         type: 'slider',
         labelKey: 'presensePenalty',
-        bindKey: 'PresensePenalty',
+        getValue: (db) => (db as any).PresensePenalty, setValue: (db, val) => (db as any).PresensePenalty = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('presence_penalty'),
         options: {
             min: 0,
@@ -105,7 +105,7 @@ export const penaltyParameterItems: SettingItem[] = [
         id: 'params.topP',
         type: 'slider',
         fallbackLabel: 'Top P',
-        bindKey: 'top_p',
+        getValue: (db) => (db as any)['top_p'], setValue: (db, val) => (db as any)['top_p'] = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('top_p'),
         options: {
             min: 0,
@@ -126,7 +126,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.thinkingType',
         type: 'segmented',
         labelKey: 'thinkingType',
-        bindKey: 'thinkingType',
+        getValue: (db) => (db as any).thinkingType, setValue: (db, val) => (db as any).thinkingType = val,
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
@@ -143,7 +143,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.thinkingTokens',
         type: 'slider',
         labelKey: 'thinkingTokens',
-        bindKey: 'thinkingTokens',
+        getValue: (db) => (db as any).thinkingTokens, setValue: (db, val) => (db as any).thinkingTokens = val,
         condition: (ctx) =>
             ctx.modelInfo.parameters.includes('thinking_tokens') &&
             ctx.db.thinkingType === 'budget',
@@ -159,7 +159,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.adaptiveThinkingEffort',
         type: 'segmented',
         labelKey: 'adaptiveThinkingEffort',
-        bindKey: 'adaptiveThinkingEffort',
+        getValue: (db) => (db as any).adaptiveThinkingEffort, setValue: (db, val) => (db as any).adaptiveThinkingEffort = val,
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
             ctx.db.thinkingType === 'adaptive',
@@ -177,7 +177,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.topK',
         type: 'slider',
         fallbackLabel: 'Top K',
-        bindKey: 'top_k',
+        getValue: (db) => (db as any)['top_k'], setValue: (db, val) => (db as any)['top_k'] = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('top_k'),
         options: {
             min: 0,
@@ -191,7 +191,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.minP',
         type: 'slider',
         fallbackLabel: 'Min P',
-        bindKey: 'min_p',
+        getValue: (db) => (db as any)['min_p'], setValue: (db, val) => (db as any)['min_p'] = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('min_p'),
         options: {
             min: 0,
@@ -206,7 +206,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.topA',
         type: 'slider',
         fallbackLabel: 'Top A',
-        bindKey: 'top_a',
+        getValue: (db) => (db as any)['top_a'], setValue: (db, val) => (db as any)['top_a'] = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('top_a'),
         options: {
             min: 0,
@@ -221,7 +221,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.repetitionPenalty',
         type: 'slider',
         fallbackLabel: 'Repetition penalty',
-        bindKey: 'repetition_penalty',
+        getValue: (db) => (db as any)['repetition_penalty'], setValue: (db, val) => (db as any)['repetition_penalty'] = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('repetition_penalty'),
         options: {
             min: 0,
@@ -236,7 +236,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.reasoningEffort',
         type: 'slider',
         fallbackLabel: 'Reasoning Effort',
-        bindKey: 'reasoningEffort',
+        getValue: (db) => (db as any).reasoningEffort, setValue: (db, val) => (db as any).reasoningEffort = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort'),
         options: {
             min: -1,
@@ -251,7 +251,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
         id: 'params.verbosity',
         type: 'slider',
         fallbackLabel: 'Verbosity',
-        bindKey: 'verbosity',
+        getValue: (db) => (db as any).verbosity, setValue: (db, val) => (db as any).verbosity = val,
         condition: (ctx) => ctx.modelInfo.parameters.includes('verbosity'),
         options: {
             min: 0,

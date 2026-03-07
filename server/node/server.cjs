@@ -68,6 +68,13 @@ function isAuthorizedRequest(req) {
     return !!authHeader && authHeader.trim() === password.trim();
 }
 
+async function checkProxyAuth(req, res) {
+    if (isAuthorizedRequest(req)) {
+        return true;
+    }
+    return await checkAuth(req, res);
+}
+
 function getRequestTimeoutMs(timeoutHeader) {
     const raw = Array.isArray(timeoutHeader) ? timeoutHeader[0] : timeoutHeader;
     if (!raw) {
@@ -566,7 +573,7 @@ async function checkAuth(req, res, returnOnlyStatus = false){
 }
 
 const reverseProxyFunc = async (req, res, next) => {
-    if(!await checkAuth(req, res)){
+    if(!await checkProxyAuth(req, res)){
         return;
     }
     
@@ -630,7 +637,7 @@ const reverseProxyFunc = async (req, res, next) => {
 }
 
 const reverseProxyFunc_get = async (req, res, next) => {
-    if(!await checkAuth(req, res)){
+    if(!await checkProxyAuth(req, res)){
         return;
     }
     

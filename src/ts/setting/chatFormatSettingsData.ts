@@ -11,7 +11,7 @@ export const chatFormatSettingsItems: SettingItem[] = [
         id: 'chatFormat.template',
         type: 'select',
         labelKey: 'chatFormating',
-        bindKey: 'instructChatTemplate',
+        getValue: (db) => (db as any).instructChatTemplate, setValue: (db, val) => (db as any).instructChatTemplate = val,
         options: {
             selectOptions: [
                 { value: 'chatml', label: 'ChatML' },
@@ -31,7 +31,7 @@ export const chatFormatSettingsItems: SettingItem[] = [
         id: 'chatFormat.jinjaTemplate',
         type: 'textarea',
         fallbackLabel: 'Jinja Template',
-        bindKey: 'JinjaTemplate',
+        getValue: (db) => (db as any).JinjaTemplate, setValue: (db, val) => (db as any).JinjaTemplate = val,
         condition: (ctx) => ctx.db.instructChatTemplate === 'jinja',
         keywords: ['jinja', 'template', 'custom'],
     },

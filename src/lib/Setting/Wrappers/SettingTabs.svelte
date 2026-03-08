@@ -14,6 +14,7 @@
     let activeTab = $state(0);
 
     let tabs = $derived(item.options?.tabs ?? []);
+    let useLegacyGUI = $derived(ctx.db.useLegacyGUI);
 
     function getTabLabel(tab: typeof tabs[number]): string {
         if (tab.labelKey && (language as any)[tab.labelKey]) {
@@ -24,19 +25,30 @@
 </script>
 
 {#if tabs.length > 0}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4 overflow-x-auto h-16 min-h-16 overflow-y-clip">
-        {#each tabs as tab, i}
-            <button
-                onclick={() => { activeTab = i }}
-                class="p-2 flex-1 border-r border-darkborderc last:border-r-0"
-                class:bg-darkbutton={activeTab === i}
-            >
-                <span>{getTabLabel(tab)}</span>
-            </button>
-        {/each}
-    </div>
+    {#if useLegacyGUI}
+        <div class="flex flex-col gap-4">
+            {#each tabs as tab}
+                <div class="flex flex-col gap-0 border border-darkborderc p-4 rounded-md relative">
+                    <span class="text-xl font-bold text-textcolor mb-2">{getTabLabel(tab)}</span>
+                    <SettingRenderer items={tab.children} modelInfo={ctx.modelInfo} subModelInfo={ctx.subModelInfo} />
+                </div>
+            {/each}
+        </div>
+    {:else}
+        <div class="flex w-full rounded-md border border-darkborderc mb-4 overflow-x-auto h-16 min-h-16 overflow-y-clip">
+            {#each tabs as tab, i}
+                <button
+                    onclick={() => { activeTab = i }}
+                    class="p-2 flex-1 border-r border-darkborderc last:border-r-0"
+                    class:bg-darkbutton={activeTab === i}
+                >
+                    <span>{getTabLabel(tab)}</span>
+                </button>
+            {/each}
+        </div>
 
-    {#if tabs[activeTab]?.children}
-        <SettingRenderer items={tabs[activeTab].children} modelInfo={ctx.modelInfo} subModelInfo={ctx.subModelInfo} />
+        {#if tabs[activeTab]?.children}
+            <SettingRenderer items={tabs[activeTab].children} modelInfo={ctx.modelInfo} subModelInfo={ctx.subModelInfo} />
+        {/if}
     {/if}
 {/if}

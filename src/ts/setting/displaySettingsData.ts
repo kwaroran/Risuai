@@ -434,6 +434,7 @@ const displayOthersItems: SettingItem[] = [
         id: 'disp.useChatSticker',
         labelKey: 'useChatSticker',
         helpKey: 'unrecommended',
+        helpUnrecommended: true,
         condition: (ctx) => ctx.db.showUnrecommended,
         getValue: (db) => db.useChatSticker,
         setValue: (db, v) => { db.useChatSticker = v; },

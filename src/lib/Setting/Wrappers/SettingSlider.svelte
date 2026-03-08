@@ -29,6 +29,13 @@
             }
         });
     });
+
+    // Dynamic custom text: customTextFn takes precedence over static customText
+    let derivedCustomText = $derived(
+        item.options?.customTextFn
+            ? item.options.customTextFn(localValue, ctx.db)
+            : item.options?.customText
+    );
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
@@ -43,6 +50,6 @@
     fixed={item.options?.fixed}
     multiple={item.options?.multiple}
     disableable={item.options?.disableable}
-    customText={item.options?.customText}
+    customText={derivedCustomText}
     bind:value={localValue}
 />

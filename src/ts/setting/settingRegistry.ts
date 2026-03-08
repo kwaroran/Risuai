@@ -11,6 +11,7 @@ import SettingColor from 'src/lib/Setting/Wrappers/SettingColor.svelte';
 import SettingHeader from 'src/lib/Setting/Wrappers/SettingHeader.svelte';
 import SettingButton from 'src/lib/Setting/Wrappers/SettingButton.svelte';
 import SettingAccordion from 'src/lib/Setting/Wrappers/SettingAccordion.svelte';
+import SettingTabs from 'src/lib/Setting/Wrappers/SettingTabs.svelte';
 import SettingCustom from 'src/lib/Setting/Wrappers/SettingCustom.svelte';
 
 type WrapperComponent = Component<{ item: SettingItem; ctx: SettingContext }>;
@@ -27,6 +28,7 @@ export const settingRegistry: Record<SettingType, WrapperComponent> = {
     'header': SettingHeader,
     'button': SettingButton,
     'accordion': SettingAccordion,
+    'tabs': SettingTabs,
     'custom': SettingCustom,
 };
 

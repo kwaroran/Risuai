@@ -33,6 +33,7 @@ export type SettingType =
     | 'header'     // Section header (h2, span, warning)
     | 'button'     // Action button (Button)
     | 'accordion'  // Collapsible section (Accordion)
+    | 'tabs'       // Tabbed layout (SettingTabs)
     | 'custom';    // Custom component from registry
 
 /**
@@ -60,6 +61,18 @@ export interface SegmentOption {
 }
 
 /**
+ * Tab definition for tabbed layout
+ */
+export interface TabDefinition {
+    /** i18n key for tab label */
+    labelKey?: string;
+    /** Fallback label if language key doesn't exist */
+    label?: string;
+    /** Items to render inside this tab */
+    children: SettingItem[];
+}
+
+/**
  * Type-specific options for setting items
  */
 export interface SettingOptions {
@@ -70,6 +83,8 @@ export interface SettingOptions {
     fixed?: number;         // Decimal places for slider
     disableable?: boolean;  // Allow -1 to disable
     customText?: string;    // Custom display text for slider
+    /** Dynamic custom text function — takes precedence over customText */
+    customTextFn?: (value: any, db: Database) => string;
     multiple?: number;      // Multiplier for display value
     
     // select
@@ -91,6 +106,9 @@ export interface SettingOptions {
     // accordion
     styled?: boolean;        // Use styled accordion
     children?: SettingItem[]; // Nested items inside accordion
+    
+    // tabs
+    tabs?: TabDefinition[];   // Tab definitions for tabbed layout
 }
 
 /**

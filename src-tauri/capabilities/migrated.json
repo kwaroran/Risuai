@@ -22,7 +22,14 @@
         "$APPDATA",
         "$APPDATA/*",
         "$APPDATA/**/*",
+        "$HOME/*",
+        "$HOME/**/*",
+        "$DESKTOP/*",
+        "$DESKTOP/**/*",
+        "$DOCUMENT/*",
+        "$DOCUMENT/**/*",
         "$DOWNLOAD/*",
+        "$DOWNLOAD/**/*",
         "/data/**/*",
         "$RESOURCE/*"
       ]

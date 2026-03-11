@@ -45,9 +45,8 @@ export function checkNullish(data:any){
     return data === undefined || data === null
 }
 
-const domSelect = true
 export async function selectSingleFile(ext:string[]){
-    if(domSelect){
+    if(!isTauri){
         const v = await selectFileByDom(ext, 'single')
         const file = v[0]
         return {name: file.name,data:await readFileAsUint8Array(file)}

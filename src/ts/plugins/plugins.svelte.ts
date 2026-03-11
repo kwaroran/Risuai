@@ -746,6 +746,7 @@ export const getV2PluginAPIs = () => {
             db.pluginCustomStorage ??= {}
             for (const key of Object.keys(newDb)) {
                 if (key === 'plugins') {
+                    console.warn('[WARN] Plugin attempted to access plugin directly. this would be blocked in future versions. Instead, use the provided APIs to manage plugins. Attempting to handle plugin installation via plugin for new plugins in the provided database object.')
                     newDb[key] = await handlePluginInstallViaPlugin(newDb.plugins)
                 }
                 
@@ -905,7 +906,7 @@ export async function pluginProcess(arg: {
     }
 }
 
-async function handlePluginInstallViaPlugin(plugins: RisuPlugin[]){
+export async function handlePluginInstallViaPlugin(plugins: RisuPlugin[]){
 
     const trimmedPlugins: RisuPlugin[] = []
     for(const plugin of plugins){

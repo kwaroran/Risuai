@@ -1,4 +1,4 @@
-import { allowedDbKeys, customProviderStore, getV2PluginAPIs, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
+import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
@@ -673,7 +673,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return liteDB;
         },
 
-        
+        installPlugin: handlePluginInstallViaPlugin,
+
         // --- Color Scheme APIs ---
         changeColorScheme: (name: string) => {
             changeColorScheme(name)

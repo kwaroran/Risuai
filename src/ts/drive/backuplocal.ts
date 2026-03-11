@@ -1,5 +1,4 @@
 import { BaseDirectory, readFile, readDir, writeFile } from "@tauri-apps/plugin-fs";
-import { open } from "@tauri-apps/plugin-dialog";
 import localforage from "localforage";
 import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
@@ -7,7 +6,7 @@ import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { sleep } from "../util";
+import { selectSingleFile, sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
 
@@ -364,50 +363,19 @@ export async function SavePartialLocalBackup(){
 }
 
 export function LoadLocalBackup(){
-    try {
-        if (isTauri) {
-            void (async () => {
-                const selectedPath = await open({
-                    filters: [{
-                        name: 'Risu Backup',
-                        extensions: ['bin']
-                    }],
-                    multiple: false,
-                    directory: false
-                })
-
-                if (!selectedPath || Array.isArray(selectedPath)) {
-                    return
-                }
-
-                const fileData = await readFile(selectedPath)
-                await loadBackupFromStream(new Blob([fileData]))
-            })().catch((error) => {
-                console.error(error)
-                alertError('Failed, Is file corrupted?')
-            })
-            return
-        }
-
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.bin';
-        input.onchange = async () => {
-            if (!input.files || input.files.length === 0) {
-                input.remove();
-                return;
+    void (async () => {
+        try {
+            const selectedFile = await selectSingleFile(['bin'])
+            if (!selectedFile) {
+                return
             }
-            const file = input.files[0];
-            input.remove();
 
-            await loadBackupFromStream(file)
-        };
-
-        input.click();
-    } catch (error) {
-        console.error(error);
-        alertError('Failed, Is file corrupted?')
-    }
+            await loadBackupFromBytes(selectedFile.data)
+        } catch (error) {
+            console.error(error)
+            alertError('Failed, Is file corrupted?')
+        }
+    })()
 }
 
 async function loadBackupFromStream(file: Blob) {
@@ -488,4 +456,10 @@ async function loadBackupFromStream(file: Blob) {
     }
 
     alertNormal('Success');
+}
+
+async function loadBackupFromBytes(data: Uint8Array) {
+    const copied = new Uint8Array(data.byteLength)
+    copied.set(data)
+    await loadBackupFromStream(new Blob([copied]))
 }

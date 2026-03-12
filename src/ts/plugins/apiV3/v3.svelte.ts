@@ -588,6 +588,12 @@ const urlBlacklist = [
     'sionyw.com',
 ]
 
+const authorizationHeaders = [
+    'x-api-key',
+    'authorization',
+    'proxy-authorization',
+]
+
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
@@ -595,9 +601,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
         //Old APIs from v2.1
         risuFetch: (url, options) => {
+            console.error(`[DEPRECATION WARNING] risuFetch is deprecated and will be removed in future versions. Please use nativeFetch instead.`)
             for(const blocked of urlBlacklist){
                 if(url.toLowerCase().includes(blocked)){
                     throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+
+            //scan headers
+            const headers = options?.headers || {};
+            for(const headerName in headers){
+                if(authorizationHeaders.includes(headerName.toLowerCase())){
+                    console.warn(`Request contains potentially sensitive header '${headerName}'. handling of such headers may be changed to only work with nativeFetch.`);
                 }
             }
             return oldApis.risuFetch(url, options);
@@ -606,6 +621,14 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             for(const blocked of urlBlacklist){
                 if(url.toLowerCase().includes(blocked)){
                     throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+
+            //scan headers
+            const headers = options?.headers || {};
+            for(const headerName in headers){
+                if(authorizationHeaders.includes(headerName.toLowerCase())){
+                    console.warn(`Request contains potentially sensitive header '${headerName}'. handling of such headers may be changed to use server-side approch with write-only api access in the future for better security.`);
                 }
             }
             return oldApis.nativeFetch(url, options);
@@ -1120,7 +1143,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     channel: channelName
                 });
             }
-        }
+        },
     }
 }
 

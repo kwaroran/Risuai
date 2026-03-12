@@ -1093,6 +1093,26 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             pluginChannel.set(plugin.name + channelName, callback);
         },
         postPluginChannelMessage: (pluginName: string, channelName: string, message: any) => {
+
+            const currentPluginName = plugin.name;
+            const receiverPlugin = DBState.db.plugins.find(p => p.name === pluginName);
+
+            if(!receiverPlugin){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to non-existent plugin '${pluginName}' on channel '${channelName}'.`);
+                return;
+            }
+
+            if(!receiverPlugin.allowedIPC?.includes(pluginName)){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but receiver plugin does not allow IPC communication from this plugin. declare //@allowed-ipc ${currentPluginName} in the reciver plugin script to allow IPC communication.`);
+                return;
+            }
+
+            if(!plugin.allowedIPC?.includes(receiverPlugin.name)){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but the sender plugin does not allow IPC communication to this plugin. declare //@allowed-ipc ${receiverPlugin.name} in the sender plugin script to allow IPC communication.`);
+                return;
+            }
+
+
             const callback = pluginChannel.get(pluginName + channelName);
             if(callback){
                 callback(message);

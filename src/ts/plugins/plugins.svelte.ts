@@ -26,6 +26,7 @@ interface ProviderPlugin {
     versionOfPlugin?: string
     updateURL?: string
     enabled?: boolean
+    allowedIPC?: string[]
 }
 interface ProviderPluginCustomLink {
     link: string
@@ -179,6 +180,7 @@ export async function importPlugin(code:string|null = null, argu:{
         let updateURL: string = ''
         let versionOfPlugin: string = '' //This is the version of the plugin itself, not the API version
         let apiVersion = '2.0'
+        let ipcList: string[] = []
         for (const line of splitedJs) {
             if (line.startsWith('//@name')) {
                 const provied = line.slice(7)
@@ -300,6 +302,18 @@ export async function importPlugin(code:string|null = null, argu:{
                     return
                 }
             }
+
+            if(line.startsWith('//@allowed-ipc')){
+                const provied = line.trim().split(' ')
+                if(provied.length < 2){
+                    showError('plugin allowed IPC declaration is incorrect, did you put space after //@allowed-ipc?')
+                    return
+                }
+
+                const allowedIPCList = provied.slice(1)
+
+                ipcList.push(...allowedIPCList)
+            }
         }
 
         if (name.length === 0) {
@@ -370,6 +384,7 @@ export async function importPlugin(code:string|null = null, argu:{
             argMeta: argMeta,
             versionOfPlugin: versionOfPlugin,
             updateURL: updateURL,
+            allowedIPC: ipcList,
             enabled: true
         }
 

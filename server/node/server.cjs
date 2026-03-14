@@ -64,8 +64,80 @@ async function hashJSON(json){
 }
 
 function isAuthorizedRequest(req) {
-    const authHeader = req.headers['risu-auth'];
+    const authHeader = normalizeAuthHeader(req.headers['risu-auth']);
     return !!authHeader && authHeader.trim() === password.trim();
+}
+
+function normalizeAuthHeader(authHeader) {
+    if (Array.isArray(authHeader)) {
+        return authHeader[0] || '';
+    }
+    return typeof authHeader === 'string' ? authHeader : '';
+}
+
+async function isAuthorizedJwtHeader(authHeader) {
+    try {
+        const normalized = normalizeAuthHeader(authHeader);
+        if (!normalized) {
+            return false;
+        }
+
+        const [
+            jsonHeaderB64,
+            jsonPayloadB64,
+            signatureB64,
+        ] = normalized.split('.');
+
+        if (!jsonHeaderB64 || !jsonPayloadB64 || !signatureB64) {
+            return false;
+        }
+
+        const jsonHeader = JSON.parse(Buffer.from(jsonHeaderB64, 'base64url').toString('utf-8'));
+        const jsonPayload = JSON.parse(Buffer.from(jsonPayloadB64, 'base64url').toString('utf-8'));
+        const signature = Buffer.from(signatureB64, 'base64url');
+
+        const now = Math.floor(Date.now() / 1000);
+        if (jsonPayload.exp < now) {
+            return false;
+        }
+
+        const pubKeyHash = await hashJSON(jsonPayload.pub);
+        if (!knownPublicKeysHashes.includes(pubKeyHash)) {
+            return false;
+        }
+
+        if (jsonHeader.alg !== 'ES256') {
+            return false;
+        }
+
+        return await crypto.subtle.verify(
+            {
+                name: 'ECDSA',
+                hash: { name: 'SHA-256' },
+            },
+            await crypto.subtle.importKey(
+                'jwk',
+                jsonPayload.pub,
+                {
+                    name: 'ECDSA',
+                    namedCurve: 'P-256',
+                },
+                false,
+                ['verify']
+            ),
+            signature,
+            Buffer.from(`${jsonHeaderB64}.${jsonPayloadB64}`)
+        );
+    } catch {
+        return false;
+    }
+}
+
+async function isAuthorizedProxyRequest(req) {
+    if (isAuthorizedRequest(req)) {
+        return true;
+    }
+    return await isAuthorizedJwtHeader(req.headers['risu-auth']);
 }
 
 async function checkProxyAuth(req, res) {
@@ -223,9 +295,89 @@ function normalizeForwardHeaders(input) {
     return normalized;
 }
 
+function normalizeProxyResponseHeaders(headers) {
+    const normalized = {};
+    for (const [key, value] of Object.entries(headers || {})) {
+        if (value === undefined) {
+            continue;
+        }
+        normalized[key.toLowerCase()] = Array.isArray(value) ? value.join(', ') : String(value);
+    }
+    return normalized;
+}
+
+function requestLocalTargetStream(targetUrl, arg) {
+    return new Promise((resolve, reject) => {
+        const parsedUrl = new URL(targetUrl);
+        const client = parsedUrl.protocol === 'https:' ? https : http;
+        const headers = normalizeForwardHeaders(arg.headers);
+        if (!headers['host']) {
+            headers['host'] = parsedUrl.host;
+        }
+        if (arg.bodyBuffer && !headers['content-length']) {
+            headers['content-length'] = String(arg.bodyBuffer.length);
+        }
+
+        let settled = false;
+        let cleanupAbort = () => {};
+        const finishReject = (error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            cleanupAbort();
+            reject(error);
+        };
+
+        const req = client.request(parsedUrl, {
+            method: arg.method,
+            headers
+        }, (res) => {
+            if (settled) {
+                res.destroy();
+                return;
+            }
+            settled = true;
+            cleanupAbort();
+            resolve({
+                status: res.statusCode || 502,
+                headers: normalizeProxyResponseHeaders(res.headers),
+                body: res
+            });
+        });
+
+        req.on('error', (error) => {
+            finishReject(error);
+        });
+
+        req.setTimeout(arg.timeoutMs, () => {
+            req.destroy(new Error(`Upstream request timed out after ${arg.timeoutMs}ms`));
+        });
+
+        if (arg.signal) {
+            const onAbort = () => {
+                const abortError = new Error('Proxy stream job aborted');
+                abortError.name = 'AbortError';
+                req.destroy(abortError);
+            };
+            if (arg.signal.aborted) {
+                onAbort();
+                return;
+            }
+            arg.signal.addEventListener('abort', onAbort, { once: true });
+            cleanupAbort = () => arg.signal.removeEventListener('abort', onAbort);
+        }
+
+        if (arg.bodyBuffer && arg.method !== 'GET' && arg.method !== 'HEAD') {
+            req.write(arg.bodyBuffer);
+        }
+        req.end();
+    });
+}
+
 function createProxyStreamJob(arg) {
     const jobId = crypto.randomUUID();
-    const timeoutMs = PROXY_STREAM_DEFAULT_TIMEOUT_MS;
+    const timeoutMs = normalizeProxyStreamTimeoutMs(Number(arg.timeoutMs));
     const heartbeatSec = normalizeHeartbeatSec(arg.heartbeatSec);
     const controller = new AbortController();
     const createdAt = Date.now();
@@ -314,22 +466,16 @@ async function runProxyStreamJob(job, arg) {
     const bodyBuffer = arg.bodyBase64 ? Buffer.from(arg.bodyBase64, 'base64') : undefined;
 
     try {
-        const internalPort = process.env.PORT || 6001;
-        const upstreamResponse = await fetch(`http://127.0.0.1:${internalPort}/proxy2`, {
+        const upstreamResponse = await requestLocalTargetStream(targetUrl, {
             method: arg.method,
-            headers: {
-                'Content-Type': 'application/json',
-                'risu-auth': password,
-                'risu-url': encodeURIComponent(targetUrl),
-                'risu-header': encodeURIComponent(JSON.stringify(headers)),
-                'risu-timeout-ms': String(Math.max(1, Math.floor(job.timeoutMs)))
-            },
-            body: (arg.method !== 'GET' && arg.method !== 'HEAD') ? bodyBuffer : undefined,
+            headers,
+            bodyBuffer,
+            timeoutMs: job.timeoutMs,
             signal: job.abortController.signal
         });
 
         const filteredHeaders = {};
-        for (const [key, value] of upstreamResponse.headers.entries()) {
+        for (const [key, value] of Object.entries(upstreamResponse.headers)) {
             if (key === 'content-security-policy' || key === 'content-security-policy-report-only' || key === 'clear-site-data') {
                 continue;
             }
@@ -343,10 +489,8 @@ async function runProxyStreamJob(job, arg) {
         });
 
         if (upstreamResponse.body) {
-            const reader = upstreamResponse.body.getReader();
-            while (!job.abortController.signal.aborted) {
-                const { done, value } = await reader.read();
-                if (done) {
+            for await (const value of upstreamResponse.body) {
+                if (job.abortController.signal.aborted) {
                     break;
                 }
                 if (value && value.length > 0) {
@@ -459,7 +603,7 @@ app.get('/', async (req, res, next) => {
 
 async function checkAuth(req, res, returnOnlyStatus = false){
     try {
-        const authHeader = req.headers['risu-auth'];
+        const authHeader = normalizeAuthHeader(req.headers['risu-auth']);
 
         if(!authHeader){
             console.log('No auth header')
@@ -854,8 +998,7 @@ app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/hub-proxy/*', hubProxyFunc);
 app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
-    if (!isAuthorizedRequest(req)) {
-        res.status(401).send({ error: 'Password Incorrect' });
+    if (!await checkProxyAuth(req, res)) {
         return;
     }
 
@@ -885,7 +1028,8 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
     const headers = normalizeForwardHeaders(req.body?.headers);
     const heartbeatSec = normalizeHeartbeatSec(Number(req.body?.heartbeatSec));
     const job = createProxyStreamJob({
-        heartbeatSec
+        heartbeatSec,
+        timeoutMs: req.body?.timeoutMs
     });
 
     void runProxyStreamJob(job, {
@@ -903,8 +1047,7 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
 });
 
 app.delete('/proxy-stream-jobs/:jobId', authenticatedRouteLimiter, async (req, res) => {
-    if (!isAuthorizedRequest(req)) {
-        res.status(401).send({ error: 'Password Incorrect' });
+    if (!await checkProxyAuth(req, res)) {
         return;
     }
     const job = proxyStreamJobs.get(req.params.jobId);
@@ -1234,7 +1377,7 @@ async function getHttpsOptions() {
 
 function setupProxyStreamWebSocket(server) {
     const wsServer = new WebSocketServer({ noServer: true });
-    server.on('upgrade', (req, socket, head) => {
+    server.on('upgrade', async (req, socket, head) => {
         try {
             const reqUrl = new URL(req.url, `http://${req.headers.host}`);
             if (!reqUrl.pathname.startsWith('/proxy-stream-jobs/') || !reqUrl.pathname.endsWith('/ws')) {
@@ -1243,7 +1386,7 @@ function setupProxyStreamWebSocket(server) {
             }
 
             const auth = reqUrl.searchParams.get('risu-auth') || req.headers['risu-auth'];
-            if (!auth || auth.trim() !== password.trim()) {
+            if (!await isAuthorizedProxyRequest({ headers: { 'risu-auth': auth } })) {
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;

@@ -43,6 +43,7 @@ import { makeColdData } from "./process/coldstorage.svelte";
 import { isTauri, isNodeServer } from "./platform";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
+import { getNodeServerProxyAuth } from "./storage/nodeStorage";
 
 export const forageStorage = new AutoStorage()
 
@@ -827,22 +828,16 @@ async function fetchWithProxy(url: string, arg: GlobalFetchArgs): Promise<Global
         const furl = getProxy2Url();
         arg.headers ??= {};
         arg.headers["Content-Type"] ??= arg.body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json";
+        const nodeProxyAuth = isNodeServer ? await getNodeServerProxyAuth() : null;
         const headers = {
             "risu-header": encodeURIComponent(JSON.stringify(arg.headers)),
             "risu-url": encodeURIComponent(url),
             "Content-Type": arg.body instanceof URLSearchParams ? "application/x-www-form-urlencoded" : "application/json",
             ...(arg.useRisuToken && { "x-risu-tk": "use" }),
             ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
+            ...(nodeProxyAuth && { "risu-auth": nodeProxyAuth }),
             ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
         };
-
-        // Add risu-auth header for Node.js server
-        if (isNodeServer) {
-            const auth = localStorage.getItem('risuauth');
-            if (auth) {
-                headers["risu-auth"] = auth;
-            }
-        }
 
         const body = arg.body instanceof URLSearchParams ? arg.body.toString() : JSON.stringify(arg.body);
 
@@ -1474,10 +1469,7 @@ async function fetchViaProxyJobWs(url: string, arg: {
     chatId?: string,
     fetchLogIndex: number
 }): Promise<Response> {
-    const auth = localStorage.getItem('risuauth');
-    if (!auth) {
-        throw new Error('No risu-auth set for proxy job stream');
-    }
+    const auth = await getNodeServerProxyAuth();
 
     const requestSignal = arg.signal;
     const baseUrl = getProxyStreamJobBaseUrl();
@@ -1851,6 +1843,7 @@ export async function fetchNative(url: string, arg: {
             && arg.interceptor === 'openai_streaming'
             && arg.method === 'POST'
             && useLocalNetworkRoute;
+        const nodeProxyAuth = isNodeServer ? await getNodeServerProxyAuth() : null;
 
         if (useProxyJobWs) {
             try {
@@ -1876,14 +1869,14 @@ export async function fetchNative(url: string, arg: {
                 "Content-Type": "application/json",
                 "x-risu-tk": "use",
                 ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
-                ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
+                ...(nodeProxyAuth ? { "risu-auth": nodeProxyAuth } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             } : {
                 "risu-header": encodeURIComponent(JSON.stringify(headers)),
                 "risu-url": encodeURIComponent(url),
                 "Content-Type": "application/json",
                 ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
-                ...(isNodeServer && localStorage.getItem('risuauth') ? { "risu-auth": localStorage.getItem('risuauth') } : {}),
+                ...(nodeProxyAuth ? { "risu-auth": nodeProxyAuth } : {}),
                 ...(DBState?.db?.requestLocation && { "risu-location": DBState.db.requestLocation }),
             },
             method: arg.method,

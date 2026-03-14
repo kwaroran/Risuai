@@ -37,6 +37,15 @@ export class NodeStorage{
         return this.JSONStringlifyAndbase64Url(header) + "." + this.JSONStringlifyAndbase64Url(payload) + "." + sigString
     }
 
+    async getProxyAuth() {
+        await this.checkAuth()
+        const auth = await this.createAuth()
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('risuauth', auth)
+        }
+        return auth
+    }
+
     async getKeyPair():Promise<CryptoKeyPair>{
         
         const storedKey = await getKeypairStore('node')
@@ -193,6 +202,12 @@ export class NodeStorage{
     }
 
     listItem = this.keys
+}
+
+const sharedNodeStorage = new NodeStorage()
+
+export async function getNodeServerProxyAuth() {
+    return await sharedNodeStorage.getProxyAuth()
 }
 
 async function digestPassword(message:string) {

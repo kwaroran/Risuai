@@ -82,13 +82,13 @@ export class HypaProcesser{
             }
 
             const inputs:string[] = Array.isArray(input) ? input : [input]
-            const gf = await globalFetch("https://api.voyageai.com/v1/embeddings", {
+            const gf = await globalFetch("https://api.voyageai.com/v1/contextualizedembeddings", {
                 headers: {
                     "Authorization": "Bearer " + apiKey,
                     "Content-Type": "application/json"
                 },
                 body: {
-                    "input": inputs,
+                    "inputs": inputs.map(s => [s]),
                     "model": "voyage-context-3",
                     "input_type": inputType
                 }
@@ -100,7 +100,7 @@ export class HypaProcesser{
 
             const result:VectorArray[] = []
             for(let i=0;i<gf.data.data.length;i++){
-                result.push(gf.data.data[i].embedding)
+                result.push(gf.data.data[i].data[0].embedding)
             }
             return result
         }

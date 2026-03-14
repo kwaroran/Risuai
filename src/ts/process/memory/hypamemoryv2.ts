@@ -245,7 +245,7 @@ export class HypaProcessorV2<TMetadata> {
             },
             body: {
               "model": "voyage-context-3",
-              "input": input,
+              "inputs": input,
               "input_type": "document"
             }
           }
@@ -511,19 +511,27 @@ export class HypaProcessorV2<TMetadata> {
         throw new Error('Voyage Context 3 requires a Voyage API Key');
       }
 
-      response = await globalFetch(
-        "https://api.voyageai.com/v1/embeddings",
+      const voyageResponse = await globalFetch(
+        "https://api.voyageai.com/v1/contextualizedembeddings",
         {
           headers: {
             "Authorization": "Bearer " + apiKey,
             "Content-Type": "application/json"
           },
           body: {
-            "input": contents,
+            "inputs": contents.map(s => [s]),
             "model": "voyage-context-3",
             "input_type": "query"
           }
         }
+      );
+
+      if (!voyageResponse.ok || !voyageResponse.data.data) {
+        throw new Error(JSON.stringify(voyageResponse.data));
+      }
+
+      return voyageResponse.data.data.map(
+        (group: { data: { embedding: EmbeddingVector }[] }) => group.data[0].embedding
       );
     } else {
       throw new Error(`Unsupported model: ${this.options.model}`);

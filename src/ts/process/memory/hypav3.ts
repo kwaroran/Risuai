@@ -1975,7 +1975,7 @@ class HypaProcesserEx extends HypaProcesser {
                         },
                         body: {
                             "model": "voyage-context-3",
-                            "input": input,
+                            "inputs": input,
                             "input_type": "document"
                         }
                     }

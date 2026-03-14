@@ -153,6 +153,28 @@ export class HypaProcessorV2<TMetadata> {
 
     await Promise.all(loadPromises);
 
+    if (this.options.model === 'voyageContext3' && toEmbed.length > 0 && saveToMemory) {
+      const missMetadatas = new Set(
+        toEmbed.map((item) => item.metadata).filter(Boolean)
+      );
+
+      const additionalItems = ebdTexts.filter(
+        (item) =>
+          item.metadata &&
+          missMetadatas.has(item.metadata) &&
+          !toEmbed.some((e) => e.id === item.id)
+      );
+
+      for (const item of additionalItems) {
+        resultMap.delete(item.id);
+        if (this.vectors.has(item.id)) {
+          this.vectors.delete(item.id);
+        }
+      }
+
+      toEmbed.push(...additionalItems);
+    }
+
     if (toEmbed.length === 0) {
       return ebdTexts.map((item) => resultMap.get(item.id));
     }
@@ -168,7 +190,96 @@ export class HypaProcessorV2<TMetadata> {
 
     const chunks = this.chunkArray(toEmbed, chunkSize);
 
-    if (this.isLocalModel()) {
+    if (this.options.model === 'voyageContext3' && saveToMemory) {
+      const db = getDatabase();
+      const apiKey = db.voyageApiKey?.trim();
+      if (!apiKey) {
+        throw new Error('Voyage Context 3 requires a Voyage API Key');
+      }
+
+      const metadataGroups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of toEmbed) {
+        const key = item.metadata;
+        const group = metadataGroups.get(key) || [];
+        group.push(item);
+        metadataGroups.set(key, group);
+      }
+
+      const groupEntries = Array.from(metadataGroups.entries());
+
+      const MAX_CHUNKS = 16000;
+      const MAX_INPUTS = 1000;
+      const batches: [TMetadata, EmbeddingText<TMetadata>[]][][] = [];
+      let currentBatch: [TMetadata, EmbeddingText<TMetadata>[]][] = [];
+      let currentChunkCount = 0;
+
+      for (const entry of groupEntries) {
+        const groupSize = entry[1].length;
+        if (
+          currentBatch.length > 0 &&
+          (currentBatch.length + 1 > MAX_INPUTS ||
+           currentChunkCount + groupSize > MAX_CHUNKS)
+        ) {
+          batches.push(currentBatch);
+          currentBatch = [];
+          currentChunkCount = 0;
+        }
+        currentBatch.push(entry);
+        currentChunkCount += groupSize;
+      }
+      if (currentBatch.length > 0) {
+        batches.push(currentBatch);
+      }
+
+      for (const batch of batches) {
+        const input = batch.map(([, group]) =>
+          group.map((item) => item.content)
+        );
+
+        const response = await globalFetch(
+          "https://api.voyageai.com/v1/contextualizedembeddings",
+          {
+            headers: {
+              "Authorization": "Bearer " + apiKey,
+              "Content-Type": "application/json"
+            },
+            body: {
+              "model": "voyage-context-3",
+              "input": input,
+              "input_type": "document"
+            }
+          }
+        );
+
+        if (!response.ok || !response.data.data) {
+          throw new Error(JSON.stringify(response.data));
+        }
+
+        for (let i = 0; i < batch.length; i++) {
+          const [, group] = batch[i];
+          const groupEmbeddings = response.data.data[i].data;
+
+          for (let j = 0; j < group.length; j++) {
+            const { id, content, metadata } = group[j];
+            const embedding = groupEmbeddings[j].embedding;
+
+            const ebdResult: EmbeddingResult<TMetadata> = {
+              id, content, embedding, metadata
+            };
+
+            await this.forage.setItem(this.getCacheKey(content), {
+              content, embedding
+            });
+
+            if (saveToMemory) {
+              this.vectors.set(id, ebdResult);
+            }
+
+            resultMap.set(id, ebdResult);
+          }
+        }
+      }
+    } else if (this.isLocalModel()) {
       // Local model: Sequential processing
       for (let i = 0; i < chunks.length; i++) {
         // Progress callback
@@ -393,6 +504,26 @@ export class HypaProcessorV2<TMetadata> {
       response = await globalFetch(
         "https://api.openai.com/v1/embeddings",
         fetchArgs
+      );
+    } else if (this.options.model === 'voyageContext3') {
+      const apiKey = db.voyageApiKey?.trim();
+      if (!apiKey) {
+        throw new Error('Voyage Context 3 requires a Voyage API Key');
+      }
+
+      response = await globalFetch(
+        "https://api.voyageai.com/v1/embeddings",
+        {
+          headers: {
+            "Authorization": "Bearer " + apiKey,
+            "Content-Type": "application/json"
+          },
+          body: {
+            "input": contents,
+            "model": "voyage-context-3",
+            "input_type": "query"
+          }
+        }
       );
     } else {
       throw new Error(`Unsupported model: ${this.options.model}`);

@@ -4,7 +4,7 @@ import { runEmbedding } from "../transformers";
 import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
 
-export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'
+export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
 // In a typical environment, bge-m3 is a heavy model.
 // If your GPU can't handle this model, you'll see errror below.
@@ -64,7 +64,7 @@ export class HypaProcesser{
         for (let i = 0; i < subPrompts.length; i += 1) {
           const input = subPrompts[i];
     
-          const data = await this.getEmbeds(input)
+          const data = await this.getEmbeds(input, 'document')
     
           embeddings.push(...data);
         }
@@ -73,7 +73,37 @@ export class HypaProcesser{
     }
     
     
-    async getEmbeds(input:string[]|string):Promise<VectorArray[]> {
+    async getEmbeds(input:string[]|string, inputType:'query'|'document' = 'query'):Promise<VectorArray[]> {
+        if(this.model === 'voyageContext3'){
+            const db = getDatabase()
+            const apiKey = db.voyageApiKey?.trim()
+            if(!apiKey){
+                throw new Error('Voyage Context 3 requires a Voyage API Key')
+            }
+
+            const inputs:string[] = Array.isArray(input) ? input : [input]
+            const gf = await globalFetch("https://api.voyageai.com/v1/embeddings", {
+                headers: {
+                    "Authorization": "Bearer " + apiKey,
+                    "Content-Type": "application/json"
+                },
+                body: {
+                    "input": inputs,
+                    "model": "voyage-context-3",
+                    "input_type": inputType
+                }
+            })
+
+            if(!gf.ok || !gf.data.data){
+                throw new Error(JSON.stringify(gf.data))
+            }
+
+            const result:VectorArray[] = []
+            for(let i=0;i<gf.data.data.length;i++){
+                result.push(gf.data.data[i].embedding)
+            }
+            return result
+        }
         if(Object.keys(localModels.models).includes(this.model)){
             const inputs:string[] = Array.isArray(input) ? input : [input]
             let results:Float32Array[] = await runEmbedding(inputs, localModels.models[this.model], localModels.gpuModels.includes(this.model) ? 'webgpu' : 'wasm')
@@ -197,9 +227,10 @@ export class HypaProcesser{
         query: VectorArray,
       ): [string, number][] {
           const memoryVectors = this.vectors
+          const sim = this.model === 'voyageContext3' ? cosineSimilarity : similarity
           const searches = memoryVectors
                 .map((vector, index) => ({
-                    similarity: similarity(query, vector.embedding),
+                    similarity: sim(query, vector.embedding),
                     index,
                 }))
                 .sort((a, b) => (a.similarity > b.similarity ? -1 : 0))
@@ -213,16 +244,28 @@ export class HypaProcesser{
     }
 
     similarityCheck(query1:number[],query2: number[]) {
-        return similarity(query1, query2)
+        return this.model === 'voyageContext3' ? cosineSimilarity(query1, query2) : similarity(query1, query2)
     }
 }
 
-export function similarity(a:VectorArray, b:VectorArray) {    
+export function similarity(a:VectorArray, b:VectorArray) {
     let dot = 0;
     for(let i=0;i<a.length;i++){
         dot += a[i] * b[i]
     }
     return dot
+}
+
+export function cosineSimilarity(a:VectorArray, b:VectorArray):number {
+    let dot = 0;
+    let magA = 0;
+    let magB = 0;
+    for(let i=0;i<a.length;i++){
+        dot += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB));
 }
 
 export type VectorArray = number[]|Float32Array

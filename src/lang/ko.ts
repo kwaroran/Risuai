@@ -1199,6 +1199,7 @@ export const languageKorean = {
         "memoryTokensRatioLabel": "메모리 토큰 비율",
         "extraSummarizationRatioLabel": "추가 요약 비율",
         "maxChatsPerSummaryLabel": "요약본당 최대 메시지 수",
+        "queryChatCountLabel": "쿼리 채팅 수",
         "recentMemoryRatioLabel": "최근 메모리 비율",
         "similarMemoryRatioLabel": "유사 메모리 비율",
         "randomMemoryRatioLabel": "무작위 메모리 비율",

@@ -7,7 +7,7 @@
     import { DBState } from "src/ts/stores.svelte";
     import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
     import { requestChatData } from "src/ts/process/request/request";
-    import { asBuffer, selectFileByDom, selectSingleFile, sleep } from "src/ts/util";
+    import { asBuffer, selectMultipleFile, selectSingleFile, sleep } from "src/ts/util";
     import { alertError, alertSelect } from "src/ts/alert";
     import { risuChatParser } from "src/ts/parser/parser.svelte";
     import { AppendableBuffer, downloadFile, getLanguageCodes } from "src/ts/globalApi.svelte";
@@ -127,20 +127,21 @@
     async function runWhisperMode() {
         outputText = 'Loading...\n\n'
 
-        const files = await selectFileByDom([
+        const files = await selectMultipleFile([
             'mp3', 'ogg', 'wav', 'flac',
             'mp4', 'webm', 'mkv', 'avi', 'mov'  
 
         ])
 
-        const file = files?.[0]
+        const selected = files?.[0]
 
         let requestFile:File = null
 
-        if(!file){
+        if(!selected){
             outputText = ''
             return
         }
+        const file = new File([asBuffer(selected.data)], selected.name)
         const videos = [
             'mp4', 'webm', 'mkv', 'avi', 'mov'
         ]

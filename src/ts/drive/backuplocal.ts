@@ -362,20 +362,18 @@ export async function SavePartialLocalBackup(){
     }
 }
 
-export function LoadLocalBackup(){
-    void (async () => {
-        try {
-            const selectedFile = await selectSingleFile(['bin'])
-            if (!selectedFile) {
-                return
-            }
-
-            await loadBackupFromBytes(selectedFile.data)
-        } catch (error) {
-            console.error(error)
-            alertError('Failed, Is file corrupted?')
+export async function LoadLocalBackup(selectedFile?: { name: string, data: Uint8Array } | null){
+    try {
+        const file = selectedFile ?? await selectSingleFile(['bin'])
+        if (!file) {
+            return
         }
-    })()
+
+        await loadBackupFromBytes(file.data)
+    } catch (error) {
+        console.error(error)
+        alertError('Failed, Is file corrupted?')
+    }
 }
 
 async function loadBackupFromStream(file: Blob) {

@@ -11,6 +11,7 @@
     import { unMigrationAccount } from "src/ts/storage/accountStorage";
     import { checkDriver } from "src/ts/drive/drive";
     import { LoadLocalBackup, SaveLocalBackup, SavePartialLocalBackup } from "src/ts/drive/backuplocal";
+    import { selectSingleFile } from "src/ts/util";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { exportAsDataset } from "src/ts/storage/exportAsDataset";
     import { loginToSionyw, testSionywLogin } from "src/ts/sionyw";
@@ -63,8 +64,13 @@
 
 <Button
     onclick={async () => {
+        const selectedFile = await selectSingleFile(['bin'])
+        if(!selectedFile){
+            return
+        }
+
         if((await alertConfirm(language.backupLoadConfirm)) && (await alertConfirm(language.backupLoadConfirm2))){
-            LoadLocalBackup()
+            await LoadLocalBackup(selectedFile)
         }
     }} className="mt-2">
     {language.loadBackupLocal}

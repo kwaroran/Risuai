@@ -1,7 +1,7 @@
 import { writable, type Writable } from "svelte/store"
 import { alertCardExport, alertConfirm, alertError, alertInput, alertMd, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
 import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, type groupChat, setCurrentCharacter, getCurrentCharacter, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
-import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
+import { checkNullish, decryptBuffer, isKnownUri, selectMultipleFile, sleep } from "./util"
 import { language } from "src/lang"
 import { v4 as uuidv4, v4 } from 'uuid';
 import { characterFormatUpdate } from "./characters"
@@ -31,7 +31,7 @@ export const hubURL = isNodeServer
 
 export async function importCharacter() {
     try {
-        const files = await selectFileByDom(["*"], 'multiple')
+        const files = await selectMultipleFile(["*"])
         if(!files){
             return
         }
@@ -39,7 +39,7 @@ export async function importCharacter() {
         for(const f of files){
             await importCharacterProcess({
                 name: f.name,
-                data: f
+                data: f.data
             })
             checkCharOrder()
         }

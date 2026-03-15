@@ -160,6 +160,7 @@ export const languageKorean = {
         "hypaV3MemoryTokensRatio": "프롬프트의 최대 컨텍스트 크기에서 장기기억 블록 {{slot}}에 할당되는 비율입니다.",
         "hypaV3ExtraSummarizationRatio": "요약이 멈추는 기준을 낮추는 비율입니다. 0이면 최대 컨텍스트 이하가 되었을 때 요약을 멈추고, 높을수록 더 많이 요약을 진행한 뒤 멈춥니다.",
         "hypaV3MaxChatsPerSummary": "하나의 요약본을 만들 때 포함할 최대 채팅 메시지 수입니다.",
+        "hypaV3QueryChatCount": "유사도 검색의 쿼리로 사용되는 최근 채팅 메시지 수입니다. 값이 높을수록 더 많은 분량의 채팅으로 유사도를 판별합니다.",
         "hypaV3RecentMemoryRatio": "메모리 토큰 중 최근 메모리에 할당할 비율입니다. 가장 최근에 만들어진 요약본부터 할당된 토큰이 다 찰 때까지 자동으로 채워집니다.",
         "hypaV3SimilarMemoryRatio": "메모리 토큰 중 유사 메모리에 할당할 비율입니다. 최근 채팅과의 유사도 점수가 높은 요약본부터 할당된 토큰이 다 찰 때까지 자동으로 채워집니다.",
         "hypaV3RandomMemoryRatio": "이미 선택된 요약본을 제외한 나머지 중에서 무작위로 채워집니다.",

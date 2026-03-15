@@ -244,10 +244,8 @@ export const languageEnglish = {
             "- **Long Term Memory**: HypaV2, HypaV3, Hanurai Memory, and SupaMemory (with HypaMemory enabled)\n" +
             "- **Additional Text**: Matching character additional info based on context\n" +
             "- **Dynamic Assets**: Finding similar asset names when exact match is not found\n" +
-            "- **Emotion Images**: When Emotion method is set to 'embedding'\n" +
             "- **Trigger Scripts**: Similarity conditions in trigger scripts\n" +
-            "- **File Attachments**: Searching within PDF/TXT/XML attachments\n" +
-            "- **Playground**: Embedding testing in Playground",
+            "- **File Attachments**: Searching within PDF/TXT/XML attachments",
         reSummarizationPrompt:
             "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
         hypaV3MemoryTokensRatio:
@@ -269,19 +267,19 @@ export const languageEnglish = {
         hypaV3DoNotSummarizeUserMessage:
             "If enabled, user messages are excluded from the max messages per summary count.",
         hypaV3EnableSimilarityCorrection:
-            "If enabled, similarity search will use both the raw recent chat and a summary of recent chat as queries, potentially improving the relevance of retrieved summaries. Requires at least 2 recent chats to take effect.",
+            "If enabled, a summary of recent chats is additionally used as a query. Does not work with the experimental HypaMemory V3.",
         hypaV3UseExperimentalImpl:
-            "Switches to the experimental HypaV3 implementation. The standard implementation uses dot product similarity (assumes normalized vectors), while the experimental one uses cosine similarity (handles non-normalized vectors).",
+            "Switches to the experimental HypaMemory V3 implementation. Enables rate limit settings and changes the query method.",
         hypaV3AlwaysToggleOn:
-            "If enabled, HypaV3 will be automatically activated whenever a character is selected, without needing to manually toggle it on for each character.",
+            "If enabled, the HypaMemory toggle is automatically activated when selecting a character.",
         hypaV3SummarizationRequestsPerMinute:
-            "Maximum number of summarization API requests per minute. Only applies when using the Auxiliary Model for summarization.",
+            "Maximum SuperMemory model requests per minute for summarization. Only applies when the SuperMemory model is set to Auxiliary Model.",
         hypaV3SummarizationMaxConcurrent:
-            "Maximum number of concurrent summarization requests. Only applies when using the Auxiliary Model for summarization.",
+            "Maximum concurrent SuperMemory model requests for summarization. Only applies when the SuperMemory model is set to Auxiliary Model.",
         hypaV3EmbeddingRequestsPerMinute:
-            "Maximum number of embedding API requests per minute. Applies to API-based embedding models used for similarity search.",
+            "Maximum embedding model requests per minute for similarity search.",
         hypaV3EmbeddingMaxConcurrent:
-            "Maximum number of concurrent embedding requests. Applies to API-based embedding models used for similarity search.",
+            "Maximum concurrent embedding model requests for similarity search.",
     },
     setup: {
         chooseProvider: "Choose AI Provider",

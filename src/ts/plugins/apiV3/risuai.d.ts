@@ -1405,6 +1405,16 @@ interface RisuaiPluginAPI {
      */
     nativeFetch(url: string, options?: RequestInit): Promise<Response>;
 
+    /**
+     * Saves a secret header for network requests, for protected Headers (like Authorization) that are stripped by Risuai for security.
+     * To use saved secret headers, use an object `{ secretHeader: 'Header-Name' }` in the `headers` field of `nativeFetch` options,
+     * Like `{ headers: {"Authorization":{ secretHeader: 'Authorization' }} }`
+     * @important This API is work in progress and may have breaking changes in the future.
+     * @param key - Header key (e.g., 'Authorization')
+     * @param value - Header value.
+     */
+    saveSecretHeader(key: string, prefix: string, value: string|string[]): Promise<void>;
+
     // ========== UI Registration ==========
 
     /**

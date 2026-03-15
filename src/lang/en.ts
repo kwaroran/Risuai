@@ -203,7 +203,7 @@ export const languageEnglish = {
         systemContentReplacement: "The prompt format that replaces system prompt if the model doesn't support system prompt.",
         systemRoleReplacement: "The role that replaces system role if the model doesn't support system role.",
         summarizationPrompt:
-            "The prompt that is used for summarization. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the chat data. In HypaV3, the summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt that is used for summarization. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
         translatorPrompt:
             "The prompt that is used for translation. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the dest language, {{solt::content}} for the content, and {{slot::tnote}} for the translator note.",
         translateBeforeHTMLFormatting:
@@ -249,25 +249,25 @@ export const languageEnglish = {
             "- **File Attachments**: Searching within PDF/TXT/XML attachments\n" +
             "- **Playground**: Embedding testing in Playground",
         reSummarizationPrompt:
-            "The prompt used when re-summarizing existing summaries. If blank, the default prompt is used. This is different from the summarization prompt, which is used for initial summarization of new chats.\n\nThe output is split by double newlines (\\n\\n) into chunks for similarity search, same as the summarization prompt.",
+            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
         hypaV3MemoryTokensRatio:
-            "The fraction of total context tokens reserved for memory (summaries). For example, 0.2 means 20% of the context window is allocated to memory summaries.",
+            "The fraction of the max context size allocated to the long-term memory block {{slot}} in the prompt.",
         hypaV3ExtraSummarizationRatio:
-            "Additional ratio that lowers the target token level before triggering summarization. For example, 0.1 means summarization will continue until tokens are reduced to 90% of the max context, leaving extra headroom.",
+            "Lowers the threshold at which summarization stops. At 0, summarization stops as soon as tokens fall below the max context. Higher values cause more summarization before stopping.",
         hypaV3MaxChatsPerSummary:
-            "Maximum number of chat messages to include in a single summarization request. Limits how many messages are bundled together when creating a summary.",
+            "Maximum number of chat messages to include when creating a single summary.",
         hypaV3RecentMemoryRatio:
-            "The fraction of memory tokens allocated to recent summaries. Recent summaries are selected in reverse chronological order (newest first). The sum of Recent + Similar ratios must not exceed 1.",
+            "The fraction of memory tokens allocated to recent memory. Automatically filled with the most recently created summaries until the allocated tokens are full.",
         hypaV3SimilarMemoryRatio:
-            "The fraction of memory tokens allocated to similarity-based summaries. These are selected by embedding similarity to the current conversation. The sum of Recent + Similar ratios must not exceed 1.",
+            "The fraction of memory tokens allocated to similar memory. Automatically filled with summaries that have the highest similarity scores to recent chats until the allocated tokens are full.",
         hypaV3RandomMemoryRatio:
-            "The remaining fraction of memory tokens after Recent and Similar allocations. This portion is used for important and other summaries. This value is automatically calculated.",
+            "Randomly filled from summaries not already selected by other categories.",
         hypaV3PreserveOrphanedMemory:
-            "If enabled, summaries that reference deleted chat messages will be preserved. If disabled, orphaned summaries are automatically cleaned up when their source messages no longer exist.",
+            "If enabled, summaries that reference deleted chat messages will be preserved. If disabled, summaries whose source messages no longer exist are automatically removed.",
         hypaV3ProcessRegexScript:
-            "If enabled, the character's regex scripts will be applied to the output when regenerating summaries in the HypaV3 modal.",
+            "If enabled, regex scripts will be applied to the input chat messages when regenerating summaries in the HypaV3 modal.",
         hypaV3DoNotSummarizeUserMessage:
-            "If enabled, user messages will be excluded from summarization. Only assistant and system messages will be summarized.",
+            "If enabled, user messages are excluded from the max messages per summary count.",
         hypaV3EnableSimilarityCorrection:
             "If enabled, similarity search will use both the raw recent chat and a summary of recent chat as queries, potentially improving the relevance of retrieved summaries. Requires at least 2 recent chats to take effect.",
         hypaV3UseExperimentalImpl:

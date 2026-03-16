@@ -268,6 +268,16 @@ export function cosineSimilarity(a:VectorArray, b:VectorArray):number {
     return dot / (Math.sqrt(magA) * Math.sqrt(magB));
 }
 
+export function contextHash(texts: string[]): string {
+    let h = 0x811c9dc5
+    const s = texts.join('\0')
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 0x01000193)
+    }
+    return (h >>> 0).toString(36)
+}
+
 export type VectorArray = number[]|Float32Array
 
 export type memoryVector = {

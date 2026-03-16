@@ -1,5 +1,5 @@
 import localforage from "localforage";
-import { type HypaModel, localModels } from "./hypamemory";
+import { type HypaModel, localModels, contextHash } from "./hypamemory";
 import { TaskRateLimiter, TaskCanceledError } from "./taskRateLimiter";
 import { runEmbedding } from "../transformers";
 import { globalFetch } from "src/ts/globalApi.svelte";
@@ -112,6 +112,22 @@ export class HypaProcessorV2<TMetadata> {
     const resultMap: Map<string, EmbeddingResult<TMetadata>> = new Map();
     const toEmbed: EmbeddingText<TMetadata>[] = [];
 
+    const voyageCtx = new Map<string, string[]>();
+    if (this.options.model === 'voyageContext3' && saveToMemory) {
+      const groups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of ebdTexts) {
+        const g = groups.get(item.metadata) || [];
+        g.push(item);
+        groups.set(item.metadata, g);
+      }
+      for (const [, g] of groups) {
+        const texts = g.map(item => item.content);
+        for (const item of g) {
+          voyageCtx.set(item.id, texts);
+        }
+      }
+    }
+
     // Load cache
     const loadPromises = ebdTexts.map(async (item, index) => {
       const { id, content, metadata } = item;
@@ -124,7 +140,7 @@ export class HypaProcessorV2<TMetadata> {
 
       try {
         const cached = await this.forage.getItem<EmbeddingResult<TMetadata>>(
-          this.getCacheKey(content)
+          this.getCacheKey(content, voyageCtx.get(id))
         );
 
         if (cached) {
@@ -267,7 +283,7 @@ export class HypaProcessorV2<TMetadata> {
               id, content, embedding, metadata
             };
 
-            await this.forage.setItem(this.getCacheKey(content), {
+            await this.forage.setItem(this.getCacheKey(content, voyageCtx.get(id)), {
               content, embedding
             });
 
@@ -400,14 +416,18 @@ export class HypaProcessorV2<TMetadata> {
     return dot / (Math.sqrt(magA) * Math.sqrt(magB));
   }
 
-  private getCacheKey(content: string): string {
+  private getCacheKey(content: string, contextTexts?: string[]): string {
     const db = getDatabase();
     const suffix =
       this.options.model === "custom" && db.hypaCustomSettings?.model?.trim()
         ? `-${db.hypaCustomSettings.model.trim()}`
         : "";
 
-    return `${content}|${this.options.model}${suffix}`;
+    const ctxSuffix = contextTexts && contextTexts.length > 1
+      ? `|ctx:${contextHash(contextTexts)}`
+      : "";
+
+    return `${content}|${this.options.model}${suffix}${ctxSuffix}`;
   }
 
   private getOptimalChunkSize(): number {

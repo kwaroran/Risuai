@@ -1,4 +1,4 @@
-import { type memoryVector, HypaProcesser, similarity, cosineSimilarity } from "./hypamemory";
+import { type memoryVector, HypaProcesser, similarity, cosineSimilarity, contextHash } from "./hypamemory";
 import { globalFetch } from "src/ts/globalApi.svelte";
 import { TaskRateLimiter } from "./taskRateLimiter";
 import {
@@ -1924,7 +1924,10 @@ class HypaProcesserEx extends HypaProcesser {
             throw new Error('Voyage Context 3 requires a Voyage API Key');
         }
 
-        const cacheKeyFor = (text: string) => `${text}|voyageContext3`;
+        const cacheKeyFor = (text: string, groupTexts: string[]) => {
+            const ctx = groupTexts.length > 1 ? `|ctx:${contextHash(groupTexts)}` : '';
+            return `${text}|voyageContext3${ctx}`;
+        };
 
         const summaryGroups = new Map<Summary, SummaryChunk[]>();
         for (const chunk of chunks) {
@@ -1937,11 +1940,12 @@ class HypaProcesserEx extends HypaProcesser {
         const cachedVectors = new Map<string, memoryVector>();
 
         for (const [, group] of summaryGroups) {
+            const groupTexts = group.map(c => c.text);
             let allCached = true;
             const groupCache = new Map<string, memoryVector>();
 
             for (const chunk of group) {
-                const cached: memoryVector = await this.forage.getItem(cacheKeyFor(chunk.text));
+                const cached: memoryVector = await this.forage.getItem(cacheKeyFor(chunk.text, groupTexts));
                 if (cached) {
                     groupCache.set(chunk.text, cached);
                 } else {
@@ -1987,6 +1991,7 @@ class HypaProcesserEx extends HypaProcesser {
 
                 for (let i = 0; i < batch.length; i++) {
                     const group = batch[i];
+                    const groupTexts = group.map(c => c.text);
                     const groupEmbeddings = response.data.data[i].data;
 
                     for (let j = 0; j < group.length; j++) {
@@ -1997,7 +2002,7 @@ class HypaProcesserEx extends HypaProcesser {
                             embedding
                         };
 
-                        await this.forage.setItem(cacheKeyFor(chunk.text), vector);
+                        await this.forage.setItem(cacheKeyFor(chunk.text, groupTexts), vector);
                         cachedVectors.set(chunk.text, vector);
                     }
                 }

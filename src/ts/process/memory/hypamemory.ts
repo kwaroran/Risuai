@@ -227,7 +227,7 @@ export class HypaProcesser{
         query: VectorArray,
       ): [string, number][] {
           const memoryVectors = this.vectors
-          const sim = this.model === 'voyageContext3' ? cosineSimilarity : similarity
+          const sim = similarity
           const searches = memoryVectors
                 .map((vector, index) => ({
                     similarity: sim(query, vector.embedding),
@@ -244,7 +244,7 @@ export class HypaProcesser{
     }
 
     similarityCheck(query1:number[],query2: number[]) {
-        return this.model === 'voyageContext3' ? cosineSimilarity(query1, query2) : similarity(query1, query2)
+        return similarity(query1, query2)
     }
 }
 

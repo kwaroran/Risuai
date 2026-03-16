@@ -1,4 +1,4 @@
-import { type memoryVector, HypaProcesser, similarity, cosineSimilarity, contextHash } from "./hypamemory";
+import { type memoryVector, HypaProcesser, similarity, contextHash } from "./hypamemory";
 import { globalFetch } from "src/ts/globalApi.svelte";
 import { TaskRateLimiter } from "./taskRateLimiter";
 import {
@@ -2055,14 +2055,10 @@ class HypaProcesserEx extends HypaProcesser {
     ): Promise<[SummaryChunk, number][]> {
         const queryVector = (await this.getEmbeds(query))[0];
 
-        const useCosine = this.model === 'voyageContext3';
-
         return this.summaryChunkVectors
             .map((scv) => ({
                 chunk: scv.chunk,
-                similarity: useCosine
-                    ? cosineSimilarity(queryVector, scv.vector.embedding)
-                    : similarity(queryVector, scv.vector.embedding),
+                similarity: similarity(queryVector, scv.vector.embedding),
             }))
             .sort((a, b) => b.similarity - a.similarity)
             .map((result) => [result.chunk, result.similarity]);

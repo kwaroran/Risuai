@@ -17,6 +17,12 @@
     "resources": [
       "src-python/*"
     ],
+    "macOS": {
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleLocalizations": ["en", "ko", "zh-Hans", "zh-Hant", "vi", "de", "es"]
+      }
+    },
     "targets": ["deb", "rpm", "appimage", "nsis", "app", "dmg"],
     "createUpdaterArtifacts": true,
     "fileAssociations": [

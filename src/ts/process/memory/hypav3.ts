@@ -1724,7 +1724,13 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
         return response.result.replace(thoughtsRegex, "").trim();
     }
 
-    // Local
+    // Local — ensure system message comes first for WebLLM models
+    const firstSystemIndex = formated.findIndex(m => m.role === 'system');
+    if (firstSystemIndex > 0) {
+        const [system] = formated.splice(firstSystemIndex, 1);
+        formated.unshift(system);
+    }
+
     const content = await chatCompletion(formated, settings.summarizationModel, {
         max_tokens: 8192,
         temperature: 0,

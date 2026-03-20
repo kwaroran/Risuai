@@ -67,6 +67,18 @@ export const advancedSettingsItems: SettingItem[] = [
         }
     },
 
+    // Keep Session alive
+    {
+        id: 'adv.keepSessionAlive', type: 'select', labelKey: 'keepSessionAlive', bindKey: 'keepSessionAlive', helpKey: 'keepSessionAlive',
+        options: {
+            selectOptions: [
+                { value: 'off', label: 'Off' },
+                { value: 'sound', label: 'Via Sound' },
+            ]
+        }
+    },
+    
+
     // Height Mode
     {
         id: 'adv.heightMode', type: 'select', labelKey: 'heightMode', bindKey: 'heightMode',

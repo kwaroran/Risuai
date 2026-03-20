@@ -10,7 +10,7 @@ import { forageStorage } from "../globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { DBState } from "../stores.svelte"
 import type { NodeStorage } from "../storage/nodeStorage"
-import { decompress as fflateDecompress } from "fflate"
+import { compress as fflateCompress, decompress as fflateDecompress } from "fflate"
 import { fetchProtectedResource } from "../sionyw"
 
 export const coldStorageHeader = '\uEF01COLDSTORAGE\uEF01'
@@ -93,10 +93,9 @@ async function setColdStorageItem(key:string, value:any):Promise<boolean> {
 
     let compressed:Uint8Array
     try {
-        const fflate = await import('fflate')
         const json = JSON.stringify(value)
         compressed = await (new Promise<Uint8Array>((resolve, reject) => {
-            fflate.compress(new TextEncoder().encode(json), (err, result) => {
+            fflateCompress(new TextEncoder().encode(json), (err, result) => {
                 if (err) {
                     return reject(err)
                 }

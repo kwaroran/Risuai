@@ -246,8 +246,7 @@ export const languageEnglish = {
             "- **Dynamic Assets**: Finding similar asset names when exact match is not found\n" +
             "- **Trigger Scripts**: Similarity conditions in trigger scripts\n" +
             "- **File Attachments**: Searching within PDF/TXT/XML attachments\n" +
-            "- **Playground**: Embedding testing in Playground" +
-            "- **File Attachments**: Searching within PDF/TXT/XML attachments",
+            "- **Playground**: Embedding testing in Playground",
         keepSessionAlive:
             "Keeps the tab active and prevents the session from expiring due to inactivity in browsers. This may require refresh to take effect.\n\n" +
             "- **Via Sound**: Plays a silent audio at regular intervals to keep the session alive. This method is known as most compatible and effective in most browsers.\n",

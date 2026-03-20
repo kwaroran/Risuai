@@ -203,7 +203,7 @@ export const languageEnglish = {
         systemContentReplacement: "The prompt format that replaces system prompt if the model doesn't support system prompt.",
         systemRoleReplacement: "The role that replaces system role if the model doesn't support system role.",
         summarizationPrompt:
-            "The prompt that is used for summarization. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the chat data.",
+            "The prompt that is used for summarization. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
         translatorPrompt:
             "The prompt that is used for translation. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the dest language, {{solt::content}} for the content, and {{slot::tnote}} for the translator note.",
         translateBeforeHTMLFormatting:
@@ -244,10 +244,42 @@ export const languageEnglish = {
             "- **Long Term Memory**: HypaV2, HypaV3, Hanurai Memory, and SupaMemory (with HypaMemory enabled)\n" +
             "- **Additional Text**: Matching character additional info based on context\n" +
             "- **Dynamic Assets**: Finding similar asset names when exact match is not found\n" +
-            "- **Emotion Images**: When Emotion method is set to 'embedding'\n" +
             "- **Trigger Scripts**: Similarity conditions in trigger scripts\n" +
-            "- **File Attachments**: Searching within PDF/TXT/XML attachments\n" +
-            "- **Playground**: Embedding testing in Playground",
+            "- **File Attachments**: Searching within PDF/TXT/XML attachments",
+        reSummarizationPrompt:
+            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+        hypaV3MemoryTokensRatio:
+            "The fraction of the max context size allocated to the long-term memory block {{slot}} in the prompt.",
+        hypaV3ExtraSummarizationRatio:
+            "Lowers the threshold at which summarization stops. At 0, summarization stops as soon as tokens fall below the max context. Higher values cause more summarization before stopping.",
+        hypaV3MaxChatsPerSummary:
+            "Maximum number of chat messages to include when creating a single summary.",
+        hypaV3RecentMemoryRatio:
+            "The fraction of memory tokens allocated to recent memory. Automatically filled with the most recently created summaries until the allocated tokens are full.",
+        hypaV3SimilarMemoryRatio:
+            "The fraction of memory tokens allocated to similar memory. Automatically filled with summaries that have the highest similarity scores to recent chats until the allocated tokens are full.",
+        hypaV3RandomMemoryRatio:
+            "Randomly filled from summaries not already selected by other categories.",
+        hypaV3PreserveOrphanedMemory:
+            "If enabled, summaries that reference deleted chat messages will be preserved. If disabled, summaries whose source messages no longer exist are automatically removed.",
+        hypaV3ProcessRegexScript:
+            "If enabled, regex scripts will be applied to the input chat messages when regenerating summaries in the HypaV3 modal.",
+        hypaV3DoNotSummarizeUserMessage:
+            "If enabled, user messages are excluded from the max messages per summary count.",
+        hypaV3EnableSimilarityCorrection:
+            "If enabled, a summary of recent chats is additionally used as a query. Does not work with the experimental HypaMemory V3.",
+        hypaV3UseExperimentalImpl:
+            "Switches to the experimental HypaMemory V3 implementation. Enables rate limit settings and changes the query method.",
+        hypaV3AlwaysToggleOn:
+            "If enabled, the HypaMemory toggle is automatically activated when selecting a character.",
+        hypaV3SummarizationRequestsPerMinute:
+            "Maximum SuperMemory model requests per minute for summarization. Only applies when the SuperMemory model is set to Auxiliary Model.",
+        hypaV3SummarizationMaxConcurrent:
+            "Maximum concurrent SuperMemory model requests for summarization. Only applies when the SuperMemory model is set to Auxiliary Model.",
+        hypaV3EmbeddingRequestsPerMinute:
+            "Maximum embedding model requests per minute for similarity search.",
+        hypaV3EmbeddingMaxConcurrent:
+            "Maximum concurrent embedding model requests for similarity search.",
     },
     setup: {
         chooseProvider: "Choose AI Provider",

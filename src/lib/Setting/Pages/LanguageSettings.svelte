@@ -187,7 +187,7 @@
                 }
                 const json = JSON.stringify(cache, null, 2)
                 await downloadFile('translation_cache.json', new TextEncoder().encode(json))
-                alertNormal(language.exportTranslationCache)
+                alertNormal(language.exportTranslationCacheSuccess)
             } catch(e) {
                 alertError(e.message)
             }
@@ -197,6 +197,10 @@
             try {
                 const files = await selectFileByDom(['.json'])
                 if (!files || files.length === 0) return
+                if (!files[0].name.endsWith('.json')) {
+                    alertError('Invalid file type. Please select a .json file.')
+                    return
+                }
                 const text = await files[0].text()
                 const data = JSON.parse(text)
                 if (typeof data !== 'object' || Array.isArray(data)) {
@@ -225,7 +229,7 @@
                 if (!confirmed) return
                 alertWait(language.loading)
                 await clearLLMCache()
-                alertNormal(language.clearTranslationCache)
+                alertNormal(language.clearTranslationCacheSuccess)
             } catch(e) {
                 alertError(e.message)
             }

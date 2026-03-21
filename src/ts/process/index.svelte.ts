@@ -573,13 +573,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             }
         }
         return text.replace(positionRegex, (match, p1) => {
-            const MatchingLorebooks = lorepmt.actives.filter(v => {
-                return v.pos === ('pt_' + p1)
-            })
-
-            return MatchingLorebooks.map(v => {
-                return v.prompt
-            }).join('\n')
+            const posMatch = 'pt_' + p1
+            const matchingPrompts: string[] = []
+            for (const v of lorepmt.actives) {
+                if (v.pos === posMatch) {
+                    matchingPrompts.push(v.prompt)
+                }
+            }
+            return matchingPrompts.join('\n')
         })
     }
 

@@ -159,7 +159,6 @@
         const key = await getTranslationCacheKey()
         await setLLMCache(key, editTranslationText)
         editTranslationMode = false
-        retranslate = true
     }
 
     function displaya(message:string){
@@ -339,9 +338,7 @@
                     {language.retranslate}
                 </span>
             </button>
-            <button class="text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1
-                            hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center"
-                    class:text-blue-400={editTranslationMode}
+            <button class={"text-sm p-1 border-darkborderc float-end mr-2 my-1 hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center " + (editTranslationMode ? 'text-blue-400' : 'text-textcolor2')}
                     onclick={() => {
                         if(editTranslationMode){
                             saveTranslationEdit()
@@ -364,8 +361,7 @@
         <AutoresizeArea bind:value={editTranslationText} handleLongPress={() => {
             saveTranslationEdit()
         }} />
-    {/if}
-    {#if editMode}
+    {:else if editMode}
         <AutoresizeArea bind:value={message} handleLongPress={() => {
             editMode = false
         }} />

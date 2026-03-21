@@ -1132,6 +1132,7 @@ export const languageSpanish = {
     "importTranslationCache": "Importar caché de traducción",
     "importTranslationCacheConfirm": "Esto fusionará las entradas en la caché de traducción. Las claves existentes se sobrescribirán. ¿Continuar?",
     "importTranslationCacheSuccess": "Se importaron {0} entradas del caché de traducción.",
+    importTranslationCacheFailed: "Se importaron {0} entradas, pero {1} entradas no se pudieron guardar. El almacenamiento puede estar lleno.",
     "exportTranslationCacheEmpty": "El caché de traducción está vacío.",
     clearTranslationCache: "Borrar caché de traducción",
     clearTranslationCacheSuccess: "Caché de traducción borrada correctamente.",

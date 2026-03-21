@@ -1132,6 +1132,7 @@ export const languageVietnamese = {
     "importTranslationCache": "Nhập bộ nhớ đệm dịch",
     "importTranslationCacheConfirm": "Thao tác này sẽ hợp nhất các mục vào bộ nhớ đệm dịch thuật. Các khóa hiện có sẽ bị ghi đè. Tiếp tục?",
     "importTranslationCacheSuccess": "Đã nhập {0} mục bộ nhớ đệm dịch.",
+    importTranslationCacheFailed: "Đã nhập {0} mục, nhưng {1} mục không lưu được. Bộ nhớ có thể đã đầy.",
     "exportTranslationCacheEmpty": "Bộ nhớ đệm dịch trống.",
     clearTranslationCache: "Xóa bộ nhớ đệm dịch thuật",
     clearTranslationCacheSuccess: "Đã xóa bộ nhớ đệm dịch thuật.",

@@ -589,13 +589,18 @@ export async function exportLLMCacheAsJSON():Promise<Record<string, string>>{
     return result
 }
 
-export async function importLLMCacheFromJSON(data:Record<string, string>):Promise<number>{
+export async function importLLMCacheFromJSON(data:Record<string, string>):Promise<{count: number, failed: number}>{
     let count = 0
+    let failed = 0
     for(const [key, value] of Object.entries(data)){
-        await LLMCacheStorage.setItem(key, value)
-        count++
+        try{
+            await LLMCacheStorage.setItem(key, value)
+            count++
+        }catch{
+            failed++
+        }
     }
-    return count
+    return {count, failed}
 }
 
 export async function clearLLMCache():Promise<void>{

@@ -1132,6 +1132,7 @@ export const languageGerman = {
     "importTranslationCache": "Übersetzungscache importieren",
     "importTranslationCacheConfirm": "Die Einträge werden in den Übersetzungscache zusammengeführt. Vorhandene Schlüssel werden überschrieben. Fortfahren?",
     "importTranslationCacheSuccess": "{0} Übersetzungscache-Einträge importiert.",
+    importTranslationCacheFailed: "{0} Einträge importiert, aber {1} Einträge konnten nicht gespeichert werden. Der Speicher ist möglicherweise voll.",
     "exportTranslationCacheEmpty": "Übersetzungscache ist leer.",
     clearTranslationCache: "Übersetzungscache leeren",
     clearTranslationCacheSuccess: "Übersetzungscache wurde geleert.",

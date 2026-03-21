@@ -1152,6 +1152,7 @@ export const languageKorean = {
     "importTranslationCache": "번역 캐시 가져오기",
     "importTranslationCacheConfirm": "번역 캐시에 항목을 병합합니다. 기존 키는 덮어씌워집니다. 계속하시겠습니까?",
     "importTranslationCacheSuccess": "번역 캐시 {0}개 항목을 가져왔습니다.",
+    importTranslationCacheFailed: "{0}개의 항목을 가져왔지만, {1}개의 항목 저장에 실패했습니다. 저장 공간이 부족할 수 있습니다.",
     "exportTranslationCacheEmpty": "번역 캐시가 비어 있습니다.",
     clearTranslationCache: "번역 캐시 지우기",
     clearTranslationCacheSuccess: "번역 캐시를 지웠습니다.",

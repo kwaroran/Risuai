@@ -1135,6 +1135,7 @@ export const languageChineseTraditional = {
     "importTranslationCache": "匯入翻譯快取",
     "importTranslationCacheConfirm": "這將把條目合併到翻譯快取中。已有的鍵將被覆蓋。是否繼續？",
     "importTranslationCacheSuccess": "已匯入 {0} 筆翻譯快取。",
+    importTranslationCacheFailed: "已匯入{0}個條目，但{1}個條目儲存失敗。儲存空間可能已滿。",
     "exportTranslationCacheEmpty": "翻譯快取為空。",
     clearTranslationCache: "清除翻譯快取",
     clearTranslationCacheSuccess: "翻譯快取已清除。",

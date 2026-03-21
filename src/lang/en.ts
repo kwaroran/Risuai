@@ -1269,6 +1269,7 @@ export const languageEnglish = {
     importTranslationCache: "Import Translation Cache",
     importTranslationCacheConfirm: "This will merge entries into your translation cache. Existing keys will be overwritten. Continue?",
     importTranslationCacheSuccess: "Imported {0} translation cache entries.",
+    importTranslationCacheFailed: "Imported {0} entries, but {1} entries failed to save. Storage may be full.",
     exportTranslationCacheEmpty: "Translation cache is empty.",
     clearTranslationCache: "Clear Translation Cache",
     clearTranslationCacheSuccess: "Translation cache cleared successfully.",

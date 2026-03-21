@@ -1132,6 +1132,7 @@ export const languageChinese = {
     "importTranslationCache": "导入翻译缓存",
     "importTranslationCacheConfirm": "这将把条目合并到翻译缓存中。已有的键将被覆盖。是否继续？",
     "importTranslationCacheSuccess": "已导入 {0} 条翻译缓存。",
+    importTranslationCacheFailed: "已导入{0}个条目，但{1}个条目保存失败。存储空间可能已满。",
     "exportTranslationCacheEmpty": "翻译缓存为空。",
     clearTranslationCache: "清除翻译缓存",
     clearTranslationCacheSuccess: "翻译缓存已清除。",

@@ -216,8 +216,12 @@
                 const confirmed = await alertConfirm(language.importTranslationCacheConfirm)
                 if (!confirmed) return
                 alertWait(language.loading)
-                const count = await importLLMCacheFromJSON(data)
-                alertNormal(language.importTranslationCacheSuccess.replace('{0}', String(count)))
+                const {count, failed} = await importLLMCacheFromJSON(data)
+                if(failed > 0){
+                    alertError(language.importTranslationCacheFailed.replace('{0}', String(count)).replace('{1}', String(failed)))
+                } else {
+                    alertNormal(language.importTranslationCacheSuccess.replace('{0}', String(count)))
+                }
             } catch(e) {
                 alertError(e.message)
             }

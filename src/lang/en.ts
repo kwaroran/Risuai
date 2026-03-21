@@ -17,7 +17,7 @@ export const languageEnglish = {
         toomuchtoken: "Error: The minimum required token is greater than the Max Context Size.",
         unknownModel: "Error: Unknown model selected",
         httpError: "Error: error in request:",
-        noData: "The file is invalid, or its data is corrupted.",
+        noData: "The file is invalid, or it's data is corrupted.",
         onlyOneChat: "There must be least one chat",
         alreadyCharInGroup: "There is already a character with the same name in the group.",
         noUserIcon: "You must set your icon first.",
@@ -26,7 +26,7 @@ export const languageEnglish = {
         vertexAuthError: "Vertex AI authentication details are missing.",
         networkFetch: "This happens when the network is unstable or the server is down.",
         networkFetchWeb:
-            "This can be a CORS error. this only happens when using web version dude to limitations of the browser. try using desktop local version, or other version of Risuai.",
+            "This can be a CORS error. this only happens when using web version due to limitations of the browser. try using desktop local version, or other version of Risuai.",
         networkFetchPlain: "This can be a plain fetch error. try disabling force plain fetch option in settings.",
         requestLogRemoved: "This request log is removed.",
         requestLogRemovedDesc: "This request log removes when client is refreshed or reloaded.",
@@ -34,149 +34,149 @@ export const languageEnglish = {
     showHelp: "Show Help",
     help: {
         model: "Model option is a main model used in chat.",
-        submodel: "Auxiliary Model is a model that used in analizing emotion images and auto suggestions and etc. gpt3.5 is recommended.",
-        oaiapikey: "Api key for OpenAI. you can get it in https://platform.openai.com/account/api-keys",
+        submodel: "Auxiliary Model is a model that used in analyzing emotion images and auto suggestions and etc. gpt3.5 is recommended.",
+        oaiapikey: "API key for OpenAI. you can get it in https://platform.openai.com/account/api-keys",
         mainprompt: "The main prompt option sets the default model behavior.",
         jailbreak: "The jailbreak prompt option activates when jailbreak toggle is on in character.",
-        globalNote: "a note that strongly effects model behavior, also known as UJB. works in all characters.",
+        globalNote: "A note that strongly affects model behavior, also known as UJB. Works in all characters.",
         autoSuggest: "Prompts used to generate options when automatically suggesting user responses.",
-        formatOrder: "formating order of prompt. lower blocks does more effect to the model.",
-        forceUrl: "if it is not blank, the request will go to the url that you had inputed.",
+        formatOrder: "Formating order of prompt. Lower blocks does more effect to the model.",
+        forceUrl: "If it is not blank, the request will go to the url that you had inputed.",
         tempature:
-            "lower values make character follow prompts closely, but it will more likely to response like a machine.\nHigher values will result in creative behavior, but the character's response can break down more easily.",
+            "Lower values make character follow prompts closely, but it will more likely to response like a machine.\nHigher values will result in creative behavior, but the character's response can break down more easily.",
         frequencyPenalty: "Higher values prevent the use of duplicate words in response, but character's response can break down more easily.",
         presensePenalty: "Higher values prevent the use of duplicate words in all context, but character's response can break down more easily.",
-        sdProvider: "provider for image generation.",
+        sdProvider: "Provider for image generation.",
         msgSound: "Plays *ding* sound when character responses",
-        charDesc: "Brief description of the character. this effects characters response.",
-        charFirstMessage: "First message of the character. this highly effects characters response.",
-        charNote: "a note that strongly effects model behavior. embbedded to current character. also known as UJB.",
-        toggleNsfw: "toggles jailbreak prompt on and off.",
+        charDesc: "Brief description of the character. This affects characters response.",
+        charFirstMessage: "First message of the character. This highly affects characters response.",
+        charNote: "A note that strongly affects model behavior. Embbedded to current character, also known as UJB.",
+        toggleNsfw: "Toggles jailbreak prompt on and off.",
         lorebook: "Lorebook is a user-made dictionary for AI. AI only sees it when where is an activation keys in the context.",
-        loreName: "name of the lore. it dosen't effects the Ai.",
-        loreActivationKey: "If one of the activation key exists in context, the lore will be activated and prompt will go in. seperated by commas.",
-        loreorder: "If insert Order is higher, it will effect the model more, and it will more lessly cuted when activated lore are many.",
-        bias: "bias is a key-value data which modifies the likelihood of string appearing.\nit can be -100 to 100, higher values will be more likely to appear, and lower values will be more unlikely to appear. \nAdditionaly, if its set to -101, it would work as 'strong ban word' for some models. \nWarning: if the tokenizer is wrong, it not work properly.",
+        loreName: "Name of the lore. It doesn't affect the Ai.",
+        loreActivationKey: "If one of the activation key exists in context, the lore will be activated and prompt will go in. Separated by commas.",
+        loreorder: "If insert Order is higher, it will effect the model more, and it is less likely to be cut when many lores are activated.",
+        bias: "Bias is a key-value data which modifies the likelihood of string appearing.\nIt can be -100 to 100, higher values will be more likely to appear, and lower values will be more unlikely to appear. \nAdditionaly, if its set to -101, it would work as 'strong ban word' for some models. \nWarning: if the tokenizer is wrong, it not work properly.",
         emotion:
-            "Emotion Images option shows image depending at character's emotion which is analized by character's response. you must input emotion name as words *(like joy, happy, fear and etc.)* .emotion named **neutral** will be default emotion if it exists. must be more then 3 images to work properly.",
+            "Emotion Images option shows image depending at character's emotion which is analyzed by character's response. You must input emotion name as words *(like joy, happy, fear and etc.)*. The emotion named **neutral** will be the default emotion if it exists. There must be more than 3 images to work properly.",
         imggen: "After analyzing the chat, apply the prompt to {{slot}}.",
         regexScript:
             "Regex Script is a custom regex that replaces string that matches IN to OUT.\n\nThere four type options." +
-            "\n\n- **Modify Input** modifys user's input" +
-            "\n\n- **Modify Output** modifys character's output" +
-            "\n\n- **Modify Request Data** modifys current chat data when sent." +
+            "\n\n- **Modify Input** modifies user's input" +
+            "\n\n- **Modify Output** modifies character's output" +
+            "\n\n- **Modify Request Data** modifies current chat data when sent." +
             "\n\n- **Modify Display** just modifies the text when shown without modifying chat data." +
-            "\n\nIN must be a regex without flags and without slashes in start and end.\n\nOUT is a string which can include replacement patterns. these are the patterns:" +
+            "\n\nIN must be a regex without flags and without slashes in start and end.\n\nOUT is a string which can include replacement patterns. These are the patterns:" +
             "\n\n- $$\n\n    - inserts $" +
             "\n\n- $&\n\n    - inserts the matched substring." +
             "\n\n- $`\n\n    - inserts the portion of the string that precedes the matched substring." +
-            "\n\n- $1\n\n    - inserts the first matching group. works with other number like 2, 3..." +
+            "\n\n- $1\n\n    - inserts the first matching group. Works with other number like 2, 3..." +
             "\n\n- $(name)\n\n    - inserts the named group" +
             "\n\nFor flags, you can not only use native supported flags, but also use these flags, which are designed for advanced users:" +
             "\n\n- `<inject>` - injects the result to the current string." +
             "\n- `<move_top>` - moves the result to the top of the string." +
             "\n- `<move_bottom>` - moves the result to the bottom of the string." +
             "\n- `<repeat_back>` - if the match is not found, it carries the result from the previous match." +
-            "\n- `<order n>` - sets the order of the result. higher order will be shown first. `n` is a number. (like `<order 1>`) if this flag is not set, it will be set to 0." +
+            "\n- `<order n>` - sets the order of the result. Higher order will be shown first. `n` is a number. (like `<order 1>`) if this flag is not set, it will be set to 0." +
             "\n- `<cbs>` - parses curly braced synatxes in IN." +
             "\n\nTo use with native flags, you can use like `gi<cbs><move_top>`.",
-        experimental: "This is a experimental feature. it might be unstable.",
+        experimental: "This is a experimental feature. It might be unstable.",
         oogaboogaURL:
             "If your WebUI supports older version of api, your url should look *like https:.../run/textgen*\n\n" +
             "If your WebUI supports newVersion of api, your url should look like *https://.../api/v1/generate* and use the api server as host, and add --api to arguments.",
         exampleMessage:
-            "Example conversations that effects output of the character. it dosen't uses tokens permanently." +
+            "Example conversations that affects output of the character. It doesn't uses tokens permanently." +
             "\n\nExample format of conversations:" +
             "\n\n```\n<START>\n{{user}}: hi\n{{char}}: hello\n<START>\n{{user}}: hi\nHaruhi: hello\n```" +
             "\n\n```<START>``` Marks the beginning of a new conversation.",
         creatorQuotes: "Note that appearances on top of first message. Used to inform users about this character. It doesn't go into prompt.",
         systemPrompt: "A prompt that replaces main prompt in settings if its not blank.",
-        chatNote: "a note that strongly effects model behavior. embbedded to current chat. also known as memory or ujb.",
+        chatNote: "A note that strongly affects model behavior. Embbedded to current chat, also known as memory or UJB.",
         personality: "A brief description about character's personality. \n\n**It is not recommended to use this option. Describe it in character description instead.**",
         scenario: "A brief description about character's scenario. \n\n**It is not recommended to use this option. Describe it in character description instead.**",
-        utilityBot: "When activated, it ignores main prompt, jailbreak and other prompts. used for bot made for utility, not for roleplay.",
+        utilityBot: "When activated, it ignores main prompt, jailbreak and other prompts. Used for bot made for utility, not for roleplay.",
         loreSelective: "If Selective mode is toggled, both Activation Key and Secondary key should have a match to activate the lore.",
         loreRandomActivation:
-            "If Use Probability Condition is abled, if the lore's other conditions are all met, the lore will be activated with a set probability which is set by 'Probability' each time a chat is sent.",
+            "If Use Probability Condition is enabled, if the lore's other conditions are all met, the lore will be activated with a set probability which is set by 'Probability' each time a chat is sent.",
         additionalAssets:
             "Additional assets to display in your chat. \n\n - use `{{raw::<asset name>}}` to use as path.\n - use `{{image::<asset name>}}` to use as image\n - use `{{video::<asset name>}}` to use as video\n - use `{{audio::<asset name>}}` to use as audio\n    - recommended to put in Background HTML",
         superMemory:
             "SuperMemory makes your character memorize more by giving summarized data to AI.\n\n" +
             "SuperMemory model is a model that summarizes that text. davinci is recommended, and Auxiliary models are not recommended unless it is an unfiltered model with over 2000 tokens with great summarizing skill.\n\n" +
-            "SuperMemory Prompt decides what prompt should be sent to summarize. if you leave it blank, it will use the default prompt. leaving blank is recommended.\n\n" +
+            "SuperMemory Prompt decides what prompt should be sent to summarize. If you leave it blank, it will use the default prompt. leaving blank is recommended.\n\n" +
             "After it is all setup, you can able it in the setting of a character.",
-        replaceGlobalNote: "If its not blank, it replaces current global note to this.",
+        replaceGlobalNote: "If it's not blank, it replaces current global note to this.",
         backgroundHTML:
-            "A Markdown/HTML Data that would be injected to the background of chat screen.\n\n you can also use additional assets. for example, you can use `{{audio::<asset name}}` for background music." +
+            "A Markdown/HTML Data that would be injected to the background of chat screen.\n\n You can also use additional assets. for example, you can use `{{audio::<asset name}}` for background music." +
             "\n\n Additionaly, you can use these with additional assets:" +
             "\n - `{{bg::<asset name>}}`: inject the background as asset",
-        additionalText: "The text that would be added to Character Description only when ai thinks its needed, so you can put long texts here. seperate with double newlines.",
-        charjs: "A javascript code that would run with character. for example, you can check `https://github.com/kwaroran/Risuai/blob/main/src/etc/example-char.js` CURRENTLY NOT RECOMMENDED TO USE DUDE TO SECURITY REASONS. EXPORTING WOULD NOT INCLUDE THIS.",
+        additionalText: "The text that would be added to Character Description only when AI thinks it's needed, so you can put long texts here. Separate with double newlines.",
+        charjs: "A javascript code that would run with character. for example, you can check `https://github.com/kwaroran/Risuai/blob/main/src/etc/example-char.js` CURRENTLY NOT RECOMMENDED FOR USE DUE TO SECURITY REASONS. EXPORTING WOULD NOT INCLUDE THIS.",
         romanizer:
-            "Romanizer is a plugin that converts non-roman characters to roman characters to reduce tokens when using non-roman characters while requesting data. this can result diffrent output from the original model. it is not recommended to use this plugin when using roman characters on chat.",
+            "Romanizer is a plugin that converts non-roman characters to roman characters to reduce tokens when using non-roman characters while requesting data. This can result different output from the original model. It is not recommended to use this plugin when using roman characters on chat.",
         inlayImages: "If enabled, images could be inlayed to the chat and AIs can see it if they support it.",
         metrica:
-            "Metric Systemizer is a plugin that converts metrics to imperial units when request, and vice versa on output to show user metric system while using imperial for performace. it is not recommended to use this plugin when using imperial units on chat.",
+            "Metric Systemizer is a plugin that converts metrics to imperial units when request, and vice versa on output to show user metric system while using imperial for performace. It is not recommended to use this plugin when using imperial units on chat.",
         lorePlus: "LoreBook+ is a experimental feature that uses vectordb instead of just string matching for better bot making experience and better matching performace.",
-        topP: "Top P is a probability threshold for nucleus sampling. model considers the results of the tokens with top_p probability mass.",
+        topP: "Top P is a probability threshold for nucleus sampling. Model considers the results of the tokens with top_p probability mass.",
         openAIFixer: "OpenAI Fixer is a plugin that fixes some of the problems of OpenAI.",
         sayNothing: "If enabled, it will input 'say nothing' when no string inputed.",
-        showUnrecommended: "If enabled, it will show unrecommended, deprecated settings. it is NOT RECOMMENDED to use these settings.",
+        showUnrecommended: "If enabled, it will show unrecommended, deprecated settings. It is NOT RECOMMENDED to use these settings.",
         imageCompression: "If enabled, it will compress images when exporting character. if animated images doesn't works, try disabling this option.",
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
-        forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. this can cause CORS errors.",
-        autoFillRequestURL: "If enabled, it will autofill request url to match the current model.",
+        forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. This can cause CORS errors.",
+        autoFillRequestURL: "If enabled, it will autofill request URL to match the current model.",
         chainOfThought: "If enabled, it will add chain of thought prompt to the prompt.",
-        gptVisionQuality: "This option is used to set the quality of the image detection model. the higher the quality, the more accurate the detection, but more tokens are used.",
+        gptVisionQuality: "This option is used to set the quality of the image detection model. The higher the quality, the more accurate the detection, but more tokens are used.",
         genTimes:
-            "This option is used to set the number of responses to generate on support models. other then first response will be act as cached reroll. this can reduce the cost of the model, but it can also increase the cost if you use it without reroll.",
-        requestretrys: "This option is used to set the number of request retrys when request fails.",
-        emotionPrompt: "This option is used to set the prompt that is used to detect emotion. if it is blank, it will use the default prompt.",
+            "This option is used to set the number of responses to generate on support models. Other then first response will be act as cached reroll. This can reduce the cost of the model, but it can also increase the cost if you use it without reroll.",
+        requestretrys: "This option is used to set the number of request retries when request fails.",
+        emotionPrompt: "This option is used to set the prompt that is used to detect emotion. If it is blank, it will use the default prompt.",
         removePunctuationHypa: "If enabled, it will remove punctuation before executing HypaMemory.",
         additionalParams:
-            'Additional parameters that would be added to the request body. if you want to exclude some parameters, you can put `{{none}}` to the value. if you want to add a header instead of body, you can put `header::` in front of the key like `header::Authorization`. if you want value as json, you can put `json::` in front of the value like `json::{"key":"value"}`. otherwise, type of the value would be determined automatically.',
+            'Additional parameters that would be added to the request body. If you want to exclude some parameters, you can put `{{none}}` to the value. If you want to add a header instead of body, you can put `header::` in front of the key like `header::Authorization`. If you want value as json, you can put `json::` in front of the value like `json::{"key":"value"}`. otherwise, type of the value would be determined automatically.',
         antiClaudeOverload:
-            "If Claude overload happens, Risuai would try to prevent it by continuing with same prompt, making it less likely to happen. works only for streamed responses. this could not work for non-official api endpoints.",
+            "If Claude overload happens, Risuai would try to prevent it by continuing with same prompt, making it less likely to happen. Works only for streamed responses. This could not work for non-official api endpoints.",
         triggerScript:
-            'Trigger Script is a custom script that runs when a condition is met. it can be used to modify the chat data, run a command, change variable, and etc. the type depends when it is triggered. it can also be run by buttons, which can be used with {{button::Display::TriggerName}}, or HTML buttons with `risu-trigger="<TriggerName>"` attribute.',
+            'Trigger Script is a custom script that runs when a condition is met. It can be used to modify the chat data, run a command, change variable, and etc. the type depends when it is triggered. It can also be run by buttons, which can be used with {{button::Display::TriggerName}}, or HTML buttons with `risu-trigger="<TriggerName>"` attribute.',
         autoContinueChat: "If enabled, it will try to continue the chat if it doesn't ends with a punctuation. DONT USE THIS WITH LANGUAGES THAT DOESN'T USE PUNCTUATION.",
         combineTranslation:
             "If enabled, text that is one sentence but separated by HTML tags will be combined together and translated, then Modify Display script will be reapplied to the translated output.\nThis helps the translator to make the correct translation.\nIf the UI becomes weird when you enable this option, please turn off the option and report it.",
         dynamicAssets:
             "If enabled, if the asset name is not found when processing data, it will try to find the closest asset name by using vector search and replace it with the closest asset name.",
-        dynamicAssetsEditDisplay: "If enabled, the dynamic assets will be applied to the Modify Display stage too. however, this can cause performance issues.",
+        dynamicAssetsEditDisplay: "If enabled, the dynamic assets will be applied to the Modify Display stage too. However, this can cause performance issues.",
         nickname: "Nickname would used be in {{char}} or <char> in chat instead of character's name if it is set.",
-        useRegexLorebook: "If enabled, it will use regex for lorebook search, instead of string matching. it uses /regex/flags format.",
-        customChainOfThought: "Warning: chain of thought toggle is no longer recommended to use. put chain of thought prompt in other prompt entries instead.",
+        useRegexLorebook: "If enabled, it will use regex for lorebook search, instead of string matching. It uses /regex/flags format.",
+        customChainOfThought: "Warning: chain of thought toggle is no longer recommended to use. Put chain of thought prompt in other prompt entries instead.",
         customPromptTemplateToggle:
-            "Here you can define your own prompt toggles. use `<toggle variable>=<toggle name>` format, seperated by newline. for example, `cot=Toggle COT`. you can use these toggles in prompt by using `{{getglobalvar::toggle_<toggle variable>}}`. like `{{getglobalvar::toggle_cot}}`.",
+            "Here you can define your own prompt toggles. Use `<toggle variable>=<toggle name>` format, seperated by newline. for example, `cot=Toggle COT`. You can use these toggles in prompt by using `{{getglobalvar::toggle_<toggle variable>}}`. like `{{getglobalvar::toggle_cot}}`.",
         defaultVariables:
-            "Here you can define your own default variables. use `<variable name>=<variable value>` format, seperated by newline. for example, `name=Risuai`, which then can be used with trigger scripts and variables CBS like `{{getvar::A}}`, `{{setvar::A::B}}` or `{{? $A + 1}}`. if prompt template's default variable and character's default variable has same name, character's default variable will be used.",
+            "Here you can define your own default variables. Use `<variable name>=<variable value>` format, seperated by newline. For example, `name=Risuai`, which then can be used with trigger scripts and variables CBS like `{{getvar::A}}`, `{{setvar::A::B}}` or `{{? $A + 1}}`. If prompt template's default variable and character's default variable has same name, character's default variable will be used.",
         lowLevelAccess:
-            "If enabled, it will enable access to features that requires high computing powers and executing AI model via triggers in the character. do not enable this unless you really need these features.",
+            "If enabled, it will enable access to features that requires high computing powers and executing AI model via triggers in the character. Do not enable this unless you really need these features.",
         triggerLLMPrompt:
-            "A prompt that would be sent to the model. you can use multi turns and roles by using `@@role user`, `@@role system`, `@@role assistant`. for example, \n```\n@@role system\nrespond as hello\n@@role assistant\nhello\n@@role user\nhi\n```",
+            "A prompt that would be sent to the model. You can use multi turns and roles by using `@@role user`, `@@role system`, `@@role assistant`. for example, \n```\n@@role system\nrespond as hello\n@@role assistant\nhello\n@@role user\nhi\n```",
         legacyTranslation:
             "If enabled, it will use the old translation method, which preprocess markdown and quotes before translations instead of postprocessing after translations.",
         luaHelp:
-            "You can use Lua scripts as a trigger script. you can define onInput, onOutput, onStart functions. onInput is called when user sends a message, onOutput is called when character sends a message, onStart is called when the chat starts. for more information, see the documentation.",
+            "You can use Lua scripts as a trigger script. You can define onInput, onOutput, onStart functions. onInput is called when user sends a message, onOutput is called when character sends a message, onStart is called when the chat starts. For more information, see the documentation.",
         claudeCachingExperimental:
-            "Caching in Claude is experimental feature that can reduce the cost of the model, but it can also increase the cost if you use it without reroll. since this is a experimental feature, it can be unstable and behavior can be changed in the future.",
+            "Caching in Claude is experimental feature that can reduce the cost of the model, but it can also increase the cost if you use it without reroll. Since this is a experimental feature, it can be unstable and behavior can be changed in the future.",
         urllora:
-            "You can use direct download link of the model file. you can make direct url from google drive like website like https://sites.google.com/site/gdocs2direct/ , or use civitai URL, copy the the AIR (looks like `urn:air:flux1:lora:civitai:180891@776656` or just `civitai:180891@776656`) and paste it.",
+            "You can use direct download link of the model file. You can make direct url from Google Drive like website like https://sites.google.com/site/gdocs2direct/ , or use CivitAI URL, copy the the AIR (looks like `urn:air:flux1:lora:civitai:180891@776656` or just `civitai:180891@776656`) and paste it.",
         v2GetAlertSelect: "Options are separated by | (pipe) character.",
         v2RegexTest: "Returns 1 if the regex matches, 0 if it doesn't match.",
         v2Calculate:
             "Evaluates mathematical expressions with support for basic arithmetic (+, -, *, /, %, ^), comparison operators (<, >, <=, >=, =, !=), logical operators (&&, ||, !), parentheses for precedence, and variable substitution using $variableName format. Variables are automatically converted to numbers (defaults to 0 if invalid).",
         namespace:
-            "Namespace is a unique identifier for the module. it is used to prevent conflicts between modules, and for interaction of presets, other modules and etc. if you are not sure what to put, leave it blank.",
+            "Namespace is a unique identifier for the module. It is used to prevent conflicts between modules, and for interaction of presets, other modules and etc. If you are not sure what to put, leave it blank.",
         moduleIntergration:
-            "You can enable modules by putting the module namespace in the module intergartion sections. if you want to enable multiple modules, you can seperate them by comma. for example, `module1,module2,module3`. this is for advanced users, who wants to vary the use of modules by presets.",
+            "You can enable modules by putting the module namespace in the module intergartion sections. if you want to enable multiple modules, you can seperate them by comma. for example, `module1,module2,module3`. This is for advanced users, who wants to vary the use of modules by presets.",
         customCSS: "Custom CSS for styling. you can also disable/enable it by pressing (Ctrl + .) if something goes wrong.",
-        betaMobileGUI: "If enabled, it will use beta mobile GUI on small (less than 800px) screens. requires refresh.",
+        betaMobileGUI: "If enabled, it will use beta mobile GUI on small (less than 800px) screens. Requires refresh.",
         enableScrollToActiveChar: "If enabled, pressing the hotkey or holding Ctrl while dragging a character will scroll to the currently active character. Folders will be opened automatically if closed.",
-        unrecommended: "This is a unrecommended setting. it is not recommended to use this setting.",
+        unrecommended: "This is a unrecommended setting. It is not recommended to use this setting.",
         jsonSchema:
             "This is a JSON Schema that will be sent to the AI model if AI model supports JSON Schema.\n\nHowever, since JSON Schema is hard to learn, In Risuai, you can use subset of TypeScript interface instead of JSON Schema. Risuai will convert it in runtime." +
             'For example, if you want to send a JSON like this:\n\n```js\n{\n  "name": "Risuai", //name must be Risuai,\n  "age": 1, //age must be number,\n  "icon": "slim", //icon must be \'slim\' or \'rounded\'\n  "thoughts": ["Good View!", "Lorem"] //thoughts must be array of strings\n}\n```\n\n' +
@@ -187,41 +187,41 @@ export const languageEnglish = {
         - Array of primitive types: (ex. \`string[]\`, \`Array<boolean>)\`
         - Unit types between strings: (ex. \`'slim'|'rounded'\`).
 
-        Properties must be one in a line. if there is multiple properties in a line, it will throw an error. Properties and name of the interface must be only in latin characters, in ASCII range. name of the properties must not be surrounded by quotes or double quotes. Nesting inside the interface is not supported. it is not allowed to put \`{\` or \`}\` in the line that properties are defined. If you want to use more advanced types, use JSON Schema instead.
+        Properties must be one in a line. if there is multiple properties in a line, it will throw an error. Properties and name of the interface must be only in latin characters, in ASCII range. Name of the properties must not be surrounded by quotes or double quotes. Nesting inside the interface is not supported. It is not allowed to put \`{\` or \`}\` in the line that properties are defined. If you want to use more advanced types, use JSON Schema instead.
         ` +
             "</details>",
-        strictJsonSchema: "If enabled, it will strictly follow the Provided Schema for JSON on some models. if it is disabled, it may ignore the JSON Schema.",
+        strictJsonSchema: "If enabled, it will strictly follow the Provided Schema for JSON on some models. If it is disabled, it may ignore the JSON Schema.",
         extractJson:
-            'If it is not blank, it will extract specific JSON data from the response. for example, if you want to extract `response.text[0]` in response `{"response": {"text": ["hello"]}}`, you can put `response.text.0`.',
+            'If it is not blank, it will extract specific JSON data from the response. For example, if you want to extract `response.text[0]` in response `{"response": {"text": ["hello"]}}`, you can put `response.text.0`.',
         translatorNote:
             "Here, you can add a unique translation prompt for each character. This option only applies when using the Ax. model for translation. To apply it, include `{{slot::tnote}}` in the language settings. It doesn't work in group chats.",
         groupInnerFormat:
-            "This defines a format that is used in group chat for characters that isn't speaker. if it is not blank, it will use this format instead of the default format. if `Group Other Bot Role` is `assistant`, it will also be applied to the speaker.",
+            "This defines a format that is used in group chat for characters that isn't speaker. If it is not blank, it will use this format instead of the default format. If `Group Other Bot Role` is `assistant`, it will also be applied to the speaker.",
         groupOtherBotRole: "This defines a role that is used in group chat for characters that isn't speaker.",
         chatHTML:
             "A HTML that would be inserted as each chat.\n\nYou can use CBS and special tags.\n- `<risutextbox>`: a textbox that would be used to render text\n- `<risuicon>`: an icon for user or assistant\n- `<risubuttons>`: icon buttons for chat edit, translations and etc.\n- `<risugeninfo>`: generation information button.",
         systemContentReplacement: "The prompt format that replaces system prompt if the model doesn't support system prompt.",
         systemRoleReplacement: "The role that replaces system role if the model doesn't support system role.",
         summarizationPrompt:
-            "The prompt that is used for summarization. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt that is used for summarization. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
         translatorPrompt:
-            "The prompt that is used for translation. if it is blank, it will use the default prompt. you can also use ChatML formating with {{slot}} for the dest language, {{solt::content}} for the content, and {{slot::tnote}} for the translator note.",
+            "The prompt that is used for translation. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the dest language, {{slot::content}} for the content, and {{slot::tnote}} for the translator note.",
         translateBeforeHTMLFormatting:
-            "If enabled, it will translate the text before Regex scripts and HTML formatting. this could make the token lesser but could break the formatting.",
+            "If enabled, it will translate the text before Regex scripts and HTML formatting. This could make the token lesser but could break the formatting.",
         autoTranslateCachedOnly: "If enabled with Auto Translation option on, it will automatically translate only the messages that the user has translated previously.",
         presetChain:
-            "If it is not blank, the preset will be changed and applied randomly every time when user sends a message in the preset list in this input. preset list should be seperated by comma, for example, `preset1,preset2`.",
+            "If it is not blank, the preset will be changed and applied randomly every time when user sends a message in the preset list in this input. Preset list should be seperated by comma, for example, `preset1,preset2`.",
         legacyMediaFindings: "If enabled, it will use the old method to find media assets, without using the additional search algorithm.",
         comfyWorkflow:
-            "Put the API workflow of comfy UI. you can get your API workflow in comfy UI by pressing the 'Workflow > Export (API)' button. you must also put {{risu_prompt}} in you workflow text. the {{risu_prompt}} will be replaced with the prompt provided by the Risu.",
+            "Put the API workflow of comfy UI. you can get your API workflow in comfy UI by pressing the 'Workflow > Export (API)' button. you must also put {{risu_prompt}} in you workflow text. The {{risu_prompt}} will be replaced with the prompt provided by the Risu.",
         automaticCachePoint: "Automatically creates cache point after the chat ends, if the caching point doesn't exist.",
         experimentalChatCompressionDesc:
-            "Compresses the unused chat data and saves in seperate file. this greatly reduces the size of the chat data, and greatly improves the performance, however its experimental and can be unstable, causing issues in backup feature and more.",
+            "Compresses the unused chat data and saves in seperate file. This greatly reduces the size of the chat data, and greatly improves the performance, however its experimental and can be unstable, causing issues in backup feature and more.",
         promptInfoInsideChatDesc:
             "When enabled, this stores prompt preset information in the chat metadata. The stored data includes the preset name, active toggles, and the prompt text. This may slightly increase processing time and storage usage.",
         autoAdjustSchema: "When enabled, it will automatically adjust the JSON schema for Dynamic Output.",
         dynamicMessages: "When enabled, it will allow the assistant to send multiple messages in a row, instead of one at a time.",
-        dynamicMemory: "When enabled, assistant will make memory notes on response time. additional prompting is required to utilize this feature.",
+        dynamicMemory: "When enabled, assistant will make memory notes on response time. Additional prompting is required to utilize this feature.",
         dynamicResponseTiming: "When enabled, it will adjust the response timing dynamically.",
         dynamicRequest: "When enabled, it will request to model at random timing without waiting for user input.",
         settingsCloseButtonSize: "Adjusts the size of the close (X) button in the top right corner of the settings window. Default is 24.",
@@ -292,21 +292,21 @@ export const languageEnglish = {
         openaiProxy: "OpenAI Reverse proxy",
         setupmodelself: "Others / I will setup myself",
         inputApiKey: "Input API Key Here",
-        apiKeyhelp: "You can get api key from: ",
+        apiKeyhelp: "You can get API key from: ",
         setupSelfHelp: "Setup yourself in settings, after Welcome screen ends.",
         theme: "Select your theme",
         themeDescWifulike: "Not suitable for mobile",
         themeDescWifuCut: "Suitable for mobile",
         themeDescClassic: "Suitable for All devices",
         texttheme: "Select your text color",
-        inputName: "Lastly, Input your Nickname.",
-        welcome: "Welcome to Risuai! I am Airisu, I am here guide you to setup Risuai. First, What may I call you?",
-        welcome2: "Hello {username}! before we start, I will ask you some questions. You can change these settings later in settings.\n\nFirst select the AI provider.",
+        inputName: "Lastly, input your Nickname.",
+        welcome: "Welcome to Risuai! I am Airisu, I am here to guide you through the Risuai setup. First, what may I call you?",
+        welcome2: "Hello {username}! Before we start, I will ask you some questions. You can change these settings later in settings.\n\nFirst select the AI provider.",
         openRouterProvider: "OpenRouter has a lot of models, some of them unfiltered and some of them free, but it is not as good as OpenAI.",
         hordeProvider: "Horde is a free provider, but the response time is long and the quality is low.",
-        setProviderLater: "There are other providers, but you can set it later in settings. select this if you want to set it later.",
+        setProviderLater: "There are other providers, but you can set it later in settings. Select this if you want to set it later.",
         setupOpenAI:
-            "To use OpenAI, you need to get an API key. \n1. go to https://beta.openai.com/ \n2. login with your account \n3. go to https://beta.openai.com/account/api-keys \n4. click 'Create New API Key' and name your key whatever you want. \n5. copy the key in the website.\n6. go back to Risuai\n7. paste it, and click send button.",
+            "To use OpenAI, you need to get an API key. \n1. Go to https://beta.openai.com/ \n2. Login with your account \n3. Go to https://beta.openai.com/account/api-keys \n4. Click 'Create New API Key' and name your key whatever you want. \n5. Copy the key in the website.\n6. Go back to Risuai\n7. Paste it, and click send button.",
         setupClaude: "To use Claude, you need to get an API key.",
         setupClaudeSteps: [
             "Go to this URL and Login as Google",
@@ -323,13 +323,13 @@ export const languageEnglish = {
             "Copy the key, and paste it in here and send it.",
         ],
         setupOpenRouter:
-            "To use OpenRouter, you need to get an API key. \n1. go to https://openrouter.ai/keys\n2. click 'Create Key'\n3. set key name whatever you want.\n4. copy the key in the website\n5. go back to Risuai\n6. paste it, and click send button.",
-        allDone: "All Done! please wait a moment.",
-        setupLaterMessage: "Welcome {username}! do you want me to guide you to setup or do it yourself?",
+            "To use OpenRouter, you need to get an API key. \n1. Go to https://openrouter.ai/keys\n2. Click 'Create Key'\n3. Set key name whatever you want.\n4. Copy the key in the website\n5. Go back to Risuai\n6. Paste it, and click send button.",
+        allDone: "All Done! Please wait a moment.",
+        setupLaterMessage: "Welcome {username}! Do you want me to guide you to setup or do it yourself?",
         setupMessageOption1: "Guide me to setup",
         setupMessageOption1Desc: "Recommended for new users",
         setupMessageOption2: "I will setup myself",
-        claudeDesc: "Claude is a AI model made by Antropic, competitor to OpenAI. its better than GPT if you want to use it in other languages than English.",
+        claudeDesc: "Claude is a AI model made by Antropic, competitor to OpenAI. It's better than GPT if you want to use it in other languages than English.",
         openAIDesc: "OpenAI GPT is a high quality AI model, but it is paid and filtered, and weak in other than English.",
         chooseChatType: "Great! Now select the chat language.",
         chooseChatTypeOption1: "Full English",
@@ -690,7 +690,7 @@ export const languageEnglish = {
     presensePenalty: "Presense Penalty",
     advancedSettings: "Advanced Settings",
     advancedSettingsWarn: "Warn: If you don't know what the option does, don't change it!",
-    formatingOrder: "Formating Order",
+    formatingOrder: "Formatting Order",
     authorNote: "Author's Note",
     firstMessage: "First Message",
     description: "Description",
@@ -844,7 +844,7 @@ export const languageEnglish = {
     Speech: "Speech",
     ToggleSuperMemory: "Toggle SupaMemory",
     SuperMemory: "SupaMemory",
-    useExperimental: "Able Experimental Features",
+    useExperimental: "Enable Experimental Features",
     showMemoryLimit: "Show Memory Limit",
     showFirstMessagePages: "Show First Message Pages",
     roundIcons: "Round Icons",
@@ -899,7 +899,7 @@ export const languageEnglish = {
     trending: "Trending",
     imageCompression: "Image Compression",
     notLoggedIn: "Not Logged in to Risu Account",
-    googleDriveInfo: "Connect to google drive to sync your data.",
+    googleDriveInfo: "Connect to Google Drive to sync your data.",
     googleDriveConnection: "Google Drive Connection",
     googleDriveConnected: "Google Drive Connected",
     SaveDataInAccount: "Save Data in Account",
@@ -911,7 +911,7 @@ export const languageEnglish = {
     proxyAPIKey: "Key/Password",
     proxyRequestModel: "Request Model",
     officialWiki: "Official Wiki",
-    officialWikiDesc: "Official Wiki for Risuai. feel free to see.",
+    officialWikiDesc: "Official Wiki for Risuai. Feel free to see.",
     officialDiscord: "Official Discord",
     officialDiscordDesc: "Official Discord to talk about Risuai",
     persona: "Persona",
@@ -1007,7 +1007,7 @@ export const languageEnglish = {
     import: "Import",
     supporterThanks: "Supporter Thanks",
     supporterThanksDesc: "Thank you for your support!",
-    donatorPatreonDesc: "For default, it will not be shown in the list for privacy. if you want to show your nickname, go to Risuai's patreon page and press the link button.",
+    donatorPatreonDesc: "For default, it will not be shown in the list for privacy. If you want to show your nickname, go to Risuai's patreon page and press the link button.",
     useNamePrefix: "Use Name Prefix",
     textAdventureNAI: "Run as Text Adventure",
     appendNameNAI: "Append Name on NAI",
@@ -1066,7 +1066,7 @@ export const languageEnglish = {
     inputCardPassword: "Input Card Password",
     ccv2Desc: "Character Card V2 is a format widely used in chatbot programs.",
     ccv3Desc: "Character Card V3 is a next generation format that is used in chatbot programs.",
-    realmDesc: "RisuRealm is a content sharing platform for Risuai. you can share your character to other users.",
+    realmDesc: "RisuRealm is a content sharing platform for Risuai. You can share your character to other users.",
     rccDesc: "Risu Refined Character Card is a format with additional features like password, integrity check and etc.",
     password: "Password",
     license: "License",
@@ -1091,15 +1091,15 @@ export const languageEnglish = {
     persistentStorageSuccess: "Storage is successfully persisted",
     persistentStorageFail: "Storage is not persisted. Did you deny the request?, or is the browser not supported?",
     persistentStorageRecommended: "Persistent Storage Recommended",
-    persistentStorageDesc: "Your browser supports persistent storage. this is recommended for better performance and user experience.",
+    persistentStorageDesc: "Your browser supports persistent storage. This is recommended for better performance and user experience.",
     enable: "Enable",
     postFile: "Post File",
     requestInfoInsideChat: "Show Request Info Inside Chat",
     inputTokens: "Input Tokens",
     outputTokens: "Output Tokens",
-    tokenWarning: "Token caculation can be inaccurate. it is recommended to use it as a reference.",
+    tokenWarning: "Token caculation can be inaccurate. It is recommended to use it as a reference.",
     log: "Log",
-    popularityLevelDesc: "Popularity increases with downloads, etc. to estimate, 3.7 popularity is about 1 downloads.",
+    popularityLevelDesc: "Popularity increases with downloads, etc. To estimate, 3.7 popularity is about 1 downloads.",
     additionalParams: "Additional Parameters",
     heightMode: "Height Mode",
     useAdvancedEditor: "Use Advanced Editor",
@@ -1107,7 +1107,7 @@ export const languageEnglish = {
     updateRealm: "Update to RisuRealm",
     updateRealmDesc: "You are trying to update your character to RisuRealm. this will update your character to RisuRealm, and you can't revert it back.",
     antiClaudeOverload: "Anti-Claude Overload",
-    activeTabChange: "Current tab is inactivated since other tab is active. to activate this tab, click OK",
+    activeTabChange: "Current tab is inactivated since other tab is active. To activate this tab, click OK",
     maxSupaChunkSize: "Max SupaMemory Chunk Size",
     addCharacter: "Add Character",
     importFromRealm: "Choose from RisuRealm",
@@ -1135,7 +1135,7 @@ export const languageEnglish = {
     grid: "Grid",
     list: "List",
     trash: "Trash",
-    trashDesc: "Deleted characters are moved to trash. you can restore or delete them permanently. deleted characters are automatically purged after 3 days.",
+    trashDesc: "Deleted characters are moved to trash. You can restore or delete them permanently. Deleted characters are automatically purged after 3 days.",
     shareExport: "Share/Export",
     risupresetDesc: "Risupreset format is a format specifically designed for Risuai presets.",
     risuMDesc: "RisuM format is a format that is specifically designed for Risuai modules.",
@@ -1162,8 +1162,8 @@ export const languageEnglish = {
     options: "Options",
     alertContent: "Alert Content",
     lowLevelAccessConfirm:
-        "This content uses Low Level Access. which means this content can access the AI model and your storage directly. do you really want to import this content?",
-    triggerLowLevelOnly: "This trigger only works with Low Level Access. to enable this trigger, enable Low Level Access in advanced settings in the character or module.",
+        "This content uses Low Level Access. which means this content can access the AI model and your storage directly. Do you really want to import this content?",
+    triggerLowLevelOnly: "This trigger only works with Low Level Access. To enable this trigger, enable Low Level Access in advanced settings in the character or module.",
     truthy: "Truthy",
     extractRegex: "Extract Text with Regex",
     runImgGen: "Run Image Generation",
@@ -1179,13 +1179,13 @@ export const languageEnglish = {
     search: "Search",
     goCharacterOnImport: "Go to Character on Realm Import",
     format: "Format",
-    v2Warning: "Warning: V2 card is no longer supported. it may not contain all the data.",
+    v2Warning: "Warning: V2 card is no longer supported. It may not contain all the data.",
     applyModule: "Apply Module",
     successApplyModule: "Module is successfully applied",
     font: "Font",
     lineHeight: "Line Height",
     loadAutoServerBackup: "Load Auto Server Backup",
-    notCharxWarn: "This character uses multiple assets. it is recommended to export this character as a CharX format for better compatibility.",
+    notCharxWarn: "This character uses multiple assets. It is recommended to export this character as a CharX format for better compatibility.",
     noPlugins: "No Plugins Installed",
     legacyTranslation: "Legacy Translation",
     clipboardSuccess: "Copied to Clipboard",
@@ -1193,7 +1193,7 @@ export const languageEnglish = {
     doNotTranslate: "Do Not Translate",
     includePersonaName: "Include Persona Name",
     hidePersonaName: "Hide Persona Name",
-    triggerSwitchWarn: "If you change the trigger type, current triggers will be lost. do you want to continue?",
+    triggerSwitchWarn: "If you change the trigger type, current triggers will be lost. Do you want to continue?",
     codeMode: "Code",
     blockMode: "Block",
     helpBlock: "Help",
@@ -1226,16 +1226,16 @@ export const languageEnglish = {
     enableScrollToActiveChar: "Enable Scroll to Active Character",
     menu: "Menu",
     connectionOpen: "Connection Open",
-    connectionOpenInfo: "Multiuser room is opened. you can share the room code to other users. others can join the room by using the code inside playground > Join Multiuser Room.",
+    connectionOpenInfo: "Multiuser room is opened. You can share the room code to other users. Others can join the room by using the code inside playground > Join Multiuser Room.",
     createMultiuserRoom: "Create Multiuser Room",
     connectionHost: "You are the host of the room.",
     connectionGuest: "You are the guest of the room.",
-    otherUserRequesting: "Other user is already requesting. try again later.",
+    otherUserRequesting: "Other user is already requesting. Try again later.",
     jsonSchema: "JSON Schema",
     enableJsonSchema: "Enable Schema",
     strictJsonSchema: "Strict Schema",
     extractJson: "Extract JSON",
-    reloadSession: "Newer version of save data is found. reloading the session...",
+    reloadSession: "Newer version of save data is found. Reloading the session...",
     fixMarkdownNewline: "Fix Markdown Newline",
     customQuotes: "Custom Quotes",
     leadingSingleQuote: "Leading Single Quote",
@@ -1271,7 +1271,7 @@ export const languageEnglish = {
     googleCloudTokenization: "Google Cloud Tokenization",
     presetChain: "Preset Chain",
     legacyMediaFindings: "Legacy Media Findings",
-    staticsDisclaimer: "The statistics are based on the data from after July 2024. the data may not be accurate.",
+    staticsDisclaimer: "The statistics are based on the data from after July 2024. The data may not be accurate.",
     subtitles: "Subtitles",
     subtitlesWarning1: "You must use model with audio/video input to use this feature.",
     subtitlesWarning2: "You must use model with streaming feature to use this feature.",
@@ -1279,12 +1279,12 @@ export const languageEnglish = {
     assetMaxDifference: "Asset Max Difference",
     sourceLanguage: "Source Language",
     destinationLanguage: "Destination Language",
-    noWebGPU: "Your Browser or OS doesn't support WebGPU. this will slow down the performance significantly.",
+    noWebGPU: "Your Browser or OS doesn't support WebGPU. This will slow down the performance significantly.",
     menuSideBar: "Menu Side Bar",
     home: "Home",
     showSavingIcon: "Show Saving Icon",
     pluginVersionWarn:
-        "This is {{plugin_version}} version of the plugin. which is not compatible with this version of Risuai. please update the plugin to {{required_version}} version.",
+        "This is {{plugin_version}} version of the plugin. Which is not compatible with this version of Risuai. Please update the plugin to {{required_version}} version.",
     imageTranslation: "Image Translation",
     banCharacterset: "Auto Regenerate On Characterset",
     realmDirectOpen: "Directly open character in RisuRealm",
@@ -1377,7 +1377,7 @@ export const languageEnglish = {
     showTranslationLoading: "Show Translation Loading",
     showDeprecatedTriggerV1: "Show Deprecated Trigger V1",
     showDeprecatedTriggerV2: "Show Deprecated Trigger V2",
-    triggerV1Warning: "Trigger V1 is deprecated. it might be removed in the future.",
+    triggerV1Warning: "Trigger V1 is deprecated. It might be removed in the future.",
     copy: "Copy",
     paste: "Paste",
     depth: "Depth",
@@ -1394,7 +1394,7 @@ export const languageEnglish = {
     showFolderNameInIcon: "Show Folder Name in Icon",
     claudeCachingRetrival: "Claude Caching Retrival",
     claudeCachingRetrivalDesc:
-        "Extends the cache time for Claude Caching, by requesting every 4 minutes. this can reduce the cache miss rate, but it can increase the cost if its not used properly.",
+        "Extends the cache time for Claude Caching, by requesting every 4 minutes. This can reduce the cache miss rate, but it can increase the cost if its not used properly.",
     automaticCachePoint: "Automatic Cache Point",
     experimentalChatCompression: "Experimental Chat Data Handling",
     loadingChatData: "Loading Chat Data",
@@ -1403,7 +1403,7 @@ export const languageEnglish = {
     auxModelUnderModelSettings: "Show Separate Aux Models in Model Settings",
     seperateModelsForAxModels: "Separate Models for Auxiliary Models",
     axModelsDef: "Ax Models Definition",
-    doNotChangeSeperateModels: "Do Not Change Seperate Models on Preset Change",
+    doNotChangeSeperateModels: "Do Not Change Separate Models on Preset Change",
     tools: "Tools",
     action: "Action",
     hotkey: "Hotkey",
@@ -1456,7 +1456,7 @@ export const languageEnglish = {
     folderNameInput: "Please input the new folder name",
     folderRemoveLengthError: "To remove a folder, it must not contain any entries.",
     personaNote: "Persona Note",
-    mcpAccessPrompt: '{{tool}} is trying to "{{action}}". do you want to allow this?',
+    mcpAccessPrompt: '{{tool}} is trying to "{{action}}". Do you want to allow this?',
     rememberToolUsage: "Remember tool usage",
     simplifiedToolUse: "Simplified tool usage",
     toolCalled: "Tool '{{tool}}' Called",
@@ -1494,7 +1494,7 @@ export const languageEnglish = {
     nightlyWarning:
         "## Nightly Builds\n\nYou are connecting to a nightly build of the software. This version is meant for testing and most likely contains bugs. **In this version, even if you encounter issues, we do not support resolving them directly.**",
     loginSionyw: "Login with Sionyw Account",
-    pluginRiskDetectedAlert: "Risuai detected code that may be harmful which can STOLE YOUR API KEY OR PERSONAL DATA. we recommend you to NOT INSTALL THIS PLUGIN.",
+    pluginRiskDetectedAlert: "Risuai detected code that may be harmful which can STOLE YOUR API KEY OR PERSONAL DATA. We recommend you to NOT INSTALL THIS PLUGIN.",
     doNotInstall: "Do Not Install",
     continueAnyway: "Continue Anyway",
     pluginNoRiskButAlert: "Risuai did not detect harmful code, but please be aware that installing plugins from untrusted sources can pose security risks.",
@@ -1516,7 +1516,7 @@ export const languageEnglish = {
     generatedByAIDisclaimer: "This content was generated by AI and may contain inaccuracies or biases.",
     aiGenerationWarning: "Contents will be AI generated and may contain inaccuracies or biases.",
     duplicatePluginFoundUpdateIt: "Duplicate plugin found. do you want to update the existing plugin?",
-    pluginUpdateFoundInstallIt: "Plugin update found. do you want to install the update?",
+    pluginUpdateFoundInstallIt: "Plugin update found. Do you want to install the update?",
     goToChat: "Go to Chat",
     bookmark: "Bookmark",
     translate: "Translate",
@@ -1548,7 +1548,7 @@ export const languageEnglish = {
     partialBackupFirstConfirm: "⚠️ WARNING: Partial Local Backup ⚠️\n\nThis backup quickly saves only essential information.\n\nIncluded:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\n⚠️ NOT Included:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other additional media files\n\nThis backup file does NOT include all character assets!\nIf you need a complete backup, use the regular local backup.\n\nDo you want to continue?",
     partialBackupSecondConfirm: "⚠️⚠️ FINAL WARNING ⚠️⚠️\n\nThis backup saves only character profile images and does NOT save most other assets!\n\nWhat will be saved:\n- Database (chat history, characters, modules, plugins, prompts, settings, etc.)\n- Character profile icons (main images)\n- User icons and custom backgrounds\n- Persona icons\n- Folder images\n- Bot preset images\n\nWhat will NOT be saved:\n- Emotion images\n- Additional character assets\n- VITS voice files\n- All other media files\n\n⚠️ Proceed ONLY if you don't need character assets in your backup file! ⚠️\n\nAre you really sure you want to proceed with partial backup?",
     savePartialLocalBackup: "Save Partial Backup Locally (Excluding Character Assets)",
-    pluginProviderNotFound: "Unknown Plugin detected. please change the model or enable the corresponding plugin.",
+    pluginProviderNotFound: "Unknown Plugin detected. Please change the model or enable the corresponding plugin.",
     bootstrap: {
         dataCorruptionDetected: (name: string, type: string) => `Data Corruption Detected\n\nModule "${name}" has corrupted lorebook format.\n\nCorrupted data type: ${type}`,
         reportErrorQuestion: "Would you like to report this error to the developer?\nThis helps prevent the same error from happening again.\n(Only includes Corrupted module info, no personal data)",

@@ -759,13 +759,16 @@ const reverseProxyFunc = async (req, res, next) => {
             header['authorization'] = `Bearer ${authCode}`
         }
     }
+    const timeoutMs = getRequestTimeoutMs(req.headers['risu-timeout-ms']);
+    const timeout = createTimeoutController(timeoutMs);
     let originalResponse;
     try {
         // make request to original server
         originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
-            body: JSON.stringify(req.body)
+            body: JSON.stringify(req.body),
+            signal: timeout.signal
         });
         // get response body as stream
         const originalBody = originalResponse.body;
@@ -789,8 +792,22 @@ const reverseProxyFunc = async (req, res, next) => {
 
     }
     catch (err) {
+        if (err?.name === 'AbortError') {
+            if (!res.headersSent) {
+                res.status(504).send({
+                    error: timeoutMs
+                        ? `Proxy request timed out after ${timeoutMs}ms`
+                        : 'Proxy request aborted'
+                });
+            } else {
+                res.end();
+            }
+            return;
+        }
         next(err);
         return;
+    } finally {
+        timeout.cleanup();
     }
 }
 
@@ -811,12 +828,15 @@ const reverseProxyFunc_get = async (req, res, next) => {
     if(!header['x-forwarded-for']){
         header['x-forwarded-for'] = req.ip
     }
+    const timeoutMs = getRequestTimeoutMs(req.headers['risu-timeout-ms']);
+    const timeout = createTimeoutController(timeoutMs);
     let originalResponse;
     try {
         // make request to original server
         originalResponse = await fetch(urlParam, {
             method: 'GET',
-            headers: header
+            headers: header,
+            signal: timeout.signal
         });
         // get response body as stream
         const originalBody = originalResponse.body;
@@ -839,8 +859,22 @@ const reverseProxyFunc_get = async (req, res, next) => {
         await pipeline(originalResponse.body, res);
     }
     catch (err) {
+        if (err?.name === 'AbortError') {
+            if (!res.headersSent) {
+                res.status(504).send({
+                    error: timeoutMs
+                        ? `Proxy request timed out after ${timeoutMs}ms`
+                        : 'Proxy request aborted'
+                });
+            } else {
+                res.end();
+            }
+            return;
+        }
         next(err);
         return;
+    } finally {
+        timeout.cleanup();
     }
 }
 

@@ -23,7 +23,7 @@ interface LocalNetworkRequestOptions {
     requestTimeoutMs?: number
 }
 
-function getLocalNetworkRequestOptions(url: string, db = getDatabase()): LocalNetworkRequestOptions {
+function getLocalNetworkRequestOptions(url: string, db = getDatabase(), useStreaming = false): LocalNetworkRequestOptions {
     if (!db.localNetworkMode || !isLocalNetworkUrl(url)) {
         return {}
     }
@@ -34,7 +34,7 @@ function getLocalNetworkRequestOptions(url: string, db = getDatabase()): LocalNe
 
     return {
         networkRoute: 'local_network',
-        requestTimeoutMs: Math.max(1, Math.floor(timeoutSec * 1000))
+        requestTimeoutMs: useStreaming ? Math.max(1, Math.floor(timeoutSec * 1000)) : undefined
     }
 }
 
@@ -276,7 +276,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
 
         const requestURL = arg.customURL ?? "https://api.mistral.ai/v1/chat/completions"
-        const networkOptions = getLocalNetworkRequestOptions(requestURL, db)
+        const networkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
 
         const targs = {
             body: applyParameters({
@@ -616,7 +616,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body.stream = false
     }
 
-    const localNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db)
+    const localNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db, false)
+    const streamingLocalNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db, true)
 
     if(arg.useStreaming){
         body.stream = true
@@ -647,8 +648,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             signal: arg.abortSignal,
             chatId: arg.chatId,
             interceptor: 'openai_streaming',
-            networkRoute: localNetworkOptions.networkRoute,
-            requestTimeoutMs: localNetworkOptions.requestTimeoutMs
+            networkRoute: streamingLocalNetworkOptions.networkRoute,
+            requestTimeoutMs: streamingLocalNetworkOptions.requestTimeoutMs
         })
 
         if(da.status !== 200){
@@ -679,7 +680,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
         return {
             type: 'streaming',
-            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg, localNetworkOptions)
+            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg, streamingLocalNetworkOptions)
         }
     }
 
@@ -1160,7 +1161,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.tools.push('web_search_preview')
     }
 
-    const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db)
+    const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
 
     const response = await globalFetch(requestURL, {
         body: body,

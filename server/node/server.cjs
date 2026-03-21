@@ -1006,11 +1006,11 @@ async function hubProxyFunc(req, res) {
 
 app.get('/proxy', authenticatedRouteLimiter, reverseProxyFunc_get);
 app.get('/proxy2', authenticatedRouteLimiter, reverseProxyFunc_get);
-app.get('/hub-proxy/*', hubProxyFunc);
+app.get('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 
 app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
-app.post('/hub-proxy/*', hubProxyFunc);
+app.post('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
     if (!await checkProxyAuth(req, res)) {
         return;

@@ -24,6 +24,7 @@
     import ChatBody from './ChatBody.svelte'
     import PopupButton from "../UI/PopupButton.svelte";
     import PartialEditController from './PartialEditController.svelte';
+    import { getLLMCache, setLLMCache } from "../../ts/translator/translator"
 
     let translating = $state(false)
     let editMode = $state(false)
@@ -32,7 +33,6 @@
     let editTranslationMode = $state(false)
     let editTranslationText = $state('')
     let bodyRoot:HTMLElement|null = $state(null)
-    let chatBodyRef: ChatBody|null = $state(null)
     interface Props {
         message?: string;
         name?: string;
@@ -136,6 +136,30 @@
                 chatRole: null,
             }
         }
+    }
+
+    async function getTranslationCacheKey(): Promise<string> {
+        if(DBState.db.translateBeforeHTMLFormatting){
+            return msgDisplay
+        }
+        if(!DBState.db.legacyTranslation){
+            return await ParseMarkdown(msgDisplay, character, 'pretranslate', idx, getCbsCondition())
+        }
+        return await ParseMarkdown(msgDisplay, character, 'notrim', idx, getCbsCondition())
+    }
+
+    async function loadTranslationForEdit() {
+        const key = await getTranslationCacheKey()
+        const cached = await getLLMCache(key)
+        editTranslationText = cached ?? ''
+        editTranslationMode = true
+    }
+
+    async function saveTranslationEdit() {
+        const key = await getTranslationCacheKey()
+        await setLLMCache(key, editTranslationText)
+        editTranslationMode = false
+        retranslate = true
     }
 
     function displaya(message:string){
@@ -317,13 +341,18 @@
             </button>
             <button class="text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1
                             hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center"
+                    class:text-blue-400={editTranslationMode}
                     onclick={() => {
-                        chatBodyRef?.loadTranslationForEdit()
+                        if(editTranslationMode){
+                            saveTranslationEdit()
+                        } else {
+                            loadTranslationForEdit()
+                        }
                     }}
             >
                 <PencilIcon size={20} />
                 <span class="ml-1">
-                    {language.editTranslation}
+                    {editTranslationMode ? language.editTranslationSave : language.editTranslation}
                 </span>
             </button>
         {/if}
@@ -333,17 +362,10 @@
 {#snippet textBox()}
     {#if editTranslationMode}
         <AutoresizeArea bind:value={editTranslationText} handleLongPress={() => {
-            editTranslationMode = false
+            saveTranslationEdit()
         }} />
-        <button class="text-sm p-1 mt-1 text-textcolor2 border-darkborderc
-                        hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center"
-                onclick={() => {
-                    chatBodyRef?.saveTranslationEdit()
-                }}
-        >
-            {language.editTranslationSave}
-        </button>
-    {:else if editMode}
+    {/if}
+    {#if editMode}
         <AutoresizeArea bind:value={message} handleLongPress={() => {
             editMode = false
         }} />
@@ -392,7 +414,6 @@
         >
             {#key `${totalLengthPointer}|${chatReloadPointer}`}
                 <ChatBody
-                    bind:this={chatBodyRef}
                     {character}
                     {firstMessage}
                     {idx}
@@ -405,9 +426,7 @@
                     role={role ?? null}
                     bind:translated={translated}
                     bind:translating={translating}
-                    bind:retranslate={retranslate}
-                    bind:editTranslationMode={editTranslationMode}
-                    bind:editTranslationText={editTranslationText} />
+                    bind:retranslate={retranslate} />
             {/key}
             {#if idx >= 0 && !editMode && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
                 <PartialEditController

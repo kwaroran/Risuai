@@ -28,7 +28,9 @@ export const languageChinese = {
         "networkFetchPlain": "这可能是一次数据抓取（Fetch）错误。请尝试在设置中关闭强制抓取选项。",
         "requestLogRemoved": "该请求记录已被删除。",
         "requestLogRemovedDesc": "当客户端刷新或加载时，该请求记录会被删除。",
-        "vertexAuthError": "Vertex AI 身份验证详情缺失。"
+        "vertexAuthError": "Vertex AI 身份验证详情缺失。",
+        "coldStorageWriteFailed": "冷存储写入失败。您的聊天数据已被保留。",
+        "coldStorageVerifyFailed": "冷存储验证失败。您的聊天数据已被保留。"
     },
     "showHelp": "显示帮助",
     "help": {

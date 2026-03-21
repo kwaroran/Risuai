@@ -28,7 +28,9 @@ export const languageSpanish = {
         "networkFetchPlain": "Esto puede ser un error de fetch simple. Intenta desactivar la opción de forzar fetch simple en la configuración.",
         "requestLogRemoved": "Este registro de solicitud ha sido eliminado.",
         "requestLogRemovedDesc": "Este registro de solicitud se elimina cuando el cliente se actualiza o recarga.",
-        "vertexAuthError": "Faltan los detalles de autenticación de Vertex AI."
+        "vertexAuthError": "Faltan los detalles de autenticación de Vertex AI.",
+        "coldStorageWriteFailed": "Error al escribir en almacenamiento frío. Sus datos de chat se han conservado.",
+        "coldStorageVerifyFailed": "Error en la verificación del almacenamiento frío. Sus datos de chat se han conservado."
     },
     "showHelp": "Mostrar Ayuda",
     "help": {

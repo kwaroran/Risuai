@@ -28,7 +28,9 @@ export const languageVietnamese = {
         "networkFetchPlain": "This can be a plain fetch error. try disabling force plain fetch option in settings.",
         "requestLogRemoved": "This request log is removed.",
         "requestLogRemovedDesc": "This request log removes when client is refreshed or reloaded.",
-        "vertexAuthError": "Thiếu thông tin xác thực Vertex AI."
+        "vertexAuthError": "Thiếu thông tin xác thực Vertex AI.",
+        "coldStorageWriteFailed": "Ghi vào bộ nhớ lạnh thất bại. Dữ liệu trò chuyện của bạn đã được bảo toàn.",
+        "coldStorageVerifyFailed": "Xác minh bộ nhớ lạnh thất bại. Dữ liệu trò chuyện của bạn đã được bảo toàn."
     },
     "showHelp": "Hiển thị trợ giúp",
     "help": {

@@ -12,6 +12,8 @@ import { DBState } from "../stores.svelte"
 import type { NodeStorage } from "../storage/nodeStorage"
 import { compress as fflateCompress, decompress as fflateDecompress } from "fflate"
 import { fetchProtectedResource } from "../sionyw"
+import { alertError } from "../alert"
+import { language } from "src/lang"
 
 export const coldStorageHeader = '\uEF01COLDSTORAGE\uEF01'
 
@@ -235,6 +237,7 @@ export async function makeColdData(){
 
                 if(!writeSuccess){
                     console.error(`Cold storage write failed for chat ${chat.id ?? j} in character ${i}, keeping original data`)
+                    alertError(language.errors.coldStorageWriteFailed)
                     continue
                 }
 
@@ -242,6 +245,7 @@ export async function makeColdData(){
                 const verifyData = await getColdStorageItem(id)
                 if(!verifyData || (!Array.isArray(verifyData) && !verifyData.message)){
                     console.error(`Cold storage verification failed for chat ${chat.id ?? j}, keeping original data`)
+                    alertError(language.errors.coldStorageVerifyFailed)
                     continue
                 }
 

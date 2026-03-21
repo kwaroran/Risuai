@@ -28,7 +28,9 @@ export const languageChineseTraditional = {
         "networkFetchPlain": "這可能是一次資料抓取（Fetch）錯誤。請嘗試在設定中關閉強制抓取選項。",
         "requestLogRemoved": "該請求記錄已被刪除。",
         "requestLogRemovedDesc": "當用戶端重新整理或加載時，該請求記錄會被刪除。",
-        "vertexAuthError": "缺少 Vertex AI 驗證詳細資料。"
+        "vertexAuthError": "缺少 Vertex AI 驗證詳細資料。",
+        "coldStorageWriteFailed": "冷儲存寫入失敗。您的聊天資料已被保留。",
+        "coldStorageVerifyFailed": "冷儲存驗證失敗。您的聊天資料已被保留。"
     },
     "showHelp": "顯示幫助",
     "help": {

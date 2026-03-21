@@ -96,9 +96,6 @@ export async function checkRisuUpdate(){
 // @ts-ignore
 if (typeof window !== 'undefined') {
     (window as any).testUpdateReminder = async () => {
-        const { alertConfirm, alertSelect } = await import('./alert')
-        const { language } = await import('../lang')
-        
         const conf = await alertConfirm(language.newVersion)
         if (conf) {
             console.log('User chose to install')

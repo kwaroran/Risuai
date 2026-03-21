@@ -30,14 +30,19 @@
     import PluginAlertModal from './lib/Others/PluginAlertModal.svelte';
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
+    import sendSound from './etc/send.mp3'
+
 
   
     let didFirstSetup: boolean  = $derived(DBState.db?.didFirstSetup)
     let gridOpen = $state(false)
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
+    let keepingSessionAlive = $state(false)
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'link'
@@ -69,6 +74,28 @@
             checkCharOrder()
         }
     }
+}} onclick={() => {
+    if(keepingSessionAlive){
+        return
+    }
+
+    const aliveMode = DBState?.db?.keepSessionAlive
+    switch(aliveMode){
+        case 'pip':{
+
+            break
+        }
+        case 'sound':{
+            console.log("Starting silent audio to keep session alive")
+            const silentAudio = new Audio(sendSound);
+            silentAudio.loop = true;
+            silentAudio.volume = 0.001;
+            silentAudio.play();
+            keepingSessionAlive = true;
+            break
+        }
+    }
+
 }}>
     {#if aprilFools}
 

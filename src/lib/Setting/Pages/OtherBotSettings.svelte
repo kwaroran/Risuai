@@ -1189,7 +1189,7 @@
                 <div class="mb-4">
                     <TextAreaInput size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.summarizationPrompt} />
                 </div>
-                <span class="text-textcolor">{language.reSummarizationPrompt}</span>
+                <span class="text-textcolor">{language.reSummarizationPrompt} <Help key="reSummarizationPrompt"/></span>
                 <div class="mb-4">
                     <TextAreaInput size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.reSummarizationPrompt} />
                 </div>
@@ -1199,46 +1199,52 @@
                 {:catch error}
                 <span class="mb-4 text-red-400">{language.hypaV3Settings.maxMemoryTokensRatioError}</span>
                 {/await}
-                <span class="text-textcolor">{language.hypaV3Settings.memoryTokensRatioLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.memoryTokensRatioLabel} <Help key="hypaV3MemoryTokensRatio"/></span>
                 <SliderInput marginBottom min={0} max={1} step={0.01} fixed={2} bind:value={settings.memoryTokensRatio} />
-                <span class="text-textcolor">{language.hypaV3Settings.extraSummarizationRatioLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.extraSummarizationRatioLabel} <Help key="hypaV3ExtraSummarizationRatio"/></span>
                 <SliderInput marginBottom min={0} max={1 - settings.memoryTokensRatio} step={0.01} fixed={2} bind:value={settings.extraSummarizationRatio} />
-                <span class="text-textcolor">{language.hypaV3Settings.maxChatsPerSummaryLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.maxChatsPerSummaryLabel} <Help key="hypaV3MaxChatsPerSummary"/></span>
                 <NumberInput marginBottom size="sm" min={1} bind:value={settings.maxChatsPerSummary} />
-                <span class="text-textcolor">{language.hypaV3Settings.recentMemoryRatioLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.recentMemoryRatioLabel} <Help key="hypaV3RecentMemoryRatio"/></span>
                 <SliderInput marginBottom min={0} max={1} step={0.01} fixed={2} bind:value={settings.recentMemoryRatio} />
-                <span class="text-textcolor">{language.hypaV3Settings.similarMemoryRatioLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.similarMemoryRatioLabel} <Help key="hypaV3SimilarMemoryRatio"/></span>
                 <SliderInput marginBottom min={0} max={1} step={0.01} fixed={2} bind:value={settings.similarMemoryRatio} />
-                <span class="text-textcolor">{language.hypaV3Settings.randomMemoryRatioLabel}</span>
+                <span class="text-textcolor">{language.hypaV3Settings.randomMemoryRatioLabel} <Help key="hypaV3RandomMemoryRatio"/></span>
                 <NumberInput marginBottom disabled size="sm" value={parseFloat((1 - settings.recentMemoryRatio - settings.similarMemoryRatio).toFixed(2))} />
-                <div class="mb-2">
+                <div class="mb-2 flex items-center">
                     <Check name={language.hypaV3Settings.preserveOrphanedMemoryLabel} bind:check={settings.preserveOrphanedMemory} />
+                    <Help key="hypaV3PreserveOrphanedMemory"/>
                 </div>
-                <div class="mb-2">
+                <div class="mb-2 flex items-center">
                     <Check name={language.hypaV3Settings.applyRegexScriptWhenRerollingLabel} bind:check={settings.processRegexScript} />
+                    <Help key="hypaV3ProcessRegexScript"/>
                 </div>
-                <div class="mb-2">
+                <div class="mb-2 flex items-center">
                     <Check name={language.hypaV3Settings.doNotSummarizeUserMessageLabel} bind:check={settings.doNotSummarizeUserMessage} />
+                    <Help key="hypaV3DoNotSummarizeUserMessage"/>
                 </div>
                 <Accordion name="Advanced Settings" styled>
-                    <div class="mb-2">
+                    <div class="mb-2 flex items-center">
                         <Check name="Use Experimental Implementation" bind:check={settings.useExperimentalImpl} />
+                        <Help key="hypaV3UseExperimentalImpl"/>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-2 flex items-center">
                         <Check name="Always Toggle On" bind:check={settings.alwaysToggleOn} />
+                        <Help key="hypaV3AlwaysToggleOn"/>
                     </div>
                     {#if settings.useExperimentalImpl}
-                        <span class="text-textcolor">Summarization Requests Per Minute</span>
+                        <span class="text-textcolor">Summarization Requests Per Minute <Help key="hypaV3SummarizationRequestsPerMinute"/></span>
                         <NumberInput marginBottom size="sm" min={1} bind:value={settings.summarizationRequestsPerMinute} />
-                        <span class="text-textcolor">Summarization Max Concurrent</span>
+                        <span class="text-textcolor">Summarization Max Concurrent <Help key="hypaV3SummarizationMaxConcurrent"/></span>
                         <NumberInput marginBottom size="sm" min={1} max={10} bind:value={settings.summarizationMaxConcurrent} />
-                        <span class="text-textcolor">Embedding Requests Per Minute</span>
+                        <span class="text-textcolor">Embedding Requests Per Minute <Help key="hypaV3EmbeddingRequestsPerMinute"/></span>
                         <NumberInput marginBottom size="sm" min={1} bind:value={settings.embeddingRequestsPerMinute} />
-                        <span class="text-textcolor">Embedding Max Concurrent</span>
+                        <span class="text-textcolor">Embedding Max Concurrent <Help key="hypaV3EmbeddingMaxConcurrent"/></span>
                         <NumberInput marginBottom size="sm" min={1} max={10} bind:value={settings.embeddingMaxConcurrent} />
                     {:else}
-                        <div class="mb-2">
+                        <div class="mb-2 flex items-center">
                             <Check name={language.hypaV3Settings.enableSimilarityCorrectionLabel} bind:check={settings.enableSimilarityCorrection} />
+                            <Help key="hypaV3EnableSimilarityCorrection"/>
                         </div>
                     {/if}
                 </Accordion>

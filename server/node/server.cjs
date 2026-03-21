@@ -53,6 +53,20 @@ const authenticatedRouteLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: 'Too many requests. Please retry shortly.' }
 });
+const authRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 90,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please retry shortly.' }
+});
+const loginRouteLimiter = rateLimit({
+    windowMs: 30 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please wait and try again later.' }
+});
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
 }
@@ -1073,7 +1087,7 @@ app.delete('/proxy-stream-jobs/:jobId', authenticatedRouteLimiter, async (req, r
 //     }
 // })
 
-app.get('/api/test_auth', async(req, res) => {
+app.get('/api/test_auth', authRouteLimiter, async(req, res) => {
 
     if(!password){
         res.send({status: 'unset'})
@@ -1086,23 +1100,7 @@ app.get('/api/test_auth', async(req, res) => {
     }
 })
 
-let loginTries = 0;
-let loginTriesResetsIn = 0;
-app.post('/api/login', async (req, res) => {
-
-    if(loginTriesResetsIn < Date.now()){
-        loginTriesResetsIn = Date.now() + (30 * 1000); //30 seconds
-        loginTries = 0;
-    }
-
-    if(loginTries >= 10){
-        res.status(429).send({error: 'Too many attempts. Please wait and try again later.'})
-        return;
-    }
-    else{
-        loginTries++;
-    }
-
+app.post('/api/login', loginRouteLimiter, async (req, res) => {
     if(password === ''){
         res.status(400).send({error: 'Password not set'})
         return;
@@ -1138,7 +1136,7 @@ app.post('/api/set_password', async (req, res) => {
     }
 })
 
-app.get('/api/read', async (req, res, next) => {
+app.get('/api/read', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1170,7 +1168,7 @@ app.get('/api/read', async (req, res, next) => {
     }
 });
 
-app.get('/api/remove', async (req, res, next) => {
+app.get('/api/remove', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1198,7 +1196,7 @@ app.get('/api/remove', async (req, res, next) => {
     }
 });
 
-app.get('/api/list', async (req, res, next) => {
+app.get('/api/list', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1215,7 +1213,7 @@ app.get('/api/list', async (req, res, next) => {
     }
 });
 
-app.post('/api/write', async (req, res, next) => {
+app.post('/api/write', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }

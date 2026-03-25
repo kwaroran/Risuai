@@ -691,10 +691,22 @@ export async function runScripted(code:string, arg:{
                     return
                 }
 
-                const loreBooks = [...selectedChar.chats[selectedChar.chatPage]?.localLore ?? [], ...selectedChar.globalLore, ...getModuleLorebooks()]
-                const found = loreBooks.filter((b) => b.comment === search)
+                const loreSources = [
+                    selectedChar.chats[selectedChar.chatPage]?.localLore ?? [],
+                    selectedChar.globalLore,
+                    getModuleLorebooks()
+                ]
 
-                return JSON.stringify(found.map((b) => ({ ...b, content: risuChatParser(b.content, { chara: selectedChar }) })))
+                const found = []
+                for (const source of loreSources) {
+                    for (const b of source) {
+                        if (b.comment === search) {
+                            found.push({ ...b, content: risuChatParser(b.content, { chara: selectedChar }) })
+                        }
+                    }
+                }
+
+                return JSON.stringify(found)
             })
 
             type upsertLoreBookOptions = {

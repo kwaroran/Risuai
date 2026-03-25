@@ -2436,9 +2436,12 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                 }
                 case 'v2GetAllLorebooks':{
                     char.globalLore = char.globalLore ?? []
-                    const allPrompts = char.globalLore
-                        .filter(lore => lore && lore.content !== undefined)
-                        .map(lore => lore.content)
+                    const allPrompts: string[] = []
+                    for (const lore of char.globalLore) {
+                        if (lore && lore.content !== undefined) {
+                            allPrompts.push(lore.content)
+                        }
+                    }
                     setVar(risuChatParser(effect.outputVar, {chara:char}), JSON.stringify(allPrompts))
                     break
                 }
@@ -2446,14 +2449,13 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                     char.globalLore = char.globalLore ?? []
                     const name = effect.nameType === 'value' ? risuChatParser(effect.name,{chara:char}) : getVar(risuChatParser(effect.name,{chara:char}))
                     const regex = new RegExp(name, 'i')
-                    const matchingIndices = char.globalLore
-                        .map((lore, index) => {
-                            if(lore && lore.comment !== undefined && regex.test(lore.comment)){
-                                return index
-                            }
-                            return -1
-                        })
-                        .filter(index => index !== -1)
+                    const matchingIndices: number[] = []
+                    for (let i = 0; i < char.globalLore.length; i++) {
+                        const lore = char.globalLore[i]
+                        if (lore && lore.comment !== undefined && regex.test(lore.comment)) {
+                            matchingIndices.push(i)
+                        }
+                    }
                     setVar(risuChatParser(effect.outputVar, {chara:char}), JSON.stringify(matchingIndices))
                     break
                 }

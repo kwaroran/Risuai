@@ -43,6 +43,8 @@ import {
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
 import { registerModelDynamic } from "./model/modellist";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { appDataDir, join } from "@tauri-apps/api/path";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -68,9 +70,16 @@ export async function loadData() {
                 if (!await exists('database/database.bin', { baseDir: BaseDirectory.AppData })) {
                     await writeFile('database/database.bin', encodeRisuSaveLegacy({}), { baseDir: BaseDirectory.AppData });
                 }
+                const appDataDirPath = await appDataDir();
                 try {
                     LoadingStatusState.text = "Reading Save File..."
-                    const readed = await readFile('database/database.bin', { baseDir: BaseDirectory.AppData })
+                    const dbPath = await join(appDataDirPath, 'database/database.bin');
+                    const assetUrl = convertFileSrc(dbPath);
+                    const response = await fetch(assetUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to load database: ${response.status}`);
+                    }
+                    const readed = new Uint8Array(await response.arrayBuffer());
                     LoadingStatusState.text = "Cleaning Unnecessary Files..."
                     getDbBackups() //this also cleans the backups
                     LoadingStatusState.text = "Decoding Save File..."
@@ -84,7 +93,13 @@ export async function loadData() {
                         if (!backupLoaded) {
                             try {
                                 LoadingStatusState.text = `Reading Backup File ${backup}...`
-                                const backupData = await readFile(`database/dbbackup-${backup}.bin`, { baseDir: BaseDirectory.AppData })
+                                const backupPath = await join(appDataDirPath, `database/dbbackup-${backup}.bin`);
+                                const backupAssetUrl = convertFileSrc(backupPath);
+                                const backupResponse = await fetch(backupAssetUrl);
+                                if (!backupResponse.ok) {
+                                    throw new Error(`Failed to load backup ${backup}: ${backupResponse.status}`);
+                                }
+                                const backupData = new Uint8Array(await backupResponse.arrayBuffer());
                                 setDatabase(
                                     await decodeRisuSave(backupData)
                                 )

@@ -286,6 +286,9 @@ export const languageEnglish = {
             "Maximum embedding model requests per minute for similarity search.",
         hypaV3EmbeddingMaxConcurrent:
             "Maximum concurrent embedding model requests for similarity search.",
+        hypaV3QueryChatCount:
+            "The number of recent chat messages used as the query for similarity search. " +
+            "Higher values use more chat context to determine similarity.",
     },
     setup: {
         chooseProvider: "Choose AI Provider",
@@ -1330,6 +1333,7 @@ export const languageEnglish = {
         memoryTokensRatioLabel: "Memory Tokens Ratio",
         extraSummarizationRatioLabel: "Extra Summarization Ratio",
         maxChatsPerSummaryLabel: "Max Messages Per Summary",
+        queryChatCountLabel: "Query Chat Count",
         recentMemoryRatioLabel: "Recent Memory Ratio",
         similarMemoryRatioLabel: "Similar Memory Ratio",
         randomMemoryRatioLabel: "Random Memory Ratio",

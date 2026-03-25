@@ -228,11 +228,15 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                                     functionResponse: {
                                         name: segment.call.call.name,
                                         response: {
-                                            data: segment.call.response.filter((r) => {
-                                                return r.type === 'text'
-                                            }).map((r) => {
-                                                return r.text
-                                            })
+                                            data: (() => {
+                                                const res: string[] = []
+                                                for (const r of segment.call.response) {
+                                                    if (r.type === 'text') {
+                                                        res.push(r.text)
+                                                    }
+                                                }
+                                                return res
+                                            })()
                                         }
                                     }
                                 }]
@@ -627,8 +631,17 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                 rDatas[i].text = extracted
             }
         }
-        const thoughts = rDatas.filter(d => d.thought).map(d => d.text).join('\n\n')
-        const content = rDatas.filter(d => !d.thought).map(d => d.text).join('\n\n')
+        const thoughtsArr: string[] = []
+        const contentArr: string[] = []
+        for (const d of rDatas) {
+            if (d.thought) {
+                thoughtsArr.push(d.text)
+            } else {
+                contentArr.push(d.text)
+            }
+        }
+        const thoughts = thoughtsArr.join('\n\n')
+        const content = contentArr.join('\n\n')
         return (thoughts ? `<Thoughts>\n\n${thoughts}\n\n</Thoughts>\n\n` : '') + content
     }
 
@@ -792,7 +805,12 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     }
     parts = parts.filter((p) => p)
 
-    const calls = parts.filter((p) => !!p?.functionCall).map((p) => p?.functionCall as GeminiFunctionCall)
+    const calls: GeminiFunctionCall[] = []
+    for (const p of parts) {
+        if (p?.functionCall) {
+            calls.push(p.functionCall as GeminiFunctionCall)
+        }
+    }
 
     // If there are function calls, handle calls and send next request
     if(calls.length > 0){

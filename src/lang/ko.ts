@@ -28,7 +28,9 @@ export const languageKorean = {
         "networkFetchPlain": "이것은 요청 오류일 수 있습니다. 설정에서 직접 요청 보내기 옵션을 비활성화해 보세요.",
         "requestLogRemoved": "요청 로그가 삭제되었습니다.",
         "requestLogRemovedDesc": "요청 로그는 앱이 재시작되거나 새로고침되면 삭제됩니다.",
-        "vertexAuthError": "Vertex AI 인증 정보가 누락되었습니다."
+        "vertexAuthError": "Vertex AI 인증 정보가 누락되었습니다.",
+        "coldStorageWriteFailed": "콜드 스토리지 저장에 실패했습니다. 채팅 데이터는 보존되었습니다.",
+        "coldStorageVerifyFailed": "콜드 스토리지 검증에 실패했습니다. 채팅 데이터는 보존되었습니다."
     },
     "showHelp": "도움말 보기",
     "help": {

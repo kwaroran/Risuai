@@ -28,7 +28,9 @@ export const languageGerman = {
         "networkFetchPlain": "Dies kann ein einfacher Abruffehler sein. Versuchen Sie, die Option 'Erzwinge einfachen Abruf' in den Einstellungen zu deaktivieren.",
         "requestLogRemoved": "Dieses Anfrage-Protokoll wurde entfernt.",
         "requestLogRemovedDesc": "Dieses Anfrage-Protokoll wird entfernt, wenn der Client aktualisiert oder neu geladen wird.",
-        "vertexAuthError": "Vertex AI-Authentifizierungsdetails fehlen."
+        "vertexAuthError": "Vertex AI-Authentifizierungsdetails fehlen.",
+        "coldStorageWriteFailed": "Kaltlager-Schreibvorgang fehlgeschlagen. Ihre Chat-Daten wurden beibehalten.",
+        "coldStorageVerifyFailed": "Kaltlager-Überprüfung fehlgeschlagen. Ihre Chat-Daten wurden beibehalten."
     },
     "showHelp": "Hilfe anzeigen",
     "help": {

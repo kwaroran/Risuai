@@ -30,6 +30,8 @@ export const languageEnglish = {
         networkFetchPlain: "This can be a plain fetch error. try disabling force plain fetch option in settings.",
         requestLogRemoved: "This request log is removed.",
         requestLogRemovedDesc: "This request log removes when client is refreshed or reloaded.",
+        coldStorageWriteFailed: "Cold storage write failed. Your chat data has been preserved.",
+        coldStorageVerifyFailed: "Cold storage verification failed. Your chat data has been preserved.",
     },
     showHelp: "Show Help",
     help: {

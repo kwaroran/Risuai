@@ -24,11 +24,14 @@
     import ChatBody from './ChatBody.svelte'
     import PopupButton from "../UI/PopupButton.svelte";
     import PartialEditController from './PartialEditController.svelte';
+    import { getLLMCache, setLLMCache } from "../../ts/translator/translator"
 
     let translating = $state(false)
     let editMode = $state(false)
     let statusMessage:string = $state('')
     let retranslate = $state(false)
+    let editTranslationMode = $state(false)
+    let editTranslationText = $state('')
     let bodyRoot:HTMLElement|null = $state(null)
     interface Props {
         message?: string;
@@ -133,6 +136,29 @@
                 chatRole: null,
             }
         }
+    }
+
+    async function getTranslationCacheKey(): Promise<string> {
+        if(DBState.db.translateBeforeHTMLFormatting){
+            return msgDisplay
+        }
+        if(!DBState.db.legacyTranslation){
+            return await ParseMarkdown(msgDisplay, character, 'pretranslate', idx, getCbsCondition())
+        }
+        return await ParseMarkdown(msgDisplay, character, 'notrim', idx, getCbsCondition())
+    }
+
+    async function loadTranslationForEdit() {
+        const key = await getTranslationCacheKey()
+        const cached = await getLLMCache(key)
+        editTranslationText = cached ?? ''
+        editTranslationMode = true
+    }
+
+    async function saveTranslationEdit() {
+        const key = await getTranslationCacheKey()
+        await setLLMCache(key, editTranslationText)
+        editTranslationMode = false
     }
 
     function displaya(message:string){
@@ -302,7 +328,7 @@
         {/if}
         {#if DBState.db.translatorType === 'llm' && translated}
             <button class="text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1
-                            hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center" 
+                            hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center"
                     onclick={() => {
                         retranslate = true
                     }}
@@ -312,12 +338,30 @@
                     {language.retranslate}
                 </span>
             </button>
+            <button class={"text-sm p-1 border-darkborderc float-end mr-2 my-1 hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center " + (editTranslationMode ? 'text-blue-400' : 'text-textcolor2')}
+                    onclick={() => {
+                        if(editTranslationMode){
+                            saveTranslationEdit()
+                        } else {
+                            loadTranslationForEdit()
+                        }
+                    }}
+            >
+                <PencilIcon size={20} />
+                <span class="ml-1">
+                    {editTranslationMode ? language.editTranslationSave : language.editTranslation}
+                </span>
+            </button>
         {/if}
     </div>
 {/snippet}
 
 {#snippet textBox()}
-    {#if editMode}
+    {#if editTranslationMode}
+        <AutoresizeArea bind:value={editTranslationText} handleLongPress={() => {
+            saveTranslationEdit()
+        }} />
+    {:else if editMode}
         <AutoresizeArea bind:value={message} handleLongPress={() => {
             editMode = false
         }} />

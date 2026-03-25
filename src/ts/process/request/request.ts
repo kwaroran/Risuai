@@ -985,16 +985,19 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     const ollama = new Ollama({host: db.ollamaURL})
 
-    const response = await ollama.chat({
-        model: db.ollamaModel,
-        messages: formated.map((v) => {
-            return {
+    const messages = []
+    for (const v of formated) {
+        if (v.role === 'assistant' || v.role === 'user' || v.role === 'system') {
+            messages.push({
                 role: v.role,
                 content: v.content
-            }
-        }).filter((v) => {
-            return v.role === 'assistant' || v.role === 'user' || v.role === 'system'
-        }),
+            })
+        }
+    }
+
+    const response = await ollama.chat({
+        model: db.ollamaModel,
+        messages: messages,
         stream: true
     })
 

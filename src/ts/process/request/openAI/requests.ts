@@ -76,9 +76,16 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                         })
 
                         // Add tool response
+                        const textContents: string[] = []
+                        for (const m of call.response) {
+                            if (m.type === 'text') {
+                                textContents.push(m.text)
+                            }
+                        }
+
                         processedMessages.push({
                             role: 'tool',
-                            content: call.response.filter(m => m.type === 'text').map(m => m.text).join('\n'),
+                            content: textContents.join('\n'),
                             tool_call_id: call.call.id,
                             cachePoint: true
                         })

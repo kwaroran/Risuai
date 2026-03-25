@@ -105,7 +105,14 @@ export async function loadLoreBookV3Prompt(){
         dontSearchWhenRecursive: boolean
     }) => {
         const sliced = messages.slice(messages.length - arg.searchDepth,messages.length)
-        arg.keys = arg.keys.map(key => key.trim()).filter(key => key.length > 0)
+        const newKeys = []
+        for (const key of arg.keys) {
+            const trimmed = key.trim()
+            if (trimmed.length > 0) {
+                newKeys.push(trimmed)
+            }
+        }
+        arg.keys = newKeys
         let mList:{
             source:string
             prompt:string

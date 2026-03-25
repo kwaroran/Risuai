@@ -10,7 +10,7 @@ import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage } from "./stableDiff";
 import { writeInlayImage, getInlayAsset } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
-import { requestChatData } from "./request/request";
+import { requestChatData, type StreamResponseChunk } from "./request/request";
 import { v4 } from "uuid";
 import { getModuleLorebooks, getModuleTriggers } from "./modules";
 import { Mutex } from "../mutex";
@@ -440,7 +440,41 @@ export async function runScripted(code:string, arg:{
                 return await hasher(new TextEncoder().encode(value))
             })
 
-            declareAPI('LLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false) => {
+            const parseLuaOptions = (optionsStr?: string) => {
+                if (!optionsStr) {
+                    return {};
+                }
+
+                try {
+                    const parsed = JSON.parse(optionsStr);
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch {
+                    return {};
+                }
+            };
+
+            const collectLuaStreamText = async (stream: ReadableStream<StreamResponseChunk>) => {
+                const reader = stream.getReader();
+                let text = '';
+
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            break;
+                        }
+                        if (value && typeof value['0'] === 'string') {
+                            text = value['0'];
+                        }
+                    }
+                } finally {
+                    reader.releaseLock();
+                }
+
+                return text;
+            };
+
+            declareAPI('LLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false, optionsStr: string = '') => {
                 let prompt:{
                     role: string,
                     content: string
@@ -508,10 +542,12 @@ export async function runScripted(code:string, arg:{
                     }
                 }
 
+                const options = parseLuaOptions(optionsStr) as { streaming?: boolean }
                 const result = await requestChatData({
                     formated: promptbody,
                     bias: {},
-                    useStreaming: false,
+                    useStreaming: options.streaming === true,
+                    forceStreaming: options.streaming === true,
                     noMultiGen: true,
                 }, 'model')
 
@@ -522,7 +558,21 @@ export async function runScripted(code:string, arg:{
                     })
                 }
 
-                if(result.type === 'streaming' || result.type === 'multiline'){
+                if(result.type === 'streaming'){
+                    try {
+                        return JSON.stringify({
+                            success: true,
+                            result: await collectLuaStreamText(result.result)
+                        })
+                    } catch (error) {
+                        return JSON.stringify({
+                            success: false,
+                            result: 'Error: ' + error
+                        })
+                    }
+                }
+
+                if(result.type === 'multiline'){
                     return JSON.stringify({
                         success: false,
                         result: result.result
@@ -794,7 +844,7 @@ export async function runScripted(code:string, arg:{
                 return JSON.stringify(loreBooks)
             })
 
-            declareAPI('axLLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false) => {
+            declareAPI('axLLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false, optionsStr: string = '') => {
                 let prompt:{
                     role: string,
                     content: string
@@ -862,10 +912,12 @@ export async function runScripted(code:string, arg:{
                     }
                 }
 
+                const options = parseLuaOptions(optionsStr) as { streaming?: boolean }
                 const result = await requestChatData({
                     formated: promptbody,
                     bias: {},
-                    useStreaming: false,
+                    useStreaming: options.streaming === true,
+                    forceStreaming: options.streaming === true,
                     noMultiGen: true,
                 }, 'otherAx')
 
@@ -876,7 +928,21 @@ export async function runScripted(code:string, arg:{
                     })
                 }
 
-                if(result.type === 'streaming' || result.type === 'multiline'){
+                if(result.type === 'streaming'){
+                    try {
+                        return JSON.stringify({
+                            success: true,
+                            result: await collectLuaStreamText(result.result)
+                        })
+                    } catch (error) {
+                        return JSON.stringify({
+                            success: false,
+                            result: 'Error: ' + error
+                        })
+                    }
+                }
+
+                if(result.type === 'multiline'){
                     return JSON.stringify({
                         success: false,
                         result: result.result
@@ -1186,14 +1252,16 @@ function loadLoreBooks(id)
     return json.decode(loadLoreBooksMain(id):await())
 end
 
-function LLM(id, prompt, useMultimodal)
+function LLM(id, prompt, useMultimodal, options)
     useMultimodal = useMultimodal or false
-    return json.decode(LLMMain(id, json.encode(prompt), useMultimodal):await())
+    options = options or {}
+    return json.decode(LLMMain(id, json.encode(prompt), useMultimodal, json.encode(options)):await())
 end
 
-function axLLM(id, prompt, useMultimodal)
+function axLLM(id, prompt, useMultimodal, options)
     useMultimodal = useMultimodal or false
-    return json.decode(axLLMMain(id, json.encode(prompt), useMultimodal):await())
+    options = options or {}
+    return json.decode(axLLMMain(id, json.encode(prompt), useMultimodal, json.encode(options)):await())
 end
 
 function getCharacterImage(id)

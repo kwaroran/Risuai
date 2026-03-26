@@ -22,16 +22,16 @@
     let sortField = $state<'name' | 'price' | 'provider'>('price')
     let sortDir   = $state<'asc' | 'desc'>('asc')
 
-    const sortFields: { key: 'name' | 'price' | 'provider'; label: string }[] = [
-        { key: 'name',     label: '이름 순' },
-        { key: 'price',    label: '가격 순' },
-        { key: 'provider', label: '회사 순' },
-    ]
+    let sortFields = $derived([
+        { key: 'name'     as const, label: language.openRouterSortByName     },
+        { key: 'price'    as const, label: language.openRouterSortByPrice    },
+        { key: 'provider' as const, label: language.openRouterSortByProvider },
+    ])
 
-    const sortDirs: { key: 'asc' | 'desc'; label: string }[] = [
-        { key: 'asc',  label: '오름차순' },
-        { key: 'desc', label: '내림차순' },
-    ]
+    let sortDirs = $derived([
+        { key: 'asc'  as const, label: language.openRouterSortAsc  },
+        { key: 'desc' as const, label: language.openRouterSortDesc },
+    ])
 
     let filteredModels = $derived.by(() => {
         const base = searchQuery.trim()
@@ -75,28 +75,39 @@
 </script>
 
 <div class="mt-2 mb-4 flex flex-col gap-2">
-    <p class="text-xs text-textcolor2">
-        {language.model}: <span class="font-medium text-textcolor">{selectedLabel}</span>
+    <!-- Selected model label -->
+    <p class="text-sm text-textcolor2">
+        {language.model}: <span class="font-semibold text-base text-textcolor">{selectedLabel}</span>
     </p>
 
     {#if !loading && models.length > 0}
-        <!-- Sort controls -->
-        <div class="flex items-center gap-1 flex-wrap">
-            {#each sortFields as sf}
-                <button
-                    onclick={() => { sortField = sf.key }}
-                    class="rounded px-2 py-0.5 text-xs transition-colors {sortField === sf.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
-                >{sf.label}</button>
-            {/each}
+        <!--
+            Desktop (sm+): all buttons on one row with a divider
+            Mobile       : field buttons on row 1, direction buttons on row 2, no divider
+        -->
+        <div class="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1">
+            <!-- Sort field buttons -->
+            <div class="flex gap-1">
+                {#each sortFields as sf}
+                    <button
+                        onclick={() => { sortField = sf.key }}
+                        class="rounded px-3 py-1 text-sm font-medium transition-colors {sortField === sf.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
+                    >{sf.label}</button>
+                {/each}
+            </div>
 
-            <span class="mx-1 select-none text-textcolor2">|</span>
+            <!-- Divider: desktop only -->
+            <span class="hidden sm:inline mx-1.5 select-none text-textcolor2">|</span>
 
-            {#each sortDirs as sd}
-                <button
-                    onclick={() => { sortDir = sd.key }}
-                    class="rounded px-2 py-0.5 text-xs transition-colors {sortDir === sd.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
-                >{sd.label}</button>
-            {/each}
+            <!-- Sort direction buttons -->
+            <div class="flex gap-1">
+                {#each sortDirs as sd}
+                    <button
+                        onclick={() => { sortDir = sd.key }}
+                        class="rounded px-3 py-1 text-sm font-medium transition-colors {sortDir === sd.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
+                    >{sd.label}</button>
+                {/each}
+            </div>
         </div>
 
         <!-- Search bar -->

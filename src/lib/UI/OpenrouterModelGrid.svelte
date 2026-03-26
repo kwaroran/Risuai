@@ -14,18 +14,42 @@
     type PinnedModel = { id: string; cleanName: string; provider: string }
 
     const pinnedModels: PinnedModel[] = [
-        { id: 'risu/free',        cleanName: 'Free Auto',        provider: 'Risu'        },
-        { id: 'openrouter/auto',  cleanName: 'OpenRouter Auto',  provider: 'OpenRouter'  },
+        { id: 'risu/free',       cleanName: 'Free Auto',       provider: 'Risu'       },
+        { id: 'openrouter/auto', cleanName: 'OpenRouter Auto', provider: 'OpenRouter' },
     ]
 
     let searchQuery = $state('')
+    let sortField = $state<'name' | 'price' | 'provider'>('price')
+    let sortDir   = $state<'asc' | 'desc'>('asc')
+
+    const sortFields: { key: 'name' | 'price' | 'provider'; label: string }[] = [
+        { key: 'name',     label: '이름 순' },
+        { key: 'price',    label: '가격 순' },
+        { key: 'provider', label: '회사 순' },
+    ]
+
+    const sortDirs: { key: 'asc' | 'desc'; label: string }[] = [
+        { key: 'asc',  label: '오름차순' },
+        { key: 'desc', label: '내림차순' },
+    ]
 
     let filteredModels = $derived.by(() => {
-        if (!searchQuery.trim()) return models
-        const terms = searchQuery.trim().toLowerCase().split(/\s+/)
-        return models.filter(m => {
-            const text = (m.cleanName + ' ' + m.provider + ' ' + m.id).toLowerCase()
-            return terms.every(t => text.includes(t))
+        const base = searchQuery.trim()
+            ? (() => {
+                const terms = searchQuery.trim().toLowerCase().split(/\s+/)
+                return models.filter(m => {
+                    const text = (m.cleanName + ' ' + m.provider + ' ' + m.id).toLowerCase()
+                    return terms.every(t => text.includes(t))
+                })
+              })()
+            : models
+
+        return [...base].sort((a, b) => {
+            let cmp = 0
+            if (sortField === 'name')          cmp = a.cleanName.localeCompare(b.cleanName)
+            else if (sortField === 'price')    cmp = a.price - b.price
+            else if (sortField === 'provider') cmp = a.provider.localeCompare(b.provider)
+            return sortDir === 'asc' ? cmp : -cmp
         })
     })
 
@@ -43,7 +67,6 @@
         return `${Math.round(length / 1000)}k`
     }
 
-    /** Format a per-1M-token price. Returns null if price is undefined. */
     function fmt(p: PriceEntry): string | null {
         if (p === undefined) return null
         if (p === 0) return 'Free'
@@ -52,13 +75,31 @@
 </script>
 
 <div class="mt-2 mb-4 flex flex-col gap-2">
-    <!-- Current selection indicator -->
     <p class="text-xs text-textcolor2">
         {language.model}: <span class="font-medium text-textcolor">{selectedLabel}</span>
     </p>
 
-    <!-- Search bar (only meaningful when list is loaded) -->
     {#if !loading && models.length > 0}
+        <!-- Sort controls -->
+        <div class="flex items-center gap-1 flex-wrap">
+            {#each sortFields as sf}
+                <button
+                    onclick={() => { sortField = sf.key }}
+                    class="rounded px-2 py-0.5 text-xs transition-colors {sortField === sf.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
+                >{sf.label}</button>
+            {/each}
+
+            <span class="mx-1 select-none text-textcolor2">|</span>
+
+            {#each sortDirs as sd}
+                <button
+                    onclick={() => { sortDir = sd.key }}
+                    class="rounded px-2 py-0.5 text-xs transition-colors {sortDir === sd.key ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
+                >{sd.label}</button>
+            {/each}
+        </div>
+
+        <!-- Search bar -->
         <TextInput bind:value={searchQuery} placeholder={language.openRouterSearchModel} size="sm" />
     {/if}
 
@@ -70,7 +111,7 @@
             </div>
         {:else}
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
-                <!-- Pinned special models (always visible, not filtered) -->
+                <!-- Pinned special models: always visible, unaffected by search/sort -->
                 {#each pinnedModels as pinned}
                     <button
                         onclick={() => { value = pinned.id }}
@@ -91,25 +132,22 @@
                     </p>
                 {:else}
                     {#each filteredModels as model}
-                        {@const inputFmt = fmt(model.promptPrice1M)}
-                        {@const outputFmt = fmt(model.completionPrice1M)}
-                        {@const cacheReadFmt = fmt(model.cacheReadPrice1M)}
+                        {@const inputFmt      = fmt(model.promptPrice1M)}
+                        {@const outputFmt     = fmt(model.completionPrice1M)}
+                        {@const cacheReadFmt  = fmt(model.cacheReadPrice1M)}
                         {@const cacheWriteFmt = fmt(model.cacheWritePrice1M)}
-                        {@const reasoningFmt = fmt(model.internalReasoningPrice1M)}
+                        {@const reasoningFmt  = fmt(model.internalReasoningPrice1M)}
                         <button
                             onclick={() => { value = model.id }}
                             class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === model.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
                         >
-                            <!-- Provider + name -->
                             <span class="text-xs text-textcolor2">{model.provider}</span>
                             <span class="line-clamp-2 text-sm font-medium leading-snug text-textcolor">{model.cleanName}</span>
 
-                            <!-- Description -->
                             {#if model.description}
                                 <span class="mt-1 line-clamp-2 text-xs leading-snug text-textcolor2">{model.description}</span>
                             {/if}
 
-                            <!-- Pricing table -->
                             <div class="mt-1.5 flex flex-col gap-0.5 text-xs text-textcolor2">
                                 {#if inputFmt !== null}
                                     <span>In: <span class="text-textcolor">{inputFmt}</span>/1M</span>
@@ -128,7 +166,6 @@
                                 {/if}
                             </div>
 
-                            <!-- Context length -->
                             {#if model.context_length > 0}
                                 <span class="mt-1 text-xs text-textcolor2">Context: {formatContext(model.context_length)}</span>
                             {/if}

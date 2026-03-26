@@ -1,5 +1,8 @@
 import { getDatabase } from "../storage/database.svelte"
 
+/** Per-1M-token price entry. undefined means the field is not available for this model. */
+export type PriceEntry = number | undefined
+
 export type OpenRouterModelInfo = {
     id: string
     /** Original name with price appended, kept for backward compatibility */
@@ -8,10 +11,22 @@ export type OpenRouterModelInfo = {
     cleanName: string
     /** Provider display name extracted from model name (e.g. "OpenAI", "Anthropic") */
     provider: string
+    /** Weighted average price used for sorting (prompt*3 + completion) / 4 */
     price: number
-    /** Human-readable price string, e.g. "$0.01500/1k" or "Free" */
+    /** Human-readable weighted-average price string, e.g. "$0.01500/1k" or "Free" */
     priceDisplay: string
     context_length: number
+    description: string
+    /** Input (prompt) price per 1M tokens in USD */
+    promptPrice1M: PriceEntry
+    /** Output (completion) price per 1M tokens in USD */
+    completionPrice1M: PriceEntry
+    /** Cache-read price per 1M tokens in USD (optional) */
+    cacheReadPrice1M: PriceEntry
+    /** Cache-write price per 1M tokens in USD (optional) */
+    cacheWritePrice1M: PriceEntry
+    /** Internal reasoning token price per 1M tokens in USD (optional) */
+    internalReasoningPrice1M: PriceEntry
 }
 
 export async function getOpenRouterProviders(): Promise<{ name: string, slug: string }[]> {
@@ -59,6 +74,11 @@ export async function getOpenRouterModels(): Promise<OpenRouterModelInfo[]> {
                 ? model.name.slice(colonIdx + 1).trim()
                 : model.name
 
+            const toPrice1M = (raw: any): PriceEntry => {
+                const n = Number(raw)
+                return (raw !== undefined && raw !== null && raw !== '' && !isNaN(n)) ? n * 1_000_000 : undefined
+            }
+
             return {
                 id: model.id,
                 name: legacyName,
@@ -67,6 +87,12 @@ export async function getOpenRouterModels(): Promise<OpenRouterModelInfo[]> {
                 price,
                 priceDisplay,
                 context_length: model.context_length,
+                description: model.description ?? '',
+                promptPrice1M: toPrice1M(model.pricing?.prompt),
+                completionPrice1M: toPrice1M(model.pricing?.completion),
+                cacheReadPrice1M: toPrice1M(model.pricing?.input_cache_read),
+                cacheWritePrice1M: toPrice1M(model.pricing?.input_cache_write),
+                internalReasoningPrice1M: toPrice1M(model.pricing?.internal_reasoning),
             }
         }).filter((model: OpenRouterModelInfo) => {
             return model.price >= 0

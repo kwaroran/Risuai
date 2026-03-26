@@ -62,7 +62,7 @@
                 <span class="text-sm text-textcolor2">{language.loading}…</span>
             </div>
         {:else}
-            <div class="grid grid-cols-2 gap-2 p-2">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
                 <!-- Pinned special models (always visible, not filtered) -->
                 {#each pinnedModels as pinned}
                     <button

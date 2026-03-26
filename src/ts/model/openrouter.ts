@@ -1,5 +1,19 @@
 import { getDatabase } from "../storage/database.svelte"
 
+export type OpenRouterModelInfo = {
+    id: string
+    /** Original name with price appended, kept for backward compatibility */
+    name: string
+    /** Clean model name without price info */
+    cleanName: string
+    /** Provider display name extracted from model name (e.g. "OpenAI", "Anthropic") */
+    provider: string
+    price: number
+    /** Human-readable price string, e.g. "$0.01500/1k" or "Free" */
+    priceDisplay: string
+    context_length: number
+}
+
 export async function getOpenRouterProviders(): Promise<{ name: string, slug: string }[]> {
     try {
         const db = getDatabase()
@@ -18,20 +32,7 @@ export async function getOpenRouterProviders(): Promise<{ name: string, slug: st
     }
 }
 
-type OpenRouterModel = {
-    canonical_slug: string
-    context_length: number
-    id: string
-    name: string
-    pricing: {
-        prompt: string,
-        completion: string,
-        web_search: string,
-        input_cache_read: string
-    }
-}
-
-export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
+export async function getOpenRouterModels(): Promise<OpenRouterModelInfo[]> {
     try {
         const db = getDatabase()
         const headers = {
@@ -44,23 +45,32 @@ export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
         }).then((res) => res.json())
 
         return aim.data.map((model: any) => {
-            let name = model.name
-            let price = ((Number(model.pricing.prompt) * 3) + Number(model.pricing.completion)) / 4
-            if(price > 0){
-                name += ` - $${(price*1000).toFixed(5)}/1k`
-            }
-            else{
-                name += " - Free"
-            }
+            const price = ((Number(model.pricing.prompt) * 3) + Number(model.pricing.completion)) / 4
+            const priceDisplay = price > 0 ? `$${(price * 1000).toFixed(5)}/1k` : 'Free'
+            const legacyName = price > 0
+                ? `${model.name} - $${(price * 1000).toFixed(5)}/1k`
+                : `${model.name} - Free`
+
+            const colonIdx = model.name.indexOf(':')
+            const provider = colonIdx !== -1
+                ? model.name.slice(0, colonIdx).trim()
+                : model.id.split('/')[0]
+            const cleanName = colonIdx !== -1
+                ? model.name.slice(colonIdx + 1).trim()
+                : model.name
+
             return {
                 id: model.id,
-                name: name,
-                price: price,
+                name: legacyName,
+                cleanName,
+                provider,
+                price,
+                priceDisplay,
                 context_length: model.context_length,
             }
-        }).filter((model: any) => {
+        }).filter((model: OpenRouterModelInfo) => {
             return model.price >= 0
-        }).sort((a: any, b: any) => {
+        }).sort((a: OpenRouterModelInfo, b: OpenRouterModelInfo) => {
             return a.price - b.price
         })
     } catch (error) {

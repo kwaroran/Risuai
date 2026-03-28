@@ -1295,6 +1295,7 @@
             <OptionInput value="openai3small">OpenAI text-embedding-3-small</OptionInput>
             <OptionInput value="openai3large">OpenAI text-embedding-3-large</OptionInput>
             <OptionInput value="ada">OpenAI Ada</OptionInput>
+            <OptionInput value="voyageContext3">Voyage Context 3</OptionInput>
             <OptionInput value="custom">Custom (OpenAI-compatible)</OptionInput>
         </SelectInput>
 
@@ -1310,6 +1311,11 @@
             <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.key}/>
             <span class="text-textcolor">Request Model</span>
             <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.model}/>
+        {/if}
+
+        {#if DBState.db.hypaModel === 'voyageContext3'}
+            <span class="text-textcolor">Voyage API Key</span>
+            <TextInput size="sm" marginBottom hideText={DBState.db.hideApiKey} bind:value={DBState.db.voyageApiKey}/>
         {/if}
 
     </Accordion>

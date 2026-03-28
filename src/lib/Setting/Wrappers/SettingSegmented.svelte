@@ -1,10 +1,10 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
-    import { UNINITIALIZED, getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
-    import { untrack } from 'svelte';
+    import { getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
     import SegmentedControl from 'src/lib/UI/GUI/SegmentedControl.svelte';
     import Help from 'src/lib/Others/Help.svelte';
     import { language } from 'src/lang';
+    import { DBState } from 'src/ts/stores.svelte';
 
     interface Props {
         item: SettingItem;
@@ -13,37 +13,19 @@
 
     let { item, ctx }: Props = $props();
 
-    let localValue: any = $state(untrack(() => getSettingValue(item, ctx)));
-
-    // Sync: DB → local (one-way read)
-    $effect(() => {
-        localValue = getSettingValue(item, ctx);
-    });
-
-    // Write-back: local → DB (guarded — only fires on actual user changes)
-    $effect(() => {
-        const val = localValue;
-        if (val === UNINITIALIZED) return;
-        untrack(() => {
-            if (val !== getSettingValue(item, ctx)) {
-                setSettingValue(item, val, ctx);
-            }
-        });
-    });
-
-    // Transform options for translation
+    // Transform options: filter by condition + resolve labelKey translations
     let processedOptions = $derived((item.options?.segmentOptions ?? [])
         .filter(opt => !opt.condition || opt.condition(ctx))
         .map(opt => ({
-            ...opt,
-            label: opt.labelKey ? (language as any)[opt.labelKey] : opt.label
+            value: opt.value,
+            label: opt.labelKey ? ((language as any)[opt.labelKey] ?? opt.label ?? '') : (opt.label ?? '')
         })));
 
-    // Reset value if current selection becomes hidden
+    // Reset value if current selection becomes hidden due to condition changes
     $effect(() => {
-        const currentValue = untrack(() => localValue);
-        if (processedOptions.length > 0 && currentValue !== undefined && !processedOptions.some(o => o.value === currentValue)) {
-            localValue = processedOptions[processedOptions.length - 1].value;
+        const currentVal = getSettingValue(item, ctx);
+        if (processedOptions.length > 0 && currentVal !== undefined && !processedOptions.some(o => o.value === currentVal)) {
+            setSettingValue(item, processedOptions[processedOptions.length - 1].value, ctx);
         }
     });
 </script>
@@ -53,6 +35,6 @@
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
 <SegmentedControl
-    bind:value={localValue}
+    bind:value={(DBState.db as any)[item.bindKey]}
     options={processedOptions}
 />

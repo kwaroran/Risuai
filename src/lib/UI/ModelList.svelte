@@ -15,9 +15,10 @@
             currentTarget: EventTarget & HTMLDivElement;
         }) => any
         blankable?: boolean
+        excludesPrefix?: string
     }
 
-    let { value = $bindable(""), onChange = (v) => {}, onclick, blankable }: Props = $props();
+    let { value = $bindable(""), onChange = (v) => {}, onclick, blankable, excludesPrefix }: Props = $props();
     let openOptions = $state(false)
 
     function changeModel(name:string){
@@ -62,7 +63,7 @@
                     {/each}
                 {:else}
                     <Accordion name={provider.providerName}>
-                        {#each provider.models as model}
+                        {#each provider.models.filter(m => !excludesPrefix || !m.id.startsWith(excludesPrefix)) as model}
                             <button class="hover:bg-selected px-6 py-2 text-lg" onclick={() => {changeModel(model.id)}}>{model.name}</button>
                         {/each}
                     </Accordion>

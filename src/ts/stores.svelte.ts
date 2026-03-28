@@ -138,6 +138,9 @@ export const bodyIntercepterStore = $state([] as {
     id: string,
     callback: (body: any, type: string) => Promise<any>
 }[])
+export const easyPanelStore = $state({
+    open: false,
+})
 export const popupStore = $state({
     children: null as null | import("svelte").Snippet,
     mouseX: 0,

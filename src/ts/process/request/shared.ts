@@ -34,10 +34,11 @@ export function applyParameters(
     data: Record<string, any>,
     parameters: LLMParameter[],
     rename: Partial<Record<LLMParameter, string>>,
-    ModelMode: ModelModeExtended,
+    modelMode: ModelModeExtended,
     arg: {
         ignoreTopKIfZero?: boolean
-    } = {},
+        modelId:string
+    },
 ): Record<string, any> {
     const db = getDatabase()
 
@@ -78,69 +79,77 @@ export function applyParameters(
         }
     }
 
-    if (db.seperateParametersEnabled && ModelMode !== 'model') {
-        if (ModelMode === 'submodel') {
-            ModelMode = 'otherAx'
+    if (db.seperateParametersEnabled && (modelMode !== 'model' || db.seperateParametersByModel)) {
+        let sepParams = db.seperateParameters[modelMode]
+        if (db.seperateParametersByModel){
+            sepParams = db.seperateParameters.overrides[arg.modelId]
+
+            if(!sepParams){
+                throw new Error(`No seperate parameters found for model ${arg.modelId} in model mode ${modelMode}. Please set parameters for this model`)
+            }
+        }
+        if (modelMode === 'submodel') {
+            sepParams = db.seperateParameters['otherAx']
         }
 
         for (const parameter of parameters) {
             let value: number | string = 0
-            if (parameter === 'top_k' && arg.ignoreTopKIfZero && db.seperateParameters[ModelMode][parameter] === 0) {
+            if (parameter === 'top_k' && arg.ignoreTopKIfZero && sepParams[parameter] === 0) {
                 continue
             }
 
             switch (parameter) {
                 case 'temperature': {
                     value =
-                        db.seperateParameters[ModelMode].temperature === -1000
+                        sepParams.temperature === -1000
                             ? -1000
-                            : db.seperateParameters[ModelMode].temperature / 100
+                            : sepParams.temperature / 100
                     break
                 }
                 case 'top_k': {
-                    value = db.seperateParameters[ModelMode].top_k
+                    value = sepParams.top_k
                     break
                 }
                 case 'repetition_penalty': {
-                    value = db.seperateParameters[ModelMode].repetition_penalty
+                    value = sepParams.repetition_penalty
                     break
                 }
                 case 'min_p': {
-                    value = db.seperateParameters[ModelMode].min_p
+                    value = sepParams.min_p
                     break
                 }
                 case 'top_a': {
-                    value = db.seperateParameters[ModelMode].top_a
+                    value = sepParams.top_a
                     break
                 }
                 case 'top_p': {
-                    value = db.seperateParameters[ModelMode].top_p
+                    value = sepParams.top_p
                     break
                 }
                 case 'thinking_tokens': {
-                    value = db.seperateParameters[ModelMode].thinking_tokens
+                    value = sepParams.thinking_tokens
                     break
                 }
                 case 'frequency_penalty': {
                     value =
-                        db.seperateParameters[ModelMode].frequency_penalty === -1000
+                        sepParams.frequency_penalty === -1000
                             ? -1000
-                            : db.seperateParameters[ModelMode].frequency_penalty / 100
+                            : sepParams.frequency_penalty / 100
                     break
                 }
                 case 'presence_penalty': {
                     value =
-                        db.seperateParameters[ModelMode].presence_penalty === -1000
+                        sepParams.presence_penalty === -1000
                             ? -1000
-                            : db.seperateParameters[ModelMode].presence_penalty / 100
+                            : sepParams.presence_penalty / 100
                     break
                 }
                 case 'reasoning_effort': {
-                    value = getEffort(db.seperateParameters[ModelMode].reasoning_effort)
+                    value = getEffort(sepParams.reasoning_effort)
                     break
                 }
                 case 'verbosity': {
-                    value = getVerbosity(db.seperateParameters[ModelMode].verbosity)
+                    value = getVerbosity(sepParams.verbosity)
                     break
                 }
             }

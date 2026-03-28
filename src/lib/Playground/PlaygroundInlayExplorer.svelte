@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { SvelteSet } from 'svelte/reactivity'
 
   import { language } from 'src/lang'
@@ -12,6 +13,7 @@
   let allAssets = $state<[string, InlayAsset][]>([])
   let displayCount = $state(PAGE_SIZE)
   let loading = $state(true)
+  let loadMoreSentinel: HTMLDivElement | null = $state(null)
   // For revoking
   let previewURLs = $state<Map<string, string>>(new Map())
   let selection = $state<Set<string>>(new SvelteSet())
@@ -76,10 +78,6 @@
     selection.clear()
   }
 
-  const loadMore = () => {
-    displayCount += PAGE_SIZE
-  }
-
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -93,13 +91,53 @@
     return formatSize(asset.data.length * 0.75) // base64 estimate
   }
 
+  let observer: IntersectionObserver | null = null
+  $effect(() => {
+    if (!loadMoreSentinel || !hasMore) {
+      observer?.disconnect()
+      return
+    }
+
+    const loadMore = () => {
+      if (!hasMore || loading) {
+        return
+      }
+
+      loading = true
+      displayCount += PAGE_SIZE
+      queueMicrotask(() => {
+        loading = false
+      })
+    }
+
+    observer?.disconnect()
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore()
+        }
+      },
+      {
+        root: null,
+        rootMargin: '200px 0px',
+        threshold: 0,
+      }
+    )
+    observer.observe(loadMoreSentinel)
+
+    return () => {
+      observer?.disconnect()
+      observer = null
+    }
+  })
+
+  onDestroy(() => {
+    previewURLs.forEach((url) => URL.revokeObjectURL(url))
+    observer?.disconnect()
+  })
+
   const loadAssets = async () => {
     loading = true
-    // Clean up old URLs
-    previewURLs.forEach((url) => URL.revokeObjectURL(url))
-    previewURLs = new Map()
-    selection = new SvelteSet()
-    displayCount = PAGE_SIZE
     allAssets = await listInlayAssets()
     loading = false
   }
@@ -128,11 +166,6 @@
   <div class="text-center py-12 text-textcolor2">
     <p class="text-lg">{language.playground.inlayEmpty}</p>
     <p class="text-sm mt-2">{language.playground.inlayEmptyDesc}</p>
-  </div>
-{:else if loading}
-  <div class="text-center py-12 text-textcolor2">
-    <!-- Won't take long, not worth localizing -->
-    <p class="text-lg">Loading...</p>
   </div>
 {:else}
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -194,10 +227,8 @@
   </div>
 
   {#if hasMore}
-    <div class="my-6 text-center">
-      <Button onclick={loadMore} styled="outlined">
-        {language.playground.inlayLoadMore.replace('{remaining}', (allAssets.length - displayCount).toString())}
-      </Button>
+    <div bind:this={loadMoreSentinel} class="h-12 flex items-center justify-center text-textcolor2 text-sm">
+      Loading...
     </div>
   {/if}
 {/if}

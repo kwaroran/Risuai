@@ -188,5 +188,12 @@ export const accessibilitySettingsItems: SettingItem[] = [
         labelKey: 'hamburgerButtonBottom',
         bindKey: 'hamburgerButtonBottom',
         keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
+    },
+    {
+        id: 'acc.enableRisuaiProTools',
+        type: 'check',
+        labelKey: 'enableRisuaiProTools',
+        bindKey: 'enableRisuaiProTools',
+        keywords: ['pro', 'tools', 'accessibility'],
     }
 ];

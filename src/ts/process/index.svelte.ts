@@ -46,25 +46,10 @@ export interface OpenAIChat{
 }
 
 export interface MultiModal{
-    type:'image'|'video'|'audio'
+    type:'image'|'video'|'audio'|'signature'
     base64:string,
     height?:number,
     width?:number
-}
-
-export interface OpenAIChatFull extends OpenAIChat{
-    function_call?: {
-        name: string
-        arguments:string
-    }
-    tool_calls?:{
-        function: {
-            name: string
-            arguments:string
-        }
-        id:string
-        type:'function'
-    }[]
 }
 
 export interface requestTokenPart{
@@ -588,13 +573,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             }
         }
         return text.replace(positionRegex, (match, p1) => {
-            const MatchingLorebooks = lorepmt.actives.filter(v => {
-                return v.pos === ('pt_' + p1)
-            })
-
-            return MatchingLorebooks.map(v => {
-                return v.prompt
-            }).join('\n')
+            const posMatch = 'pt_' + p1
+            const matchingPrompts: string[] = []
+            for (const v of lorepmt.actives) {
+                if (v.pos === posMatch) {
+                    matchingPrompts.push(v.prompt)
+                }
+            }
+            return matchingPrompts.join('\n')
         })
     }
 
@@ -873,7 +859,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         const modelinfo = getModelInfo(DBState.db.aiModel)
         if(inlays.length > 0){
             for(const inlay of inlays){
-                const inlayName = inlay.replace('{{inlayed::', '').replace('{{inlay::', '').replace('}}', '')
+                const inlayName = inlay.replace('{{inlayed::', '').replace('{{inlay::', '').replace('}}', '').replace('{{inlayeddata::', '')
                 const inlayData = await getInlayAsset(inlayName)
                 if(inlayData?.type === 'image'){
                     if(modelinfo.flags.includes(LLMFlags.hasImageInput)){
@@ -896,6 +882,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                             base64: inlayData.data
                         })
                     }
+                }
+                if(inlayData?.type === 'signature'){
+                    multimodal.push({
+                        type: 'signature',
+                        base64: inlayData.data
+                    })
                 }
                 formatedChat = formatedChat.replace(inlay, '')
             }
@@ -1535,29 +1527,56 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             })
         }
         DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = true
+        DBState.db.characters[selectedChar].reloadKeys += 1
         let lastResponseChunk:{[key:string]:string} = {}
-        while(abortSignal.aborted === false){
-            const readed = (await reader.read())
-            if(readed.value){
-                lastResponseChunk = readed.value
-                const firstChunkKey = Object.keys(lastResponseChunk)[0]
-                result = lastResponseChunk[firstChunkKey]
-                if(!result){
-                    result = ''
+        let streamAborted:boolean = abortSignal.aborted
+        const abortReader = () => {
+            streamAborted = true
+            void reader.cancel().catch(() => {})
+        }
+        abortSignal.addEventListener('abort', abortReader, { once: true })
+        try {
+            while(streamAborted === false){
+                let readed: ReadableStreamReadResult<{ [key: string]: string }>
+                try {
+                    readed = await reader.read()
                 }
-                if(DBState.db.removeIncompleteResponse){
-                    result = trimUntilPunctuation(result)
+                catch(error){
+                    if(abortSignal.aborted || streamAborted){
+                        streamAborted = true
+                        break
+                    }
+                    throw error
                 }
-                let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
-                DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
-                emoChanged = result2.emoChanged
-                DBState.db.characters[selectedChar].reloadKeys += 1
+                if(readed.value){
+                    lastResponseChunk = readed.value
+                    const firstChunkKey = Object.keys(lastResponseChunk)[0]
+                    result = lastResponseChunk[firstChunkKey]
+                    if(!result){
+                        result = ''
+                    }
+                    if(DBState.db.removeIncompleteResponse){
+                        result = trimUntilPunctuation(result)
+                    }
+                    let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
+                    DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
+                    emoChanged = result2.emoChanged
+                    DBState.db.characters[selectedChar].reloadKeys += 1
+                }
+                if(readed.done){
+                    break
+                }
             }
-            if(readed.done){
-                DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
-                DBState.db.characters[selectedChar].reloadKeys += 1
-                break
-            }   
+        }
+        finally {
+            abortSignal.removeEventListener('abort', abortReader)
+            DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
+            DBState.db.characters[selectedChar].reloadKeys += 1
+            void reader.cancel().catch(() => {})
+        }
+
+        if(streamAborted || abortSignal.aborted){
+            return false
         }
 
         addRerolls(generationId, Object.values(lastResponseChunk))

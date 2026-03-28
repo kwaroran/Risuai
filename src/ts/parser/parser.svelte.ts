@@ -798,7 +798,6 @@ export function addMetadataToElement(data:string, modelShortName:string){
     }
 
     let metadata = '{' + [
-        'aigen',
         'risuai',
         modelShortName.toLocaleLowerCase().replace(/[^a-z]/g, ''),
     ].join('|') + '}'

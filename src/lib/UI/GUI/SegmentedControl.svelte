@@ -21,6 +21,7 @@
 
     let containerRef: HTMLDivElement | undefined = $state();
     let indicatorStyle = $state('');
+    let mounted = $state(false);
 
     // Compute the active index from the current value
     let activeIndex = $derived(options.findIndex(opt => opt.value === value));
@@ -46,7 +47,14 @@
     // Re-calculate indicator when activeIndex changes or on mount
     $effect(() => {
         void activeIndex;
-        tick().then(() => updateIndicator());
+        tick().then(() => {
+            updateIndicator();
+            if (!mounted) {
+                requestAnimationFrame(() => {
+                    mounted = true;
+                });
+            }
+        });
     });
 
     function handleSelect(opt: SegmentOption) {
@@ -61,6 +69,7 @@
     <!-- Sliding indicator -->
     <div
         class="segmented-indicator"
+        class:no-transition={!mounted}
         style={indicatorStyle}
     ></div>
 
@@ -98,6 +107,11 @@
         padding: 4px;
         gap: 2px;
         user-select: none;
+        margin-bottom: 1rem;
+    }
+
+    .segmented-indicator.no-transition {
+        transition: none !important;
     }
 
     .segmented-indicator {

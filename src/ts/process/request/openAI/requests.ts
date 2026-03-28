@@ -1,45 +1,41 @@
 import { language } from "src/lang"
+import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { isTauri } from "src/ts/platform"
-import type { OpenAIChatFull } from "../index.svelte"
-import { extractJSON, getOpenAIJSONSchema } from "../templates/jsonSchema"
-import { applyChatTemplate } from "../templates/chatTemplate"
-import { supportsInlayImage } from "../files/inlays"
+import { isNodeServer, isTauri } from "src/ts/platform"
 import { simplifySchema } from "src/ts/util"
-import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
-import { alertError } from "src/ts/alert";
-import type { OpenAIChatExtra, OpenAIContents, OpenAIToolCall, RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters, setObjectValue } from './shared'
+import { isLocalNetworkUrl } from "src/ts/network/localNetwork"
 
-interface OAIResponseInputItem {
-    content:({
-        type: 'input_text',
-        text: string
-    }|{
-        detail: 'high'|'low'|'auto'
-        type: 'input_image',
-        image_url: string
-    }|{
-        type: 'input_file',
-        file_data: string
-        filename?: string
-    })[]
-    role:'user'|'system'|'developer'
+import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
+import { applyChatTemplate } from "../../templates/chatTemplate"
+import { supportsInlayImage } from "../../files/inlays"
+import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
+import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
+import { applyParameters, setObjectValue } from '../shared'
+
+import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
+
+interface LocalNetworkRequestOptions {
+    networkRoute?: 'auto' | 'local_network'
+    requestTimeoutMs?: number
 }
 
-interface OAIResponseOutputItem {
-    content:({
-        type: 'output_text',
-        text: string,
-        annotations: []
-    })[]
-    type: 'message',
-    status: 'in_progress'|'complete'|'incomplete'
-    role:'assistant'
+function getLocalNetworkRequestOptions(url: string, db = getDatabase(), useStreaming = false): LocalNetworkRequestOptions {
+    if (!db.localNetworkMode || !isLocalNetworkUrl(url)) {
+        return {}
+    }
+
+    const timeoutSec = Number.isFinite(db.localNetworkTimeoutSec) && db.localNetworkTimeoutSec > 0
+        ? db.localNetworkTimeoutSec
+        : 600
+
+    return {
+        networkRoute: 'local_network',
+        requestTimeoutMs: useStreaming ? Math.max(1, Math.floor(timeoutSec * 1000)) : undefined
+    }
 }
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
@@ -80,9 +76,16 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                         })
 
                         // Add tool response
+                        const textContents: string[] = []
+                        for (const m of call.response) {
+                            if (m.type === 'text') {
+                                textContents.push(m.text)
+                            }
+                        }
+
                         processedMessages.push({
                             role: 'tool',
-                            content: call.response.filter(m => m.type === 'text').map(m => m.text).join('\n'),
+                            content: textContents.join('\n'),
                             tool_call_id: call.call.id,
                             cachePoint: true
                         })
@@ -108,7 +111,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         
         return processedMessages
     }
-      for(let i=0;i<formated.length;i++){
+    for(let i=0;i<formated.length;i++){
         const m = formated[i]
         
         // Check if message contains tool calls
@@ -118,7 +121,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         else if(m.multimodals && m.multimodals.length > 0 && m.role === 'user'){
             let v:OpenAIChatExtra = safeStructuredClone(m)
-            let contents:OpenAIContents[] = []
+            let contents:Contents[] = []
             for(let j=0;j<m.multimodals.length;j++){
                 contents.push({
                     "type": "image_url",
@@ -279,33 +282,40 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             }
         }
 
+        const requestURL = arg.customURL ?? "https://api.mistral.ai/v1/chat/completions"
+        const networkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
+
         const targs = {
             body: applyParameters({
                 model: requestModel,
                 messages: reformatedChat,
                 safe_prompt: false,
                 max_tokens: arg.maxTokens,
-            }, ['temperature', 'presence_penalty', 'frequency_penalty', 'top_p'], {}, arg.mode ),
+            }, ['temperature', 'presence_penalty', 'frequency_penalty', 'top_p'], {}, arg.mode, {
+                modelId: arg.modelInfo.id
+            } ),
             headers: {
                 "Authorization": "Bearer " + (arg.key ?? db.mistralKey),
             },
             abortSignal: arg.abortSignal,
             chatId: arg.chatId,
-            interceptor: 'mistral'
+            interceptor: 'mistral',
+            networkRoute: networkOptions.networkRoute,
+            requestTimeoutMs: networkOptions.requestTimeoutMs
         } as const
 
         if(arg.previewBody){
             return {
                 type: 'success',
                 result: JSON.stringify({
-                    url: "https://api.mistral.ai/v1/chat/completions",
+                    url: requestURL,
                     body: targs.body,
                     headers: targs.headers
                 })
             }
         }
     
-        const res = await globalFetch(arg.customURL ?? "https://api.mistral.ai/v1/chat/completions", targs)
+        const res = await globalFetch(requestURL, targs)
 
         const dat = res.data as any
         if(res.ok){
@@ -441,7 +451,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body,
         arg.modelInfo.parameters,
         {},
-        arg.mode
+        arg.mode,
+        {
+            modelId: arg.modelInfo.id
+        }
     )
 
     if(arg.tools && arg.tools.length > 0){
@@ -537,69 +550,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         body.n = db.genTime
     }
-    if(arg.useStreaming){
-        body.stream = true
-        let urlHost = new URL(replacerURL).host
-        if(urlHost.includes("localhost") || urlHost.includes("172.0.0.1") || urlHost.includes("0.0.0.0")){
-            if(!isTauri){
-                return {
-                    type: 'fail',
-                    result: 'You are trying local request on streaming. this is not allowed dude to browser/os security policy. turn off streaming.',
-                }
-            }
-        }
-
-        if(arg.previewBody){
-            return {
-                type: 'success',
-                result: JSON.stringify({
-                    url: replacerURL,
-                    body: body,
-                    headers: headers
-                })
-            }
-        }
-        const da = await fetchNative(replacerURL, {
-            body: JSON.stringify(body),
-            method: "POST",
-            headers: headers,
-            signal: arg.abortSignal,
-            chatId: arg.chatId,
-            interceptor: 'openai_streaming'
-        })
-
-        if(da.status !== 200){
-            return {
-                type: "fail",
-                result: await textifyReadableStream(da.body)
-            }
-        }
-
-        if (!da.headers.get('Content-Type').includes('text/event-stream')){
-            return {
-                type: "fail",
-                result: await textifyReadableStream(da.body)
-            }
-        }
-
-        addFetchLog({
-            body: body,
-            response: "Streaming",
-            success: true,
-            url: replacerURL,
-            status: da.status,
-        })
-
-        const transtream = getTranStream(arg)
-
-        da.body.pipeTo(transtream.writable)
-
-        return {
-            type: 'streaming',
-            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg)
-        }
-    }
-
     if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
         let additionalParams = aiModel === 'reverse_proxy' ? db.additionalParams : []
 
@@ -667,6 +617,80 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
+    // Some aux flows are intentionally non-streaming (e.g. memory/translate).
+    // If custom Additional Parameters contains stream=true, force non-stream mode back.
+    if(!arg.useStreaming){
+        body.stream = false
+    }
+
+    const localNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db, false)
+    const streamingLocalNetworkOptions = getLocalNetworkRequestOptions(replacerURL, db, true)
+
+    if(arg.useStreaming){
+        body.stream = true
+        let urlHost = new URL(replacerURL).host
+        if(urlHost.includes("localhost") || urlHost.includes("172.0.0.1") || urlHost.includes("0.0.0.0")){
+            if(!isTauri && !isNodeServer){
+                return {
+                    type: 'fail',
+                    result: 'You are trying local request on streaming. this is not allowed dude to browser/os security policy. turn off streaming.',
+                }
+            }
+        }
+
+        if(arg.previewBody){
+            return {
+                type: 'success',
+                result: JSON.stringify({
+                    url: replacerURL,
+                    body: body,
+                    headers: headers
+                })
+            }
+        }
+        const da = await fetchNative(replacerURL, {
+            body: JSON.stringify(body),
+            method: "POST",
+            headers: headers,
+            signal: arg.abortSignal,
+            chatId: arg.chatId,
+            interceptor: 'openai_streaming',
+            networkRoute: streamingLocalNetworkOptions.networkRoute,
+            requestTimeoutMs: streamingLocalNetworkOptions.requestTimeoutMs
+        })
+
+        if(da.status !== 200){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(da.body)
+            }
+        }
+
+        if (!da.headers.get('Content-Type').includes('text/event-stream')){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(da.body)
+            }
+        }
+
+        addFetchLog({
+            body: body,
+            response: "Streaming",
+            success: true,
+            url: replacerURL,
+            status: da.status,
+        })
+
+        const transtream = getTranStream(arg)
+
+        da.body.pipeTo(transtream.writable)
+
+        return {
+            type: 'streaming',
+            result: wrapToolStream(transtream.readable, body, headers, replacerURL, arg, streamingLocalNetworkOptions)
+        }
+    }
+
     if(arg.previewBody){
         return {
             type: 'success',
@@ -678,11 +702,17 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    return requestHTTPOpenAI(replacerURL, body, headers, arg)
+    return requestHTTPOpenAI(replacerURL, body, headers, arg, localNetworkOptions)
 
 }
 
-export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
+export async function requestHTTPOpenAI(
+    replacerURL:string,
+    body:any,
+    headers:Record<string,string>,
+    arg:RequestDataArgumentExtended,
+    networkOptions: LocalNetworkRequestOptions = {}
+):Promise<requestDataResponse>{
     
     const db = getDatabase()
     const res = await globalFetch(replacerURL, {
@@ -690,7 +720,9 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
         headers: headers,
         abortSignal: arg.abortSignal,
         chatId: arg.chatId,
-        interceptor: 'openai_basic'
+        interceptor: 'openai_basic',
+        networkRoute: networkOptions.networkRoute,
+        requestTimeoutMs: networkOptions.requestTimeoutMs
     })
 
     function processTextResponse(dat: any):string{
@@ -744,7 +776,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
     if(res.ok){
         try {
             // Collect all tool_calls from all choices
-            let allToolCalls: OpenAIToolCall[] = []
+            let allToolCalls: ToolCall[] = []
             if(dat.choices) {
                 for(const choice of dat.choices) {
                     if(choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
@@ -759,7 +791,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
             }
 
             if(dat.choices?.[0]?.message?.tool_calls && dat.choices[0].message.tool_calls.length > 0){
-                const toolCalls = dat.choices[0].message.tool_calls as OpenAIToolCall[]
+                const toolCalls = dat.choices[0].message.tool_calls as ToolCall[]
 
                 const messages = body.messages as OpenAIChatExtra[]
                 
@@ -833,7 +865,7 @@ export async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Rec
                 
                 do {
                     attempt++
-                    resRec = await requestHTTPOpenAI(replacerURL, body, headers, arg)
+                    resRec = await requestHTTPOpenAI(replacerURL, body, headers, arg, networkOptions)
                     
                     if (resRec.type != 'fail') {
                         break
@@ -976,10 +1008,6 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
     
 }
 
-
-type OAIResponseItem = OAIResponseInputItem|OAIResponseOutputItem
-
-
 export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
 
     const formated = arg.formated
@@ -987,7 +1015,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     const aiModel = arg.aiModel
     const maxTokens = arg.maxTokens
 
-    const items:OAIResponseItem[] = []
+    const items:ResponseItem[] = []
 
     for(let i=0;i<formated.length;i++){
         const content = formated[i]
@@ -995,7 +1023,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
             case 'function':
                 break
             case 'assistant':{
-                const item:OAIResponseOutputItem = {
+                const item:ResponseOutputItem = {
                     content: [],
                     role: content.role,
                     status: 'complete',
@@ -1013,7 +1041,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
             }
             case 'user':
             case 'system':{
-                const item:OAIResponseInputItem = {
+                const item:ResponseInputItem = {
                     content: [],
                     role: content.role
                 }
@@ -1047,7 +1075,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     }
 
     if(items[items.length-1].role === 'assistant'){
-        (items[items.length-1] as OAIResponseOutputItem).status = 'incomplete'
+        (items[items.length-1] as ResponseOutputItem).status = 'incomplete'
     }
     
     const body = applyParameters({
@@ -1056,7 +1084,9 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         max_output_tokens: maxTokens,
         tools: [],
         store: false
-    }, ['temperature', 'top_p'], {}, arg.mode)
+    }, ['temperature', 'top_p'], {}, arg.mode, {
+        modelId: arg.modelInfo.id
+    })
 
     let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
     if(arg.modelInfo?.endpoint){
@@ -1138,12 +1168,16 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.tools.push('web_search_preview')
     }
 
+    const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
+
     const response = await globalFetch(requestURL, {
         body: body,
         headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
-        interceptor: 'openai_response_api'
+        interceptor: 'openai_response_api',
+        networkRoute: localNetworkOptions.networkRoute,
+        requestTimeoutMs: localNetworkOptions.requestTimeoutMs
     });
 
     if(!response.ok){
@@ -1153,7 +1187,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    let result: string = (response.data.output?.find((m:OAIResponseOutputItem) => m.type === 'message') as OAIResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
+    let result: string = (response.data.output?.find((m:ResponseOutputItem) => m.type === 'message') as ResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
 
     if(!result){
         return {
@@ -1313,7 +1347,8 @@ function wrapToolStream(
     body:any,
     headers:Record<string,string>,
     replacerURL:string,
-    arg:RequestDataArgumentExtended
+    arg:RequestDataArgumentExtended,
+    networkOptions: LocalNetworkRequestOptions = {}
 ):ReadableStream<StreamResponseChunk> {
     return new ReadableStream<StreamResponseChunk>({
         async start(controller) {
@@ -1331,7 +1366,7 @@ function wrapToolStream(
                     value = lastValue ?? {'0': ''}
                     content = value?.['0'] || ''
                     
-                    const toolCalls = Object.values(JSON.parse(value?.['__tool_calls'] || '{}') || {}) as OpenAIToolCall[]; 
+                    const toolCalls = Object.values(JSON.parse(value?.['__tool_calls'] || '{}') || {}) as ToolCall[]; 
                     if(toolCalls && toolCalls.length > 0){
                         const messages = body.messages as OpenAIChatExtra[]
 
@@ -1417,7 +1452,9 @@ function wrapToolStream(
                                 headers: headers,
                                 signal: arg.abortSignal,
                                 chatId: arg.chatId,
-                                interceptor: 'openai_tool'
+                                interceptor: 'openai_tool',
+                                networkRoute: networkOptions.networkRoute,
+                                requestTimeoutMs: networkOptions.requestTimeoutMs
                             })
                             
                             if(resRec.status == 200 && resRec.headers.get('Content-Type').includes('text/event-stream')) {

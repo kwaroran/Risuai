@@ -3,7 +3,8 @@
  *
  * This file provides TypeScript type definitions for the Risuai Plugin API v3.0.
  * All API methods are accessed through the global `risuai` object.
- *
+ * All API methods that isn't documented here are considered internal or subject to change without deprecation, and should not be used by plugin developers.
+ * 
  * @important **ALL METHODS RETURN PROMISES**
  *
  * Due to the iframe-based sandboxing architecture, ALL method calls go through
@@ -328,6 +329,38 @@ interface DatabaseSubset {
     guiHTML?: string;
     /** Color scheme name */
     colorSchemeName?: string;
+}
+
+// ============================================================================
+// Color Scheme & Text Theme Types
+// ============================================================================
+
+/**
+ * Color scheme definition for UI theming.
+ */
+interface ColorScheme {
+    bgcolor: string;
+    darkbg: string;
+    borderc: string;
+    selected: string;
+    draculared: string;
+    textcolor: string;
+    textcolor2: string;
+    darkBorderc: string;
+    darkbutton: string;
+    type: 'light' | 'dark';
+}
+
+/**
+ * Custom text theme definition for chat text colors.
+ */
+interface CustomTextTheme {
+    FontColorStandard: string;
+    FontColorBold: string;
+    FontColorItalic: string;
+    FontColorItalicBold: string;
+    FontColorQuote1: string;
+    FontColorQuote2: string;
 }
 
 // ============================================================================
@@ -1321,6 +1354,47 @@ interface RisuaiPluginAPI {
      */
     setDatabase(db: DatabaseSubset): Promise<void>;
 
+    // ========== Color Scheme APIs ==========
+
+    /**
+     * Change to a preset color scheme by name.
+     * Available presets: 'default', 'dark', 'light', 'cherry', 'galaxy', 'nature', 'realblack', 'monokai-light', 'monokai-black'
+     * @param name - Preset color scheme name
+     */
+    changeColorScheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom color scheme. Automatically sets colorSchemeName to 'custom'.
+     * @param scheme - ColorScheme object with all color values
+     */
+    setColorScheme(scheme: ColorScheme): Promise<void>;
+
+    /**
+     * Get the current color scheme name and values.
+     * @returns Object with name and scheme
+     */
+    getColorScheme(): Promise<{ name: string; scheme: ColorScheme }>;
+
+    // ========== Text Theme APIs ==========
+
+    /**
+     * Change to a preset text theme.
+     * @param name - 'standard' | 'highcontrast'
+     */
+    changeTextTheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom text theme. Automatically sets textTheme to 'custom'.
+     * @param theme - CustomTextTheme object with all font color values
+     */
+    setCustomTextTheme(theme: CustomTextTheme): Promise<void>;
+
+    /**
+     * Get the current text theme name and custom theme values.
+     * @returns Object with name and customTheme
+     */
+    getTextTheme(): Promise<{ name: string; customTheme: CustomTextTheme }>;
+
     // ========== Network APIs ==========
 
     /**
@@ -1330,6 +1404,16 @@ interface RisuaiPluginAPI {
      * @returns Response promise
      */
     nativeFetch(url: string, options?: RequestInit): Promise<Response>;
+
+    /**
+     * Saves a secret header for network requests, for protected Headers (like Authorization) that are stripped by Risuai for security.
+     * To use saved secret headers, use an object `{ secretHeader: 'Header-Name' }` in the `headers` field of `nativeFetch` options,
+     * Like `{ headers: {"Authorization":{ secretHeader: 'Authorization' }} }`
+     * @m This API is work in progress and may have breaking changes in the future.
+     * @param key - Header key (e.g., 'Authorization')
+     * @param value - Header value.
+     */
+    saveSecretHeader(key: string, prefix: string, value: string|string[]): Promise<void>;
 
     // ========== UI Registration ==========
 
@@ -1688,6 +1772,23 @@ interface RisuaiPluginAPI {
      * @returns The cached translation or null if not found
      */
     getTranslationCache(key: string): Promise<string | null>;
+
+    /**
+     * Registers a listener for a named plugin channel (IPC between plugins).
+     * @param channelName - The channel name to listen on (scoped to this plugin)
+     * @param callback - Function to call when a message is received on this channel
+     * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
+     */
+    addPluginChannelListener(channelName: string, callback: Function): Promise<void>;
+
+    /**
+     * Sends a message to another plugin's named channel (IPC between plugins).
+     * @param pluginName - The internal name of the target plugin
+     * @param channelName - The channel name to post to
+     * @param message - The message payload to send
+     * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
+     */
+    postPluginChannelMessage(pluginName: string, channelName: string, message: any): Promise<void>;
 }
 
 // ============================================================================

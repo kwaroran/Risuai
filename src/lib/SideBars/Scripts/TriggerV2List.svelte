@@ -741,7 +741,8 @@
                     valueType: 'value',
                     outputVar: '',
                     indent: 0,
-                    model: 'model'
+                    model: 'model',
+                    streaming: false
                 }
                 break;
             case 'v2ShowAlert':
@@ -3057,6 +3058,8 @@
                             <OptionInput value="model">{language.triggerInputLabels.modelMain}</OptionInput>
                             <OptionInput value="submodel">{language.triggerInputLabels.modelSub}</OptionInput>
                         </SelectInput>
+
+                        <CheckInput bind:check={editTrigger.streaming} name={language.streaming}/>
 
                         <span class="block text-textcolor">{language.triggerInputLabels.outputVar}</span>
                         <TextInput bind:value={editTrigger.outputVar} />

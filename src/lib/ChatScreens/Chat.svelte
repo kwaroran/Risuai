@@ -803,6 +803,7 @@
         
         if(DBState.db.createFolderOnBranch && !currentChat.folderId){
             const folderId = v4()
+            DBState.db.characters[selIdState.selId].chatFolders ??= []
             DBState.db.characters[selIdState.selId].chatFolders.unshift({
                 id: folderId,
                 name: `Branches of ${currentChat.name}`,

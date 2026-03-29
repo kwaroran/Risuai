@@ -18,16 +18,11 @@
     )
 
     async function fetchDashboard(key: string): Promise<DashboardData> {
-        const [
-            // balance,  // TODO: CORS issue — NanoGPT's /api/check-balance does not set
-            //           // Access-Control-Allow-Origin, so browser blocks the request.
-            //           // Disabled until NanoGPT fixes CORS on that endpoint.
-            subscription,
-        ] = await Promise.all([
-            // getNanoGPTBalance(key),
+        const [balance, subscription] = await Promise.all([
+            getNanoGPTBalance(key),
             getNanoGPTSubscription(key),
         ])
-        return { balance: null, subscription }
+        return { balance, subscription }
     }
 
     function fmtUSD(raw: string | undefined): string {

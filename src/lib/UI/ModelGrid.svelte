@@ -113,11 +113,11 @@
                 {/each}
 
                 {#if items.length === 0}
-                    <p class="col-span-2 py-4 text-center text-sm text-textcolor2">
+                    <p class="col-span-full py-4 text-center text-sm text-textcolor2">
                         Could not load model list. Check your API key.
                     </p>
                 {:else if filteredItems.length === 0}
-                    <p class="col-span-2 py-4 text-center text-sm text-textcolor2">
+                    <p class="col-span-full py-4 text-center text-sm text-textcolor2">
                         No models match "<span class="text-textcolor">{searchQuery}</span>"
                     </p>
                 {:else}

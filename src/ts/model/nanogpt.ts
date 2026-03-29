@@ -4,6 +4,7 @@ import {
     NANOGPT_MODELS_ENDPOINT,
     NANOGPT_BALANCE_ENDPOINT,
     NANOGPT_SUBSCRIPTION_ENDPOINT,
+    NANOGPT_MODEL_PROVIDERS_ENDPOINT,
 } from "./providers/nanogpt"
 import type { ModelGridItem } from "./modelGrid"
 
@@ -71,6 +72,32 @@ export async function getNanoGPTBalance(key: string): Promise<NanoGPTBalance | n
 export async function getNanoGPTSubscription(key: string): Promise<NanoGPTSubscriptionUsage | null> {
     try {
         const res = await fetch(NANOGPT_SUBSCRIPTION_ENDPOINT, {
+            headers: { 'Authorization': 'Bearer ' + key },
+        })
+        if (!res.ok) return null
+        return await res.json()
+    } catch {
+        return null
+    }
+}
+
+export type NanoGPTModelProvider = {
+    provider: string
+    pricing: { inputPer1kTokens: number; outputPer1kTokens: number }
+    available: boolean
+}
+
+export type NanoGPTModelProviders = {
+    canonicalId: string
+    displayName: string
+    supportsProviderSelection: boolean
+    defaultPrice: { inputPer1kTokens: number; outputPer1kTokens: number }
+    providers: NanoGPTModelProvider[]
+}
+
+export async function getNanoGPTModelProviders(key: string, modelId: string): Promise<NanoGPTModelProviders | null> {
+    try {
+        const res = await fetch(`${NANOGPT_MODEL_PROVIDERS_ENDPOINT}/${encodeURIComponent(modelId)}/providers`, {
             headers: { 'Authorization': 'Bearer ' + key },
         })
         if (!res.ok) return null

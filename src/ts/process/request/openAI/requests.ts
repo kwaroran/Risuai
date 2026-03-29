@@ -542,6 +542,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         headers["X-Title"] = 'RisuAI'
         headers["HTTP-Referer"] = 'https://risuai.xyz'
     }
+    if(aiModel === 'nanogpt' && db.nanogptProvider){
+        headers["X-Provider"] = db.nanogptProvider
+    }
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }

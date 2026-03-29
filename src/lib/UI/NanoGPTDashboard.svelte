@@ -79,10 +79,14 @@
 
             <!-- Balance -->
             {#if balance}
-                <div class="flex items-center justify-between">
-                    <span class="text-textcolor2">Credit Balance</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-textcolor2">Credit Balance:</span>
                     <span class="font-semibold text-textcolor">{fmtUSD(balance.usd_balance)}</span>
                 </div>
+            {/if}
+
+            {#if balance && subscription}
+                <hr class="border-darkborderc" />
             {/if}
 
             {#if subscription}

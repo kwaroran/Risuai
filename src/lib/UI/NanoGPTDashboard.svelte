@@ -37,13 +37,13 @@
 
     function fmtReset(ms: number | undefined): string {
         if (!ms) return '–'
-        return new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     }
 
-    function stateColor(state: string): string {
-        if (state === 'active') return 'bg-green-500'
-        if (state === 'grace')  return 'bg-yellow-500'
-        return 'bg-zinc-500'
+    function fmtTokens(n: number): string {
+        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+        if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}k`
+        return String(n)
     }
 
     function pct(v: number): string {
@@ -55,6 +55,12 @@
         if (v >= 0.7) return 'bg-yellow-400'
         return 'bg-selected'
     }
+
+    function stateColor(state: string): string {
+        if (state === 'active') return 'bg-green-500'
+        if (state === 'grace')  return 'bg-yellow-500'
+        return 'bg-zinc-500'
+    }
 </script>
 
 {#if apiKey}
@@ -64,69 +70,93 @@
             <span>Loading account info…</span>
         </div>
     {:then { balance, subscription }}
+        {#if balance || subscription}
         <div class="mt-3 mb-2 flex flex-col gap-3 rounded-lg border border-darkborderc bg-bgcolor p-3 text-sm">
 
-            <!-- Balance row -->
-            <div class="flex items-center justify-between">
-                <span class="text-textcolor2">Credit Balance</span>
-                <span class="font-semibold text-textcolor">{fmtUSD(balance?.usd_balance)}</span>
-            </div>
-
-            {#if subscription}
-                <!-- State badge -->
-                <div class="flex items-center gap-2">
-                    <span class="text-textcolor2">Subscription</span>
-                    <span class="rounded-full px-2 py-0.5 text-xs font-medium text-white {stateColor(subscription.state)}">
-                        {subscription.state}
-                    </span>
-                    {#if subscription.state === 'grace' && subscription.graceUntil}
-                        <span class="text-xs text-textcolor2">until {fmtDate(subscription.graceUntil)}</span>
-                    {/if}
-                </div>
-
-                <!-- Daily usage bar -->
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between text-xs text-textcolor2">
-                        <span>Daily — {pct(subscription.daily.percentUsed)} used</span>
-                        <span>Resets {fmtReset(subscription.daily.resetAt)}</span>
-                    </div>
-                    <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
-                        <div
-                            class="h-full rounded-full transition-all {barColor(subscription.daily.percentUsed)}"
-                            style="width: {pct(subscription.daily.percentUsed)}"
-                        ></div>
-                    </div>
-                    <div class="flex justify-between text-xs text-textcolor2">
-                        <span>{subscription.daily.used.toLocaleString()} used</span>
-                        <span>{subscription.daily.remaining.toLocaleString()} remaining</span>
-                    </div>
-                </div>
-
-                <!-- Monthly usage bar -->
-                <div class="flex flex-col gap-1">
-                    <div class="flex justify-between text-xs text-textcolor2">
-                        <span>Monthly — {pct(subscription.monthly.percentUsed)} used</span>
-                        <span>Resets {fmtReset(subscription.monthly.resetAt)}</span>
-                    </div>
-                    <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
-                        <div
-                            class="h-full rounded-full transition-all {barColor(subscription.monthly.percentUsed)}"
-                            style="width: {pct(subscription.monthly.percentUsed)}"
-                        ></div>
-                    </div>
-                    <div class="flex justify-between text-xs text-textcolor2">
-                        <span>{subscription.monthly.used.toLocaleString()} used</span>
-                        <span>{subscription.monthly.remaining.toLocaleString()} remaining</span>
-                    </div>
-                </div>
-
-                <!-- Billing period end -->
-                <div class="flex items-center justify-between text-xs text-textcolor2">
-                    <span>Billing period ends</span>
-                    <span>{fmtDate(subscription.period.currentPeriodEnd)}</span>
+            <!-- Balance -->
+            {#if balance}
+                <div class="flex items-center justify-between">
+                    <span class="text-textcolor2">Credit Balance</span>
+                    <span class="font-semibold text-textcolor">{fmtUSD(balance.usd_balance)}</span>
                 </div>
             {/if}
+
+            {#if subscription}
+                <!-- State + billing -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-textcolor2">Subscription</span>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-medium text-white {stateColor(subscription.state)}">
+                            {subscription.state}
+                        </span>
+                        {#if subscription.state === 'grace' && subscription.graceUntil}
+                            <span class="text-xs text-textcolor2">until {fmtDate(subscription.graceUntil)}</span>
+                        {/if}
+                    </div>
+                    <span class="text-xs text-textcolor2">Renews {fmtDate(subscription.period.currentPeriodEnd)}</span>
+                </div>
+
+                {#if subscription.cancelAtPeriodEnd}
+                    <p class="text-xs text-yellow-400">Cancels at period end ({fmtDate(subscription.period.currentPeriodEnd)})</p>
+                {/if}
+
+                <!-- Weekly input tokens -->
+                {#if subscription.weeklyInputTokens}
+                    {@const w = subscription.weeklyInputTokens}
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>Weekly Tokens — {pct(w.percentUsed)} used</span>
+                            <span>Resets {fmtReset(w.resetAt)}</span>
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
+                            <div class="h-full rounded-full transition-all {barColor(w.percentUsed)}" style="width: {pct(w.percentUsed)}"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>{fmtTokens(w.used)} used</span>
+                            <span>{fmtTokens(w.remaining)} remaining</span>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Daily input tokens -->
+                {#if subscription.dailyInputTokens}
+                    {@const d = subscription.dailyInputTokens}
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>Daily Tokens — {pct(d.percentUsed)} used</span>
+                            <span>Resets {fmtReset(d.resetAt)}</span>
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
+                            <div class="h-full rounded-full transition-all {barColor(d.percentUsed)}" style="width: {pct(d.percentUsed)}"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>{fmtTokens(d.used)} used</span>
+                            <span>{fmtTokens(d.remaining)} remaining</span>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Daily images -->
+                {#if subscription.dailyImages}
+                    {@const img = subscription.dailyImages}
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>Daily Images — {pct(img.percentUsed)} used</span>
+                            <span>Resets {fmtReset(img.resetAt)}</span>
+                        </div>
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
+                            <div class="h-full rounded-full transition-all {barColor(img.percentUsed)}" style="width: {pct(img.percentUsed)}"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-textcolor2">
+                            <span>{img.used} used</span>
+                            <span>{img.remaining} remaining</span>
+                        </div>
+                    </div>
+                {/if}
+            {/if}
+
         </div>
+        {/if}
     {:catch}
         <p class="mt-2 text-xs text-textcolor2">Could not load account info.</p>
     {/await}

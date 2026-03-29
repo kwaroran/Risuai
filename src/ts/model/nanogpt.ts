@@ -32,14 +32,26 @@ export type NanoGPTBalance = {
     nanoDepositAddress: string
 }
 
+type UsageBucket = {
+    used: number
+    remaining: number
+    percentUsed: number
+    resetAt: number
+}
+
 export type NanoGPTSubscriptionUsage = {
     active: boolean
     state: 'active' | 'grace' | 'inactive'
     graceUntil: string | null
-    limits: { daily: number; monthly: number }
-    enforceDailyLimit: boolean
-    daily: { used: number; remaining: number; percentUsed: number; resetAt: number }
-    monthly: { used: number; remaining: number; percentUsed: number; resetAt: number }
+    cancelAtPeriodEnd: boolean
+    limits: {
+        weeklyInputTokens: number | null
+        dailyInputTokens: number | null
+        dailyImages: number | null
+    }
+    weeklyInputTokens: UsageBucket | null
+    dailyInputTokens: UsageBucket | null
+    dailyImages: UsageBucket | null
     period: { currentPeriodEnd: string }
 }
 

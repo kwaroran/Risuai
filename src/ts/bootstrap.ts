@@ -586,6 +586,9 @@ async function cleanChunks() {
                     await forageStorage.removeItem(asset)
                 }
             }
+            else if (asset.endsWith('.meta')){
+                continue
+            }
             else if (asset.startsWith('remotes/')) {
                 const name = getBasename(asset).slice(0, -10) //remove .local.bin
                 const exists = characterIds.has(name)

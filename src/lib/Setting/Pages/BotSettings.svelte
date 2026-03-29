@@ -63,6 +63,20 @@
         DBState.db.nanogptProvider = ''
     })
 
+    // Reset subscription mode (and related state) when API key is cleared
+    let _nanogptKeyInitialized = false
+    $effect(() => {
+        const _key = DBState.db.nanogptKey
+        if (!_nanogptKeyInitialized) { _nanogptKeyInitialized = true; return }
+        if (!_key) {
+            DBState.db.nanogptUseSubscriptionEndpoint = false
+            DBState.db.nanogptSubscriptionState = ''
+            DBState.db.nanogptRequestModel = ''
+            DBState.db.nanogptRequestModelName = ''
+            DBState.db.nanogptProvider = ''
+        }
+    })
+
     let tokens = $state({
         mainPrompt: 0,
         jailbreak: 0,

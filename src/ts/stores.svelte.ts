@@ -147,6 +147,11 @@ export const popupStore = $state({
     mouseY: 0,
 openId: 0,
 })
+export const popUpEditorStore = $state({
+    open: false,
+    value: '',
+    mode: 'default' as 'default'
+})
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now
 export const hotReloading = $state<string[]>([])

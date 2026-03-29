@@ -67,6 +67,25 @@
                 }
                 onchange()
             }}
+            onkeydown={async (e) => {
+                if(
+                    (e.ctrlKey || e.shiftKey || e.altKey)    
+                    && hotkeyMatches(DBState.db.hotkeys.find(hk => hk.action === 'popupEditor'), e)
+                ){
+                    e.preventDefault()
+                    popUpEditorStore.value = value
+                    popUpEditorStore.mode = 'default'
+                    popUpEditorStore.open = true
+
+                    //lazy wait
+                    while(popUpEditorStore.open){
+                        await sleep(100)
+                    }
+
+                    value = popUpEditorStore.value
+                    onInput()
+                }
+            }}
 ></textarea>
 {:else}
     <div
@@ -102,8 +121,9 @@
     import { highlighter, getNewHighlightId, removeHighlight, AllCBS } from 'src/ts/gui/highlight'
     import { sleep } from 'src/ts/util';
     import { onDestroy, onMount } from 'svelte';
-  import { disableHighlight } from 'src/ts/stores.svelte';
+  import { DBState, disableHighlight, popUpEditorStore } from 'src/ts/stores.svelte';
   import { isMobile } from 'src/ts/platform'
+    import { hotkeyMatches } from 'src/ts/hotkey';
     interface Props {
         size?: 'xs'|'sm'|'md'|'lg'|'xl'|'default';
         autocomplete?: 'on'|'off';

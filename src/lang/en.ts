@@ -1469,6 +1469,7 @@ export const languageEnglish = {
         webcam: "Toggle Webcam",
         focusInput: "Focus Input",
         scrollToActiveChar: "Scroll to Active Character",
+        popupEditor: "Popup Editor",
     },
     screenTooSmall: "Screen is too small to show the interface.",
     advancedModelSettings: "Advanced Model Settings",

@@ -7,16 +7,16 @@
         value?: string
         items?: ModelGridItem[]
         pinnedItems?: ModelGridPinnedItem[]
-        subscriptionItems?: ModelGridItem[]
         loading?: boolean
+        showSubBadge?: boolean
+        onselect?: (id: string, displayName: string) => void
     }
 
-    let { value = $bindable(''), items = [], pinnedItems = [], subscriptionItems = [], loading = false }: Props = $props()
+    let { value = $bindable(''), items = [], pinnedItems = [], loading = false, showSubBadge = false, onselect }: Props = $props()
 
     let searchQuery = $state('')
     let sortField = $state<'name' | 'price' | 'provider'>('price')
     let sortDir   = $state<'asc' | 'desc'>('asc')
-    let showSubscriptionOnly = $state(false)
 
     let sortFields = $derived([
         { key: 'name'     as const, label: language.openRouterSortByName     },
@@ -29,18 +29,16 @@
         { key: 'desc' as const, label: language.openRouterSortDesc },
     ])
 
-    let activeItems = $derived(showSubscriptionOnly ? subscriptionItems : items)
-
     let filteredItems = $derived.by(() => {
         const base = searchQuery.trim()
             ? (() => {
                 const terms = searchQuery.trim().toLowerCase().split(/\s+/)
-                return activeItems.filter(m => {
+                return items.filter(m => {
                     const text = (m.displayName + ' ' + m.providerName + ' ' + m.id).toLowerCase()
                     return terms.every(t => text.includes(t))
                 })
               })()
-            : activeItems
+            : items
 
         return [...base].sort((a, b) => {
             let cmp = 0
@@ -51,15 +49,14 @@
         })
     })
 
-    let subscriptionItemIds = $derived(new Set(subscriptionItems.map(m => m.id)))
-
     let selectedLabel = $derived.by(() => {
         const pinned = pinnedItems.find(p => p.id === value)
         if (pinned) return `${pinned.providerName} / ${pinned.displayName}`
-        const sub = subscriptionItems.find(m => m.id === value)
-        if (sub) return `${sub.providerName} / ${sub.displayName}`
         const item = items.find(m => m.id === value)
-        if (item) return `${item.providerName} / ${item.displayName}`
+        if (item) {
+            const label = `${item.providerName} / ${item.displayName}`
+            return showSubBadge ? `${label} [SUB]` : label
+        }
         return value || '–'
     })
 
@@ -71,10 +68,12 @@
 </script>
 
 <div class="mt-2 mb-4 flex flex-col gap-2">
-    <!-- Selected model label -->
-    <p class="text-sm text-textcolor2">
-        {language.model}: <span class="font-semibold text-base text-textcolor">{selectedLabel}</span>
-    </p>
+    <!-- Selected model label (hidden while loading) -->
+    {#if !loading}
+        <p class="text-sm text-textcolor2">
+            {language.model}: <span class="font-semibold text-base text-textcolor">{selectedLabel}</span>
+        </p>
+    {/if}
 
     {#if !loading && items.length > 0}
         <div class="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1">
@@ -97,14 +96,6 @@
                     >{sd.label}</button>
                 {/each}
             </div>
-
-            {#if subscriptionItems.length > 0}
-                <span class="hidden sm:inline mx-1.5 select-none text-textcolor2">|</span>
-                <button
-                    onclick={() => { showSubscriptionOnly = !showSubscriptionOnly }}
-                    class="rounded px-3 py-1 text-sm font-medium transition-colors {showSubscriptionOnly ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
-                >Subscription Only</button>
-            {/if}
         </div>
 
         <TextInput bind:value={searchQuery} placeholder={language.openRouterSearchModel} size="sm" />
@@ -113,24 +104,22 @@
     <div class="h-80 overflow-y-auto rounded-lg border border-darkborderc bg-bgcolor">
         {#if loading}
             <div class="flex h-full items-center justify-center">
-                <span class="text-sm text-textcolor2">{language.loading}…</span>
+                <div class="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
             </div>
         {:else}
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
-                <!-- Pinned special models: always visible, unaffected by search/sort/filter -->
-                {#if !showSubscriptionOnly}
-                    {#each pinnedItems as pinned}
-                        <button
-                            onclick={() => { value = pinned.id }}
-                            class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === pinned.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
-                        >
-                            <span class="text-xs text-textcolor2">{pinned.providerName}</span>
-                            <span class="text-sm font-semibold leading-tight text-textcolor">{pinned.displayName}</span>
-                        </button>
-                    {/each}
-                {/if}
+                <!-- Pinned special models: always visible, unaffected by search/sort -->
+                {#each pinnedItems as pinned}
+                    <button
+                        onclick={() => { value = pinned.id }}
+                        class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === pinned.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
+                    >
+                        <span class="text-xs text-textcolor2">{pinned.providerName}</span>
+                        <span class="text-sm font-semibold leading-tight text-textcolor">{pinned.displayName}</span>
+                    </button>
+                {/each}
 
-                {#if activeItems.length === 0}
+                {#if items.length === 0}
                     <p class="col-span-full py-4 text-center text-sm text-textcolor2">
                         Could not load model list. Check your API key.
                     </p>
@@ -141,12 +130,12 @@
                 {:else}
                     {#each filteredItems as item}
                         <button
-                            onclick={() => { value = item.id }}
+                            onclick={() => { value = item.id; onselect?.(item.id, item.displayName) }}
                             class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === item.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
                         >
                             <div class="flex items-center gap-1">
                                 <span class="text-xs text-textcolor2">{item.providerName}</span>
-                                {#if !showSubscriptionOnly && subscriptionItemIds.has(item.id)}
+                                {#if showSubBadge}
                                     <span class="rounded px-1 text-[0.6rem] font-bold leading-tight bg-selected text-white">SUB</span>
                                 {/if}
                             </div>

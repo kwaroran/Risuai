@@ -19,6 +19,7 @@
     import Button from "src/lib/UI/GUI/Button.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
+    import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
     import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
@@ -43,6 +44,24 @@
         { id: 'risu/free',       displayName: 'Free Auto',       providerName: 'Risu'       },
         { id: 'openrouter/auto', displayName: 'OpenRouter Auto', providerName: 'OpenRouter' },
     ]
+
+    // Reset model selection and display name when subscription mode toggles
+    let _nanogptSubModeInitialized = false
+    $effect(() => {
+        const _sub = DBState.db.nanogptUseSubscriptionEndpoint
+        if (!_nanogptSubModeInitialized) { _nanogptSubModeInitialized = true; return }
+        DBState.db.nanogptRequestModel = ''
+        DBState.db.nanogptRequestModelName = ''
+    })
+
+    // Reset provider selection to Auto when the model or subscription mode changes
+    let _nanogptProviderResetInitialized = false
+    $effect(() => {
+        const _model = DBState.db.nanogptRequestModel
+        const _sub   = DBState.db.nanogptUseSubscriptionEndpoint
+        if (!_nanogptProviderResetInitialized) { _nanogptProviderResetInitialized = true; return }
+        DBState.db.nanogptProvider = ''
+    })
 
     let tokens = $state({
         mainPrompt: 0,
@@ -209,21 +228,30 @@
 
         <NanoGPTDashboard apiKey={DBState.db.nanogptKey} />
 
+        {#if DBState.db.nanogptSubscriptionState === 'active' || DBState.db.nanogptSubscriptionState === 'grace'}
+            <div class="flex items-center mt-3">
+                <CheckInput bind:check={DBState.db.nanogptUseSubscriptionEndpoint} name="Use subscription endpoint & models" />
+            </div>
+        {/if}
+
         <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
         {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
             <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
         {:then [regular, sub]}
             <ModelGrid
                 bind:value={DBState.db.nanogptRequestModel}
-                items={(regular ?? []).map(ngToGridItem)}
-                subscriptionItems={(sub ?? []).map(ngToGridItem)}
+                items={DBState.db.nanogptUseSubscriptionEndpoint ? (sub ?? []).map(ngToGridItem) : (regular ?? []).map(ngToGridItem)}
+                showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
+                onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
             />
         {/await}
-        <NanoGPTProviderPicker
-            apiKey={DBState.db.nanogptKey}
-            modelId={DBState.db.nanogptRequestModel}
-            bind:value={DBState.db.nanogptProvider}
-        />
+        {#if !DBState.db.nanogptUseSubscriptionEndpoint}
+            <NanoGPTProviderPicker
+                apiKey={DBState.db.nanogptKey}
+                modelId={DBState.db.nanogptRequestModel}
+                bind:value={DBState.db.nanogptProvider}
+            />
+        {/if}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
         <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>

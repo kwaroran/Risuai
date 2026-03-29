@@ -26,7 +26,7 @@
 {#await providersPromise then data}
     {#if data && data.supportsProviderSelection && data.providers.length > 0}
         <div class="mt-2 flex flex-col gap-1.5">
-            <span class="text-textcolor mt-4">Provider <span class="text-sm opacity-60">(optional)</span></span>
+            <span class="text-textcolor mt-4">Provider <span class="text-sm opacity-60">(only available in pay-as-you-go mode)</span></span>
             <div class="flex flex-wrap gap-1.5">
                 <!-- Default (auto) option -->
                 <button

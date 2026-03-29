@@ -82,23 +82,29 @@
             {/if}
 
             {#if subscription}
-                <!-- State + billing -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-textcolor2">Subscription</span>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-medium text-white {stateColor(subscription.state)}">
-                            {subscription.state}
-                        </span>
-                        {#if subscription.state === 'grace' && subscription.graceUntil}
-                            <span class="text-xs text-textcolor2">until {fmtDate(subscription.graceUntil)}</span>
-                        {/if}
-                    </div>
-                    <span class="text-xs text-textcolor2">Renews {fmtDate(subscription.period.currentPeriodEnd)}</span>
+                <!-- State badge row -->
+                <div class="flex items-center gap-2">
+                    <span class="text-textcolor2">Subscription</span>
+                    <span class="rounded-full px-2 py-0.5 text-xs font-medium text-white {stateColor(subscription.state)}">
+                        {subscription.state.toUpperCase()}
+                    </span>
+                    {#if subscription.state === 'grace' && subscription.graceUntil}
+                        <span class="text-xs text-textcolor2">until {fmtDate(subscription.graceUntil)}</span>
+                    {/if}
                 </div>
 
-                {#if subscription.cancelAtPeriodEnd}
-                    <p class="text-xs text-yellow-400">Cancels at period end ({fmtDate(subscription.period.currentPeriodEnd)})</p>
-                {/if}
+                {#if subscription.state === 'inactive'}
+                    <p class="text-xs text-textcolor2">No active subscription.</p>
+                {:else}
+                    <!-- Renew / cancel -->
+                    {#if subscription.cancelAtPeriodEnd}
+                        <p class="text-xs text-yellow-400">Cancels at period end ({fmtDate(subscription.period?.currentPeriodEnd)})</p>
+                    {:else if subscription.period}
+                        <div class="flex items-center justify-between text-xs text-textcolor2">
+                            <span>Renews</span>
+                            <span>{fmtDate(subscription.period.currentPeriodEnd)}</span>
+                        </div>
+                    {/if}
 
                 <!-- Weekly input tokens -->
                 {#if subscription.weeklyInputTokens}
@@ -152,6 +158,7 @@
                             <span>{img.remaining} remaining</span>
                         </div>
                     </div>
+                {/if}
                 {/if}
             {/if}
 

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { getNanoGPTModelProviders } from 'src/ts/model/nanogpt'
     import type { NanoGPTModelProviders } from 'src/ts/model/nanogpt'
+    import { language } from 'src/lang'
 
     interface Props {
         apiKey: string
@@ -17,7 +18,7 @@
     )
 
     function fmtPrice(per1k: number): string {
-        if (per1k === 0) return 'Free'
+        if (per1k === 0) return language.nanoGPTProviderFree
         const per1M = per1k * 1000
         return `$${per1M.toFixed(2)}`
     }
@@ -26,14 +27,14 @@
 {#await providersPromise then data}
     {#if data && data.supportsProviderSelection && data.providers.length > 0}
         <div class="mt-2 flex flex-col gap-1.5">
-            <span class="text-textcolor mt-4">Provider <span class="text-sm opacity-60">(only available in pay-as-you-go mode)</span></span>
+            <span class="text-textcolor mt-4">{language.nanoGPTProvider} <span class="text-sm opacity-60">{language.nanoGPTProviderPayAsYouGoOnly}</span></span>
             <div class="flex flex-wrap gap-1.5">
                 <!-- Default (auto) option -->
                 <button
                     onclick={() => { value = '' }}
                     class="flex flex-col rounded-md border px-3 py-1.5 text-left text-xs transition-colors {value === '' ? 'border-selected bg-selected text-white' : 'border-darkborderc text-textcolor hover:bg-selected'}"
                 >
-                    <span class="font-medium">Auto</span>
+                    <span class="font-medium">{language.nanoGPTProviderAuto}</span>
                     <span class="text-[0.65rem] opacity-75">In: {fmtPrice(data.defaultPrice.inputPer1kTokens)}/1M · Out: {fmtPrice(data.defaultPrice.outputPer1kTokens)}/1M</span>
                 </button>
 

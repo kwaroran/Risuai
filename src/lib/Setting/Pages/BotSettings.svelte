@@ -244,7 +244,7 @@
 
         {#if DBState.db.nanogptSubscriptionState === 'active' || DBState.db.nanogptSubscriptionState === 'grace'}
             <div class="flex items-center mt-3">
-                <CheckInput bind:check={DBState.db.nanogptUseSubscriptionEndpoint} name="Use subscription endpoint & models" />
+                <CheckInput bind:check={DBState.db.nanogptUseSubscriptionEndpoint} name={language.nanoGPTUseSubscriptionEndpoint} />
             </div>
         {/if}
 

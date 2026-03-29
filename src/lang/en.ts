@@ -1626,6 +1626,32 @@ export const languageEnglish = {
     keepSessionAlive: "Keep Session Alive",
     keepSessionAlivePip: "Via PIP",
     keepSessionAliveSound: "Via Sound",
+    // NanoGPT Dashboard
+    nanoGPTLoadingAccountInfo: "Loading account info…",
+    nanoGPTCreditBalance: "Credit Balance:",
+    nanoGPTSubscription: "Subscription",
+    nanoGPTGraceUntil: (date: string) => `until ${date}`,
+    nanoGPTNoActiveSubscription: "No active subscription.",
+    nanoGPTCancelsAtPeriodEnd: (date: string) => `Cancels at period end (${date})`,
+    nanoGPTWeeklyTokens: (pct: string) => `Weekly Included Input Tokens — ${pct} used`,
+    nanoGPTDailyTokens: (pct: string) => `Daily Included Input Tokens — ${pct} used`,
+    nanoGPTDailyImages: (pct: string) => `Daily Included Images — ${pct} used`,
+    nanoGPTResets: (date: string) => `Resets ${date}`,
+    nanoGPTUsed: (n: string) => `${n} used`,
+    nanoGPTRemaining: (n: string) => `${n} remaining`,
+    nanoGPTRenews: (date: string) => `Renews: ${date}`,
+    nanoGPTCouldNotLoadAccountInfo: "Could not load account info.",
+    // NanoGPT Provider Picker
+    nanoGPTProvider: "Provider",
+    nanoGPTProviderPayAsYouGoOnly: "(only available in pay-as-you-go mode)",
+    nanoGPTProviderAuto: "Auto",
+    nanoGPTProviderFree: "Free",
+    // NanoGPT Settings
+    nanoGPTUseSubscriptionEndpoint: "Use subscription endpoint & models",
+    // Model Grid
+    modelGridCouldNotLoad: "Could not load model list. Check your API key.",
+    modelGridNoModelsMatch: (q: string) => `No models match "${q}"`,
+    modelGridContext: (n: string) => `Context: ${n}`,
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

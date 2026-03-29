@@ -121,11 +121,11 @@
 
                 {#if items.length === 0}
                     <p class="col-span-full py-4 text-center text-sm text-textcolor2">
-                        Could not load model list. Check your API key.
+                        {language.modelGridCouldNotLoad}
                     </p>
                 {:else if filteredItems.length === 0}
                     <p class="col-span-full py-4 text-center text-sm text-textcolor2">
-                        No models match "<span class="text-textcolor">{searchQuery}</span>"
+                        {language.modelGridNoModelsMatch(searchQuery)}
                     </p>
                 {:else}
                     {#each filteredItems as item}
@@ -154,7 +154,7 @@
                             {/if}
 
                             {#if item.context_length > 0}
-                                <span class="mt-1 text-xs text-textcolor2">Context: {formatContext(item.context_length)}</span>
+                                <span class="mt-1 text-xs text-textcolor2">{language.modelGridContext(formatContext(item.context_length))}</span>
                             {/if}
                         </button>
                     {/each}

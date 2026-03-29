@@ -22,6 +22,7 @@
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
     import { getNanoGPTModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
+    import NanoGPTDashboard from "src/lib/UI/NanoGPTDashboard.svelte";
     import type { ModelGridPinnedItem } from "src/ts/model/modelGrid";
     import OobaSettings from "./OobaSettings.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
@@ -204,6 +205,8 @@
     {#if DBState.db.aiModel === 'nanogpt' || DBState.db.subModel === 'nanogpt'}
         <span class="text-textcolor mt-4">NanoGPT {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptKey} />
+
+        <NanoGPTDashboard apiKey={DBState.db.nanogptKey} />
 
         <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
         {#await getNanoGPTModels()}

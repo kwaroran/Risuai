@@ -1,5 +1,10 @@
 import { getDatabase } from "../storage/database.svelte"
-import { NANOGPT_PERSONALIZED_MODELS_ENDPOINT, NANOGPT_MODELS_ENDPOINT } from "./providers/nanogpt"
+import {
+    NANOGPT_PERSONALIZED_MODELS_ENDPOINT,
+    NANOGPT_MODELS_ENDPOINT,
+    NANOGPT_BALANCE_ENDPOINT,
+    NANOGPT_SUBSCRIPTION_ENDPOINT,
+} from "./providers/nanogpt"
 import type { ModelGridItem } from "./modelGrid"
 
 export type NanoGPTModelInfo = {
@@ -19,6 +24,48 @@ export type NanoGPTModelInfo = {
     promptPrice1M: number | undefined
     /** Output (completion) price per 1M tokens in USD */
     completionPrice1M: number | undefined
+}
+
+export type NanoGPTBalance = {
+    usd_balance: string
+    nano_balance: string
+    nanoDepositAddress: string
+}
+
+export type NanoGPTSubscriptionUsage = {
+    active: boolean
+    state: 'active' | 'grace' | 'inactive'
+    graceUntil: string | null
+    limits: { daily: number; monthly: number }
+    enforceDailyLimit: boolean
+    daily: { used: number; remaining: number; percentUsed: number; resetAt: number }
+    monthly: { used: number; remaining: number; percentUsed: number; resetAt: number }
+    period: { currentPeriodEnd: string }
+}
+
+export async function getNanoGPTBalance(key: string): Promise<NanoGPTBalance | null> {
+    try {
+        const res = await fetch(NANOGPT_BALANCE_ENDPOINT, {
+            method: 'POST',
+            headers: { 'x-api-key': key, 'Content-Type': 'application/json' },
+        })
+        if (!res.ok) return null
+        return await res.json()
+    } catch {
+        return null
+    }
+}
+
+export async function getNanoGPTSubscription(key: string): Promise<NanoGPTSubscriptionUsage | null> {
+    try {
+        const res = await fetch(NANOGPT_SUBSCRIPTION_ENDPOINT, {
+            headers: { 'Authorization': 'Bearer ' + key },
+        })
+        if (!res.ok) return null
+        return await res.json()
+    } catch {
+        return null
+    }
 }
 
 export async function getNanoGPTModels(): Promise<NanoGPTModelInfo[]> {

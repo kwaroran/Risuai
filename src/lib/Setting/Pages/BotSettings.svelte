@@ -19,8 +19,10 @@
     import Button from "src/lib/UI/GUI/Button.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
-    import { getOpenRouterModels } from "src/ts/model/openrouter";
-    import OpenrouterModelGrid from "src/lib/UI/OpenrouterModelGrid.svelte";
+    import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
+    import { getNanoGPTModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
+    import ModelGrid from "src/lib/UI/ModelGrid.svelte";
+    import type { ModelGridPinnedItem } from "src/ts/model/modelGrid";
     import OobaSettings from "./OobaSettings.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import OpenrouterSettings from "./OpenrouterSettings.svelte";
@@ -35,6 +37,11 @@
     import SeparateParametersSection from "./SeparateParametersSection.svelte";
     import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
     
+    const openrouterPinnedItems: ModelGridPinnedItem[] = [
+        { id: 'risu/free',       displayName: 'Free Auto',       providerName: 'Risu'       },
+        { id: 'openrouter/auto', displayName: 'OpenRouter Auto', providerName: 'OpenRouter' },
+    ]
+
     let tokens = $state({
         mainPrompt: 0,
         jailbreak: 0,
@@ -194,15 +201,26 @@
         <span class="text-textcolor mt-4">Ollama Model</span>
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} />
     {/if}
+    {#if DBState.db.aiModel === 'nanogpt' || DBState.db.subModel === 'nanogpt'}
+        <span class="text-textcolor mt-4">NanoGPT {language.apiKey}</span>
+        <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptKey} />
+
+        <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
+        {#await getNanoGPTModels()}
+            <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
+        {:then m}
+            <ModelGrid bind:value={DBState.db.nanogptRequestModel} items={(m ?? []).map(ngToGridItem)} />
+        {/await}
+    {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
         <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.openrouterKey} />
 
         <span class="text-textcolor mt-4">OpenRouter {language.model}</span>
         {#await getOpenRouterModels()}
-            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} loading={true} />
+            <ModelGrid bind:value={DBState.db.openrouterRequestModel} pinnedItems={openrouterPinnedItems} loading={true} />
         {:then m}
-            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} models={m ?? []} />
+            <ModelGrid bind:value={DBState.db.openrouterRequestModel} items={(m ?? []).map(orToGridItem)} pinnedItems={openrouterPinnedItems} />
         {/await}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy'}

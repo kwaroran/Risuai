@@ -7,14 +7,16 @@
         value?: string
         items?: ModelGridItem[]
         pinnedItems?: ModelGridPinnedItem[]
+        subscriptionItems?: ModelGridItem[]
         loading?: boolean
     }
 
-    let { value = $bindable(''), items = [], pinnedItems = [], loading = false }: Props = $props()
+    let { value = $bindable(''), items = [], pinnedItems = [], subscriptionItems = [], loading = false }: Props = $props()
 
     let searchQuery = $state('')
     let sortField = $state<'name' | 'price' | 'provider'>('price')
     let sortDir   = $state<'asc' | 'desc'>('asc')
+    let showSubscriptionOnly = $state(false)
 
     let sortFields = $derived([
         { key: 'name'     as const, label: language.openRouterSortByName     },
@@ -27,16 +29,18 @@
         { key: 'desc' as const, label: language.openRouterSortDesc },
     ])
 
+    let activeItems = $derived(showSubscriptionOnly ? subscriptionItems : items)
+
     let filteredItems = $derived.by(() => {
         const base = searchQuery.trim()
             ? (() => {
                 const terms = searchQuery.trim().toLowerCase().split(/\s+/)
-                return items.filter(m => {
+                return activeItems.filter(m => {
                     const text = (m.displayName + ' ' + m.providerName + ' ' + m.id).toLowerCase()
                     return terms.every(t => text.includes(t))
                 })
               })()
-            : items
+            : activeItems
 
         return [...base].sort((a, b) => {
             let cmp = 0
@@ -47,9 +51,13 @@
         })
     })
 
+    let subscriptionItemIds = $derived(new Set(subscriptionItems.map(m => m.id)))
+
     let selectedLabel = $derived.by(() => {
         const pinned = pinnedItems.find(p => p.id === value)
         if (pinned) return `${pinned.providerName} / ${pinned.displayName}`
+        const sub = subscriptionItems.find(m => m.id === value)
+        if (sub) return `${sub.providerName} / ${sub.displayName}`
         const item = items.find(m => m.id === value)
         if (item) return `${item.providerName} / ${item.displayName}`
         return value || '–'
@@ -89,6 +97,14 @@
                     >{sd.label}</button>
                 {/each}
             </div>
+
+            {#if subscriptionItems.length > 0}
+                <span class="hidden sm:inline mx-1.5 select-none text-textcolor2">|</span>
+                <button
+                    onclick={() => { showSubscriptionOnly = !showSubscriptionOnly }}
+                    class="rounded px-3 py-1 text-sm font-medium transition-colors {showSubscriptionOnly ? 'bg-selected text-white' : 'bg-darkbutton text-textcolor hover:bg-selected'}"
+                >Subscription Only</button>
+            {/if}
         </div>
 
         <TextInput bind:value={searchQuery} placeholder={language.openRouterSearchModel} size="sm" />
@@ -101,18 +117,20 @@
             </div>
         {:else}
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-2">
-                <!-- Pinned special models: always visible, unaffected by search/sort -->
-                {#each pinnedItems as pinned}
-                    <button
-                        onclick={() => { value = pinned.id }}
-                        class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === pinned.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
-                    >
-                        <span class="text-xs text-textcolor2">{pinned.providerName}</span>
-                        <span class="text-sm font-semibold leading-tight text-textcolor">{pinned.displayName}</span>
-                    </button>
-                {/each}
+                <!-- Pinned special models: always visible, unaffected by search/sort/filter -->
+                {#if !showSubscriptionOnly}
+                    {#each pinnedItems as pinned}
+                        <button
+                            onclick={() => { value = pinned.id }}
+                            class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === pinned.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
+                        >
+                            <span class="text-xs text-textcolor2">{pinned.providerName}</span>
+                            <span class="text-sm font-semibold leading-tight text-textcolor">{pinned.displayName}</span>
+                        </button>
+                    {/each}
+                {/if}
 
-                {#if items.length === 0}
+                {#if activeItems.length === 0}
                     <p class="col-span-full py-4 text-center text-sm text-textcolor2">
                         Could not load model list. Check your API key.
                     </p>
@@ -126,7 +144,12 @@
                             onclick={() => { value = item.id }}
                             class="flex cursor-pointer flex-col rounded-md border p-2.5 text-left transition-colors {value === item.id ? 'border-selected bg-selected' : 'border-darkborderc hover:bg-selected'}"
                         >
-                            <span class="text-xs text-textcolor2">{item.providerName}</span>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs text-textcolor2">{item.providerName}</span>
+                                {#if !showSubscriptionOnly && subscriptionItemIds.has(item.id)}
+                                    <span class="rounded px-1 text-[0.6rem] font-bold leading-tight bg-selected text-white">SUB</span>
+                                {/if}
+                            </div>
                             <span class="line-clamp-2 text-sm font-medium leading-snug text-textcolor">{item.displayName}</span>
 
                             {#if item.description}

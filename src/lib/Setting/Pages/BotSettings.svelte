@@ -20,7 +20,7 @@
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
-    import { getNanoGPTModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
+    import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
     import NanoGPTDashboard from "src/lib/UI/NanoGPTDashboard.svelte";
     import NanoGPTProviderPicker from "src/lib/UI/NanoGPTProviderPicker.svelte";
@@ -210,10 +210,14 @@
         <NanoGPTDashboard apiKey={DBState.db.nanogptKey} />
 
         <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
-        {#await getNanoGPTModels()}
+        {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
             <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
-        {:then m}
-            <ModelGrid bind:value={DBState.db.nanogptRequestModel} items={(m ?? []).map(ngToGridItem)} />
+        {:then [regular, sub]}
+            <ModelGrid
+                bind:value={DBState.db.nanogptRequestModel}
+                items={(regular ?? []).map(ngToGridItem)}
+                subscriptionItems={(sub ?? []).map(ngToGridItem)}
+            />
         {/await}
         <NanoGPTProviderPicker
             apiKey={DBState.db.nanogptKey}

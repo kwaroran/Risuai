@@ -499,7 +499,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    let replacerURL = aiModel === 'nanogpt' ? 'https://nano-gpt.com/api/v1/chat/completions' :
+    const nanogptSubscribed = aiModel === 'nanogpt' && (db.nanogptSubscriptionState === 'active' || db.nanogptSubscriptionState === 'grace')
+    let replacerURL = aiModel === 'nanogpt' ? (nanogptSubscribed ? 'https://nano-gpt.com/api/subscription/v1/chat/completions' : 'https://nano-gpt.com/api/v1/chat/completions') :
         aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
         (arg.customURL) ?? ('https://api.openai.com/v1/chat/completions')
 

@@ -367,6 +367,7 @@ export function setDatabase(data:Database){
     data.nanogptKey ??= ''
     data.nanogptRequestModel ??= ''
     data.nanogptProvider ??= ''
+    data.nanogptSubscriptionState ??= ''
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -887,6 +888,7 @@ export interface Database{
     nanogptKey:string
     nanogptRequestModel:string
     nanogptProvider:string
+    nanogptSubscriptionState:string
     openrouterFallback:boolean
     selectedPersona:number
     personas:{

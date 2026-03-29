@@ -1478,7 +1478,7 @@ export const languageKorean = {
     "nanoGPTRemaining": (n: string) => `${n} 남음`,
     "nanoGPTRenews": (date: string) => `갱신일: ${date}`,
     "nanoGPTCouldNotLoadAccountInfo": "계정 정보를 불러올 수 없습니다.",
-    "nanoGPTProvider": "프로바이더",
+    "nanoGPTProvider": "제공자",
     "nanoGPTProviderPayAsYouGoOnly": "(종량제 모드에서만 사용 가능)",
     "nanoGPTProviderAuto": "자동",
     "nanoGPTProviderFree": "무료",

@@ -501,6 +501,7 @@ export const LLMModels: LLMModel[] = [
     {
         id: 'nanogpt',
         name: 'NanoGPT',
+        fullName: 'NanoGPT',
         provider: LLMProvider.NanoGPT,
         format: LLMFormat.NanoGPT,
         flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming, LLMFlags.OAICompletionTokens],
@@ -789,7 +790,7 @@ export function getModelList<T extends boolean>(arg:{
     if(arg.groupedByProvider){
         let group: GetModelListGroup[] = []
         for(let model of models){
-            if(model.provider === LLMProvider.AsIs){
+            if(model.provider === LLMProvider.AsIs || model.provider === LLMProvider.NanoGPT){
                 group.push({
                     providerName: '@as-is',
                     models: [model]

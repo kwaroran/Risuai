@@ -18,11 +18,16 @@
     )
 
     async function fetchDashboard(key: string): Promise<DashboardData> {
-        const [balance, subscription] = await Promise.all([
-            getNanoGPTBalance(key),
+        const [
+            // balance,  // TODO: CORS issue — NanoGPT's /api/check-balance does not set
+            //           // Access-Control-Allow-Origin, so browser blocks the request.
+            //           // Disabled until NanoGPT fixes CORS on that endpoint.
+            subscription,
+        ] = await Promise.all([
+            // getNanoGPTBalance(key),
             getNanoGPTSubscription(key),
         ])
-        return { balance, subscription }
+        return { balance: null, subscription }
     }
 
     function fmtUSD(raw: string | undefined): string {
@@ -85,7 +90,7 @@
                 <!-- State badge row -->
                 <div class="flex items-center gap-2">
                     <span class="text-textcolor2">Subscription</span>
-                    <span class="rounded-full px-2 py-0.5 text-xs font-medium text-white {stateColor(subscription.state)}">
+                    <span class="rounded-full px-2 py-0.5 text-xs font-bold text-white {stateColor(subscription.state)}">
                         {subscription.state.toUpperCase()}
                     </span>
                     {#if subscription.state === 'grace' && subscription.graceUntil}
@@ -96,14 +101,8 @@
                 {#if subscription.state === 'inactive'}
                     <p class="text-xs text-textcolor2">No active subscription.</p>
                 {:else}
-                    <!-- Renew / cancel -->
                     {#if subscription.cancelAtPeriodEnd}
                         <p class="text-xs text-yellow-400">Cancels at period end ({fmtDate(subscription.period?.currentPeriodEnd)})</p>
-                    {:else if subscription.period}
-                        <div class="flex items-center justify-between text-xs text-textcolor2">
-                            <span>Renews</span>
-                            <span>{fmtDate(subscription.period.currentPeriodEnd)}</span>
-                        </div>
                     {/if}
 
                 <!-- Weekly input tokens -->
@@ -111,7 +110,7 @@
                     {@const w = subscription.weeklyInputTokens}
                     <div class="flex flex-col gap-1">
                         <div class="flex justify-between text-xs text-textcolor2">
-                            <span>Weekly Tokens — {pct(w.percentUsed)} used</span>
+                            <span>Weekly Included Input Tokens — {pct(w.percentUsed)} used</span>
                             <span>Resets {fmtReset(w.resetAt)}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
@@ -129,7 +128,7 @@
                     {@const d = subscription.dailyInputTokens}
                     <div class="flex flex-col gap-1">
                         <div class="flex justify-between text-xs text-textcolor2">
-                            <span>Daily Tokens — {pct(d.percentUsed)} used</span>
+                            <span>Daily Included Input Tokens — {pct(d.percentUsed)} used</span>
                             <span>Resets {fmtReset(d.resetAt)}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
@@ -147,7 +146,7 @@
                     {@const img = subscription.dailyImages}
                     <div class="flex flex-col gap-1">
                         <div class="flex justify-between text-xs text-textcolor2">
-                            <span>Daily Images — {pct(img.percentUsed)} used</span>
+                            <span>Daily Included Images — {pct(img.percentUsed)} used</span>
                             <span>Resets {fmtReset(img.resetAt)}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
@@ -159,6 +158,11 @@
                         </div>
                     </div>
                 {/if}
+
+                    <!-- Renews: at the bottom -->
+                    {#if subscription.period}
+                        <p class="text-xs text-textcolor2">Renews: {fmtDate(subscription.period.currentPeriodEnd)}</p>
+                    {/if}
                 {/if}
             {/if}
 

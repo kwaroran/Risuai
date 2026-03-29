@@ -32,12 +32,12 @@
 
     function fmtDate(iso: string | null | undefined): string {
         if (!iso) return '–'
-        return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
     }
 
     function fmtReset(ms: number | undefined): string {
         if (!ms) return '–'
-        return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        return new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
     }
 
     function fmtTokens(n: number): string {

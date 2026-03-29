@@ -68,7 +68,6 @@
 </script>
 
 <div class="mt-2 mb-4 flex flex-col gap-2">
-    <!-- Selected model label (hidden while loading) -->
     {#if !loading}
         <p class="text-sm text-textcolor2">
             {language.model}: <span class="font-semibold text-base text-textcolor">{selectedLabel}</span>

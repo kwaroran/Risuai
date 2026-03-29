@@ -78,7 +78,6 @@
         {#if balance || subscription}
         <div class="mt-3 mb-2 flex flex-col gap-3 rounded-lg border border-darkborderc bg-bgcolor p-3 text-sm">
 
-            <!-- Balance -->
             {#if balance}
                 <div class="flex items-center gap-1.5">
                     <span class="text-textcolor2">{language.nanoGPTCreditBalance}</span>
@@ -91,7 +90,6 @@
             {/if}
 
             {#if subscription}
-                <!-- State badge row -->
                 <div class="flex items-center gap-2">
                     <span class="text-textcolor2">{language.nanoGPTSubscription}</span>
                     <span class="rounded-full px-2 py-0.5 text-xs font-bold text-white {stateColor(subscription.state)}">
@@ -109,7 +107,6 @@
                         <p class="text-xs text-yellow-400">{language.nanoGPTCancelsAtPeriodEnd(fmtDate(subscription.period?.currentPeriodEnd))}</p>
                     {/if}
 
-                <!-- Weekly input tokens -->
                 {#if subscription.weeklyInputTokens}
                     {@const w = subscription.weeklyInputTokens}
                     <div class="flex flex-col gap-1">
@@ -127,7 +124,6 @@
                     </div>
                 {/if}
 
-                <!-- Daily input tokens -->
                 {#if subscription.dailyInputTokens}
                     {@const d = subscription.dailyInputTokens}
                     <div class="flex flex-col gap-1">
@@ -145,7 +141,6 @@
                     </div>
                 {/if}
 
-                <!-- Daily images -->
                 {#if subscription.dailyImages}
                     {@const img = subscription.dailyImages}
                     <div class="flex flex-col gap-1">
@@ -163,7 +158,6 @@
                     </div>
                 {/if}
 
-                    <!-- Renews: at the bottom -->
                     {#if subscription.period}
                         <p class="text-xs text-textcolor2">{language.nanoGPTRenews(fmtDate(subscription.period.currentPeriodEnd))}</p>
                     {/if}

@@ -29,7 +29,6 @@
         <div class="mt-2 flex flex-col gap-1.5">
             <span class="text-textcolor mt-4">{language.nanoGPTProvider} <span class="text-sm opacity-60">{language.nanoGPTProviderPayAsYouGoOnly}</span></span>
             <div class="flex flex-wrap gap-1.5">
-                <!-- Default (auto) option -->
                 <button
                     onclick={() => { value = '' }}
                     class="flex flex-col rounded-md border px-3 py-1.5 text-left text-xs transition-colors {value === '' ? 'border-selected bg-selected text-white' : 'border-darkborderc text-textcolor hover:bg-selected'}"

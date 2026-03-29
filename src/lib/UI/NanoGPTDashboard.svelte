@@ -56,9 +56,9 @@
     }
 
     function barColor(v: number): string {
-        if (v >= 0.9) return 'bg-red-500'
-        if (v >= 0.7) return 'bg-yellow-400'
-        return 'bg-selected'
+        if (v >= 0.8) return 'bg-red-500'
+        if (v >= 0.6) return 'bg-orange-400'
+        return 'bg-green-500'
     }
 
     function stateColor(state: string): string {

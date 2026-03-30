@@ -17,6 +17,7 @@ import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser/parser.svelte";
 import localforage from "localforage";
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
+import { sendChat as processSendChat, doingChat } from "src/ts/process/index.svelte";
 
 /*
     V3 API for RisuAI Plugins
@@ -524,7 +525,7 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 
 export const customV3ProviderMetaStore:LLMModel[] = []
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider', reconfirm: boolean|'periodically' = false) => {
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider'|'sendChat', reconfirm: boolean|'periodically' = false) => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
@@ -565,6 +566,7 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
         : permissionDesc === 'replacer' ? language.replacerPermissionConsent.replace("{}", pluginName)
         : permissionDesc === 'provider' ? language.providerPermissionConsent.replace("{}", pluginName)
+        : permissionDesc === 'sendChat' ? language.sendChatConsent.replace("{}", pluginName)
         : `Error`
     if(alertTitle === 'Error'){
         return false;
@@ -1135,6 +1137,41 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     'keys': '_keysSafeLocalStorage',
                 }
             }
+        },
+        sendChat: async (message: string) => {
+            const conf = await getPluginPermission(plugin.name, 'sendChat');
+            if(!conf){
+                return false;
+            }
+
+            if(typeof message !== 'string' || message.trim() === ''){
+                throw new Error("Message must be a non-empty string");
+            }
+
+            if(get(doingChat)){
+                throw new Error("A chat is already in progress");
+            }
+
+            const charId = get(selectedCharID);
+            const char = DBState.db.characters[charId];
+            if(!char){
+                throw new Error("No character selected");
+            }
+
+            const chat = char.chats[char.chatPage];
+            if(!chat){
+                throw new Error("No active chat found");
+            }
+
+            chat.message.push({
+                role: 'user',
+                data: message,
+                time: Date.now(),
+            });
+
+            await processSendChat(-1, {});
+
+            return true;
         },
         addPluginChannelListener: (channelName: string, callback: Function) => {
             pluginChannel.set(plugin.name + channelName, callback);

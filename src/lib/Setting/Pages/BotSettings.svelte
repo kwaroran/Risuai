@@ -258,14 +258,14 @@
                 showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
                 onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
             />
+            {#if !DBState.db.nanogptUseSubscriptionEndpoint}
+                <NanoGPTProviderPicker
+                    apiKey={DBState.db.nanogptKey}
+                    modelId={DBState.db.nanogptRequestModel}
+                    bind:value={DBState.db.nanogptProvider}
+                />
+            {/if}
         {/await}
-        {#if !DBState.db.nanogptUseSubscriptionEndpoint}
-            <NanoGPTProviderPicker
-                apiKey={DBState.db.nanogptKey}
-                modelId={DBState.db.nanogptRequestModel}
-                bind:value={DBState.db.nanogptProvider}
-            />
-        {/if}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
         <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>

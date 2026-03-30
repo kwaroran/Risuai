@@ -145,12 +145,16 @@ export const popupStore = $state({
     children: null as null | import("svelte").Snippet,
     mouseX: 0,
     mouseY: 0,
-openId: 0,
+    openId: 0,
 })
 export const popUpEditorStore = $state({
     open: false,
     value: '',
     mode: 'default' as 'default'
+})
+
+export const loadoutModalStore = $state({
+    open: false
 })
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now

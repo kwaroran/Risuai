@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore } from './ts/stores.svelte';
     import Sidebar from './lib/SideBars/Sidebar.svelte';
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
@@ -32,6 +32,7 @@
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
     import sendSound from './etc/send.mp3'
     import PopupEditor from './lib/Others/PopupEditor.svelte';
+    import LoadoutModal from './lib/Others/LoadoutModal.svelte';
 
 
   
@@ -243,5 +244,8 @@
     {/if}
     {#if popUpEditorStore.open}
         <PopupEditor />
+    {/if}
+    {#if loadoutModalStore.open}
+        <LoadoutModal />
     {/if}
 </main>

@@ -664,6 +664,7 @@ export function setDatabase(data:Database){
     // Because its likely they are power users who would benefit from the features
     data.enableRisuaiProTools ??= data.plugins.length > 0
     data.keepSessionAlive ??= 'off'
+    data.loadouts ??= []
     changeLanguage(data.language)
     setDatabaseLite(data)
 }

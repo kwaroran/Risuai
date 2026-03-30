@@ -481,124 +481,132 @@ export class RisuSaveDecoder {
         let directory: string[] = []
         for(let i = 0; i < this.blocks.length; i++){
             const key = i;
-            switch(this.blocks[key].type){
-                case RisuSaveType.ROOT:{
-                    const rootData = JSON.parse(this.blocks[key].content);
-                    for(const rootKey in rootData){
-                        if(!db[rootKey] && !rootKey.startsWith('__')){
-                            db[rootKey] = rootData[rootKey];
-                        }
-                        if(rootKey === '__directory'){
-                            directory = rootData[rootKey];
-                            console.log('RisuSave directory:', directory);
-                            for(const dirKey of directory){
-                                if(!loadedBlocks.has(dirKey)){
-                                    try {
-                                        console.log(`Loading directory block ${dirKey} from cache`);
-                                        const dirData:{
-                                            type:RisuSaveType
-                                            data:string
-                                            name:string
-                                        } = await risuSaveCacheForage.getItem(`risuSaveBlock_${dirKey}`) as any;
+            try {
+                switch(this.blocks[key].type){
+                    case RisuSaveType.ROOT:{
+                        const rootData = JSON.parse(this.blocks[key].content);
+                        for(const rootKey in rootData){
+                            if(!db[rootKey] && !rootKey.startsWith('__')){
+                                db[rootKey] = rootData[rootKey];
+                            }
+                            if(rootKey === '__directory'){
+                                directory = rootData[rootKey];
+                                console.log('RisuSave directory:', directory);
+                                for(const dirKey of directory){
+                                    if(!loadedBlocks.has(dirKey)){
+                                        try {
+                                            console.log(`Loading directory block ${dirKey} from cache`);
+                                            const dirData:{
+                                                type:RisuSaveType
+                                                data:string
+                                                name:string
+                                            } = await risuSaveCacheForage.getItem(`risuSaveBlock_${dirKey}`) as any;
 
-                                        if(dirData){
-                                            this.blocks.push({
-                                                name: dirData.name,
-                                                type: dirData.type,
-                                                compression: false,
-                                                content: dirData.data
-                                            });
-                                            loadedBlocks.add(dirKey);
+                                            if(dirData){
+                                                this.blocks.push({
+                                                    name: dirData.name,
+                                                    type: dirData.type,
+                                                    compression: false,
+                                                    content: dirData.data
+                                                });
+                                                loadedBlocks.add(dirKey);
+                                            }
+                                        } catch (error) {
+                                            console.error(`Error loading directory block ${dirKey}:`, error);
                                         }
-                                    } catch (error) {
-                                        console.error(`Error loading directory block ${dirKey}:`, error);
                                     }
                                 }
                             }
                         }
-                    }
-                    break;
-                }
-                case RisuSaveType.CHARACTER_WITH_CHAT:
-                case RisuSaveType.CHARACTER_WITHOUT_CHAT:{
-                    db.characters ??= [];
-                    const character = JSON.parse(this.blocks[key].content);
-                    db.characters.push(character);
-                    break
-                }
-                case RisuSaveType.BOTPRESET:{
-                    db.botPresets = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.MODULES:{
-                    db.modules = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.CONFIG:{
-                    //ignore for now
-                    break;
-                }
-                case RisuSaveType.PLUGINS:{
-                    db.plugins = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.LOADOUTS:{
-                    db.loadouts = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.PLUGIN_STORAGE:{
-                    db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.REMOTE:{
-                    const remoteInfo:{
-                        v:number
-                        type:RisuSaveType
-                        name:string
-                    } = JSON.parse(this.blocks[key].content);
-                    const fileName = `remotes/${remoteInfo.name}.local.bin`
-                    let remoteData:Uint8Array|null = null
-                    if(isTauri){
-                        try {
-                            if(await exists(fileName, { baseDir: BaseDirectory.AppData })){
-                                remoteData = await readFile(fileName, { baseDir: BaseDirectory.AppData });
-                            }
-                        } catch (error) {
-                            console.error(`Error reading remote file ${fileName} in Tauri:`, error);
-                        }
-                    }
-                    else{
-                        const stored = await forageStorage.getItem(fileName);
-                        if(stored){
-                            remoteData = stored as Uint8Array;
-                        }
-                    }
-
-                    if(!remoteData){
-                        console.warn(`Remote file ${fileName} not found.`);
                         break;
                     }
-                    const decoded = new TextDecoder().decode(remoteData)
+                    case RisuSaveType.CHARACTER_WITH_CHAT:
+                    case RisuSaveType.CHARACTER_WITHOUT_CHAT:{
+                        db.characters ??= [];
+                        const character = JSON.parse(this.blocks[key].content);
+                        db.characters.push(character);
+                        break
+                    }
+                    case RisuSaveType.BOTPRESET:{
+                        db.botPresets = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.MODULES:{
+                        db.modules = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.CONFIG:{
+                        //ignore for now
+                        break;
+                    }
+                    case RisuSaveType.PLUGINS:{
+                        db.plugins = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.LOADOUTS:{
+                        db.loadouts = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.PLUGIN_STORAGE:{
+                        db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.REMOTE:{
+                        const remoteInfo:{
+                            v:number
+                            type:RisuSaveType
+                            name:string
+                        } = JSON.parse(this.blocks[key].content);
+                        const fileName = `remotes/${remoteInfo.name}.local.bin`
+                        let remoteData:Uint8Array|null = null
+                        if(isTauri){
+                            try {
+                                if(await exists(fileName, { baseDir: BaseDirectory.AppData })){
+                                    remoteData = await readFile(fileName, { baseDir: BaseDirectory.AppData });
+                                }
+                            } catch (error) {
+                                console.error(`Error reading remote file ${fileName} in Tauri:`, error);
+                            }
+                        }
+                        else{
+                            const stored = await forageStorage.getItem(fileName);
+                            if(stored){
+                                remoteData = stored as Uint8Array;
+                            }
+                        }
 
-                    //add to blocks for further processing
-                    this.blocks.push({
-                        name: remoteInfo.name,
-                        type: remoteInfo.type,
-                        compression: false,
-                        content: decoded
-                    });
-                    break;
-                }
-                case RisuSaveType.ROOT_COMPONENT:{
-                    const componentData:{
-                        data:any
-                        key:string
-                    } = JSON.parse(this.blocks[key].content);
-                    db[componentData.key] = componentData.data;
-                    break;
-                }
-                default:{
-                    console.warn(`Not Implemented RisuSaveType: ${this.blocks[key].type} for ${this.blocks[key].name}`);
+                        if(!remoteData){
+                            console.warn(`Remote file ${fileName} not found.`);
+                            break;
+                        }
+                        const decoded = new TextDecoder().decode(remoteData)
+
+                        //add to blocks for further processing
+                        this.blocks.push({
+                            name: remoteInfo.name,
+                            type: remoteInfo.type,
+                            compression: false,
+                            content: decoded
+                        });
+                        break;
+                    }
+                    case RisuSaveType.ROOT_COMPONENT:{
+                        const componentData:{
+                            data:any
+                            key:string
+                        } = JSON.parse(this.blocks[key].content);
+                        db[componentData.key] = componentData.data;
+                        break;
+                    }
+                    default:{
+                        console.warn(`Not Implemented RisuSaveType: ${this.blocks[key].type} for ${this.blocks[key].name}`);
+                    }
+                }   
+            } catch (error) {
+                console.error(`Error processing block ${this.blocks[key].name}:`, error);
+
+                if(this.blocks[key].type === RisuSaveType.ROOT){
+                    throw new Error('Failed to decode root block, cannot proceed with decoding RisuSave data');
                 }
             }
         }

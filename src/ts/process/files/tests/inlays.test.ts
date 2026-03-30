@@ -54,6 +54,14 @@ vi.mock('uuid', () => ({
     v4: vi.fn(() => 'test-uuid-1234'),
 }))
 
+vi.mock(import('src/ts/media'), () => ({
+    getImageType: vi.fn(),
+}))
+
+vi.mock(import('src/ts/model/modellist'), () => ({
+    getModelInfo: vi.fn(),
+}))
+
 vi.mock(import('src/ts/storage/database.svelte'), () => ({
     getDatabase: vi.fn(),
 }))
@@ -130,7 +138,7 @@ describe('setInlayAsset', () => {
         await setInlayAsset('id-1', first)
         await setInlayAsset('id-1', second)
 
-        expect((store.get('id-1') as InlayAsset)).toMatchObject({
+        expect(store.get('id-1') as InlayAsset).toMatchObject({
             height: 20,
             name: 'second.png',
             type: 'image',

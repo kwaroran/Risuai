@@ -7,13 +7,16 @@
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
-    import { alertNormal, alertSelect } from "src/ts/alert";
+    import { alertNormal, alertSelect, alertConfirm, alertError, alertWait } from "src/ts/alert";
     import { downloadFile } from "src/ts/globalApi.svelte";
     import { isTauri } from "src/ts/platform"
     import { languageEnglish } from "src/lang/en";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import Help from "src/lib/Others/Help.svelte";
+    import Button from "src/lib/UI/GUI/Button.svelte";
+    import { exportLLMCacheAsJSON, importLLMCacheFromJSON, clearLLMCache } from "src/ts/translator/translator";
+    import { selectFileByDom } from "src/ts/util";
     let langChanged = $state(false)
 
 </script>
@@ -171,6 +174,69 @@
             <Check bind:check={DBState.db.autoTranslateCachedOnly} name={language.autoTranslateCachedOnly}>
                     <Help key="autoTranslateCachedOnly"/>
                 </Check>
-        </div>        
+        </div>
+
+        <Button onclick={async () => {
+            alertWait(language.loading)
+            try {
+                const cache = await exportLLMCacheAsJSON()
+                const entries = Object.keys(cache).length
+                if (entries === 0) {
+                    alertNormal(language.exportTranslationCacheEmpty)
+                    return
+                }
+                const json = JSON.stringify(cache, null, 2)
+                await downloadFile('translation_cache.json', new TextEncoder().encode(json))
+                alertNormal(language.exportTranslationCacheSuccess)
+            } catch(e) {
+                alertError(e.message)
+            }
+        }} className="mt-4">{language.exportTranslationCache}</Button>
+
+        <Button onclick={async () => {
+            try {
+                const files = await selectFileByDom(['.json'])
+                if (!files || files.length === 0) return
+                if (!files[0].name.endsWith('.json')) {
+                    alertError('Invalid file type. Please select a .json file.')
+                    return
+                }
+                const text = await files[0].text()
+                const data = JSON.parse(text)
+                if (typeof data !== 'object' || Array.isArray(data)) {
+                    alertError('Invalid JSON format')
+                    return
+                }
+                for (const [key, value] of Object.entries(data)) {
+                    if (typeof key !== 'string' || typeof value !== 'string') {
+                        alertError('Invalid JSON format')
+                        return
+                    }
+                }
+                const confirmed = await alertConfirm(language.importTranslationCacheConfirm)
+                if (!confirmed) return
+                alertWait(language.loading)
+                const {count, failed} = await importLLMCacheFromJSON(data)
+                if(failed > 0){
+                    alertError(language.importTranslationCacheFailed.replace('{0}', String(count)).replace('{1}', String(failed)))
+                } else {
+                    alertNormal(language.importTranslationCacheSuccess.replace('{0}', String(count)))
+                }
+            } catch(e) {
+                alertError(e.message)
+            }
+        }} className="mt-2">{language.importTranslationCache}</Button>
+
+        <Button onclick={async () => {
+            try {
+                const confirmed = await alertConfirm(language.clearTranslationCacheConfirm)
+                if (!confirmed) return
+                alertWait(language.loading)
+                await clearLLMCache()
+                alertNormal(language.clearTranslationCacheSuccess)
+            } catch(e) {
+                alertError(e.message)
+            }
+        }} className="mt-2">{language.clearTranslationCache}</Button>
     {/if}
 {/if}

@@ -1,0 +1,2 @@
+# Keep local .gitignore changes when merging upstream.
+.gitignore merge=ours

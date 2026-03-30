@@ -220,6 +220,9 @@ export function setDatabase(data:Database){
     if(checkNullish(data.hypaMemoryKey)){
         data.hypaMemoryKey = ""
     }
+    if(checkNullish(data.voyageApiKey)){
+        data.voyageApiKey = ""
+    }
     if(checkNullish(data.supaModelType)){
         data.supaModelType = "none"
     }
@@ -389,6 +392,14 @@ export function setDatabase(data:Database){
     data.customProxyRequestModel ??= ''
     data.generationSeed ??= -1
     data.newOAIHandle ??= true
+    data.localNetworkMode ??= false
+    if (typeof data.localNetworkMode !== 'boolean') {
+        data.localNetworkMode = false
+    }
+    data.localNetworkTimeoutSec ??= 600
+    if (typeof data.localNetworkTimeoutSec !== 'number' || Number.isNaN(data.localNetworkTimeoutSec)) {
+        data.localNetworkTimeoutSec = 600
+    }
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
     data.fishSpeechKey ??= ''
@@ -448,6 +459,14 @@ export function setDatabase(data:Database){
     }
     if (data.botPresets) {
         for (const preset of data.botPresets) {
+            preset.localNetworkMode ??= false
+            preset.localNetworkTimeoutSec ??= 600
+            if (typeof preset.localNetworkMode !== 'boolean') {
+                preset.localNetworkMode = false
+            }
+            if (typeof preset.localNetworkTimeoutSec !== 'number' || Number.isNaN(preset.localNetworkTimeoutSec)) {
+                preset.localNetworkTimeoutSec = 600
+            }
             if (typeof preset.openrouterProvider === 'string') {
                 const oldProvider = preset.openrouterProvider as unknown as string;
                 preset.openrouterProvider = {
@@ -640,10 +659,11 @@ export function setDatabase(data:Database){
     data.createFolderOnBranch ??= true
     data.hamburgerButtonBottom ??= false
     data.dynamicModelRegistry ??= true
-    
+    data.saveSignatures ??= false
     // If the user uses plugins, its probably better to enable RisuAI Pro Tools by default
     // Because its likely they are power users who would benefit from the features
     data.enableRisuaiProTools ??= data.plugins.length > 0
+    data.keepSessionAlive ??= 'off'
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -794,6 +814,8 @@ export interface Database{
         FontColorQuote2 : string
     }
     requestRetrys:number
+    localNetworkMode:boolean
+    localNetworkTimeoutSec:number
     emotionPrompt2:string
     useSayNothing:boolean
     didFirstSetup: boolean
@@ -806,6 +828,7 @@ export interface Database{
     useStreaming:boolean
     supaMemoryKey:string
     hypaMemoryKey:string
+    voyageApiKey:string
     supaModelType:string
     textScreenColor?:string
     textBorder?:boolean
@@ -1164,6 +1187,8 @@ export interface Database{
     epEnabled?:boolean
     seperateParametersByModel?:boolean
     disableSeperateParameterChangeOnPresetChange?:boolean
+    saveSignatures?:boolean
+    keepSessionAlive: 'off' | 'pip' | 'sound'
 }
 
 export interface SeparateParameters{
@@ -1441,6 +1466,8 @@ export interface botPreset{
     name?:string
     apiType?: string
     openAIKey?: string
+    localNetworkMode?: boolean
+    localNetworkTimeoutSec?: number
     mainPrompt: string
     jailbreak: string
     globalNote:string
@@ -1841,6 +1868,8 @@ export const presetTemplate:botPreset = {
     name: "New Preset",
     apiType: "gemini-3-flash-preview",
     openAIKey: "",
+    localNetworkMode: false,
+    localNetworkTimeoutSec: 600,
     mainPrompt: defaultMainPrompt,
     jailbreak: defaultJailbreak,
     globalNote: "",
@@ -1891,6 +1920,8 @@ export function saveCurrentPreset(){
         name: pres[db.botPresetsId].name,
         apiType: db.apiType,
         openAIKey: db.openAIKey,
+        localNetworkMode: db.localNetworkMode,
+        localNetworkTimeoutSec: db.localNetworkTimeoutSec,
         mainPrompt:db.mainPrompt,
         jailbreak: db.jailbreak,
         globalNote: db.globalNote,
@@ -2002,6 +2033,8 @@ export function changeToPreset(id =0, savecurrent = true){
 
 export function setPreset(db:Database, newPres: botPreset){
     db.apiType = newPres.apiType ?? db.apiType
+    db.localNetworkMode = newPres.localNetworkMode ?? db.localNetworkMode
+    db.localNetworkTimeoutSec = newPres.localNetworkTimeoutSec ?? db.localNetworkTimeoutSec
     db.mainPrompt = newPres.mainPrompt ?? db.mainPrompt
     db.jailbreak = newPres.jailbreak ?? db.jailbreak
     db.globalNote = newPres.globalNote ?? db.globalNote

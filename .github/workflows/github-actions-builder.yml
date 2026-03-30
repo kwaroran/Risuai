@@ -29,7 +29,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - id: set_var_win
         if: matrix.settings.platform == 'windows-latest'
         run: |
@@ -39,7 +39,7 @@ jobs:
         run: |
           echo "VERSION_JSON=$(jq -c . < version.json)" >> $GITHUB_ENV
       - name: install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: latest
       - name: install dependencies (ubuntu only)

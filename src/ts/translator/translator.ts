@@ -577,6 +577,36 @@ export async function searchLLMCache(partialKey:string):Promise<{key: string, va
     return results
 }
 
+export async function setLLMCache(key:string, value:string):Promise<void>{
+    await LLMCacheStorage.setItem(key, value)
+}
+
+export async function exportLLMCacheAsJSON():Promise<Record<string, string>>{
+    const result:Record<string, string> = {}
+    await LLMCacheStorage.iterate<string, void>((value, key) => {
+        result[key] = value
+    })
+    return result
+}
+
+export async function importLLMCacheFromJSON(data:Record<string, string>):Promise<{count: number, failed: number}>{
+    let count = 0
+    let failed = 0
+    for(const [key, value] of Object.entries(data)){
+        try{
+            await LLMCacheStorage.setItem(key, value)
+            count++
+        }catch{
+            failed++
+        }
+    }
+    return {count, failed}
+}
+
+export async function clearLLMCache():Promise<void>{
+    await LLMCacheStorage.clear()
+}
+
 
 function applyEdittransRegex(
       text: string, 

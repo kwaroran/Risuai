@@ -1,88 +1,92 @@
 import type { LLMParameter } from '../process/request/shared'
 
-export enum LLMFlags{
-    hasImageInput,
-    hasImageOutput,
-    hasAudioInput,
-    hasAudioOutput,
-    hasPrefill,
-    hasCache,
-    hasFullSystemPrompt,
-    hasFirstSystemPrompt,
-    hasStreaming,
-    requiresAlternateRole,
-    mustStartWithUserInput,
-    poolSupported,
-    hasVideoInput,
-    OAICompletionTokens,
-    DeveloperRole,
-    geminiThinking,
-    geminiBlockOff,
-    deepSeekPrefix,
-    deepSeekThinkingInput,
-    deepSeekThinkingOutput,
-    noCivilIntegrity,
-    claudeThinking,
-    claudeAdaptiveThinking
-}
+export const LLMFlags = {
+    hasImageInput: 0,
+    hasImageOutput: 1,
+    hasAudioInput: 2,
+    hasAudioOutput: 3,
+    hasPrefill: 4,
+    hasCache: 5,
+    hasFullSystemPrompt: 6,
+    hasFirstSystemPrompt: 7,
+    hasStreaming: 8,
+    requiresAlternateRole: 9,
+    mustStartWithUserInput: 10,
+    poolSupported: 11,
+    hasVideoInput: 12,
+    OAICompletionTokens: 13,
+    DeveloperRole: 14,
+    geminiThinking: 15,
+    geminiBlockOff: 16,
+    deepSeekPrefix: 17,
+    deepSeekThinkingInput: 18,
+    deepSeekThinkingOutput: 19,
+    noCivilIntegrity: 20,
+    claudeThinking: 21,
+    claudeAdaptiveThinking: 22
+} as const;
+export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 
-export enum LLMProvider{
-    OpenAI,
-    Anthropic,
-    GoogleCloud,
-    VertexAI,
-    AsIs,
-    Mistral,
-    NovelList,
-    Cohere,
-    NovelAI,
-    WebLLM,
-    Horde,
-    AWS,
-    DeepSeek,
-    DeepInfra,
-    Echo
-}
+export const LLMProvider = {
+    OpenAI: 0,
+    Anthropic: 1,
+    GoogleCloud: 2,
+    VertexAI: 3,
+    AsIs: 4,
+    Mistral: 5,
+    NovelList: 6,
+    Cohere: 7,
+    NovelAI: 8,
+    WebLLM: 9,
+    Horde: 10,
+    AWS: 11,
+    DeepSeek: 12,
+    DeepInfra: 13,
+    Echo: 14
+} as const;
+export type LLMProvider = (typeof LLMProvider)[keyof typeof LLMProvider];
 
-export enum LLMFormat{
-    OpenAICompatible,
-    OpenAILegacyInstruct,
-    Anthropic,
-    AnthropicLegacy,
-    Mistral,
-    GoogleCloud,
-    VertexAIGemini,
-    NovelList,
-    Cohere,
-    NovelAI,
-    WebLLM,
-    OobaLegacy,
-    Plugin,
-    Ooba,
-    Kobold,
-    Ollama,
-    Horde,
-    AWSBedrockClaude,
-    OpenAIResponseAPI,
-    Echo
-}
+export const LLMFormat = {
+    OpenAICompatible: 0,
+    OpenAILegacyInstruct: 1,
+    Anthropic: 2,
+    AnthropicLegacy: 3,
+    Mistral: 4,
+    GoogleCloud: 5,
+    VertexAIGemini: 6,
+    NovelList: 7,
+    Cohere: 8,
+    NovelAI: 9,
+    WebLLM: 10,
+    OobaLegacy: 11,
+    Plugin: 12,
+    Ooba: 13,
+    Kobold: 14,
+    Ollama: 15,
+    Horde: 16,
+    AWSBedrockClaude: 17,
+    OpenAIResponseAPI: 18,
+    Echo: 19
+} as const;
+export type LLMFormat = (typeof LLMFormat)[keyof typeof LLMFormat];
 
-export enum LLMTokenizer{
-    Unknown,
-    tiktokenCl100kBase,
-    tiktokenO200Base,
-    Mistral,
-    Llama,
-    NovelAI,
-    Claude,
-    NovelList,
-    Llama3,
-    Gemma,
-    GoogleCloud,
-    Cohere,
-    Local,
-    DeepSeek
-}
+export const LLMTokenizer = {
+    Unknown: 0,
+    tiktokenCl100kBase: 1,
+    tiktokenO200Base: 2,
+    Mistral: 3,
+    Llama: 4,
+    NovelAI: 5,
+    Claude: 6,
+    NovelList: 7,
+    Llama3: 8,
+    Gemma: 9,
+    GoogleCloud: 10,
+    Cohere: 11,
+    Local: 12,
+    DeepSeek: 13
+} as const;
+export type LLMTokenizer = (typeof LLMTokenizer)[keyof typeof LLMTokenizer];
 
 export interface LLMModel{
     id: string

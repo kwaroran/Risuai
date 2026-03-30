@@ -81,7 +81,8 @@
                     >
                         <span class="text-sm font-medium leading-snug text-textcolor">{p.provider}</span>
                         <div class="mt-1.5 flex flex-col gap-0.5 text-xs text-textcolor2">
-                            <span>{language.nanoGPTProviderQuantization}: {p.quantization && p.quantization !== 'unknown' ? p.quantization : language.nanoGPTProviderUndisclosed} · {language.nanoGPTProviderCache}: {p.supportsPromptCaching ? language.nanoGPTProviderCacheSupported : language.nanoGPTProviderCacheNotSupported}</span>
+                            <span>{language.nanoGPTProviderQuantization}: <span class="text-textcolor">{p.quantization && p.quantization !== 'unknown' ? p.quantization : language.nanoGPTProviderUndisclosed}</span></span>
+                            <span>{language.nanoGPTProviderCache}: <span class="text-textcolor">{p.supportsPromptCaching ? language.nanoGPTProviderCacheSupported : language.nanoGPTProviderCacheNotSupported}</span></span>
                             <span>{language.nanoGPTProviderInput}: <span class="text-textcolor">{fmtPrice(p.pricing.inputPer1kTokens)}</span>/1M · {language.nanoGPTProviderOutput}: <span class="text-textcolor">{fmtPrice(p.pricing.outputPer1kTokens)}</span>/1M</span>
                             {#if p.pricing.cacheReadInputPer1kTokens}
                                 <span>{language.nanoGPTProviderCacheRead}: <span class="text-textcolor">{fmtPrice(p.pricing.cacheReadInputPer1kTokens)}</span>/1M</span>

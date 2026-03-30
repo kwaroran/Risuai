@@ -74,6 +74,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['partial', 'edit', 'drag', 'selection']
     },
     {
+        id: 'acc.enableDragPartialEdit',
+        type: 'check',
+        labelKey: 'enableDragPartialEdit',
+        bindKey: 'enableDragPartialEdit',
+        keywords: ['partial', 'edit', 'drag', 'selection']
+    },
+    {
         id: 'acc.botSettingAtStart',
         type: 'check',
         labelKey: 'botSettingAtStart',

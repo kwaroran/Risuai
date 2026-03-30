@@ -1631,6 +1631,7 @@ export const languageEnglish = {
     keepSessionAliveSound: "Via Sound",
     loadouts: "Loadouts",
     loadout: "Loadout",
+    longPressToPopupEditor: "Long press to open popup editor",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

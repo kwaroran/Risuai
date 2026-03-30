@@ -665,6 +665,7 @@ export function setDatabase(data:Database){
     data.enableRisuaiProTools ??= data.plugins.length > 0
     data.keepSessionAlive ??= 'off'
     data.loadouts ??= []
+    data.longPressToPopupEditor ??= false
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1190,6 +1191,7 @@ export interface Database{
     disableSeperateParameterChangeOnPresetChange?:boolean
     saveSignatures?:boolean
     keepSessionAlive: 'off' | 'pip' | 'sound'
+    longPressToPopupEditor?: boolean
     loadouts: Loadout[]
 }
 

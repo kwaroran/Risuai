@@ -1216,7 +1216,10 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
 
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
-            dataUint = Buffer.from(new Uint8Array([...dataUint, ...chunk]))
+            const combined = new Uint8Array(dataUint.length + chunk.length);
+            combined.set(dataUint, 0);
+            combined.set(chunk, dataUint.length);
+            dataUint = Buffer.from(combined);
             let JSONreaded:{[key:string]:string} = {}
                         try {
                 const datas = dataUint.toString().split('\n')

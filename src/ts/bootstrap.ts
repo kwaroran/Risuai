@@ -294,7 +294,9 @@ async function registerSw() {
 function updateErrorHandling() {
     const errorHandler = (event: ErrorEvent) => {
         console.error(event.error);
-        alertError(event.error);
+        if(!(event.error.target instanceof Worker)){
+            alertError(event.error);            
+        }
     };
     const rejectHandler = (event: PromiseRejectionEvent) => {
         console.error(event.reason);
@@ -583,6 +585,9 @@ async function cleanChunks() {
                 if(!uncleanable.has(n)) {
                     await forageStorage.removeItem(asset)
                 }
+            }
+            else if (asset.endsWith('.meta')){
+                continue
             }
             else if (asset.startsWith('remotes/')) {
                 const name = getBasename(asset).slice(0, -10) //remove .local.bin

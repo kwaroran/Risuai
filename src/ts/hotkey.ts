@@ -1,7 +1,7 @@
 import { get } from "svelte/store"
 import { alertMd, alertSelect, alertToast, alertWait, doingAlert, alertRequestLogs } from "./alert"
 import { changeToPreset as changeToPreset2, getDatabase  } from "./storage/database.svelte"
-import { alertStore, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
+import { alertStore, DBState, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { language } from "src/lang"
 import { updateTextThemeAndCSS } from "./gui/colorscheme"
 import { defaultHotkeys } from "./defaulthotkeys"
@@ -27,28 +27,9 @@ export function initHotkey(){
         let hotkeyRan = false
         for(const hotkey of hotKeys){
             let hotKeyRanThisTime = true
-            
-            
-            hotkey.ctrl = hotkey.ctrl ?? false
-            hotkey.alt = hotkey.alt ?? false
-            hotkey.shift = hotkey.shift ?? false
 
-            if(hotkey.ctrl !== ev.ctrlKey){
+            if(!hotkeyMatches(hotkey, ev)){
                 continue
-            }
-            if(hotkey.alt !== ev.altKey){
-                continue
-            }
-            if(hotkey.shift !== ev.shiftKey){
-                continue
-            }
-            if(hotkey.key.toLowerCase() !== ev.key.toLowerCase()){
-                continue
-            }
-            if(!hotkey.ctrl && !hotkey.alt && !hotkey.shift){
-                if(['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)){
-                    continue
-                }
             }
             switch(hotkey.action){
                 case 'reroll':{
@@ -331,6 +312,25 @@ async function quickMenu(){
     if(sel === 1){
         openPersonaList.set(!get(openPersonaList))
     }
+}
+
+export function hotkeyMatches(hotkey: typeof DBState.db.hotkeys[number], ev: KeyboardEvent): boolean {
+    if(!hotkey){
+        return false
+    }
+    
+    hotkey.ctrl = hotkey.ctrl ?? false
+    hotkey.alt = hotkey.alt ?? false
+    hotkey.shift = hotkey.shift ?? false
+
+    if(hotkey.ctrl !== ev.ctrlKey) return false
+    if(hotkey.alt !== ev.altKey) return false
+    if(hotkey.shift !== ev.shiftKey) return false
+    if(hotkey.key.toLowerCase() !== ev.key.toLowerCase()) return false
+    if(!hotkey.ctrl && !hotkey.alt && !hotkey.shift){
+        if(['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return false
+    }
+    return true
 }
 
 function clickQuery(query:string){

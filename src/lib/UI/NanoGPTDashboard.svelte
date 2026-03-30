@@ -56,15 +56,15 @@
     }
 
     function barColor(v: number): string {
-        if (v >= 0.8) return 'bg-red-500'
-        if (v >= 0.6) return 'bg-orange-400'
-        return 'bg-green-500'
+        if (v >= 0.8) return 'bg-red-600'
+        if (v >= 0.6) return 'bg-yellow-600'
+        return 'bg-green-600'
     }
 
     function stateColor(state: string): string {
-        if (state === 'active') return 'bg-green-500'
-        if (state === 'grace')  return 'bg-yellow-500'
-        return 'bg-zinc-500'
+        if (state === 'active') return 'bg-green-600'
+        if (state === 'grace')  return 'bg-yellow-600'
+        return 'bg-zinc-600'
     }
 </script>
 
@@ -92,7 +92,7 @@
             {#if subscription}
                 <div class="flex items-center gap-2">
                     <span class="text-textcolor2">{language.nanoGPTSubscription}</span>
-                    <span class="rounded-full px-2 py-0.5 text-xs font-bold text-white {stateColor(subscription.state)}">
+                    <span class="inline-flex items-center justify-center rounded-full px-2.5 pb-[2px] pt-[4px] text-sm font-bold leading-none text-white {stateColor(subscription.state)}">
                         {subscription.state.toUpperCase()}
                     </span>
                     {#if subscription.state === 'grace' && subscription.graceUntil}

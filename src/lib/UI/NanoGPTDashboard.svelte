@@ -110,16 +110,16 @@
                 {#if subscription.weeklyInputTokens}
                     {@const w = subscription.weeklyInputTokens}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTWeeklyTokens(pct(w.percentUsed))}</span>
-                            <span>{language.nanoGPTResets(fmtReset(w.resetAt))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2">{language.nanoGPTWeeklyTokensLabel} — <span class="text-textcolor">{pct(w.percentUsed)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2">{language.nanoGPTResetsLabel} <span class="text-textcolor">{fmtReset(w.resetAt)}</span></span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(w.percentUsed)}" style="width: {pct(w.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTUsed(fmtTokens(w.used))}</span>
-                            <span>{language.nanoGPTRemaining(fmtTokens(w.remaining))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2"><span class="text-textcolor">{fmtTokens(w.used)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2"><span class="text-textcolor">{fmtTokens(w.remaining)}</span> {language.nanoGPTRemainingLabel}</span>
                         </div>
                     </div>
                 {/if}
@@ -127,16 +127,16 @@
                 {#if subscription.dailyInputTokens}
                     {@const d = subscription.dailyInputTokens}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTDailyTokens(pct(d.percentUsed))}</span>
-                            <span>{language.nanoGPTResets(fmtReset(d.resetAt))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2">{language.nanoGPTDailyTokensLabel} — <span class="text-textcolor">{pct(d.percentUsed)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2">{language.nanoGPTResetsLabel} <span class="text-textcolor">{fmtReset(d.resetAt)}</span></span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(d.percentUsed)}" style="width: {pct(d.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTUsed(fmtTokens(d.used))}</span>
-                            <span>{language.nanoGPTRemaining(fmtTokens(d.remaining))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2"><span class="text-textcolor">{fmtTokens(d.used)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2"><span class="text-textcolor">{fmtTokens(d.remaining)}</span> {language.nanoGPTRemainingLabel}</span>
                         </div>
                     </div>
                 {/if}
@@ -144,22 +144,22 @@
                 {#if subscription.dailyImages}
                     {@const img = subscription.dailyImages}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTDailyImages(pct(img.percentUsed))}</span>
-                            <span>{language.nanoGPTResets(fmtReset(img.resetAt))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2">{language.nanoGPTDailyImagesLabel} — <span class="text-textcolor">{pct(img.percentUsed)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2">{language.nanoGPTResetsLabel} <span class="text-textcolor">{fmtReset(img.resetAt)}</span></span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(img.percentUsed)}" style="width: {pct(img.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor">
-                            <span>{language.nanoGPTUsed(String(img.used))}</span>
-                            <span>{language.nanoGPTRemaining(String(img.remaining))}</span>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-textcolor2"><span class="text-textcolor">{String(img.used)}</span> {language.nanoGPTUsedLabel}</span>
+                            <span class="text-textcolor2"><span class="text-textcolor">{String(img.remaining)}</span> {language.nanoGPTRemainingLabel}</span>
                         </div>
                     </div>
                 {/if}
 
                     {#if subscription.period}
-                        <p class="text-xs text-textcolor">{language.nanoGPTRenews(fmtDate(subscription.period.currentPeriodEnd))}</p>
+                        <p class="text-xs text-textcolor2">{language.nanoGPTRenewsLabel} <span class="text-textcolor">{fmtDate(subscription.period.currentPeriodEnd)}</span></p>
                     {/if}
                 {/if}
             {/if}

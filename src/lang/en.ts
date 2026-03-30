@@ -1641,6 +1641,13 @@ export const languageEnglish = {
     nanoGPTRemaining: (n: string) => `${n} remaining`,
     nanoGPTRenews: (date: string) => `Renews: ${date}`,
     nanoGPTCouldNotLoadAccountInfo: "Could not load account info.",
+    nanoGPTWeeklyTokensLabel: "Weekly Included Input Tokens",
+    nanoGPTDailyTokensLabel: "Daily Included Input Tokens",
+    nanoGPTDailyImagesLabel: "Daily Included Images",
+    nanoGPTUsedLabel: "used",
+    nanoGPTRemainingLabel: "remaining",
+    nanoGPTResetsLabel: "Resets",
+    nanoGPTRenewsLabel: "Renews:",
     // NanoGPT Provider Picker
     nanoGPTProvider: "Provider",
     nanoGPTProviderPayAsYouGoOnly: "(only available in pay-as-you-go mode)",

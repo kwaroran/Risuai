@@ -95,7 +95,7 @@ export interface StreamResponseChunk{[key:string]:string}
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
     const fallBackModels:string[] = safeStructuredClone(db?.fallbackModels?.[model] ?? [])
-    const tools = await getTools()
+    const tools = arg.tools ?? (await getTools())
     fallBackModels.push('')
     let da:requestDataResponse
 

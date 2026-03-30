@@ -1627,6 +1627,8 @@ export const languageEnglish = {
     keepSessionAlive: "Keep Session Alive",
     keepSessionAlivePip: "Via PIP",
     keepSessionAliveSound: "Via Sound",
+    loadouts: "Loadouts",
+    loadout: "Loadout",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

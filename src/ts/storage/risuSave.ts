@@ -85,6 +85,9 @@ export type toSaveType = {
     chat: [string, string][];
     botPreset: boolean;
     modules: boolean;
+    loadouts: boolean;
+    plugins: boolean;
+    pluginCustomStorage: boolean;
 }
 
 enum RisuSaveType {
@@ -97,6 +100,9 @@ enum RisuSaveType {
     REMOTE = 6,
     CHARACTER_WITHOUT_CHAT = 7,
     ROOT_COMPONENT = 8,
+    PLUGINS = 9,
+    LOADOUTS = 10,
+    PLUGIN_STORAGE = 11,
 }
 
 type EncodeBlockArg = {
@@ -154,6 +160,24 @@ export class RisuSaveEncoder {
             type: RisuSaveType.MODULES,
             name: 'modules'
         });
+        this.blocks['loadouts'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.loadouts),
+            type: RisuSaveType.LOADOUTS,
+            name: 'loadouts'
+        });
+        this.blocks['plugins'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.plugins),
+            type: RisuSaveType.PLUGINS,
+            name: 'plugins'
+        });
+        this.blocks['pluginStorage'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.pluginCustomStorage),
+            type: RisuSaveType.PLUGIN_STORAGE,
+            name: 'pluginStorage'
+        });
         for( const character of data.characters) {
             this.blocks[character.chaId] = await this.encodeBlock({
                 compression,
@@ -179,7 +203,10 @@ export class RisuSaveEncoder {
         let obj:Record<any,any> = {}
         let keys = Object.keys(data)
         for(const key of keys){
-            if(key !== 'characters' && key !== 'botPresets'){
+            if(
+                key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+            ){
                 obj[key] = data[key]
             }
         }
@@ -235,6 +262,33 @@ export class RisuSaveEncoder {
                 data: JSON.stringify(data.modules),
                 type: RisuSaveType.MODULES,
                 name: 'modules'
+            });
+        }
+
+        if(toSave.loadouts){
+            this.blocks['loadouts'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.loadouts),
+                type: RisuSaveType.LOADOUTS,
+                name: 'loadouts'
+            });
+        }
+
+        if(toSave.pluginCustomStorage){
+            this.blocks['pluginStorage'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.pluginCustomStorage),
+                type: RisuSaveType.PLUGIN_STORAGE,
+                name: 'pluginStorage'
+            });
+        }
+
+        if(toSave.plugins){
+            this.blocks['plugins'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.plugins),
+                type: RisuSaveType.PLUGINS,
+                name: 'plugins'
             });
         }
 
@@ -482,6 +536,18 @@ export class RisuSaveDecoder {
                 }
                 case RisuSaveType.CONFIG:{
                     //ignore for now
+                    break;
+                }
+                case RisuSaveType.PLUGINS:{
+                    db.plugins = JSON.parse(this.blocks[key].content);
+                    break;
+                }
+                case RisuSaveType.LOADOUTS:{
+                    db.loadouts = JSON.parse(this.blocks[key].content);
+                    break;
+                }
+                case RisuSaveType.PLUGIN_STORAGE:{
+                    db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
                     break;
                 }
                 case RisuSaveType.REMOTE:{

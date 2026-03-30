@@ -315,7 +315,10 @@ export async function saveDb() {
         character: [],
         chat: [],
         botPreset: false,
-        modules: false
+        modules: false,
+        loadouts: false,
+        plugins: false,
+        pluginCustomStorage: false
     }
 
     let encoder = new RisuSaveEncoder()
@@ -355,8 +358,26 @@ export async function saveDb() {
             saveTimeoutExecute()
         })
         $effect(() => {
+            $state.snapshot(DBState.db.loadouts)
+            changeTracker.loadouts = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.plugins)
+            changeTracker.plugins = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.pluginCustomStorage)
+            changeTracker.pluginCustomStorage = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
             for (const key in DBState.db) {
-                if (key !== 'characters' && key !== 'botPresets' && key !== 'modules') {
+                if (
+                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                ) {
                     $state.snapshot(DBState.db[key])
                 }
             }

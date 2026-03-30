@@ -70,7 +70,7 @@
 
 {#if apiKey}
     {#await dashboardPromise}
-        <div class="mt-3 mb-2 flex items-center gap-2 text-sm text-textcolor2">
+        <div class="mt-3 mb-2 flex items-center gap-2 text-sm text-textcolor">
             <span class="animate-pulse">●</span>
             <span>{language.nanoGPTLoadingAccountInfo}</span>
         </div>
@@ -80,7 +80,7 @@
 
             {#if balance}
                 <div class="flex items-center gap-1.5">
-                    <span class="text-textcolor2">{language.nanoGPTCreditBalance}</span>
+                    <span class="text-textcolor">{language.nanoGPTCreditBalance}</span>
                     <span class="font-semibold text-textcolor">{fmtUSD(balance.usd_balance)}</span>
                 </div>
             {/if}
@@ -91,17 +91,17 @@
 
             {#if subscription}
                 <div class="flex items-center gap-2">
-                    <span class="text-textcolor2">{language.nanoGPTSubscription}</span>
+                    <span class="text-textcolor">{language.nanoGPTSubscription}</span>
                     <span class="inline-flex items-center justify-center rounded-full px-2.5 pb-[2px] pt-[4px] text-sm font-bold leading-none text-white {stateColor(subscription.state)}">
                         {subscription.state.toUpperCase()}
                     </span>
                     {#if subscription.state === 'grace' && subscription.graceUntil}
-                        <span class="text-xs text-textcolor2">{language.nanoGPTGraceUntil(fmtDate(subscription.graceUntil))}</span>
+                        <span class="text-xs text-textcolor">{language.nanoGPTGraceUntil(fmtDate(subscription.graceUntil))}</span>
                     {/if}
                 </div>
 
                 {#if subscription.state === 'inactive'}
-                    <p class="text-xs text-textcolor2">{language.nanoGPTNoActiveSubscription}</p>
+                    <p class="text-xs text-textcolor">{language.nanoGPTNoActiveSubscription}</p>
                 {:else}
                     {#if subscription.cancelAtPeriodEnd}
                         <p class="text-xs text-yellow-400">{language.nanoGPTCancelsAtPeriodEnd(fmtDate(subscription.period?.currentPeriodEnd))}</p>
@@ -110,14 +110,14 @@
                 {#if subscription.weeklyInputTokens}
                     {@const w = subscription.weeklyInputTokens}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTWeeklyTokens(pct(w.percentUsed))}</span>
                             <span>{language.nanoGPTResets(fmtReset(w.resetAt))}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(w.percentUsed)}" style="width: {pct(w.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTUsed(fmtTokens(w.used))}</span>
                             <span>{language.nanoGPTRemaining(fmtTokens(w.remaining))}</span>
                         </div>
@@ -127,14 +127,14 @@
                 {#if subscription.dailyInputTokens}
                     {@const d = subscription.dailyInputTokens}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTDailyTokens(pct(d.percentUsed))}</span>
                             <span>{language.nanoGPTResets(fmtReset(d.resetAt))}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(d.percentUsed)}" style="width: {pct(d.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTUsed(fmtTokens(d.used))}</span>
                             <span>{language.nanoGPTRemaining(fmtTokens(d.remaining))}</span>
                         </div>
@@ -144,14 +144,14 @@
                 {#if subscription.dailyImages}
                     {@const img = subscription.dailyImages}
                     <div class="flex flex-col gap-1">
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTDailyImages(pct(img.percentUsed))}</span>
                             <span>{language.nanoGPTResets(fmtReset(img.resetAt))}</span>
                         </div>
                         <div class="h-2 w-full overflow-hidden rounded-full bg-darkbutton">
                             <div class="h-full rounded-full transition-all {barColor(img.percentUsed)}" style="width: {pct(img.percentUsed)}"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-textcolor2">
+                        <div class="flex justify-between text-xs text-textcolor">
                             <span>{language.nanoGPTUsed(String(img.used))}</span>
                             <span>{language.nanoGPTRemaining(String(img.remaining))}</span>
                         </div>
@@ -159,7 +159,7 @@
                 {/if}
 
                     {#if subscription.period}
-                        <p class="text-xs text-textcolor2">{language.nanoGPTRenews(fmtDate(subscription.period.currentPeriodEnd))}</p>
+                        <p class="text-xs text-textcolor">{language.nanoGPTRenews(fmtDate(subscription.period.currentPeriodEnd))}</p>
                     {/if}
                 {/if}
             {/if}
@@ -167,6 +167,6 @@
         </div>
         {/if}
     {:catch}
-        <p class="mt-2 text-xs text-textcolor2">{language.nanoGPTCouldNotLoadAccountInfo}</p>
+        <p class="mt-2 text-xs text-textcolor">{language.nanoGPTCouldNotLoadAccountInfo}</p>
     {/await}
 {/if}

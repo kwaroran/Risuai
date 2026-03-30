@@ -50,6 +50,7 @@ interface requestDataArgument{
     escape?:boolean
     tools?: MCPTool[]
     rememberToolUsage?: boolean
+    blockPlugins?:boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{
@@ -330,6 +331,13 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
         if(db.seperateModels[model]){
             targ.aiModel = db.seperateModels[model]
             targ.modelInfo = getModelInfo(targ.aiModel)
+        }
+    }
+
+    if(arg.blockPlugins && targ.modelInfo.id.startsWith('pluginmodel:::')){
+        return {
+            type: 'fail',
+            result: 'Plugin calls are blocked by the caller.'
         }
     }
 

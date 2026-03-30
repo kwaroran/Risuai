@@ -1646,6 +1646,14 @@ export const languageEnglish = {
     nanoGPTProviderPayAsYouGoOnly: "(only available in pay-as-you-go mode)",
     nanoGPTProviderAuto: "Auto",
     nanoGPTProviderFree: "Free",
+    nanoGPTProviderInput: "Input",
+    nanoGPTProviderOutput: "Output",
+    nanoGPTProviderQuantization: "Quantization",
+    nanoGPTProviderUndisclosed: "Undisclosed",
+    nanoGPTProviderCache: "Cache",
+    nanoGPTProviderCacheSupported: "Supported",
+    nanoGPTProviderCacheNotSupported: "Not supported",
+    nanoGPTProviderCacheRead: "Cache read",
     // NanoGPT Settings
     nanoGPTUseSubscriptionEndpoint: "Use subscription endpoint & models",
     // Model Grid

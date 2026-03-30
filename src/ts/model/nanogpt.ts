@@ -82,10 +82,27 @@ export async function getNanoGPTSubscription(key: string): Promise<NanoGPTSubscr
     }
 }
 
+type NanoGPTPriceComparison = {
+    platformVsOfficial: {
+        inputDiscountPct: number
+        outputDiscountPct: number
+        inputDirection: 'less' | 'more'
+        outputDirection: 'less' | 'more'
+    }
+    hasUserDiscount: boolean
+}
+
 export type NanoGPTModelProvider = {
     provider: string
-    pricing: { inputPer1kTokens: number; outputPer1kTokens: number }
+    pricing: {
+        inputPer1kTokens: number
+        outputPer1kTokens: number
+        cacheReadInputPer1kTokens?: number
+    }
     available: boolean
+    supportsPromptCaching?: boolean
+    quantization?: string
+    comparison?: NanoGPTPriceComparison
 }
 
 export type NanoGPTModelProviders = {
@@ -94,6 +111,15 @@ export type NanoGPTModelProviders = {
     supportsProviderSelection: boolean
     defaultPrice: { inputPer1kTokens: number; outputPer1kTokens: number }
     providers: NanoGPTModelProvider[]
+    autoTps?: number
+    autoTtftMs?: number
+    autoComparison?: NanoGPTPriceComparison
+    officialBaseline?: {
+        provider: string
+        label: string
+        officialModelId: string
+        pricing: { inputPer1kTokens: number; outputPer1kTokens: number }
+    }
 }
 
 export async function getNanoGPTModelProviders(key: string, modelId: string): Promise<NanoGPTModelProviders | null> {

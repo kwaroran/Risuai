@@ -1144,8 +1144,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return false;
             }
 
-            if(typeof message !== 'string' || message.trim() === ''){
-                throw new Error("Message must be a non-empty string");
+            if(typeof message !== 'string'){
+                throw new Error("Message must be a string");
             }
 
             if(get(doingChat)){
@@ -1163,11 +1163,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 throw new Error("No active chat found");
             }
 
-            chat.message.push({
-                role: 'user',
-                data: message,
-                time: Date.now(),
-            });
+            if(message){
+                chat.message.push({
+                    role: 'user',
+                    data: message,
+                    time: Date.now(),
+                });
+            }
 
             await processSendChat(-1, {});
 

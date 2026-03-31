@@ -1501,4 +1501,8 @@ export const languageKorean = {
     "modelGridCouldNotLoad": "모델 목록을 불러올 수 없습니다. API 키를 확인해 주세요.",
     "modelGridNoModelsMatch": (q: string) => `"${q}"에 맞는 모델이 없습니다`,
     "modelGridContext": (n: string) => `컨텍스트: ${n}`,
+
+    nanoGPTSelectFromList: "목록에서 선택",
+    nanoGPTManualInput: "수동 입력",
+    nanoGPTManualModelSelect: "수동 모델 선택",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

@@ -1455,4 +1455,8 @@ export const languageChinese = {
     "modelGridCouldNotLoad": "无法加载模型列表。请检查您的 API 密钥。",
     "modelGridNoModelsMatch": (q: string) => `没有与"${q}"匹配的模型`,
     "modelGridContext": (n: string) => `上下文: ${n}`,
+
+    nanoGPTSelectFromList: "从列表中选择",
+    nanoGPTManualInput: "手动输入",
+    nanoGPTManualModelSelect: "手动模式选择",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

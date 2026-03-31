@@ -1455,4 +1455,8 @@ export const languageVietnamese = {
     "modelGridCouldNotLoad": "Không thể tải danh sách mô hình. Kiểm tra khóa API của bạn.",
     "modelGridNoModelsMatch": (q: string) => `Không có mô hình nào khớp với "${q}"`,
     "modelGridContext": (n: string) => `Ngữ cảnh: ${n}`,
+
+    nanoGPTSelectFromList: "Chọn từ danh sách",
+    nanoGPTManualInput: "Nhập thủ công",
+    nanoGPTManualModelSelect: "Chọn mô hình thủ công",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

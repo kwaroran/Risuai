@@ -1454,4 +1454,8 @@ export const languageSpanish = {
     "modelGridCouldNotLoad": "No se pudo cargar la lista de modelos. Verifique su clave API.",
     "modelGridNoModelsMatch": (q: string) => `Ningún modelo coincide con "${q}"`,
     "modelGridContext": (n: string) => `Contexto: ${n}`,
+
+    nanoGPTSelectFromList: "Seleccionar de la lista",
+    nanoGPTManualInput: "Entrada manual",
+    nanoGPTManualModelSelect: "Selección manual de modelo",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;

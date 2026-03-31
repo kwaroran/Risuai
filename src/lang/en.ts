@@ -1671,6 +1671,10 @@ export const languageEnglish = {
     modelGridContext: (n: string) => `Context: ${n}`,
     loadouts: "Loadouts",
     loadout: "Loadout",
+
+    nanoGPTSelectFromList: "Select from List",
+    nanoGPTManualInput: "Manual Input",
+    nanoGPTManualModelSelect: "Manual Model Select",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

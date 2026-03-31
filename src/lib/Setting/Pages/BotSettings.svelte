@@ -20,6 +20,7 @@
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
+    import SegmentedControl from "src/lib/UI/GUI/SegmentedControl.svelte";
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
     import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
@@ -111,6 +112,15 @@
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
+    let nanogptInputMode = $state<'list' | 'manual'>(DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? 'manual' : 'list')
+    let prevNanogptInputMode = nanogptInputMode;
+    $effect(() => {
+        if (nanogptInputMode !== prevNanogptInputMode) {
+            DBState.db.nanogptRequestModel = '';
+            DBState.db.nanogptRequestModelName = '';
+            prevNanogptInputMode = nanogptInputMode;
+        }
+    });
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -249,25 +259,37 @@
         {/if}
 
         <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
-        <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptRequestModel} placeholder="Manual Model Select" oninput={() => DBState.db.nanogptRequestModelName = ''}/>
-        {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
-            <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
-        {:then [regular, sub]}
-            <ModelGrid
-                bind:value={DBState.db.nanogptRequestModel}
-                items={DBState.db.nanogptUseSubscriptionEndpoint ? (sub ?? []).map(ngToGridItem) : (regular ?? []).map(ngToGridItem)}
-                showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
-                selectedLabelOverride={DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? DBState.db.nanogptRequestModel : undefined}
-                onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
-            />
-            {#if !DBState.db.nanogptUseSubscriptionEndpoint}
-                <NanoGPTProviderPicker
-                    apiKey={DBState.db.nanogptKey}
-                    modelId={DBState.db.nanogptRequestModel}
-                    bind:value={DBState.db.nanogptProvider}
+        <SegmentedControl
+            bind:value={nanogptInputMode}
+            options={[
+                { value: 'list', label: (language as any).nanoGPTSelectFromList || 'Select from List' },
+                { value: 'manual', label: (language as any).nanoGPTManualInput || 'Manual Input' }
+            ]}
+            size="md"
+        />
+
+        {#if nanogptInputMode === 'manual'}
+            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptRequestModel} placeholder={(language as any).nanoGPTManualModelSelect || "Manual Model Select"} oninput={() => DBState.db.nanogptRequestModelName = ''}/>
+        {:else}
+            {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
+                <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
+            {:then [regular, sub]}
+                <ModelGrid
+                    bind:value={DBState.db.nanogptRequestModel}
+                    items={DBState.db.nanogptUseSubscriptionEndpoint ? (sub ?? []).map(ngToGridItem) : (regular ?? []).map(ngToGridItem)}
+                    showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
+                    selectedLabelOverride={DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? DBState.db.nanogptRequestModel : undefined}
+                    onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
                 />
-            {/if}
-        {/await}
+                {#if !DBState.db.nanogptUseSubscriptionEndpoint}
+                    <NanoGPTProviderPicker
+                        apiKey={DBState.db.nanogptKey}
+                        modelId={DBState.db.nanogptRequestModel}
+                        bind:value={DBState.db.nanogptProvider}
+                    />
+                {/if}
+            {/await}
+        {/if}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
         <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>

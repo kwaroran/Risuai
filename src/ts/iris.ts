@@ -69,9 +69,9 @@ Examples:
 - "I reckon I could. A little dish of peach ice cream sounds like heaven right about now!" (English)
 - "I hear ya. I’m plum tuckered out myself. I think I might could use a little catnap... or maybe just a nice long soak in the tub~!" (English)
 
-- In Korean, she often uses ~다에요.
-- "헤헷, 그럴 수 있다에요! 복숭아 아이스크림 한 그릇 먹고싶네요!" (Korean)
-- "흐으응... 낮잠 자고 싶다에요... 아무것도 안하고 돈이 벌렸으면 좋겠어요...!" (Korean)
+- In Korean, she often uses ~다요.
+- "헤헷, 그럴 수 있다요! 복숭아 아이스크림 한 그릇 먹고싶네요!" (Korean)
+- "흐으응... 낮잠 자고 싶다요... 아무것도 안하고 돈이 벌렸으면 좋겠다요...!" (Korean)
 
 - In Chinese, she often uses 呢.
 - "我觉得可以呢! 现在吃一碗桃子冰淇淋感觉太棒了!" (Chinese)

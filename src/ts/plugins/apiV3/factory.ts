@@ -53,6 +53,24 @@ await (async function() {
             if (refId) {
                 return { __type: 'REMOTE_REF', id: refId };
             }
+            if (arg.constructor === Object) {
+                let out = null;
+                for (const [key, val] of Object.entries(arg)) {
+                    if (val instanceof AbortSignal) {
+                        if (!out) out = { ...arg };
+                        const abortId = 'abort_' + Math.random().toString(36).substring(2);
+
+                        if (!val.aborted) {
+                            val.addEventListener('abort', () => {
+                                send({ type: 'ABORT_SIGNAL', abortId });
+                            }, { once: true });
+                        }
+
+                        out[key] = { __type: 'ABORT_SIGNAL_REF', abortId, aborted: val.aborted };
+                    }
+                }
+                if (out) return out;
+            }
         }
         return arg;
     }
@@ -305,6 +323,8 @@ await (async function() {
             window[key] = risuai[key];
         }
     }
+
+    Object.freeze(window.postMessage);
 })();
 `;
 
@@ -312,10 +332,10 @@ export class SandboxHost {
     private iframe: HTMLIFrameElement;
     private apiFactory: any;
     private nonce = crypto.randomUUID();
-    private csp = `connect-src 'none'; script-src 'nonce-${this.nonce}' https:; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline'; default-src 'none';`;
+    private csp = `connect-src 'none'; script-src 'nonce-${this.nonce}' 'wasm-unsafe-eval'; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline'; default-src 'none'; img-src *; font-src *; media-src *;`;
 
     private instanceRegistry = new Map<string, any>();
-
+    private abortControllers = new Map<string, AbortController>();
 
     private pendingCallbacks = new Map<string, { resolve: Function, reject: Function }>();
 
@@ -420,7 +440,7 @@ export class SandboxHost {
     }
 
 
-    private deserializeArgs(args: any[]) {
+    private deserializeArgs(args: any[], usedAbortIds?: string[]) {
         return args.map(arg => {
             if (arg && arg.__type === 'CALLBACK_REF') {
                 const cbRef = arg as CallbackRef;
@@ -473,6 +493,22 @@ export class SandboxHost {
                 if (instance) {
                     return instance;
                 }
+            }
+            if (arg && typeof arg === 'object' && arg.constructor === Object) {
+                let out: any = null;
+                for (const [key, val] of Object.entries<any>(arg)) {
+                    if (val && val.__type === 'ABORT_SIGNAL_REF') {
+                        if (!out) out = { ...arg };
+                        const abortRef = val as AbortSignalRef, controller = new AbortController();
+
+                        if (abortRef.aborted) controller.abort();
+                        else this.abortControllers.set(abortRef.abortId, controller);
+
+                        usedAbortIds?.push(abortRef.abortId);
+                        out[key] = controller.signal;
+                    }
+                }
+                if (out) return out;
             }
             return arg;
         });
@@ -560,6 +596,15 @@ export class SandboxHost {
                 return;
             }
 
+            if (data.type === 'ABORT_SIGNAL') {
+                const controller = this.abortControllers.get(data.abortId!);
+                if (controller) {
+                    controller.abort();
+                    this.abortControllers.delete(data.abortId!);
+                }
+                return;
+            }
+
 
             if (data.type === 'RELEASE_INSTANCE') {
                 this.instanceRegistry.delete(data.id!);
@@ -569,10 +614,11 @@ export class SandboxHost {
 
             if (data.type === 'CALL_ROOT' || data.type === 'CALL_INSTANCE') {
                 const response: RpcMessage = { type: 'RESPONSE', reqId: data.reqId };
+                const usedAbortIds: string[] = [];
 
                 try {
 
-                    const args = this.deserializeArgs(data.args || []);
+                    const args = this.deserializeArgs(data.args || [], usedAbortIds);
                     let result: any;
 
 
@@ -592,6 +638,8 @@ export class SandboxHost {
 
                 } catch (err: any) {
                     response.error = err.message || "Host execution error";
+                } finally {
+                    for (const id of usedAbortIds) this.abortControllers.delete(id);
                 }
 
                 const transferables = this.collectTransferables(response);
@@ -618,7 +666,7 @@ export class SandboxHost {
       <html>
       <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="${this.csp}">
+        <meta http-equiv="Content-Security-Policy" content="${this.csp}" id="csp-meta">
       </head>
       <body>
         <style>
@@ -627,6 +675,7 @@ export class SandboxHost {
             }
         </style>
         <script nonce="${this.nonce}">
+            document.querySelector('meta#csp-meta')?.remove();
             (async () => {
                 ${GUEST_BRIDGE_SCRIPT}
                     
@@ -646,6 +695,7 @@ export class SandboxHost {
             this.iframe.remove();
             this.instanceRegistry.clear();
             this.pendingCallbacks.clear();
+            this.abortControllers.clear();
         };
     }
 
@@ -655,5 +705,6 @@ export class SandboxHost {
         }
         this.instanceRegistry.clear();
         this.pendingCallbacks.clear();
+        this.abortControllers.clear();
     }
 }

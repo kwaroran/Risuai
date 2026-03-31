@@ -2,17 +2,17 @@ import localforage from "localforage";
 import { v4 } from "uuid";
 import { getImageType } from "src/ts/media";
 import { getDatabase } from "../../storage/database.svelte";
-import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
+import { getModelInfo, LLMFlags, LLMFormat } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
 
 export type InlayAsset = {
     data: string | Blob
     /** File extension */
     ext: string
-    height: number
+    height?: number
     name: string
-    type: 'image' | 'video' | 'audio'
-    width: number
+    type: 'image' | 'video' | 'audio' | 'signature'
+    width?: number
 }
 
 const inlayImageExts = [
@@ -123,6 +123,26 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
 
     return `${imgid}`
 }
+
+export type InlaySignature = {
+    signatures: {
+        type: 'function'|'text'
+        content: string
+    }[],
+    sourceFormat: LLMFormat,
+    source: string
+}
+
+export async function saveInlayedSignature(sigid:string,signature:InlaySignature){
+    await inlayStorage.setItem(sigid, {
+        name: sigid,
+        data: JSON.stringify(signature),
+        ext: 'json',
+        type: 'signature'
+    } satisfies InlayAsset)
+    return sigid
+}
+
 
 function base64ToBlob(b64: string): Blob {
     const splitDataURI = b64.split(',');

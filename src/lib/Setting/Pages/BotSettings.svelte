@@ -249,6 +249,7 @@
         {/if}
 
         <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
+        <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptRequestModel} placeholder="Manual Model Select" oninput={() => DBState.db.nanogptRequestModelName = ''}/>
         {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
             <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
         {:then [regular, sub]}
@@ -256,6 +257,7 @@
                 bind:value={DBState.db.nanogptRequestModel}
                 items={DBState.db.nanogptUseSubscriptionEndpoint ? (sub ?? []).map(ngToGridItem) : (regular ?? []).map(ngToGridItem)}
                 showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
+                selectedLabelOverride={DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? DBState.db.nanogptRequestModel : undefined}
                 onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
             />
             {#if !DBState.db.nanogptUseSubscriptionEndpoint}

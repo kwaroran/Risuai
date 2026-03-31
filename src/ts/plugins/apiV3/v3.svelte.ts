@@ -18,6 +18,9 @@ import { hasher } from "src/ts/parser/parser.svelte";
 import localforage from "localforage";
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
 import { sendChat as processSendChat, doingChat } from "src/ts/process/index.svelte";
+import { getModelInfo } from "src/ts/model/modellist";
+import type { ModelModeExtended } from "src/ts/process/request/shared";
+import { requestChatDataMain } from "src/ts/process/request/request";
 
 /*
     V3 API for RisuAI Plugins
@@ -1138,14 +1141,28 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 }
             }
         },
+        runLLMModel: async (options: {
+            mode: ModelModeExtended
+            messages: OpenAIChat[]
+            staticModel?: string
+        }) => {
+            return requestChatDataMain({
+                formated: options.messages,
+                bias: {},
+                staticModel: options.staticModel,
+
+                //Executing plugin provider is block because it can be used for loopholes for ipc right now.
+                blockPlugins: true
+            }, options.mode)
+        },
         sendChat: async (message: string) => {
             const conf = await getPluginPermission(plugin.name, 'sendChat');
             if(!conf){
                 return false;
             }
 
-            if(typeof message !== 'string' || message.trim() === ''){
-                throw new Error("Message must be a non-empty string");
+            if(typeof message !== 'string'){
+                throw new Error("Message must be a string");
             }
 
             if(get(doingChat)){
@@ -1163,11 +1180,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 throw new Error("No active chat found");
             }
 
-            chat.message.push({
-                role: 'user',
-                data: message,
-                time: Date.now(),
-            });
+            if(message){
+                chat.message.push({
+                    role: 'user',
+                    data: message,
+                    time: Date.now(),
+                });
+            }
+
+            if(getModelInfo(DBState.db.aiModel).id.startsWith('pluginmodel:::')){
+                // Executing plugin provider is block because it can be used for loopholes for ipc right now.
+                throw new Error("Sending chat with plugin-based model is currently blocked");    
+            }
 
             await processSendChat(-1, {});
 

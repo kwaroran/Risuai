@@ -86,6 +86,24 @@
                     onInput()
                 }
             }}
+
+            oncontextmenu={(e) => {
+                if(DBState.db.longPressToPopupEditor){
+                    e.preventDefault()
+                    popUpEditorStore.value = value
+                    popUpEditorStore.mode = 'default'
+                    popUpEditorStore.open = true
+
+                    //lazy wait
+                    const checkInterval = setInterval(() => {
+                        if(!popUpEditorStore.open){
+                            value = popUpEditorStore.value
+                            onInput()
+                            clearInterval(checkInterval)
+                        }
+                    }, 100)
+                }
+            }}
 ></textarea>
 {:else}
     <div

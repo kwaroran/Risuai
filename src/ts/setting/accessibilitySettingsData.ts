@@ -67,6 +67,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['partial', 'edit', 'block', 'hover']
     },
     {
+        id: 'acc.longPressToPopupEditor',
+        type: 'check',
+        labelKey: 'longPressToPopupEditor',
+        bindKey: 'longPressToPopupEditor',
+        keywords: ['long', 'press', 'popup', 'editor']
+    },
+    {
         id: 'acc.enableDragPartialEdit',
         type: 'check',
         labelKey: 'enableDragPartialEdit',

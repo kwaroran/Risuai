@@ -1811,6 +1811,28 @@ interface RisuaiPluginAPI {
      * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
      */
     postPluginChannelMessage(pluginName: string, channelName: string, message: any): Promise<void>;
+
+    // ========== Model Requesters ==========
+
+    /**
+     * Runs a request through a specified LLM model with given messages and options.
+     * @param options - Options for the LLM request
+     * @param options.messages - Array of chat messages to send to the model
+     * @param options.staticModel - Optional static model name to use (e.g., 'gpt-4')
+     * @param options.mode - Request mode
+     * @returns The model's response, which may be a string or a stream depending on the mode
+     */
+    runLLMModel(options: {
+        messages: any[];
+        staticModel?: string;
+        mode: string;
+    }): Promise<any>;
+
+    /**
+     * Sends a chat message as if it were sent by the user, triggering the normal chat processing flow.
+     * @param message - The chat message to send, if string is a blank message, it will trigger the send action without adding a new message.
+     */
+    sendChat(message: string): Promise<void>;
 }
 
 // ============================================================================

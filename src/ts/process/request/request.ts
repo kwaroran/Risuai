@@ -50,6 +50,7 @@ interface requestDataArgument{
     escape?:boolean
     tools?: MCPTool[]
     rememberToolUsage?: boolean
+    blockPlugins?:boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{
@@ -94,7 +95,7 @@ export interface StreamResponseChunk{[key:string]:string}
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
     const fallBackModels:string[] = safeStructuredClone(db?.fallbackModels?.[model] ?? [])
-    const tools = await getTools()
+    const tools = arg.tools ?? (await getTools())
     fallBackModels.push('')
     let da:requestDataResponse
 
@@ -330,6 +331,13 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
         if(db.seperateModels[model]){
             targ.aiModel = db.seperateModels[model]
             targ.modelInfo = getModelInfo(targ.aiModel)
+        }
+    }
+
+    if(arg.blockPlugins && targ.modelInfo.id.startsWith('pluginmodel:::')){
+        return {
+            type: 'fail',
+            result: 'Plugin calls are blocked by the caller.'
         }
     }
 

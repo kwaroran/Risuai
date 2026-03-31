@@ -1470,6 +1470,7 @@ export const languageEnglish = {
         focusInput: "Focus Input",
         scrollToActiveChar: "Scroll to Active Character",
         popupEditor: "Popup Editor",
+        loadout: "Loadout",
     },
     screenTooSmall: "Screen is too small to show the interface.",
     advancedModelSettings: "Advanced Model Settings",

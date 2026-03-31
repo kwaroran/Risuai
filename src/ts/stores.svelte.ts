@@ -145,13 +145,32 @@ export const popupStore = $state({
     children: null as null | import("svelte").Snippet,
     mouseX: 0,
     mouseY: 0,
-openId: 0,
+    openId: 0,
 })
 export const popUpEditorStore = $state({
     open: false,
     value: '',
     mode: 'default' as 'default'
 })
+
+export const loadoutModalStore = $state({
+    open: false
+})
+
+export const irisStore = $state({
+    open: false
+})
+
+//if april 1st
+if(new Date().getMonth() === 3 && new Date().getDate() === 1){
+    additionalFloatingActionButtons.push({
+        name: 'iconAprilFoolsSpinner',
+        icon: 'iconAprilFoolsSpinner',
+        iconType: 'img',
+        callback: () => {irisStore.open = true},
+        id: 'iconAprilFoolsSpinner',
+    })
+}
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now
 export const hotReloading = $state<string[]>([])

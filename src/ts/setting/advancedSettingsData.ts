@@ -175,6 +175,9 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.remoteSave', type: 'check', labelKey: 'enableRemoteSaving', bindKey: 'enableRemoteSaving',
     },
+    {
+        id: 'adv.disableAprilFools', type: 'check', labelKey: 'disableAprilFools', bindKey: 'disableAprilFools',
+    },
 
     // Dynamic Assets & Others
     { id: 'adv.dynAssets', type: 'check', labelKey: 'dynamicAssets', bindKey: 'dynamicAssets', helpKey: 'dynamicAssets', classes: 'mt-4' },

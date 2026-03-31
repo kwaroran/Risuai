@@ -15,7 +15,7 @@ import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../p
 import { isTauri, isNodeServer } from "src/ts/platform"
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.2.291" //<APP_VERSION_POINT>
+export let appVer = "2026.3.334" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 
@@ -670,6 +670,8 @@ export function setDatabase(data:Database){
     // Because its likely they are power users who would benefit from the features
     data.enableRisuaiProTools ??= data.plugins.length > 0
     data.keepSessionAlive ??= 'off'
+    data.loadouts ??= []
+    data.longPressToPopupEditor ??= false
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1201,7 +1203,9 @@ export interface Database{
     disableSeperateParameterChangeOnPresetChange?:boolean
     saveSignatures?:boolean
     keepSessionAlive: 'off' | 'pip' | 'sound'
+    longPressToPopupEditor?: boolean
     loadouts: Loadout[]
+    disableAprilFools?:boolean
 }
 
 export interface SeparateParameters{

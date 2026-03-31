@@ -128,9 +128,15 @@
             .filter(s => s.length > 0);
     }
 
+    function trimDialogueMeta(text: string): string {
+        //
+        return text.replace(/|\(.*?\)|\{\{.*?\}\}/g, '').replace(/<.*?>(.*?)<\/.*?>/g, '').trim()
+    }
+
     /** Push a new line and immediately advance to it.
      *  Iris lines are split into individual sentences. */
     export function pushDialogue(line: DialogueLine) {
+        line.text = trimDialogueMeta(line.text);
         const sentences = line.speaker !== 'You'
             ? splitSentences(line.text)
             : [line.text];

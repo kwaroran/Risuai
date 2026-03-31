@@ -1632,6 +1632,7 @@ export const languageEnglish = {
     loadouts: "Loadouts",
     loadout: "Loadout",
     longPressToPopupEditor: "Long press to open popup editor",
+    disableAprilFools: "Hide cute Iris-chan 💔"
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

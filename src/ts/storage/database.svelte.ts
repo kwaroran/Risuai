@@ -1193,6 +1193,7 @@ export interface Database{
     keepSessionAlive: 'off' | 'pip' | 'sound'
     longPressToPopupEditor?: boolean
     loadouts: Loadout[]
+    disableAprilFools?:boolean
 }
 
 export interface SeparateParameters{

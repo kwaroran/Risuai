@@ -1,6 +1,7 @@
 <script lang="ts">
     import DOMPurify from 'dompurify';
     import IrisImage from "../../etc/Airisu.webp";
+    import { DBState } from 'src/ts/stores.svelte';
 
     let {
         ico,
@@ -43,7 +44,8 @@
 <div class={{
     "w-12 h-12": ico.icon === 'iconAprilFoolsSpinner',
     "w-5 h-5": !className && ico.icon !== 'iconAprilFoolsSpinner',
-    [className]: className
+    [className]: className,
+    "hidden": ico.icon === 'iconAprilFoolsSpinner' && DBState?.db?.disableAprilFools
 }}>
     {#if ico.iconType === 'html'}
         {@html iconPurify(ico.icon)}

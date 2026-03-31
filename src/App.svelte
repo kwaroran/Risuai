@@ -156,11 +156,11 @@
                     <p class="text-[#bbbbbb] mb-6">
                         <!-- svelte-ignore a11y_missing_attribute -->
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        Go to <a class="text-blue-500 cursor-pointer" onclick={() => {
+                        <a class="text-blue-500 cursor-pointer" onclick={() => {
                             aprilFoolsPage = 0
                             aprilFools = false
                         }}>
-                            Risuai  
+                            Go to Risuai  
                         </a>
                     </p>
 

@@ -172,6 +172,46 @@ await (async function() {
         return { result: obj, ports };
     }
 
+    function reconstructStreamsFromPorts(obj, ports) {
+        if (!obj || typeof obj !== 'object') return obj;
+
+        function reconstruct(val) {
+            if (!val || val.__type !== 'STREAM_PORT' || typeof val.portIndex !== 'number') return val;
+
+            const port = ports[val.portIndex];
+            if (!port) throw new Error('Stream port at index ' + val.portIndex + ' not received');
+
+            return new ReadableStream({
+                start(controller) {
+                    port.onmessage = (e) => {
+                        if (e.data.done) {
+                            if (e.data.error) controller.error(new Error(e.data.error));
+                            else controller.close();
+                            port.onmessage = null;
+                            port.close();
+                        } else {
+                            controller.enqueue(e.data.value);
+                        }
+                    };
+                },
+                cancel() {
+                    port.postMessage({ cancel: true });
+                    port.onmessage = null;
+                    port.close();
+                }
+            });
+        }
+
+        if (obj.__type === 'STREAM_PORT') return reconstruct(obj);
+        if (obj.constructor === Object) {
+            const out = {};
+            for (const k of Object.keys(obj)) out[k] = reconstruct(obj[k]);
+            return out;
+        }
+
+        return obj;
+    }
+
     function send(payload, transferables = []) {
         window.parent.postMessage(payload, '*', transferables);
     }
@@ -204,7 +244,13 @@ await (async function() {
             const req = pendingRequests.get(data.reqId);
             if (req) {
                 if (data.error) req.reject(new Error(data.error));
-                else req.resolve(deserializeResult(data.result));
+                else {
+                    try {
+                        req.resolve(deserializeResult(reconstructStreamsFromPorts(data.result, event.ports)));
+                    } catch (e) {
+                        req.reject(e);
+                    }
+                }
                 pendingRequests.delete(data.reqId);
             }
         }
@@ -426,8 +472,7 @@ export class SandboxHost {
         }
 
         if(
-            val instanceof ReadableStream
-            || val instanceof WritableStream
+            val instanceof WritableStream
             || val instanceof TransformStream
         ) {
             return {
@@ -512,6 +557,49 @@ export class SandboxHost {
             }
             return arg;
         });
+    }
+
+    private replaceStreamsWithPorts(obj: any): { result: any, ports: MessagePort[] } {
+        const ports: MessagePort[] = [];
+        if (!obj || typeof obj !== 'object') return { result: obj, ports };
+
+        const replace = (val: any): any => {
+            if (!(val instanceof ReadableStream)) return val;
+
+            const ch = new MessageChannel();
+            ports.push(ch.port2);
+
+            const reader = val.getReader();
+            ch.port1.onmessage = (e: MessageEvent) => {
+                if (e.data?.cancel) reader.cancel();
+            };
+
+            (async () => {
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) { ch.port1.postMessage({ done: true }); break; }
+                        else ch.port1.postMessage({ done: false, value });
+                    }
+                } catch (e: any) {
+                    try { ch.port1.postMessage({ done: true, error: e.message }); } catch(_) {}
+                } finally {
+                    ch.port1.onmessage = null;
+                    ch.port1.close();
+                }
+            })();
+
+            return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
+        };
+
+        if (obj instanceof ReadableStream) return { result: replace(obj), ports };
+        if (obj.constructor === Object) {
+            const out: any = {};
+            for (const k of Object.keys(obj)) out[k] = replace(obj[k]);
+            return { result: out, ports };
+        }
+
+        return { result: obj, ports };
     }
 
     private reconstructStreamsFromPorts(obj: any, ports: readonly MessagePort[]): any {
@@ -642,7 +730,10 @@ export class SandboxHost {
                     for (const id of usedAbortIds) this.abortControllers.delete(id);
                 }
 
+                const { result: streamResult, ports: streamPorts } = this.replaceStreamsWithPorts(response.result);
+                response.result = streamResult;
                 const transferables = this.collectTransferables(response);
+                transferables.push(...streamPorts);
                 console.log("Original request:", data);
                 console.log('Original response:', response, transferables);
                 try {

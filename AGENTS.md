@@ -142,6 +142,18 @@ Key stores:
 - `loadedStore`, `alertStore` - Application state
 - `DynamicGUI` - Responsive layout switching
 
+### Styling & Theming
+
+To ensure dynamic theme support across the app, always use the project's custom theme colors defined in `src/styles.css` when styling components with Tailwind CSS. 
+
+Available custom theme colors include:
+- `textcolor`, `textcolor2`
+- `bgcolor`, `darkbg`, `darkbutton`, `selected`
+- `borderc`, `darkborderc`
+- `draculared`
+
+You can safely apply Tailwind's opacity modifiers directly to these custom theme colors (e.g., `text-textcolor/90`, `bg-textcolor/5`, `border-textcolor/10`).
+
 ### File Naming Conventions
 
 - `.svelte.ts` - Svelte 5 files with runes

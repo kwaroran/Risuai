@@ -15,6 +15,10 @@ export type MCPToolWithURL = MCPTool & {
 };
 
 export const MCPs:Record<string,MCPClient|MCPClientLike> = {};
+export const callOnlyMCPs:Record<string,MCPClient|MCPClientLike> = {};
+const callOnlyMCPUrls = [
+    'internal:risuai',
+]
 
 export async function initializeMCPs(additionalMCPs?:string[]) {
     const db = getDatabase()
@@ -24,6 +28,13 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
             if(!mcpUrls.includes(mcp)) {
                 mcpUrls.push(mcp);
             }
+        }
+    }
+    const callOnlyMCPUrlsThatIsNotInDefault:string[] = [];
+    for(const mcp of callOnlyMCPUrls) {
+        if(!mcpUrls.includes(mcp)) {
+            mcpUrls.push(mcp);
+            callOnlyMCPUrlsThatIsNotInDefault.push(mcp);
         }
     }
     for(const mcp of mcpUrls) {
@@ -195,9 +206,9 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                 mcpClient.registerRefreshToken = registerRefresh;
                 mcpClient.getRefreshToken = getRefresh;
                 await mcpClient.checkHandshake()
-                MCPs[mcp] = mcpClient;   
+                MCPs[mcp] = mcpClient;
             } catch (error) {
-                console.error(`Failed to initialize MCP at ${mcp}:`, error);
+                console.error(`MCP: Failed to initialize MCP at ${mcp}:`, error);
             }
         }
     }
@@ -206,6 +217,13 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
         if(!mcpUrls.includes(key)) {
             MCPs[key].destroy()
             delete MCPs[key];
+        }
+    }
+
+    for(const mcp of callOnlyMCPUrlsThatIsNotInDefault) {
+        if(MCPs[mcp]) {
+            callOnlyMCPs[mcp] = MCPs[mcp];
+            delete MCPs[mcp];
         }
     }
 }
@@ -237,11 +255,12 @@ export async function getMCPMeta(additionalMCPs?:string[]) {
 
 export async function callMCPTool(methodName:string, args:any):Promise<RPCToolCallContent[]> {
     await initializeMCPs();
-    for(const key of Object.keys(MCPs)) {
-        const tools = await MCPs[key].getToolList();
+    const combinedMCPs = {...MCPs, ...callOnlyMCPs};
+    for(const key of Object.keys(combinedMCPs)) {
+        const tools = await combinedMCPs[key].getToolList();
         const tool = tools.find(t => t.name === methodName);
         if(tool) {
-            return await MCPs[key].callTool(methodName, args);
+            return await combinedMCPs[key].callTool(methodName, args);
         }
     }
     return  [{

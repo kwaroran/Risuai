@@ -142,55 +142,69 @@ export async function loadLoreBookV3Prompt(){
             }))    
 
         if(arg.regex){
+            // Pre-compile regex patterns once instead of per-message
+            const compiledRegexes = arg.keys.map(regexString => {
+                if(!regexString.startsWith('/')){
+                    return null
+                }
+                const lastSlash = regexString.lastIndexOf('/')
+                if(lastSlash <= 0) return null
+                const pattern = regexString.slice(1, lastSlash)
+                const flags = regexString.slice(lastSlash + 1)
+                try {
+                    return { regex: new RegExp(pattern, flags), original: regexString }
+                } catch {
+                    return null
+                }
+            }).filter((r): r is { regex: RegExp, original: string } => r !== null)
+
+            if(compiledRegexes.length === 0) return false
+
             for(const mText of mList){
-                for(const regexString of arg.keys){
-                    if(!regexString.startsWith('/')){
-                        return false
-                    }
-                    const regexFlag = regexString.split('/').pop()
-                    if(regexFlag){
-                        arg.keys[0] = regexString.replace('/'+regexFlag,'')
-                        try {
-                            const regex = new RegExp(arg.keys[0],regexFlag)
-                            const d = regex.test(mText.data)
-                            if(d){
-                                matchLog.push({
-                                    prompt: mText.prompt,
-                                    source: mText.source,
-                                    activated: regexString
-                                })
-                                return true
-                            }
-                        } catch (error) {
-                            return false
-                        }
+                for(const { regex, original } of compiledRegexes){
+                    if(regex.test(mText.data)){
+                        matchLog.push({
+                            prompt: mText.prompt,
+                            source: mText.source,
+                            activated: original
+                        })
+                        return true
                     }
                 }
             }
             return false
         }
 
+        const commentRegex1 = /\{\{\/\/(.+?)\}\}/g
+        const commentRegex2 = /\{\{comment:(.+?)\}\}/g
         mList = mList.map((m) => {
             return {
                 source: m.source,
-                prompt: m.prompt.toLocaleLowerCase().replace(/\{\{\/\/(.+?)\}\}/g,'').replace(/\{\{comment:(.+?)\}\}/g,''),
-                data: m.data.toLocaleLowerCase().replace(/\{\{\/\/(.+?)\}\}/g,'').replace(/\{\{comment:(.+?)\}\}/g,'')
+                prompt: m.prompt.toLocaleLowerCase().replace(commentRegex1,'').replace(commentRegex2,''),
+                data: m.data.toLocaleLowerCase().replace(commentRegex1,'').replace(commentRegex2,'')
             }
         })
 
         let allMode = arg.all ?? false
         let allModeMatched = true
 
+        // Pre-normalize keys once instead of per-message
+        const normalizedKeys = arg.keys.map(key => ({
+            original: key,
+            lower: key.toLocaleLowerCase(),
+            lowerNoSpace: key.toLocaleLowerCase().replace(/ /g,'')
+        }))
+
         for(const m of mList){
             let mText = m.data
             if(arg.fullWordMatching){
-                const splited = mText.split(' ')
-                for(const key of arg.keys){
-                    if(splited.includes(key.toLocaleLowerCase())){
+                const wordSet = new Set(mText.split(' '))
+                for(const key of normalizedKeys){
+                    if(wordSet.has(key.lower)){
                         matchLog.push({
                             prompt: m.prompt,
                             source: m.source,
-                            activated: key
+                            activated: key.original
                         })
                         if(!allMode){
                             return true
@@ -203,13 +217,12 @@ export async function loadLoreBookV3Prompt(){
             }
             else{
                 mText = mText.replace(/ /g,'')
-                for(const key of arg.keys){
-                    const realKey = key.toLocaleLowerCase().replace(/ /g,'')
-                    if(mText.includes(realKey)){
+                for(const key of normalizedKeys){
+                    if(mText.includes(key.lowerNoSpace)){
                         matchLog.push({
                             prompt: m.prompt,
                             source: m.source,
-                            activated: key
+                            activated: key.original
                         })
                         if(!allMode){
                             return true

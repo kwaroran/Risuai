@@ -21,6 +21,9 @@ import { requestGoogleCloudVertex } from './google';
 import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI/requests";
 import { applyParameters, type ModelModeExtended } from './shared';
 
+// Cached compiled regexes for banned character sets
+const banCharsetRegexCache = new Map<string, RegExp>()
+
 export type ToolCall = {
     name: string;
     arguments: string;
@@ -181,10 +184,13 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
             if(da.type === 'success' && db.banCharacterset?.length > 0){
                 let failed = false
                 for(const set of db.banCharacterset){
-                    console.log(set)
-                    const checkRegex = new RegExp(`\\p{Script=${set}}`, 'gu')
+                    let regex = banCharsetRegexCache.get(set)
+                    if(!regex){
+                        regex = new RegExp(`\\p{Script=${set}}`, 'gu')
+                        banCharsetRegexCache.set(set, regex)
+                    }
     
-                    if(checkRegex.test(da.result)){
+                    if(regex.test(da.result)){
                         trys += 1
                         failed = true
                         break
@@ -242,14 +248,18 @@ export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
 
     if(!flags.includes(LLMFlags.hasFullSystemPrompt)){
         if(flags.includes(LLMFlags.hasFirstSystemPrompt)){
-            while(formated[0].role === 'system'){
+            let systemPromptEndIdx = 0
+            while(systemPromptEndIdx < formated.length && formated[systemPromptEndIdx].role === 'system'){
                 if(systemPrompt){
-                    systemPrompt.content += '\n\n' + formated[0].content
+                    systemPrompt.content += '\n\n' + formated[systemPromptEndIdx].content
                 }
                 else{
-                    systemPrompt = formated[0]
+                    systemPrompt = formated[systemPromptEndIdx]
                 }
-                formated = formated.slice(1)
+                systemPromptEndIdx++
+            }
+            if(systemPromptEndIdx > 0){
+                formated = formated.slice(systemPromptEndIdx)
             }
         }
 

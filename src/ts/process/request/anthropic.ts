@@ -127,8 +127,9 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                     for(const modal of multimodals){
                         if(modal.type === 'image'){
                             const dataurl = modal.base64
-                            const base64 = dataurl.split(',')[1]
-                            const mediaType = dataurl.split(';')[0].split(':')[1]
+                            const commaIdx = dataurl.indexOf(',')
+                            const base64 = dataurl.slice(commaIdx + 1)
+                            const mediaType = dataurl.slice(dataurl.indexOf(':') + 1, dataurl.indexOf(';'))
 
                             content.unshift({
                                 type: 'image',
@@ -174,8 +175,9 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                 for(const modal of multimodals){
                     if(modal.type === 'image'){
                         const dataurl = modal.base64
-                        const base64 = dataurl.split(',')[1]
-                        const mediaType = dataurl.split(';')[0].split(':')[1]
+                        const commaIdx = dataurl.indexOf(',')
+                        const base64 = dataurl.slice(commaIdx + 1)
+                        const mediaType = dataurl.slice(dataurl.indexOf(':') + 1, dataurl.indexOf(';'))
 
                         formatedChat.content.unshift({
                             type: 'image',
@@ -493,31 +495,32 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                 result: JSON.stringify(res.data)
             }
         }
-        let resText = ''
+        let resTextParts: string[] = []
         let thinking = false
         for(const content of contents){
             if(content.type === 'text'){
                 if(thinking){
-                    resText += "</Thoughts>\n\n"
+                    resTextParts.push("</Thoughts>\n\n")
                     thinking = false
                 }
-                resText += content.text
+                resTextParts.push(content.text)
             }
             if(content.type === 'thinking'){
                 if(!thinking){
-                    resText += "<Thoughts>\n"
+                    resTextParts.push("<Thoughts>\n")
                     thinking = true
                 }
-                resText += content.thinking ?? ''
+                resTextParts.push(content.thinking ?? '')
             }
             if(content.type === 'redacted_thinking'){
                 if(!thinking){
-                    resText += "<Thoughts>\n"
+                    resTextParts.push("<Thoughts>\n")
                     thinking = true
                 }
-                resText += '\n{{redacted_thinking}}\n'
+                resTextParts.push('\n{{redacted_thinking}}\n')
             }
         }
+        const resText = resTextParts.join('')
     
     
         if(arg.extractJson && db.jsonSchemaEnabled){

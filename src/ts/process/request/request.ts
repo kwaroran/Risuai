@@ -190,6 +190,7 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
                         banCharsetRegexCache.set(set, regex)
                     }
     
+                    regex.lastIndex = 0
                     if(regex.test(da.result)){
                         trys += 1
                         failed = true

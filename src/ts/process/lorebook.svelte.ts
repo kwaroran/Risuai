@@ -143,22 +143,29 @@ export async function loadLoreBookV3Prompt(){
 
         if(arg.regex){
             // Pre-compile regex patterns once instead of per-message
-            const compiledRegexes = arg.keys.map(regexString => {
+            let hasInvalidKey = false
+            const compiledRegexes: { regex: RegExp, original: string }[] = []
+            for(const regexString of arg.keys){
                 if(!regexString.startsWith('/')){
-                    return null
+                    hasInvalidKey = true
+                    break
                 }
                 const lastSlash = regexString.lastIndexOf('/')
-                if(lastSlash <= 0) return null
+                if(lastSlash <= 0){
+                    hasInvalidKey = true
+                    break
+                }
                 const pattern = regexString.slice(1, lastSlash)
                 const flags = regexString.slice(lastSlash + 1)
                 try {
-                    return { regex: new RegExp(pattern, flags), original: regexString }
+                    compiledRegexes.push({ regex: new RegExp(pattern, flags), original: regexString })
                 } catch {
-                    return null
+                    hasInvalidKey = true
+                    break
                 }
-            }).filter((r): r is { regex: RegExp, original: string } => r !== null)
+            }
 
-            if(compiledRegexes.length === 0) return false
+            if(hasInvalidKey || compiledRegexes.length === 0) return false
 
             for(const mText of mList){
                 for(const { regex, original } of compiledRegexes){

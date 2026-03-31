@@ -95,12 +95,7 @@ export async function downloadFile(name: string, dat: Uint8Array | ArrayBuffer |
     }
 }
 
-let fileCache: {
-    origin: string[], res: (Uint8Array | 'loading' | 'done')[]
-} = {
-    origin: [],
-    res: []
-}
+let fileCache = new Map<string, Uint8Array | 'loading' | 'done'>()
 
 let pathCache: { [key: string]: string } = {}
 let checkedPaths: string[] = []
@@ -135,15 +130,13 @@ export async function getFileSrc(loc: string) {
     try {
         if (usingSw) {
             const encoded = Buffer.from(loc, 'utf-8').toString('hex')
-            let ind = fileCache.origin.indexOf(loc)
-            if (ind === -1) {
-                ind = fileCache.origin.length
-                fileCache.origin.push(loc)
-                fileCache.res.push('loading')
+            let cached = fileCache.get(loc)
+            if (cached === undefined) {
+                fileCache.set(loc, 'loading')
                 try {
                     const hasCache: boolean = (await (await fetch("/sw/check/" + encoded)).json()).able
                     if (hasCache) {
-                        fileCache.res[ind] = 'done'
+                        fileCache.set(loc, 'done')
                         return "/sw/img/" + encoded
                     }
                     else {
@@ -152,7 +145,7 @@ export async function getFileSrc(loc: string) {
                             method: "POST",
                             body: f as any
                         })
-                        fileCache.res[ind] = 'done'
+                        fileCache.set(loc, 'done')
                         await sleep(10)
                     }
                     return "/sw/img/" + encoded
@@ -161,9 +154,8 @@ export async function getFileSrc(loc: string) {
                 }
             }
             else {
-                const f = fileCache.res[ind]
-                if (f === 'loading') {
-                    while (fileCache.res[ind] === 'loading') {
+                if (cached === 'loading') {
+                    while (fileCache.get(loc) === 'loading') {
                         await sleep(10)
                     }
                 }
@@ -171,24 +163,22 @@ export async function getFileSrc(loc: string) {
             }
         }
         else {
-            let ind = fileCache.origin.indexOf(loc)
-            if (ind === -1) {
-                ind = fileCache.origin.length
-                fileCache.origin.push(loc)
-                fileCache.res.push('loading')
+            let cached = fileCache.get(loc)
+            if (cached === undefined) {
+                fileCache.set(loc, 'loading')
                 const f: Uint8Array = await forageStorage.getItem(loc) as unknown as Uint8Array
-                fileCache.res[ind] = f
+                fileCache.set(loc, f)
                 return `data:image/png;base64,${Buffer.from(f).toString('base64')}`
             }
             else {
-                const f = fileCache.res[ind]
-                if (f === 'loading') {
-                    while (fileCache.res[ind] === 'loading') {
+                if (cached === 'loading') {
+                    while (fileCache.get(loc) === 'loading') {
                         await sleep(10)
                     }
-                    return `data:image/png;base64,${Buffer.from(fileCache.res[ind]).toString('base64')}`
+                    const resolved = fileCache.get(loc)
+                    return `data:image/png;base64,${Buffer.from(resolved as Uint8Array).toString('base64')}`
                 }
-                return `data:image/png;base64,${Buffer.from(f).toString('base64')}`
+                return `data:image/png;base64,${Buffer.from(cached as Uint8Array).toString('base64')}`
             }
         }
     } catch (error) {
@@ -1043,28 +1033,28 @@ export function replaceDbResources(db: Database, replacer: { [key: string]: stri
 export function checkCharOrder() {
     let db = getDatabase()
     db.characterOrder = db.characterOrder ?? []
-    let ordered = []
+    let ordered = new Set<string>()
     for (let i = 0; i < db.characterOrder.length; i++) {
         const folder = db.characterOrder[i]
         if (typeof (folder) !== 'string' && folder) {
             for (const f of folder.data) {
-                ordered.push(f)
+                ordered.add(f)
             }
         }
         if (typeof (folder) === 'string') {
-            ordered.push(folder)
+            ordered.add(folder)
         }
     }
 
-    let charIdList: string[] = []
+    let charIdSet = new Set<string>()
 
     for (let i = 0; i < db.characters.length; i++) {
         const char = db.characters[i]
         const charId = char.chaId
         if (!char.trashTime) {
-            charIdList.push(charId)
+            charIdSet.add(charId)
         }
-        if (!ordered.includes(charId)) {
+        if (!ordered.has(charId)) {
             if (charId !== '§temp' && charId !== '§playground' && !char.trashTime) {
                 db.characterOrder.push(charId)
             }
@@ -1072,35 +1062,18 @@ export function checkCharOrder() {
     }
 
 
-    for (let i = 0; i < db.characterOrder.length; i++) {
-        const data = db.characterOrder[i]
+    db.characterOrder = db.characterOrder.filter((data) => {
         if (typeof (data) !== 'string') {
-            if (!data) {
-                db.characterOrder.splice(i, 1)
-                i--;
-                continue
+            if (!data || data.data.length === 0) {
+                return false
             }
-            if (data.data.length === 0) {
-                db.characterOrder.splice(i, 1)
-                i--;
-                continue
-            }
-            for (let i2 = 0; i2 < data.data.length; i2++) {
-                const data2 = data.data[i2]
-                if (!charIdList.includes(data2)) {
-                    data.data.splice(i2, 1)
-                    i2--;
-                }
-            }
-            db.characterOrder[i] = data
+            data.data = data.data.filter(d => charIdSet.has(d))
+            return data.data.length > 0
         }
         else {
-            if (!charIdList.includes(data)) {
-                db.characterOrder.splice(i, 1)
-                i--;
-            }
+            return charIdSet.has(data)
         }
-    }
+    })
 
 
     setDatabase(db)

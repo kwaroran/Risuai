@@ -124,7 +124,7 @@ export const removeHighlight = (id:number) => {
     highLights.delete(id)
 }
 
-const normalCBS = [
+const normalCBSArray = [
     'char', 'user', 'char_persona', 'description', 'char_desc', 'example_dialogue', 'previous_char_chat',
     'lastcharmessage', 'previous_user_chat', 'lastusermessage',
     'example_message', 'persona', 'user_persona', 'lorebook', 'world_info', 'history', 'messages',
@@ -135,7 +135,7 @@ const normalCBS = [
     'is_first_message', '/', '/if', '/each', '/pure', '/if_pure', '/func', '/pure_display'
 ]
 
-const normalCBSwithParams = [
+const normalCBSwithParamsArray = [
     'getvar', 'calc', 'addvar', 'setvar', 'setdefaultvar', 'button', 'equal', 'not_equal', 'file',
     'startswith', 'endswith', 'contains', 'replace', 'split', 'join', 'spread', 'trim', 'length',
     'arraylength', 'array_length', 'lower', 'upper', 'capitalize', 'round', 'floor', 'ceil', 'abs',
@@ -146,7 +146,7 @@ const normalCBSwithParams = [
     'and', 'or', 'not', 'message_time_array', 'filter', 'greater', 'less', 'greater_equal', 'less_equal', 'arg'
 ]
 
-const displayRelatedCBS = [
+const displayRelatedCBSArray = [
     'raw', 'img', 'video', 'audio', 'bg', 'emotion', 'asset', 'video-img', 'comment', 'image'
 ];
 
@@ -154,17 +154,25 @@ const nestedCBS = [
     '#if', '#if_pure ', '#pure ', '#each ', '#func', '#pure_display'
 ]
 
-const specialCBS = [
+const specialCBSArray = [
     'random:', 'pick:', 'roll:', 'datetimeformat:', '? ', 'hidden_key: ', 'reverse: ', ...nestedCBS
 ]
 
-const deprecatedCBS = [
+const deprecatedCBSArray = [
     'personality', 'scenario', 'main_prompt', 'system_prompt', 'ujb', 'global_note', 'system_note',
 ]
 
-const deprecatedCBSwithParams = [
+const deprecatedCBSwithParamsArray = [
     'remaind', 'pow'
 ]
+
+// Pre-computed Sets for O(1) lookups instead of O(n) array iteration
+const normalCBS = new Set(normalCBSArray)
+const normalCBSwithParams = new Set(normalCBSwithParamsArray)
+const displayRelatedCBS = new Set(displayRelatedCBSArray)
+const specialCBS = specialCBSArray
+const deprecatedCBS = new Set(deprecatedCBSArray)
+const deprecatedCBSwithParams = new Set(deprecatedCBSwithParamsArray)
 
 export const decorators = [
     'activate_only_after', 'activate_only_every', 'keep_activate_after_match', 'dont_activate_after_match', 'depth', 'reverse_depth',
@@ -176,7 +184,7 @@ const deprecatedDecorators = [
     'end', 'assistant', 'user', 'system'
 ]
 
-export const AllCBS = [...normalCBS, ...(normalCBSwithParams.concat(displayRelatedCBS).map((v) => {
+export const AllCBS = [...normalCBSArray, ...([...normalCBSwithParamsArray, ...displayRelatedCBSArray].map((v) => {
     return v + ':'
 })), ...nestedCBS]
 
@@ -213,47 +221,35 @@ function simpleCBSHighlightParser(text:string){
             const upString = text.slice(depthStarts[depth], pointer)
 
             if(highlightMode[depth] === 10){
-                for(const arg of normalCBS){
-                    if(upString === arg){
-                        highlightMode[depth] = 1
-                        break
-                    }
+                if(normalCBS.has(upString)){
+                    highlightMode[depth] = 1
                 }
             }
 
             if(highlightMode[depth] === 10){
-                for(const arg of deprecatedCBS){
-                    if(upString === arg){
-                        highlightMode[depth] = 3
-                        break
-                    }
+                if(deprecatedCBS.has(upString)){
+                    highlightMode[depth] = 3
                 }
             }
 
             if(highlightMode[depth] === 10){
-                for(const arg of normalCBSwithParams){
-                    if(upString.startsWith(arg + '::')){
-                        highlightMode[depth] = 1
-                        break
-                    }
+                const paramKey = upString.split('::')[0]
+                if(normalCBSwithParams.has(paramKey)){
+                    highlightMode[depth] = 1
                 }
             }
 
             if(highlightMode[depth] === 10){
-                for(const arg of deprecatedCBSwithParams){
-                    if(upString.startsWith(arg + '::')){
-                        highlightMode[depth] = 3
-                        break
-                    }
+                const paramKey = upString.split('::')[0]
+                if(deprecatedCBSwithParams.has(paramKey)){
+                    highlightMode[depth] = 3
                 }
             }
             
             if(highlightMode[depth] === 10){
-                for(const arg of displayRelatedCBS){
-                    if(upString.startsWith(arg + '::')){
-                        highlightMode[depth] = 2
-                        break
-                    }
+                const paramKey = upString.split('::')[0]
+                if(displayRelatedCBS.has(paramKey)){
+                    highlightMode[depth] = 2
                 }
             }
 

@@ -8,6 +8,7 @@
     import { getIrisSystemPrompt } from "src/ts/iris";
     import { RisuAccessClient } from "src/ts/process/mcp/risuaccess";
     import localforage from "localforage";
+    import { getModelInfo, LLMFormat } from "src/ts/model/modellist";
 
     interface DialogueLine {
         speaker: string;
@@ -32,6 +33,18 @@
         ],
     };
 
+    const unsupportedModelDialogue: Record<string, DialogueLine[]> = {
+        en: [
+            { speaker: "Iris", text: "It seems your current model doesn't support me responding... Please switch to a compatible model, like GPT, Claude, or Gemini which are not plugins." },
+        ],
+        ko: [
+            { speaker: "Iris", text: "현재 모델이 제가 응답하는걸 지원하지 않는 것 같아요. 플러그인이 아닌 GPT, Claude, Gemini 모델로 전환해주세요." },
+        ],
+        'zh-Hant': [
+            { speaker: "Iris", text: "看起来您当前的模型不支持我响应... 请切换到兼容的模型，如 GPT、Claude 或 Gemini，这些都不是插件。" },
+        ],
+    };
+
     const forageInstance = localforage.createInstance({
         name: "iris_dialogues",
         storeName: "iris_dialogues",
@@ -50,6 +63,17 @@
     // User input state
     let userInput = $state("");
     let userInputEl = $state<HTMLInputElement | null>(null);
+    
+    let isUnsupportedModel = $derived.by(() => {
+        const currentModel = (DBState.db.seperateModelsForAxModels ? DBState.db.seperateModels.otherAx : '') || DBState.db.subModel;
+        const modelInfo = getModelInfo(currentModel);
+        return !(
+            modelInfo.format === LLMFormat.Anthropic ||
+            modelInfo.format === LLMFormat.OpenAICompatible ||
+            modelInfo.format === LLMFormat.VertexAIGemini ||
+            modelInfo.format === LLMFormat.GoogleCloud
+        )
+    })
 
     let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -135,6 +159,7 @@
     async function submitUserInput() {
         const trimmed = userInput.trim();
         if (!trimmed) return;
+        if (isUnsupportedModel) return
         pushDialogue({ speaker: "You", text: trimmed });
         userInput = "";
 
@@ -441,6 +466,11 @@
                         {dialogue[currentIndex].tip}
                     </div>
                 {/if}
+                {#if isUnsupportedModel}
+                    <div class="mt-2 rounded-md bg-red-600/80 px-3 py-2 text-sm text-white">
+                        {unsupportedModelDialogue[DBState.db.language]?.[0].text ?? unsupportedModelDialogue.en[0].text}
+                    </div>
+                {/if}
             </div>
 
             <!-- Waiting-for-reply loading dots -->
@@ -483,7 +513,7 @@
                     />
                     <button
                         onclick={submitUserInput}
-                        disabled={!userInput.trim() || waitingForReply}
+                        disabled={!userInput.trim() || waitingForReply || isUnsupportedModel}
                         class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-40"
                     >
                         Send

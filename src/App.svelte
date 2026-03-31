@@ -91,7 +91,7 @@
             console.log("Starting silent audio to keep session alive")
             const silentAudio = new Audio(sendSound);
             silentAudio.loop = true;
-            silentAudio.volume = 0.001;
+            silentAudio.volume = 0.000001;
             silentAudio.play();
             keepingSessionAlive = true;
             break

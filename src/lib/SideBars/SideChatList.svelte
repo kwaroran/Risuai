@@ -67,7 +67,7 @@
                         }
                     })
 
-                    changeChatTo(newChats.indexOf(chara.chats[currentChatPage]))
+                    changeChatTo(newChats.findIndex(c => c.id === chara.chats[currentChatPage]?.id))
                     chara.chats = newChats
 
                     try {
@@ -107,7 +107,7 @@
                 })
                 
                 chara.chatFolders = newFolders
-                changeChatTo(newChats.indexOf(chara.chats[currentChatPage]))
+                changeChatTo(newChats.findIndex(c => c.id === chara.chats[currentChatPage]?.id))
                 chara.chats = newChats
                 try {
                     folderStb.destroy()
@@ -244,12 +244,13 @@
                     <div></div>
                     {:else}
                     {#each chara.chats.filter(chat => chat.folderId == chara.chatFolders[i].id) as chat}
-                    <button data-risu-chat-idx={chara.chats.indexOf(chat)} onclick={() => {
+                    {@const chatIdx = chara.chats.findIndex(c => c.id === chat.id)}
+                    <button data-risu-chat-idx={chatIdx} onclick={() => {
                         if(!editMode){
-                            changeChatTo(chara.chats.indexOf(chat))
+                            changeChatTo(chatIdx)
                             $ReloadGUIPointer += 1
                         }
-                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chara.chats.indexOf(chat) === chara.chatPage}>
+                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chatIdx === chara.chatPage}>
                         {#if editMode}
                             <TextInput bind:value={chat.name} className="grow min-w-0" padding={false}/>
                         {:else}
@@ -264,7 +265,8 @@
                                 const option = await alertChatOptions()
                                 switch(option){
                                     case 0:{
-                                        const newChat = $state.snapshot(chara.chats[chara.chats.indexOf(chat)])
+                                        if (chatIdx === -1) break
+                                        const newChat = $state.snapshot(chara.chats[chatIdx])
                                         newChat.name = createChatCopyName(newChat.name, 'Copy')
                                         newChat.id = v4()
                                         chara.chats.unshift(newChat)
@@ -294,7 +296,7 @@
                                         break
                                     }
                                     case 2:{
-                                        changeChatTo(chara.chats.indexOf(chat))
+                                        changeChatTo(chatIdx)
                                         createMultiuserRoom()
                                     }
                                 }
@@ -316,7 +318,7 @@
                                 }
                             }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async (e) => {
                                 e.stopPropagation()
-                                exportChat(chara.chats.indexOf(chat))
+                                exportChat(chatIdx)
                             }}>
                                 <DownloadIcon size={18}/>
                             </div>
@@ -332,10 +334,11 @@
                                 }
                                 const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
                                 if(d){
+                                    if (chatIdx === -1) return
                                     changeChatTo(0)
                                     $ReloadGUIPointer += 1
                                     let chats = chara.chats
-                                    chats.splice(chara.chats.indexOf(chat), 1)
+                                    chats.splice(chatIdx, 1)
                                     chara.chats = chats
                                 }
                             }}>

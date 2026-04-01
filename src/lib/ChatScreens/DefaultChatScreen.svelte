@@ -824,18 +824,18 @@
                         character={createSimpleCharacter(DBState.db.characters[$selectedCharID])}
                         name={DBState.db.characters[$selectedCharID].name}
                         message={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
-                            DBState.db.characters[$selectedCharID].alternateGreetings[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex]}
+                            (DBState.db.characters[$selectedCharID].alternateGreetings?.[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex] ?? DBState.db.characters[$selectedCharID].firstMessage)}
                         role='char'
                         img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
                         idx={-1}
-                        altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0}
+                        altGreeting={(DBState.db.characters[$selectedCharID].alternateGreetings?.length ?? 0) > 0}
                         largePortrait={DBState.db.characters[$selectedCharID].largePortrait}
                         firstMessage={true}
                         onReroll={() => {
                             const cha = DBState.db.characters[$selectedCharID]
                             const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
                             if(cha.type !== 'group'){
-                                if (chat.fmIndex >= (cha.alternateGreetings.length - 1)){
+                                if (chat.fmIndex >= ((cha.alternateGreetings?.length ?? 0) - 1)){
                                     chat.fmIndex = -1
                                 }
                                 else{
@@ -849,7 +849,7 @@
                             const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
                             if(cha.type !== 'group'){
                                 if (chat.fmIndex === -1){
-                                    chat.fmIndex = (cha.alternateGreetings.length - 1)
+                                    chat.fmIndex = ((cha.alternateGreetings?.length ?? 0) - 1)
                                 }
                                 else{
                                     chat.fmIndex -= 1
@@ -859,7 +859,7 @@
                         }}
                         isLastMemory={false}
                         currentPage={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex ?? -1) + 2}
-                        totalPages={DBState.db.characters[$selectedCharID].alternateGreetings.length + 1}
+                        totalPages={(DBState.db.characters[$selectedCharID].alternateGreetings?.length ?? 0) + 1}
 
                     />
                     {#if (aiLawApplies() && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0)}

@@ -151,7 +151,7 @@ export function setDatabase(data:Database){
         defaultPreset.name = "Default"
         data.botPresets = [defaultPreset]
     }
-    if(checkNullish(data.botPresetsId)){
+    if(checkNullish(data.botPresets[data.botPresetsId])){
         data.botPresetsId = 0
     }
     if(checkNullish(data.sdProvider)){

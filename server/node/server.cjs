@@ -32,6 +32,12 @@ if(existsSync(passwordPath)){
     password = readFileSync(passwordPath, 'utf-8')
 }
 
+const knownPublicKeysPath = path.join(process.cwd(), 'save', '__known_public_key_hashes.json')
+if(existsSync(knownPublicKeysPath)){
+    const knownPublicKeysRaw = readFileSync(knownPublicKeysPath, 'utf-8');
+    knownPublicKeysHashes = JSON.parse(knownPublicKeysRaw);
+}
+
 const authCodePath = path.join(process.cwd(), 'save', '__authcode')
 const hexRegex = /^[0-9a-fA-F]+$/;
 const PROXY_STREAM_DEFAULT_TIMEOUT_MS = 600000;
@@ -1141,6 +1147,7 @@ app.post('/api/login', loginRouteLimiter, async (req, res) => {
     }
     if(req.body.password && req.body.password.trim() === password.trim()){
         knownPublicKeysHashes.push(await hashJSON(req.body.publicKey))
+        fs.writeFileSync(knownPublicKeysPath, JSON.stringify(knownPublicKeysHashes), 'utf-8')
         res.send({status:'success'})
     }
     else{

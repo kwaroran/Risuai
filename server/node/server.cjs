@@ -48,14 +48,14 @@ const PROXY_STREAM_MAX_BODY_BASE64_BYTES = 8 * 1024 * 1024;
 const proxyStreamJobs = new Map();
 const authenticatedRouteLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 90,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests. Please retry shortly.' }
 });
 const authRouteLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 90,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests. Please retry shortly.' }
@@ -1170,7 +1170,7 @@ app.post('/api/set_password', async (req, res) => {
     }
 })
 
-app.get('/api/read', authRouteLimiter, async (req, res, next) => {
+app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1202,7 +1202,7 @@ app.get('/api/read', authRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.get('/api/remove', authRouteLimiter, async (req, res, next) => {
+app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1230,7 +1230,7 @@ app.get('/api/remove', authRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.get('/api/list', authRouteLimiter, async (req, res, next) => {
+app.get('/api/list', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1247,7 +1247,7 @@ app.get('/api/list', authRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.post('/api/write', authRouteLimiter, async (req, res, next) => {
+app.post('/api/write', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }

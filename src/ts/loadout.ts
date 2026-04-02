@@ -44,12 +44,16 @@ export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
     loadout.lastUsed = Date.now()
     loadout.characterIds.push(getCurrentCharacter()?.chaId)
     if(apply.includes('persona')) {
-        let personaIndex = DBState.db.personas.findIndex(p => p.id === loadout.personaId) || 0
-        changeUserPersona(personaIndex)
+        let personaIndex = DBState.db.personas?.findIndex(p => p.id === loadout.personaId) || -1
+        if(personaIndex !== -1){
+            changeUserPersona(personaIndex)
+        }
     }
     if(apply.includes('preset')) {
-        let presetIndex = DBState.db.botPresets.findIndex(p => p.name === loadout.presetName) || 0
-        changeToPreset(presetIndex)
+        let presetIndex = DBState.db.botPresets?.findIndex(p => p.name === loadout.presetName) || -1
+        if(presetIndex !== -1){
+            changeToPreset(presetIndex)
+        }
     }
     if(apply.includes('modules')) {
         DBState.db.enabledModules = loadout.modules

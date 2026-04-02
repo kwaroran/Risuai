@@ -1921,6 +1921,10 @@ export const defaultSdDataFunc = () =>{
 export function saveCurrentPreset(){
     let db = getDatabase()
     let pres = db.botPresets
+
+    if(db.botPresetsId === -1){
+        return
+    }
     const savedPreset:botPreset =  {
         name: pres[db.botPresetsId].name,
         apiType: db.apiType,

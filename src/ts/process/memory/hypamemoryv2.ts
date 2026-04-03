@@ -442,7 +442,7 @@ export class HypaProcessorV2<TMetadata> {
     }
 
     // WASM
-    const cpuCores = navigator.hardwareConcurrency || 4;
+    const cpuCores = (navigator as Navigator).hardwareConcurrency || 4;
     const baseChunkSize = isMobile ? Math.floor(cpuCores / 2) : cpuCores;
 
     return Math.min(baseChunkSize, 10);

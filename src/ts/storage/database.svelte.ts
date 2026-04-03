@@ -13,6 +13,7 @@ import type { PromptItem, PromptSettings } from '../process/prompt';
 import type { OobaChatCompletionRequestParams } from '../model/ooba';
 import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../process/memory/hypav3'
 import { isTauri, isNodeServer } from "src/ts/platform"
+import { safeStructuredClone } from '../polyfill';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
 export let appVer = "2026.3.336" //<APP_VERSION_POINT>

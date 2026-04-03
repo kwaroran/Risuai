@@ -1,5 +1,5 @@
-import { type memoryVector, HypaProcesser, similarity, contextHash } from "./hypamemory";
-import { globalFetch } from "src/ts/globalApi.svelte";
+import { type memoryVector, HypaProcesser, similarity } from "./hypamemory";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 import { TaskRateLimiter } from "./taskRateLimiter";
 import {
     type EmbeddingText,
@@ -1896,8 +1896,8 @@ class HypaProcesserEx extends HypaProcesser {
     summaryChunkVectors: SummaryChunkVector[] = [];
 
     async addSummaryChunks(chunks: SummaryChunk[]): Promise<void> {
-        if (this.model === 'voyageContext3') {
-            await this.addSummaryChunksVoyage(chunks);
+        if (isContextModel(this.model)) {
+            await this.addSummaryChunksContextual(chunks);
             return;
         }
 
@@ -1918,16 +1918,11 @@ class HypaProcesserEx extends HypaProcesser {
         this.summaryChunkVectors.push(...newSummaryChunkVectors);
     }
 
-    private async addSummaryChunksVoyage(chunks: SummaryChunk[]): Promise<void> {
-        const db = getDatabase();
-        const apiKey = db.voyageApiKey?.trim();
-        if (!apiKey) {
-            throw new Error('Voyage Context 3 requires a Voyage API Key');
-        }
+    private async addSummaryChunksContextual(chunks: SummaryChunk[]): Promise<void> {
+        const provider = getContextProvider(this.model);
 
         const cacheKeyFor = (text: string, groupTexts: string[]) => {
-            const ctx = groupTexts.length > 1 ? `|ctx:${contextHash(groupTexts)}` : '';
-            return `${text}|voyageContext3${ctx}`;
+            return `${text}${provider.getCacheKeySuffix(groupTexts)}`;
         };
 
         const summaryGroups = new Map<Summary, SummaryChunk[]>();
@@ -1964,48 +1959,27 @@ class HypaProcesserEx extends HypaProcesser {
         }
 
         if (groupsToEmbed.length > 0) {
-            const batches = this.batchVoyageGroups(groupsToEmbed);
+            const groups = groupsToEmbed.map(group =>
+                group.map(chunk => chunk.text)
+            );
 
-            for (const batch of batches) {
-                const input = batch.map(group =>
-                    group.map(chunk => chunk.text)
-                );
+            const results = await provider.embedDocumentGroups(groups);
 
-                const response = await globalFetch(
-                    "https://api.voyageai.com/v1/contextualizedembeddings",
-                    {
-                        headers: {
-                            "Authorization": "Bearer " + apiKey,
-                            "Content-Type": "application/json"
-                        },
-                        body: {
-                            "model": "voyage-context-3",
-                            "inputs": input,
-                            "input_type": "document"
-                        }
-                    }
-                );
+            for (let i = 0; i < groupsToEmbed.length; i++) {
+                const group = groupsToEmbed[i];
+                const groupTexts = group.map(c => c.text);
+                const embeddings = results[i];
 
-                if (!response.ok || !response.data.data) {
-                    throw new Error(JSON.stringify(response.data));
-                }
+                for (let j = 0; j < group.length; j++) {
+                    const chunk = group[j];
+                    const embedding = embeddings[j];
+                    const vector: memoryVector = {
+                        content: chunk.text,
+                        embedding
+                    };
 
-                for (let i = 0; i < batch.length; i++) {
-                    const group = batch[i];
-                    const groupTexts = group.map(c => c.text);
-                    const groupEmbeddings = response.data.data[i].data;
-
-                    for (let j = 0; j < group.length; j++) {
-                        const chunk = group[j];
-                        const embedding = groupEmbeddings[j].embedding;
-                        const vector: memoryVector = {
-                            content: chunk.text,
-                            embedding
-                        };
-
-                        await this.forage.setItem(cacheKeyFor(chunk.text, groupTexts), vector);
-                        cachedVectors.set(chunk.text, vector);
-                    }
+                    await this.forage.setItem(cacheKeyFor(chunk.text, groupTexts), vector);
+                    cachedVectors.set(chunk.text, vector);
                 }
             }
         }
@@ -2021,34 +1995,6 @@ class HypaProcesserEx extends HypaProcesser {
             this.vectors.push(vector);
             this.summaryChunkVectors.push({ chunk, vector });
         }
-    }
-
-    private batchVoyageGroups(groups: SummaryChunk[][]): SummaryChunk[][][] {
-        const MAX_CHUNKS_PER_REQUEST = 16000;
-        const MAX_INPUTS_PER_REQUEST = 1000;
-        const batches: SummaryChunk[][][] = [];
-        let currentBatch: SummaryChunk[][] = [];
-        let currentChunkCount = 0;
-
-        for (const group of groups) {
-            if (
-                currentBatch.length > 0 &&
-                (currentBatch.length + 1 > MAX_INPUTS_PER_REQUEST ||
-                 currentChunkCount + group.length > MAX_CHUNKS_PER_REQUEST)
-            ) {
-                batches.push(currentBatch);
-                currentBatch = [];
-                currentChunkCount = 0;
-            }
-            currentBatch.push(group);
-            currentChunkCount += group.length;
-        }
-
-        if (currentBatch.length > 0) {
-            batches.push(currentBatch);
-        }
-
-        return batches;
     }
 
     async similaritySearchScoredEx(

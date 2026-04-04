@@ -3,7 +3,7 @@
 Risuai is a cross-platform AI chatting application built with:
 - **Frontend**: Svelte 5 + TypeScript
 - **Desktop**: Tauri 2.5 (Rust backend)
-- **Build Tool**: Vite 7
+- **Build Tool**: Vite 8
 - **Styling**: Tailwind CSS 4
 - **Package Manager**: pnpm
 
@@ -86,7 +86,7 @@ risuai-newest/
 
 ### Prerequisites
 
-- Node.js and pnpm
+- Node.js 20.19+ or 22.12+ and pnpm
 - Rust and Cargo (for Tauri builds)
 
 ### Development

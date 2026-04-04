@@ -148,7 +148,7 @@ await (async function() {
                 try {
                     while (true) {
                         const { done, value } = await reader.read();
-                        if (done) ch.port1.postMessage({ done: true });
+                        if (done) { ch.port1.postMessage({ done: true }); break; }
                         else ch.port1.postMessage({ done: false, value });
                     }
                 } catch (e) {

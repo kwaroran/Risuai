@@ -640,7 +640,7 @@ async function requestOobaLegacy(arg:RequestDataArgumentExtended):Promise<reques
     const dat = res.data as any
     if(res.ok){
         try {
-            let result:string = dat.results[0].text
+            let result:string = dat.results[0].text ?? ''
 
             return {
                 type: 'success',
@@ -723,7 +723,7 @@ async function requestOoba(arg:RequestDataArgumentExtended):Promise<requestDataR
             result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
         }
     }
-    const text:string = response.data.choices[0].text
+    const text:string = response.data.choices[0].text ?? ''
     return {
         type: 'success',
         result: text.replace(/##\n/g, '')
@@ -802,7 +802,7 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
         else{
             return {
                 type: 'success',
-                result: d.content,
+                result: d.content ?? '',
                 model: 'custom'
             }
         }   
@@ -1249,7 +1249,7 @@ async function requestHorde(arg:RequestDataArgumentExtended):Promise<requestData
             if(generations && generations.length > 0){
                 return {
                     type: "success",
-                    result: unstringlizeChat(generations[0].text, formated, currentChar?.name ?? '')
+                    result: unstringlizeChat(generations[0].text ?? '', formated, currentChar?.name ?? '')
                 }
             }
             return {
@@ -1289,7 +1289,7 @@ async function requestWebLLM(arg:RequestDataArgumentExtended):Promise<requestDat
     } as any)
     return {
         type: 'success',
-        result: unstringlizeChat(v.generated_text as string, formated, currentChar?.name ?? '')
+        result: unstringlizeChat((v.generated_text as string) ?? '', formated, currentChar?.name ?? '')
     }
 }
 

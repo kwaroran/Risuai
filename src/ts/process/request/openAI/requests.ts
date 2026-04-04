@@ -323,7 +323,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 const msg:OpenAIChatFull = (dat.choices[0].message)
                 return {
                     type: 'success',
-                    result: msg.content
+                    result: msg.content ?? ''
                 }
             } catch (error) {                    
                 return {
@@ -744,7 +744,7 @@ export async function requestHTTPOpenAI(
             return extractJSON(dat.choices[0].message.content, arg.extractJson)
         }
         const msg:OpenAIChatFull = (dat.choices[0].message)
-        let result = msg.content
+        let result = msg.content ?? ''
         if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
             console.log("Checking for reasoning content")
             let reasoningContent = ""
@@ -897,7 +897,7 @@ export async function requestHTTPOpenAI(
                 if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
                     
                     const c = dat.choices.map((v:{message:{content:string}}) => {
-                        const extracted = extractJSON(v.message.content, arg.extractJson)
+                        const extracted = extractJSON(v.message.content ?? '', arg.extractJson)
                         return ["char", extracted]
                     })
                     
@@ -909,7 +909,7 @@ export async function requestHTTPOpenAI(
                 return {
                     type: 'multiline',
                     result: dat.choices.map((v) => {
-                        return ["char", v.message.content]
+                        return ["char", v.message.content ?? '']
                     })
                 }
             }            

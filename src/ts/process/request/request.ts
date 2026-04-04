@@ -884,7 +884,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
     if(!da.ok){
         return {
             type: "fail",
-            result: da.data,
+            result: (typeof da.data === 'string') ? da.data : JSON.stringify(da.data),
             noRetry: true
         }
     }

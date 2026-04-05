@@ -1011,9 +1011,11 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     const readableStream = new ReadableStream<StreamResponseChunk>({
         async start(controller){
+            let text = ''
             for await(const chunk of response){
+                text += chunk.message.content
                 controller.enqueue({
-                    "0": chunk.message.content
+                    "0": text
                 })
             }
             controller.close()

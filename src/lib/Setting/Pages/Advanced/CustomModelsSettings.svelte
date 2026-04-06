@@ -8,6 +8,7 @@
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import { PlusIcon, TrashIcon, ArrowUp, ArrowDown } from "@lucide/svelte";
+    import type { LLMFlags, LLMFormat, LLMTokenizer } from "src/ts/model/types";
     import { v4 } from "uuid";
 
     let openedModels = $state(new Set<string>());
@@ -17,7 +18,7 @@
     } = $props()
 </script>
 
-{#snippet CustomFlagButton(index:number,name:string,flag:number)}
+{#snippet CustomFlagButton(index:number,name:string,flag:LLMFlags)}
     <Button className="mt-2" onclick={(e) => {
         if(DBState.db.customModels[index].flags.includes(flag)){
             DBState.db.customModels[index].flags = DBState.db.customModels[index].flags.filter((f) => f !== flag)
@@ -91,7 +92,7 @@
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].url}/>
             <span class="text-textcolor mt-4">{language.tokenizer}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].tokenizer.toString()} onchange={(e) => {
-                DBState.db.customModels[index].tokenizer = parseInt(e.currentTarget.value)
+                DBState.db.customModels[index].tokenizer = parseInt(e.currentTarget.value) as LLMTokenizer
             }}>
                 <OptionInput value="0">Unknown</OptionInput>
                 <OptionInput value="1">tiktokenCl100kBase</OptionInput>
@@ -109,7 +110,7 @@
             </SelectInput>
             <span class="text-textcolor">{language.format}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].format.toString()} onchange={(e) => {
-                DBState.db.customModels[index].format = parseInt(e.currentTarget.value)
+                DBState.db.customModels[index].format = parseInt(e.currentTarget.value) as LLMFormat
             }}>
                 <OptionInput value="0">OpenAICompatible</OptionInput>
                 <OptionInput value="1">OpenAILegacyInstruct</OptionInput>

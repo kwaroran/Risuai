@@ -1384,7 +1384,7 @@ app.get('/api/oauth_callback', async (req, res) => {
         },
     )
 
-    fs.writeFileSync(authCodePath, tokens.access_token, 'utf-8')
+    writeFileSync(authCodePath, tokens.access_token, 'utf-8')
 
     res.send(tokens)
             

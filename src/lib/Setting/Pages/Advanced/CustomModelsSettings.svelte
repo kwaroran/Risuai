@@ -93,18 +93,19 @@
             <SelectInput size={"sm"} value={DBState.db.customModels[index].tokenizer.toString()} onchange={(e) => {
                 DBState.db.customModels[index].tokenizer = parseInt(e.currentTarget.value)
             }}>
-                <OptionInput value="0">tiktokenCl100kBase</OptionInput>
-                <OptionInput value="1">tiktokenO200Base</OptionInput>
-                <OptionInput value="2">Mistral</OptionInput>
-                <OptionInput value="3">Llama</OptionInput>
-                <OptionInput value="4">NovelAI</OptionInput>
-                <OptionInput value="5">Claude</OptionInput>
-                <OptionInput value="6">NovelList</OptionInput>
-                <OptionInput value="7">Llama3</OptionInput>
-                <OptionInput value="8">Gemma</OptionInput>
-                <OptionInput value="9">GoogleCloud</OptionInput>
-                <OptionInput value="10">Cohere</OptionInput>
-                <OptionInput value="12">DeepSeek</OptionInput>
+                <OptionInput value="0">Unknown</OptionInput>
+                <OptionInput value="1">tiktokenCl100kBase</OptionInput>
+                <OptionInput value="2">tiktokenO200Base</OptionInput>
+                <OptionInput value="3">Mistral</OptionInput>
+                <OptionInput value="4">Llama</OptionInput>
+                <OptionInput value="5">NovelAI</OptionInput>
+                <OptionInput value="6">Claude</OptionInput>
+                <OptionInput value="7">NovelList</OptionInput>
+                <OptionInput value="8">Llama3</OptionInput>
+                <OptionInput value="9">Gemma</OptionInput>
+                <OptionInput value="10">GoogleCloud</OptionInput>
+                <OptionInput value="11">Cohere</OptionInput>
+                <OptionInput value="13">DeepSeek</OptionInput>
             </SelectInput>
             <span class="text-textcolor">{language.format}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].format.toString()} onchange={(e) => {

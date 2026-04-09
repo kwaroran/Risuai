@@ -180,26 +180,9 @@ export const languageSettingsItems: SettingItem[] = [
     },
 
     {
-        id: 'lang.llmMaxResponse',
-        type: 'number',
-        labelKey: 'translationResponseSize',
-        bindKey: 'translatorMaxResponse',
-        classes: 'mt-4',
-        options: { min: 0, max: 2048, marginBottom: true },
-        condition: (ctx) => !!ctx.db.translator && ctx.db.translatorType === 'llm',
-    },
-
-    {
-        id: 'lang.llmPrompt',
-        type: 'textarea',
-        labelKey: 'translatorPrompt',
-        helpKey: 'translatorPrompt',
-        bindKey: 'translatorPrompt',
-        classes: 'mt-4',
-        options: {
-            placeholder:
-                'You are a translator. translate the following html or text into {{slot}}. do not output anything other than the translation.',
-        },
+        id: 'lang.llmPresets',
+        type: 'custom',
+        componentId: 'TranslatorPresetSettings',
         condition: (ctx) => !!ctx.db.translator && ctx.db.translatorType === 'llm',
     },
 

@@ -52,7 +52,7 @@ export async function stableDiff(currentChar:character,prompt:string){
         return false
     }
 
-    const r = rq.result
+    const r = rq.result.replace(/<Thoughts>[\s\S]*?<\/Thoughts>/g, '').trim()
 
 
     const genPrompt = currentChar.newGenData.prompt.replaceAll('{{slot}}', r)

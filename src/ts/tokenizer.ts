@@ -192,9 +192,10 @@ let googleCloudTokenizedCache = new Map<string, number>()
 async function tokenizeGoogleCloud(text:string) {
     const db = getDatabase()
     const model = getModelInfo(db.aiModel)
+    const cacheKey = text + model.internalID
 
-    if(googleCloudTokenizedCache.has(text + model.internalID)){
-        const count = googleCloudTokenizedCache.get(text)
+    if(googleCloudTokenizedCache.has(cacheKey)){
+        const count = googleCloudTokenizedCache.get(cacheKey) ?? 0
         return new Uint32Array(count)
     }
 
@@ -217,7 +218,7 @@ async function tokenizeGoogleCloud(text:string) {
     }
 
     const json = await res.json()
-    googleCloudTokenizedCache.set(text + model.internalID, json.totalTokens as number)
+    googleCloudTokenizedCache.set(cacheKey, json.totalTokens as number)
     const count = json.totalTokens as number
 
     return new Uint32Array(count)

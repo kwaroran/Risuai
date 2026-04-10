@@ -189,9 +189,19 @@
             {:else if $alertStore.type === 'tos'}
                 <!-- svelte-ignore a11y_missing_attribute -->
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <div class="text-textcolor">You should accept <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
-                    openURL('https://sv.risuai.xyz/hub/tos')
-                }}>Terms of Service</a> to continue</div>
+                <div class="text-textcolor">
+                    You should accept
+                    <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
+                        openURL('https://sv.risuai.xyz/hub/tos')
+                    }}>Terms of Service</a>
+
+                    and
+
+                    <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
+                        openURL('https://sv.risuai.xyz/hub/pp')
+                    }}>Privacy Policy</a>
+                    to continue
+            </div>
             {:else if $alertStore.type === 'pluginconfirm'}
                 {@const parts = $alertStore.msg.split('\n\n')}
                 {@const mainPart = parts[0]}

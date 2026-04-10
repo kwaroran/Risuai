@@ -1362,6 +1362,7 @@ export const languageSpanish = {
     "dynamicOutputPrompt": "Prompt de Salida Dinámica",
     "settingsCloseButtonSize": "Tamaño del botón de cerrar configuración",
     "translating": "Traduciendo...",
+    "stackTraceTranslationFailed": "La traducción del seguimiento de pila falló. Se muestra abajo el seguimiento de pila ofuscado original.",
     "translate": "Traducir dirección de código",
     "apply": "Aplicar",
     "add": "Agregar",

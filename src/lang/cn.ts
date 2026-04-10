@@ -1362,6 +1362,7 @@ export const languageChinese = {
     "dynamicOutputPrompt": "动态输出提示词",
     "settingsCloseButtonSize": "设置关闭按钮大小",
     "translating": "翻译中...",
+    "stackTraceTranslationFailed": "堆栈跟踪翻译失败。下面显示原始混淆后的堆栈跟踪。",
     "translate": "翻译代码地址",
     "apply": "应用",
     "add": "追加",

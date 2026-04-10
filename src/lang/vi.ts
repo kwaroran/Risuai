@@ -1362,6 +1362,7 @@ export const languageVietnamese = {
     "dynamicOutputPrompt": "Lời nhắc đầu ra động",
     "settingsCloseButtonSize": "Kích thước nút đóng cài đặt",
     "translating": "Đang dịch...",
+    "stackTraceTranslationFailed": "Dịch dấu vết ngăn xếp thất bại. Hiển thị dấu vết ngăn xếp bị làm rối ban đầu bên dưới.",
     "translate": "Dịch địa chỉ mã",
     "apply": "Áp dụng",
     "add": "Thêm",

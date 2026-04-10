@@ -1362,6 +1362,7 @@ export const languageGerman = {
     "dynamicOutputPrompt": "Dynamische Ausgabeanweisung",
     "settingsCloseButtonSize": "Größe der Einstellungen-Schließen-Schaltfläche",
     "translating": "Übersetze...",
+    "stackTraceTranslationFailed": "Die Übersetzung des Stack-Traces ist fehlgeschlagen. Unten wird der ursprüngliche verschleierte Stack-Trace angezeigt.",
     "translate": "Code-Adresse übersetzen",
     "apply": "Anwenden",
     "add": "Hinzufügen",

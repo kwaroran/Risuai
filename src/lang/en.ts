@@ -1522,6 +1522,7 @@ export const languageEnglish = {
     dynamicOutputPrompt: "Dynamic Output Prompt",
     settingsCloseButtonSize: "Settings Close Button Size",
     translating: "Translating...",
+    stackTraceTranslationFailed: "Stack trace translation failed. Showing original obfuscated stack trace below.",
     apply: "Apply",
     add: "Add",
     nightlyWarning:

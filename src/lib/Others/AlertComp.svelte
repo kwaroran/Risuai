@@ -30,11 +30,10 @@
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
-    let stackTraceTranslationError = $state('');
+    let stackTraceTranslationFailed = $state(false);
     let isTranslating = $state(false);
     const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
     const risuVersion = versionData.version;
-    const stackTraceTranslationFailedMessage = 'Stack trace translation failed. Showing original obfuscated stack trace below.';
 
     let btn
     let input = $state('')
@@ -84,7 +83,7 @@
     $effect.pre(() => {
         showDetails = false;
         translatedStackTrace = '';
-        stackTraceTranslationError = '';
+        stackTraceTranslationFailed = false;
         isTranslating = false;
         if(btn){
             btn.focus()
@@ -107,24 +106,24 @@
     });
 
     $effect(() => {
-        if ($alertStore.type === 'error' && $alertStore.stackTrace && !translatedStackTrace && !stackTraceTranslationError && !isTranslating) {
+        if ($alertStore.type === 'error' && $alertStore.stackTrace && !translatedStackTrace && !stackTraceTranslationFailed && !isTranslating) {
             void loadTranslatedTrace();
         }
     });
 
     async function loadTranslatedTrace() {
-        if (isTranslating || translatedStackTrace || stackTraceTranslationError || !$alertStore.stackTrace) return;
+        if (isTranslating || translatedStackTrace || stackTraceTranslationFailed || !$alertStore.stackTrace) return;
         isTranslating = true;
         try {
             const result = await translateStackTrace($alertStore.stackTrace);
             if (result.didTranslate) {
                 translatedStackTrace = result.stackTrace;
             } else {
-                stackTraceTranslationError = result.errorMessage ?? stackTraceTranslationFailedMessage;
+                stackTraceTranslationFailed = true;
             }
         } catch (e) {
             console.error("Failed to translate stack trace:", e);
-            stackTraceTranslationError = stackTraceTranslationFailedMessage;
+            stackTraceTranslationFailed = true;
         } finally {
             isTranslating = false;
         }
@@ -219,8 +218,8 @@
                                     <span>{language.translating}</span>
                                 {/if}
                             </div>
-                            {#if stackTraceTranslationError}
-                                <div class="stack-trace-error">{stackTraceTranslationError}</div>
+                            {#if stackTraceTranslationFailed}
+                                <div class="stack-trace-error">{language.stackTraceTranslationFailed}</div>
                             {/if}
                             <pre class="stack-trace">{displayedStackTrace}</pre>
                         {/if}

@@ -81,8 +81,7 @@ describe('translateStackTrace', () => {
 
         expect(result).toEqual({
             stackTrace,
-            didTranslate: false,
-            errorMessage: 'Stack trace translation failed. Showing original obfuscated stack trace below.'
+            didTranslate: false
         })
     })
 
@@ -94,8 +93,7 @@ describe('translateStackTrace', () => {
         expect(fetchMock).not.toHaveBeenCalled()
         expect(result).toEqual({
             stackTrace,
-            didTranslate: false,
-            errorMessage: 'Stack trace translation failed. Showing original obfuscated stack trace below.'
+            didTranslate: false
         })
     })
 })

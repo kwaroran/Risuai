@@ -8,20 +8,17 @@ SourceMapConsumer.initialize({
 
 // Timeout for fetch requests (10 seconds)
 const FETCH_TIMEOUT_MS = 10000;
-const STACK_TRACE_TRANSLATION_FAILED_MESSAGE = 'Stack trace translation failed. Showing original obfuscated stack trace below.';
 
 export interface StackTraceTranslationResult {
     stackTrace: string;
     didTranslate: boolean;
-    errorMessage?: string;
 }
 
 export async function translateStackTrace(stackTrace: string): Promise<StackTraceTranslationResult> {
     if (!stackTrace) {
         return {
             stackTrace: '',
-            didTranslate: false,
-            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+            didTranslate: false
         };
     }
 
@@ -48,8 +45,7 @@ export async function translateStackTrace(stackTrace: string): Promise<StackTrac
     if (urlsToFetch.size === 0) {
         return {
             stackTrace,
-            didTranslate: false,
-            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+            didTranslate: false
         };
     }
 
@@ -143,8 +139,7 @@ export async function translateStackTrace(stackTrace: string): Promise<StackTrac
     if (translatedFrameCount === 0) {
         return {
             stackTrace,
-            didTranslate: false,
-            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+            didTranslate: false
         };
     }
 

@@ -1386,6 +1386,7 @@ export const languageKorean = {
     "dynamicOutputPrompt": "동적 출력 프롬프트",
     "settingsCloseButtonSize": "설정 닫기 버튼 크기",
     "translating": "번역 중...",
+    "stackTraceTranslationFailed": "스택 트레이스 번역에 실패했습니다. 아래에 원래 난독화된 스택 트레이스를 표시합니다.",
     "translate": "코드 주소 번역하기",
     "apply": "적용",
     "add": "추가",

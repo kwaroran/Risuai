@@ -1365,6 +1365,7 @@ export const languageChineseTraditional = {
     "dynamicOutputPrompt": "動態輸出提示詞",
     "settingsCloseButtonSize": "設定關閉按鈕大小",
     "translating": "翻譯中...",
+    "stackTraceTranslationFailed": "堆疊追蹤翻譯失敗。以下顯示原始混淆後的堆疊追蹤。",
     "translate": "翻譯程式碼地址",
     "apply": "應用",
     "add": "添加",

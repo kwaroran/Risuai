@@ -603,9 +603,9 @@ interface SafeElement {
 
     /**
      * Gets all child elements
-     * @returns Array of child SafeElements
+     * @returns SafeClassArray of child SafeElements
      */
-    getChildren(): Promise<SafeElement[]>;
+    getChildren(): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Gets the parent element
@@ -616,9 +616,9 @@ interface SafeElement {
     /**
      * Queries all descendant elements matching a selector
      * @param selector - CSS selector
-     * @returns Array of matching SafeElements
+     * @returns SafeClassArray of matching SafeElements
      */
-    querySelectorAll(selector: string): Promise<SafeElement[]>;
+    querySelectorAll(selector: string): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Queries the first descendant element matching a selector
@@ -637,9 +637,9 @@ interface SafeElement {
     /**
      * Gets elements by class name
      * @param className - Class name
-     * @returns Array of matching SafeElements
+     * @returns SafeClassArray of matching SafeElements
      */
-    getElementsByClassName(className: string): Promise<SafeElement[]>;
+    getElementsByClassName(className: string): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Checks if element matches a selector

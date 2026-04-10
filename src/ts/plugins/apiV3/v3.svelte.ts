@@ -145,14 +145,14 @@ class SafeElement {
     public focus() {
         this.#element.focus();
     }
-    public getChildren(): SafeElement[] {
+    public getChildren(): SafeClassArray<SafeElement> {
         const children: SafeElement[] = [];
         this.#element.childNodes.forEach(node => {
             if(node instanceof HTMLElement) {
                 children.push(new SafeElement(node));
             }
         });
-        return children;
+        return new SafeClassArray<SafeElement>(children);
     }
     public getParent(): SafeElement | null {
         if(this.#element.parentElement) {
@@ -184,7 +184,7 @@ class SafeElement {
     public nodeType(): number {
         return this.#element.nodeType;
     }
-    public querySelectorAll(selector: string): SafeElement[] {
+    public querySelectorAll(selector: string): SafeClassArray<SafeElement> {
         const nodeList = this.#element.querySelectorAll(selector);
         const elements: SafeElement[] = [];
         nodeList.forEach(node => {
@@ -192,7 +192,7 @@ class SafeElement {
                 elements.push(new SafeElement(node));
             }
         });
-        return elements;
+        return new SafeClassArray<SafeElement>(elements);
     }
     public querySelector(selector: string): SafeElement | null {
         const element = this.#element.querySelector(selector);
@@ -205,9 +205,8 @@ class SafeElement {
         const element = this.querySelector('#' + id);
         return element;
     }
-    public getElementsByClassName(className: string): SafeElement[] {
-        const nodeList = this.querySelectorAll('.' + className);
-        return nodeList;
+    public getElementsByClassName(className: string): SafeClassArray<SafeElement> {
+        return this.querySelectorAll('.' + className);
     }
     public getClientRects(): DOMRectList {
         return this.#element.getClientRects();

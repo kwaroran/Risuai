@@ -365,6 +365,12 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.nanogptKey ??= ''
+    data.nanogptRequestModel ??= ''
+    data.nanogptRequestModelName ??= ''
+    data.nanogptProvider ??= ''
+    data.nanogptSubscriptionState ??= ''
+    data.nanogptUseSubscriptionEndpoint ??= false
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -884,6 +890,12 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    nanogptKey:string
+    nanogptRequestModel:string
+    nanogptRequestModelName:string
+    nanogptProvider:string
+    nanogptSubscriptionState:string
+    nanogptUseSubscriptionEndpoint:boolean
     openrouterFallback:boolean
     selectedPersona:number
     personas:{

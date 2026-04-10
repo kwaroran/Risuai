@@ -372,7 +372,14 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     switch(format){
         case LLMFormat.OpenAICompatible:
         case LLMFormat.Mistral:
+        case LLMFormat.NanoGPT:
             return requestOpenAI(targ)
+        case LLMFormat.NanoGPTResponses:
+            return requestOpenAIResponseAPI(targ)
+        case LLMFormat.NanoGPTMessages:
+            return requestClaude(targ)
+        case LLMFormat.NanoGPTLegacy:
+            return requestOpenAILegacyInstruct(targ)
         case LLMFormat.OpenAILegacyInstruct:
             return requestOpenAILegacyInstruct(targ)
         case LLMFormat.NovelAI:

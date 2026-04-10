@@ -42,7 +42,8 @@ export const LLMProvider = {
     AWS: 11,
     DeepSeek: 12,
     DeepInfra: 13,
-    Echo: 14
+    Echo: 14,
+    NanoGPT: 15
 } as const;
 export type LLMProvider = (typeof LLMProvider)[keyof typeof LLMProvider];
 
@@ -66,7 +67,11 @@ export const LLMFormat = {
     Horde: 16,
     AWSBedrockClaude: 17,
     OpenAIResponseAPI: 18,
-    Echo: 19
+    Echo: 19,
+    NanoGPT: 20,
+    NanoGPTResponses: 21,
+    NanoGPTMessages: 22,
+    NanoGPTLegacy: 23
 } as const;
 export type LLMFormat = (typeof LLMFormat)[keyof typeof LLMFormat];
 
@@ -119,7 +124,8 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.AWS, 'AWS'],
     [LLMProvider.DeepSeek, 'DeepSeek'],
     [LLMProvider.DeepInfra, 'DeepInfra'],
-    [LLMProvider.Echo, 'For Developer']
+    [LLMProvider.Echo, 'For Developer'],
+    [LLMProvider.NanoGPT, 'NanoGPT']
 ])
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']

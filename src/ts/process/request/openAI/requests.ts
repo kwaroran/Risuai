@@ -760,23 +760,12 @@ export async function requestHTTPOpenAI(
         }
         // For deepseek Official Reasoning Model: https://api-docs.deepseek.com/guides/thinking_mode#api-example
         const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
-        if(reasoningContentField){
-            if(arg.mode === 'submodel'){
-                // For submodel calls (SD prompt generation etc.), skip reasoning wrapper.
-                // If the model's text content is empty, fall back to reasoning content directly
-                // so downstream filtering can extract keywords from it.
-                if(!result.trim()) result = reasoningContentField
-            } else {
-                result = `<Thoughts>\n${reasoningContentField}\n</Thoughts>\n${result}`
-            }
+        if(reasoningContentField && arg.mode !== 'submodel'){
+            result = `<Thoughts>\n${reasoningContentField}\n</Thoughts>\n${result}`
         }
         // For openrouter, https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request#response.body.choices.message.reasoning
-        if(dat?.choices?.[0]?.message?.reasoning){
-            if(arg.mode === 'submodel'){
-                if(!result.trim()) result = dat.choices[0].message.reasoning
-            } else {
-                result = `<Thoughts>\n${dat.choices[0].message.reasoning}\n</Thoughts>\n${result}`
-            }
+        if(dat?.choices?.[0]?.message?.reasoning && arg.mode !== 'submodel'){
+            result = `<Thoughts>\n${dat.choices[0].message.reasoning}\n</Thoughts>\n${result}`
         }
 
         return result

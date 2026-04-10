@@ -2,6 +2,7 @@ import { tokenizeAccurate } from "../tokenizer";
 import { getDatabase, presetTemplate, setDatabase } from "../storage/database.svelte";
 import { alertError, alertNormal } from "../alert";
 import type { OobaChatCompletionRequestParams } from "../model/ooba";
+import { DBState } from "../stores.svelte";
 
 export type PromptItem = PromptItemPlain|PromptItemTyped|PromptItemChat|PromptItemAuthorNote|PromptItemChatML|PromptItemCache
 export type PromptType = PromptItem['type'];
@@ -401,9 +402,7 @@ export function promptConvertion(files:{ name: string, content: string, type:str
     if(type === 'STCHAT'){
         preset.aiModel = 'openrouter'
         preset.subModel = 'openrouter'
-        const db = getDatabase()
-        db.botPresets.push(preset)
-        setDatabase(db)
+        DBState.db.botPresets.push(preset)
     
         alertNormal('Preset converted successfully. You can find it in bot setting presets')
         return
@@ -479,9 +478,7 @@ export function promptConvertion(files:{ name: string, content: string, type:str
     preset.name ||= 'Converted from JSON'
 
 
-    const db = getDatabase()
-    db.botPresets.push(preset)
-    setDatabase(db)
+    DBState.db.botPresets.push(preset)
 
     alertNormal('Preset converted successfully. You can find it in bot setting presets')
 }

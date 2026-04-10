@@ -65,9 +65,7 @@
         } else if (name.endsWith('.risum')) {
             const data = new Uint8Array(await file.arrayBuffer())
             const module = await readModule(Buffer.from(data))
-            const db = getDatabase()
-            db.modules.push(module)
-            setDatabase(db)
+            DBState.db.modules.push(module)
             alertNormal(language.successImport)
         } else {
             await importCharacterProcess({

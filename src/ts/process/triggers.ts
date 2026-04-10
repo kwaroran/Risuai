@@ -4,7 +4,7 @@ import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, 
 import { tokenize } from "../tokenizer";
 import { getModuleTriggers } from "./modules";
 import { get } from "svelte/store";
-import { ReloadChatPointer, ReloadGUIPointer, selectedCharID, CurrentTriggerIdStore } from "../stores.svelte";
+import { ReloadChatPointer, ReloadGUIPointer, selectedCharID, CurrentTriggerIdStore, DBState } from "../stores.svelte";
 import { processMultiCommand } from "./command";
 import { parseKeyValue, sleep } from "../util";
 import { alertError, alertInput, alertNormal, alertSelect } from "../alert";
@@ -2125,11 +2125,9 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                 }
                 case 'v2SetPersonaDesc':{
                     const value = effect.valueType === 'value' ? risuChatParser(effect.value,{chara:char}) : getVar(risuChatParser(effect.value,{chara:char}))
-                    const db = getDatabase()
-                    if(db.personas[db.selectedPersona]){
-                        db.personas[db.selectedPersona].personaPrompt = value
-                        db.personaPrompt = value
-                        setDatabase(db)
+                    if(DBState.db.personas[DBState.db.selectedPersona]){
+                        DBState.db.personas[DBState.db.selectedPersona].personaPrompt = value
+                        DBState.db.personaPrompt = value
                     }
                     break
                 }

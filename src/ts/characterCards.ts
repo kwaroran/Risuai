@@ -8,7 +8,7 @@ import { characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { compressImage, getImageType } from "./media"
-import { SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
+import { DBState, SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { hasher } from "./parser/parser.svelte"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
@@ -65,9 +65,7 @@ export async function importCharacterProcess(f:{
             return db.characters.length - 1
         }
         if((da.char_name || da.name) && (da.char_persona || da.description) && (da.char_greeting || da.first_mes)){
-            let db = getDatabase()
-            db.characters.push(convertOffSpecCards(da))
-            setDatabaseLite(db)
+            DBState.db.characters.push(convertOffSpecCards(da))
             alertNormal(language.importedCharacter)
             return
         }
@@ -376,15 +374,13 @@ export async function importCharacterProcess(f:{
     if(parsed.spec !== 'chara_card_v2' && parsed.spec !== 'chara_card_v3'){
         const charaData:OldTavernChar = JSON.parse(Buffer.from(readedChara, 'base64').toString('utf-8'))
         const imgp = await saveAsset(img)
-        db.characters.push(convertOffSpecCards(charaData, imgp))
-        setDatabaseLite(db)
+        DBState.db.characters.push(convertOffSpecCards(charaData, imgp))
         alertNormal(language.importedCharacter)
-        return db.characters.length - 1
+        return DBState.db.characters.length - 1
     }
     await importCharacterCardSpec(parsed, img, "normal", assets)
     
-    db = getDatabase()
-    return db.characters.length - 1
+    return DBState.db.characters.length - 1
     
 }
 
@@ -464,15 +460,13 @@ export async function characterURLImport() {
         const importData = JSON.parse(Buffer.from(decodeURIComponent(data), 'base64').toString('utf-8'))
         importData.id = v4()
 
-        const db = getDatabase()
         if(importData.lowLevelAccess){
             const conf = await alertConfirm(language.lowLevelAccessConfirm)
             if(!conf){
                 return false
             }
         }
-        db.modules.push(importData)
-        setDatabase(db)
+        DBState.db.modules.push(importData)
         alertNormal(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
@@ -508,9 +502,7 @@ export async function characterURLImport() {
         const module = new Uint8Array(await data.arrayBuffer())
         const md = await readModule(Buffer.from(module))
         md.id = v4()
-        const db = getDatabase()
-        db.modules.push(md)
-        setDatabase(db)
+        DBState.db.modules.push(md)
         alertNormal(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
@@ -592,9 +584,7 @@ export async function characterURLImport() {
         if(name.endsWith('risum')){
             const md = await readModule(Buffer.from(data))
             md.id = v4()
-            const db = getDatabase()
-            db.modules.push(md)
-            setDatabase(db)
+            DBState.db.modules.push(md)
             alertNormal(language.successImport)
             SettingsMenuIndex.set(14)
             settingsOpen.set(true)
@@ -732,7 +722,7 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
 
     const data = card.data
     let im = img ? await saveAsset(img) : undefined
-    let db = getDatabase()
+    let db = DBState.db
 
     const risuext = safeStructuredClone(data.extensions.risuai)
     let emotions:[string, string][] = []
@@ -1029,10 +1019,6 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
     }
 
     db.characters.push(char)
-    
-
-    setDatabase(db)
-
     alertNormal(language.importedCharacter)
     return true
 

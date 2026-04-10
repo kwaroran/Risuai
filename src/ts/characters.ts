@@ -1,11 +1,11 @@
 import { get, writable } from "svelte/store";
-import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex } from "./storage/database.svelte";
+import { saveImage, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex } from "./storage/database.svelte";
 import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
 import { v4 as uuidv4, v4 } from 'uuid';
 import { getImageType } from "./media";
-import { MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
+import { DBState, MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
 import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, getFileSrc, requiresFullEncoderReload } from "./globalApi.svelte";
 import { updateInlayScreen } from "./process/inlayScreen";
 import { parseMarkdownSafe } from "./parser/parser.svelte";
@@ -15,16 +15,13 @@ import { importCharacter } from "./characterCards";
 import { PngChunk } from "./pngChunk";
 
 export function createNewCharacter() {
-    let db = getDatabase()
-    db.characters.push(createBlankChar())
-    setDatabase(db)
+    DBState.db.characters.push(createBlankChar())
     checkCharOrder()
-    return db.characters.length - 1
+    return DBState.db.characters.length - 1
 }
 
 export function createNewGroup(){
-    let db = getDatabase()
-    db.characters.push({
+    DBState.db.characters.push({
         type: 'group',
         name: "",
         firstMessage: "",
@@ -49,13 +46,12 @@ export function createNewGroup(){
         characterActive: [],
         realmId: ''
     })
-    setDatabase(db)
     checkCharOrder()
-    return db.characters.length - 1
+    return DBState.db.characters.length - 1
 }
 
 export async function getCharImage(loc:string, type:'plain'|'css'|'contain'|'lgcss') {
-    const db = getDatabase()
+    const db = DBState.db
     
     // Return placeholder when hideAllImages is enabled
     if(db.hideAllImages){
@@ -94,7 +90,7 @@ export async function selectCharImg(charIndex:number) {
         return
     }
     const img = selected.data
-    let db = getDatabase()
+    let db = DBState.db
 
     const type = getImageType(img)
 
@@ -131,13 +127,11 @@ export async function selectCharImg(charIndex:number) {
 
     const imgp = await saveImage(img)
     dumpCharImage(charIndex)
-    db.characters[charIndex].image = imgp
-    setDatabase(db)
+    DBState.db.characters[charIndex].image = imgp
 }
 
 export function dumpCharImage(charIndex:number) {
-    let db = getDatabase()
-    const char = db.characters[charIndex] as character
+    const char = DBState.db.characters[charIndex] as character
     if(!char.image || char.image === ''){
         return
     }
@@ -149,19 +143,16 @@ export function dumpCharImage(charIndex:number) {
         ext: 'png'
     })
     char.image = ''
-    db.characters[charIndex] = char
-    setDatabase(db)
+    DBState.db.characters[charIndex] = char
 }
 
 export function changeCharImage(charIndex:number,changeIndex:number) {
-    let db = getDatabase()
-    const char = db.characters[charIndex] as character
+    const char = DBState.db.characters[charIndex] as character
     const image = char.ccAssets[changeIndex].uri
     char.ccAssets.splice(changeIndex, 1)
     dumpCharImage(charIndex)
     char.image = image
-    db.characters[charIndex] = char
-    setDatabase(db)
+    DBState.db.characters[charIndex] = char
 }
 
 
@@ -174,7 +165,7 @@ export async function addCharEmotion(charId:number) {
         addingEmotion.set(false)
         return
     }
-    let db = getDatabase()
+    let db = DBState.db
     for(const f of selected){
         const img = f.data
         const imgp = await saveImage(img)
@@ -182,21 +173,18 @@ export async function addCharEmotion(charId:number) {
         let dbChar = db.characters[charId]
         if(dbChar.type !== 'group'){
             dbChar.emotionImages.push([name,imgp])
-            db.characters[charId] = dbChar
+            DBState.db.characters[charId] = dbChar
         }
-        setDatabase(db)
     }
     addingEmotion.set(false)
 }
 
 export function rmCharEmotion(charId:number, emotionId:number) {
-    let db = getDatabase()
-    let dbChar = db.characters[charId]
+    let dbChar = DBState.db.characters[charId]
     if(dbChar.type !== 'group'){
         dbChar.emotionImages.splice(emotionId, 1)
-        db.characters[charId] = dbChar
+        DBState.db.characters[charId] = dbChar
     }
-    setDatabase(db)
 }
 
 
@@ -207,7 +195,7 @@ export async function exportChat(page:number){
         const doTranslate = (mode === '2' || mode === '3') ? (await alertSelect([language.translateContent, language.doNotTranslate])) === '0' : false
         const anonymous = (mode === '2' || mode === '3') ? ((await alertSelect([language.includePersonaName, language.hidePersonaName])) === '1') : false
         const selectedID = get(selectedCharID)
-        const db = getDatabase()
+        const db = DBState.db
         const chat = db.characters[selectedID].chats[page]
         const char = db.characters[selectedID]
         const date = new Date().toJSON();
@@ -386,7 +374,6 @@ export async function importChat(){
     }
     try {
         const selectedID = get(selectedCharID)
-        let db = getDatabase()
 
         if(dat.name.endsWith('jsonl')){
             const lines = Buffer.from(dat.data).toString('utf-8').split('\n')
@@ -407,7 +394,7 @@ export async function importChat(){
                     if(!isFirst){
                         newChat.message.push({
                             role: presedLine.is_user ? "user" : 'char',
-                            data: formatTavernChat(presedLine.mes, db.characters[selectedID].name)
+                            data: formatTavernChat(presedLine.mes, DBState.db.characters[selectedID].name)
                         })
                     }
                 }
@@ -420,14 +407,13 @@ export async function importChat(){
                 return
             }
 
-            if(db.characters[selectedID].chatFolders
+            if(DBState.db.characters[selectedID].chatFolders
                 .filter(folder => folder.id === newChat.folderId).length === 0) {
                 newChat.folderId = null
             }
 
-            db.characters[selectedID].chats.unshift(newChat)
+            DBState.db.characters[selectedID].chats.unshift(newChat)
             changeChatTo(0)
-            setDatabase(db)
             alertNormal(language.successImport)
         }
         else if(dat.name.endsWith('json')){
@@ -457,15 +443,14 @@ export async function importChat(){
                     }
                     chat.id = v4()
                 })
-                db.characters[selectedID].chats.unshift(...chats)
-                setDatabase(db)
+                DBState.db.characters[selectedID].chats.unshift(...chats)
                 alertNormal(language.successImport)
                 return
             }
             if(json.type === 'risuAllChats' && json.ver === 1){
                 const chats = json.data
                 if(Array.isArray(chats) && chats.length > 0){
-                    db.characters[selectedID].chats.unshift(...(chats.map((v) => {
+                    DBState.db.characters[selectedID].chats.unshift(...(chats.map((v) => {
                         if(!v.id){
                             v.id = uuidv4()
                         }
@@ -475,7 +460,6 @@ export async function importChat(){
                         v.fmIndex ??= -1
                         return v
                     })))
-                    setDatabase(db)
                     alertNormal(language.successImport)
                     return
                 } else {
@@ -488,8 +472,7 @@ export async function importChat(){
                 if(!(checkNullish(das.message) || checkNullish(das.note) || checkNullish(das.name) || checkNullish(das.localLore))){
                     das.fmIndex ??= -1
                     das.id = v4()
-                    db.characters[selectedID].chats.unshift(das)
-                    setDatabase(db)
+                    DBState.db.characters[selectedID].chats.unshift(das)
                     alertNormal(language.successImport)
                     return
                 }
@@ -508,8 +491,7 @@ export async function importChat(){
             const chat = doc.querySelector('.idat').textContent
             const json = JSON.parse(chat)
             if(json.message && json.note && json.name && json.localLore){
-                db.characters[selectedID].chats.unshift(json)
-                setDatabase(db)
+                DBState.db.characters[selectedID].chats.unshift(json)
                 alertNormal(language.successImport)
             }
             else{
@@ -805,7 +787,6 @@ export async function makeGroupImage() {
         const uri = canvas.toDataURL()
         canvas.remove()
         db.characters[charID].image = await saveImage(dataURLtoBuffer(uri));
-        setDatabase(db)
         alertStore.set({
             type: 'none',
             msg: ''
@@ -844,9 +825,8 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
         chars.splice(index, 1)
     }
     checkCharOrder()
-    db.characters = chars
+    DBState.db.characters = chars
     requiresFullEncoderReload.state = true
-    setDatabase(db)
     selectedCharID.set(-1)
 }
 

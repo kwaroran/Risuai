@@ -1920,7 +1920,7 @@ export const defaultSdDataFunc = () =>{
 }
 
 export function saveCurrentPreset(){
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
 
     if(db.botPresetsId === -1){
@@ -2016,29 +2016,26 @@ export function saveCurrentPreset(){
         pres[db.botPresetsId] = savedPreset
     }
     db.botPresets = pres
-    setDatabase(db)
 }
 
 export function copyPreset(id:number){
     saveCurrentPreset()
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = safeStructuredClone(pres[id])
     newPres.name += " Copy"
     db.botPresets.push(newPres)
-    setDatabase(db)
 }
 
 export function changeToPreset(id =0, savecurrent = true){
     if(savecurrent){
         saveCurrentPreset()
     }
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = pres[id]
     db.botPresetsId = id
-    db = setPreset(db, newPres)
-    setDatabase(db)
+    setPreset(db, newPres)
 }
 
 export function setPreset(db:Database, newPres: botPreset){
@@ -2248,7 +2245,7 @@ export async function importPreset(f:{
         pre = {...presetTemplate,...(JSON.parse(Buffer.from(f.data).toString('utf-8')))}
         console.log(pre)
     }
-    let db = getDatabase()
+    let db = DBState.db
     if(pre.presetVersion && pre.presetVersion >= 3){
         //NAI preset
         const pr = safeStructuredClone(prebuiltPresets.NAI)
@@ -2270,7 +2267,6 @@ export async function importPreset(f:{
         pr.NAISettings.mirostat_tau = pre.parameters.mirostat_tau
         pr.name = pre.name ?? "Imported"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
 
@@ -2376,7 +2372,6 @@ export async function importPreset(f:{
         }
         pr.name = "Imported ST Preset"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
     pre.name ??= "Imported"
@@ -2384,5 +2379,4 @@ export async function importPreset(f:{
         db.botPresets = []
     }
     db.botPresets.push(pre)
-    setDatabase(db)
 }

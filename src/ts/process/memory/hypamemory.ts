@@ -3,6 +3,7 @@ import { globalFetch } from "src/ts/globalApi.svelte";
 import { runEmbedding } from "../transformers";
 import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 
 export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
@@ -74,35 +75,15 @@ export class HypaProcesser{
     
     
     async getEmbeds(input:string[]|string, inputType:'query'|'document' = 'query'):Promise<VectorArray[]> {
-        if(this.model === 'voyageContext3'){
-            const db = getDatabase()
-            const apiKey = db.voyageApiKey?.trim()
-            if(!apiKey){
-                throw new Error('Voyage Context 3 requires a Voyage API Key')
-            }
-
+        if(isContextModel(this.model)){
+            const provider = getContextProvider(this.model)
             const inputs:string[] = Array.isArray(input) ? input : [input]
-            const gf = await globalFetch("https://api.voyageai.com/v1/contextualizedembeddings", {
-                headers: {
-                    "Authorization": "Bearer " + apiKey,
-                    "Content-Type": "application/json"
-                },
-                body: {
-                    "inputs": inputs.map(s => [s]),
-                    "model": "voyage-context-3",
-                    "input_type": inputType
-                }
-            })
-
-            if(!gf.ok || !gf.data.data){
-                throw new Error(JSON.stringify(gf.data))
+            if(inputType === 'query'){
+                return await provider.embedQueries(inputs)
             }
-
-            const result:VectorArray[] = []
-            for(let i=0;i<gf.data.data.length;i++){
-                result.push(gf.data.data[i].data[0].embedding)
-            }
-            return result
+            const groups = inputs.map(s => [s])
+            const results = await provider.embedDocumentGroups(groups)
+            return results.map(group => group[0])
         }
         if(Object.keys(localModels.models).includes(this.model)){
             const inputs:string[] = Array.isArray(input) ? input : [input]

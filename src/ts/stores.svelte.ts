@@ -161,17 +161,6 @@ export const irisStore = $state({
     open: false
 })
 
-//if april 1st
-if(new Date().getMonth() === 3 && new Date().getDate() === 1){
-    additionalFloatingActionButtons.push({
-        name: 'iconAprilFoolsSpinner',
-        icon: 'iconAprilFoolsSpinner',
-        iconType: 'img',
-        callback: () => {irisStore.open = true},
-        id: 'iconAprilFoolsSpinner',
-    })
-}
-
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now
 export const hotReloading = $state<string[]>([])
 

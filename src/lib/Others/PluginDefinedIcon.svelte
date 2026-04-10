@@ -42,16 +42,11 @@
 </script>
 
 <div class={{
-    "w-12 h-12": ico.icon === 'iconAprilFoolsSpinner',
-    "w-5 h-5": !className && ico.icon !== 'iconAprilFoolsSpinner',
+    "w-5 h-5": !className,
     [className]: className,
-    "hidden": ico.icon === 'iconAprilFoolsSpinner' && DBState?.db?.disableAprilFools
 }}>
     {#if ico.iconType === 'html'}
         {@html iconPurify(ico.icon)}
-    {:else if ico.icon === 'iconAprilFoolsSpinner'}
-        <!-- Spinning Image -->
-        <img src={IrisImage} alt="April Fools Spinner" class="w-full h-full min-w-12 min-h-12 animate-spin" />
     {:else if ico.iconType === 'img'}
         <img src={isSafeSchema(ico.icon)} alt="icon" />
     {/if}

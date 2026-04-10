@@ -227,7 +227,21 @@
                             {/if}
                         </Button>
                         {#if showDetails}
-                            <pre class="stack-trace">{stackTraceCodeBlock}</pre>
+                            <div class="stack-trace-wrap">
+                                <button
+                                    class="stack-trace-copy"
+                                    onclick={() => copyToClipboard(stackTraceCodeBlock, 'stack-trace')}
+                                    title={language.copy}
+                                    aria-label={language.copy}
+                                >
+                                    {#if copiedKey === 'stack-trace'}
+                                        <CheckIcon size={14} />
+                                    {:else}
+                                        <CopyIcon size={14} />
+                                    {/if}
+                                </button>
+                                <pre class="stack-trace">{stackTraceCodeBlock}</pre>
+                            </div>
                         {/if}
                     </div>
                 {/if}
@@ -1037,19 +1051,44 @@
         --tw-bg-opacity: 1 !important;
     }
 
+    .stack-trace-wrap {
+        position: relative;
+        margin-top: 0.5rem;
+    }
+
     .stack-trace {
         background-color: var(--risu-theme-bgcolor);
         color: var(--risu-theme-textcolor2);
         border: 1px solid var(--risu-theme-darkborderc);
         border-radius: 0.25rem;
-        padding: 0.5rem;
-        margin-top: 0.5rem;
+        padding: 0.75rem 2.75rem 0.75rem 0.75rem;
         font-family: monospace;
         font-size: 0.75rem;
         white-space: pre-wrap;
         word-break: break-all;
         max-height: 200px;
         overflow-y: auto;
+    }
+
+    .stack-trace-copy {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border: 1px solid var(--risu-theme-darkborderc);
+        border-radius: 0.375rem;
+        background-color: var(--risu-theme-darkbg);
+        color: var(--risu-theme-textcolor2);
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .stack-trace-copy:hover {
+        background-color: var(--risu-theme-bgcolor);
+        color: var(--risu-theme-textcolor);
     }
 
     .request-log-code {

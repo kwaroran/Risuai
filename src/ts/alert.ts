@@ -250,6 +250,11 @@ export async function alertTOS(){
         return true
     }
 
+    if(localStorage.getItem('tos2') && Date.now() - new Date('2026-05-15').getTime() < 0){
+        //apply grace period until 2026-05-15 for users who accepted tos2
+        return true
+    }
+
     return false
 }
 

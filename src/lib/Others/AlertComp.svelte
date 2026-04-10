@@ -202,8 +202,17 @@
                         <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
                             openURL('https://account.sionyw.com/privacy')
                         }}>Privacy Policy</a>
+
                         to continue
                     </div>
+
+                    {#if localStorage.getItem('tos2') && Date.now() - new Date('2026-05-15').getTime() < 0}
+                        <div class="text-gray-500 mt-4 text-sm">
+                            You accepted previous version of Terms of Service and Privacy Policy.
+                            Please review the updated documents by clicking the links above,
+                            you can still continue using Risuai using original terms until {new Date('2026-05-15').toLocaleDateString()}.
+                        </div>
+                    {/if}
                 {:else}
                     <div class="prose prose-invert">
                         <h2>Legal documents not configured</h2>

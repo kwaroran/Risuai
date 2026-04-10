@@ -52,8 +52,10 @@ export async function stableDiff(currentChar:character,prompt:string){
         return false
     }
 
-    const r = rq.result
-
+    // Strip thinking wrappers from the submodel result.
+    // Thinking is disabled for submodel calls at the request level, but local models
+    // may still emit <think> tags in their text output.
+    const r = rq.result.replace(/<Thoughts>[\s\S]*?<\/Thoughts>/g, '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
 
     const genPrompt = currentChar.newGenData.prompt.replaceAll('{{slot}}', r)
     const neg = currentChar.newGenData.negative

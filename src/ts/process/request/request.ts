@@ -353,6 +353,13 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     targ.abortSignal = abortSignal
     targ.mode = model
     targ.extractJson = arg.extractJson ?? db.extractJson
+
+    // Disable thinking/reasoning for submodel calls (SD tag generation, etc.)
+    // so the model returns only the requested content without reasoning wrappers.
+    if(model === 'submodel'){
+        const thinkingFlags = [LLMFlags.geminiThinking, LLMFlags.deepSeekThinkingOutput, LLMFlags.claudeThinking, LLMFlags.claudeAdaptiveThinking]
+        targ.modelInfo = {...targ.modelInfo, flags: targ.modelInfo.flags.filter(f => !thinkingFlags.includes(f))}
+    }
     if(targ.aiModel === 'reverse_proxy'){
         targ.modelInfo.internalID = db.customProxyRequestModel
         targ.modelInfo.format = db.customAPIFormat

@@ -113,6 +113,7 @@
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
     let nanogptInputMode = $state<'list' | 'manual'>(DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? 'manual' : 'list')
+    // svelte-ignore state_referenced_locally
     let prevNanogptInputMode = nanogptInputMode;
     $effect(() => {
         if (nanogptInputMode !== prevNanogptInputMode) {
@@ -213,7 +214,7 @@
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.customProxyRequestModel} placeholder="Name" />
         <span class="text-textcolor mt-4"> {language.format}</span>
         <SelectInput value={DBState.db.customAPIFormat.toString()} onchange={(e) => {
-            DBState.db.customAPIFormat = parseInt(e.currentTarget.value)
+            DBState.db.customAPIFormat = parseInt(e.currentTarget.value) as LLMFormat
         }}>
             <OptionInput value={LLMFormat.OpenAICompatible.toString()}>
                 OpenAI Compatible
@@ -641,13 +642,13 @@
 
     {#snippet CustomFlagButton(name:string,flag:number)}
         <Button className="mt-2" onclick={(e) => {
-            if(DBState.db.customFlags.includes(flag)){
+            if(DBState.db.customFlags.includes(flag as LLMFlags)){
                 DBState.db.customFlags = DBState.db.customFlags.filter((f) => f !== flag)
             }
             else{
-                DBState.db.customFlags.push(flag)
+                DBState.db.customFlags.push(flag as LLMFlags)
             }
-        }} styled={DBState.db.customFlags.includes(flag) ? 'primary' : 'outlined'}>
+        }} styled={DBState.db.customFlags.includes(flag as LLMFlags) ? 'primary' : 'outlined'}>
             {name}
         </Button>
     {/snippet}

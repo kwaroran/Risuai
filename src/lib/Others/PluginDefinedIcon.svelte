@@ -1,7 +1,5 @@
 <script lang="ts">
     import DOMPurify from 'dompurify';
-    import IrisImage from "../../etc/Airisu.webp";
-    import { DBState } from 'src/ts/stores.svelte';
 
     let {
         ico,

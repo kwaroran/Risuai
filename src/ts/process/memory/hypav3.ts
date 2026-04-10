@@ -1721,8 +1721,13 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
 
         // Remove thoughts content for API
         const thoughtsRegex = /<Thoughts>[\s\S]*?<\/Thoughts>/g;
+        const result = response.result.replace(thoughtsRegex, "").trim();
 
-        return response.result.replace(thoughtsRegex, "").trim();
+        if (result.length === 0) {
+            throw new Error("Empty summary after removing thoughts content");
+        }
+
+        return result;
     }
 
     // Local — ensure system message comes first for WebLLM models
@@ -1746,8 +1751,13 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
 
     // Remove think content
     const thinkRegex = /<think>[\s\S]*?<\/think>/g;
+    const result = content.replace(thinkRegex, "").trim();
 
-    return content.replace(thinkRegex, "").trim();
+    if (result.length === 0) {
+        throw new Error("Empty summary after removing think content");
+    }
+
+    return result;
 }
 
 export function getCurrentHypaV3Preset(): HypaV3Preset {

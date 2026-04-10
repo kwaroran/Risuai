@@ -1147,7 +1147,7 @@ app.post('/api/login', loginRouteLimiter, async (req, res) => {
     }
     if(req.body.password && req.body.password.trim() === password.trim()){
         knownPublicKeysHashes.push(await hashJSON(req.body.publicKey))
-        fs.writeFileSync(knownPublicKeysPath, JSON.stringify(knownPublicKeysHashes), 'utf-8')
+        writeFileSync(knownPublicKeysPath, JSON.stringify(knownPublicKeysHashes), 'utf-8')
         res.send({status:'success'})
     }
     else{
@@ -1384,7 +1384,7 @@ app.get('/api/oauth_callback', async (req, res) => {
         },
     )
 
-    fs.writeFileSync(authCodePath, tokens.access_token, 'utf-8')
+    writeFileSync(authCodePath, tokens.access_token, 'utf-8')
 
     res.send(tokens)
             

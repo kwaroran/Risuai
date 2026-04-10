@@ -58,7 +58,7 @@
     "diff": "^7.0.0",
     "dompurify": "^3.3.1",
     "express": "^4.22.1",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.2.2",
     "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",

@@ -260,13 +260,12 @@ export async function loadData() {
             registerModelDynamic()
             saveDb()
             moduleUpdate()
-            if (import.meta.env.VITE_RISU_TOS === 'TRUE') {
-                alertTOS().then((a) => {
-                    if (a === false) {
-                        location.reload()
-                    }
-                })
-            }
+            alertTOS().then((a) => {
+                if (a === false) {
+                    location.reload()
+                }
+            })
+            
         } catch (error) {
             alertError(error)
         }

@@ -157,7 +157,7 @@
                 </div>
             {/each}
         {:else if selected === 3}
-            <MobileCharacters gridMode endGrid={endGrid} />
+            <MobileCharacters endGrid={endGrid} />
         {/if}
     </div>
 </div>

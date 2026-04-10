@@ -189,19 +189,41 @@
             {:else if $alertStore.type === 'tos'}
                 <!-- svelte-ignore a11y_missing_attribute -->
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <div class="text-textcolor">
-                    You should accept
-                    <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
-                        openURL('https://sv.risuai.xyz/hub/tos')
-                    }}>Terms of Service</a>
 
-                    and
+                {#if import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
+                    <div class="text-textcolor">
+                        You should accept
+                        <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
+                            openURL('https://account.sionyw.com/terms')
+                        }}>Terms of Service</a>
 
-                    <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
-                        openURL('https://sv.risuai.xyz/hub/pp')
-                    }}>Privacy Policy</a>
-                    to continue
-            </div>
+                        and
+
+                        <a role="button" tabindex="0" class="text-green-600 hover:text-green-500 transition-colors duration-200 cursor-pointer" onclick={() => {
+                            openURL('https://account.sionyw.com/privacy')
+                        }}>Privacy Policy</a>
+                        to continue
+                    </div>
+                {:else}
+                    <div class="prose prose-invert">
+                        <h2>Legal documents not configured</h2>
+                        <p>
+                            It looks like you are running a fork or a self-hosted instance.
+                            If you are NOT running a self-hosted instance for private use from the original repository, you must:
+                        </p>
+
+                        <ul>
+                            <li>Create your Terms of Service page and change the Terms of Service URL in the source code to your own.</li>
+                            <li>Create your Privacy Policy page and change the Privacy Policy URL in the source code to your own.</li>
+                            <li>Add Original Terms of Service and Privacy Policy alerts to parts that use Risuai services, such as login and API calls.</li>
+                            <li>If you are sure you have configured everything correctly, you can proceed by setting VITE_RISU_LEGAL_CONFIGURED to TRUE in your environment variables.</li>
+                        </ul>
+
+                        <p>
+                            If you are running a self-hosted instance for private use from the original repository, you can proceed by setting VITE_RISU_LEGAL_CONFIGURED to TRUE in your environment variables, without needing to do any of the above.
+                        </p>
+                    </div>
+                {/if}
             {:else if $alertStore.type === 'pluginconfirm'}
                 {@const parts = $alertStore.msg.split('\n\n')}
                 {@const mainPart = parts[0]}
@@ -280,7 +302,7 @@
                         })
                     }}>NO</Button>
                 </div>
-            {:else if $alertStore.type === 'tos'}
+            {:else if $alertStore.type === 'tos' && import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
                 <div class="flex gap-2 w-full">
                     <Button className="mt-4 grow" onclick={() => {
                         alertStore.set({

@@ -34,6 +34,21 @@
     let isTranslating = $state(false);
     const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
     const risuVersion = versionData.version;
+    const stackTraceCodeBlock = $derived.by(() => {
+        const lines = [`Risu version: ${risuVersion}`]
+
+        if (stackTraceTranslationFailed) {
+            lines.push(language.stackTraceTranslationFailed)
+        } else if (isTranslating) {
+            lines.push(language.translating)
+        }
+
+        if (displayedStackTrace) {
+            lines.push('', displayedStackTrace)
+        }
+
+        return lines.join('\n')
+    });
 
     let btn
     let input = $state('')
@@ -212,16 +227,7 @@
                             {/if}
                         </Button>
                         {#if showDetails}
-                            <div class="stack-trace-meta">
-                                <span>Risu version: {risuVersion}</span>
-                                {#if isTranslating}
-                                    <span>{language.translating}</span>
-                                {/if}
-                            </div>
-                            {#if stackTraceTranslationFailed}
-                                <div class="stack-trace-error">{language.stackTraceTranslationFailed}</div>
-                            {/if}
-                            <pre class="stack-trace">{displayedStackTrace}</pre>
+                            <pre class="stack-trace">{stackTraceCodeBlock}</pre>
                         {/if}
                     </div>
                 {/if}
@@ -1044,23 +1050,6 @@
         word-break: break-all;
         max-height: 200px;
         overflow-y: auto;
-    }
-
-    .stack-trace-meta {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.75rem;
-        margin-top: 0.5rem;
-        color: var(--risu-theme-textcolor2);
-        font-family: monospace;
-        font-size: 0.75rem;
-    }
-
-    .stack-trace-error {
-        margin-top: 0.5rem;
-        color: #fca5a5;
-        font-size: 0.75rem;
-        white-space: pre-wrap;
     }
 
     .request-log-code {

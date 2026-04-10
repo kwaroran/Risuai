@@ -39,13 +39,19 @@ const GUEST_BRIDGE_SCRIPT = `
 await (async function() {
     const pendingRequests = new Map();
     const callbackRegistry = new Map();
+    const callbackIdByFunction = new WeakMap();
     const proxyRefRegistry = new Map();
     const abortControllers = new Map();
 
     function serializeArg(arg) {
         if (typeof arg === 'function') {
+            const existingId = callbackIdByFunction.get(arg);
+            if (existingId) {
+                return { __type: 'CALLBACK_REF', id: existingId };
+            }
             const id = 'cb_' + Math.random().toString(36).substring(2);
             callbackRegistry.set(id, arg);
+            callbackIdByFunction.set(arg, id);
             return { __type: 'CALLBACK_REF', id: id };
         }
         if (arg && typeof arg === 'object') {
@@ -290,6 +296,7 @@ export class SandboxHost {
 
     private instanceRegistry = new Map<string, any>();
     private abortControllers = new Map<string, AbortController>();
+    private callbackWrapperCache = new Map<string, Function>();
 
     private pendingCallbacks = new Map<string, { resolve: Function, reject: Function }>();
 
@@ -399,7 +406,10 @@ export class SandboxHost {
             if (arg && arg.__type === 'CALLBACK_REF') {
                 const cbRef = arg as CallbackRef;
 
-                return async (...innerArgs: any[]) => {
+                const cached = this.callbackWrapperCache.get(cbRef.id);
+                if (cached) return cached;
+
+                const wrapper = async (...innerArgs: any[]) => {
                     return new Promise((resolve, reject) => {
                         const reqId = 'cb_req_' + Math.random().toString(36).substring(2);
                         this.pendingCallbacks.set(reqId, { resolve, reject });
@@ -440,6 +450,8 @@ export class SandboxHost {
                         this.iframe.contentWindow?.postMessage(message, '*', transferables);
                     });
                 };
+                this.callbackWrapperCache.set(cbRef.id, wrapper);
+                return wrapper;
             }
             if (arg && arg.__type === 'REMOTE_REF') {
                 const remoteRef = arg as RemoteRef;
@@ -604,6 +616,7 @@ export class SandboxHost {
             this.instanceRegistry.clear();
             this.pendingCallbacks.clear();
             this.abortControllers.clear();
+            this.callbackWrapperCache.clear();
         };
     }
 
@@ -614,5 +627,6 @@ export class SandboxHost {
         this.instanceRegistry.clear();
         this.pendingCallbacks.clear();
         this.abortControllers.clear();
+        this.callbackWrapperCache.clear();
     }
 }

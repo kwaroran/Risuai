@@ -8,10 +8,21 @@ SourceMapConsumer.initialize({
 
 // Timeout for fetch requests (10 seconds)
 const FETCH_TIMEOUT_MS = 10000;
+const STACK_TRACE_TRANSLATION_FAILED_MESSAGE = 'Stack trace translation failed. Showing original obfuscated stack trace below.';
 
-export async function translateStackTrace(stackTrace: string): Promise<string> {
+export interface StackTraceTranslationResult {
+    stackTrace: string;
+    didTranslate: boolean;
+    errorMessage?: string;
+}
+
+export async function translateStackTrace(stackTrace: string): Promise<StackTraceTranslationResult> {
     if (!stackTrace) {
-        return '';
+        return {
+            stackTrace: '',
+            didTranslate: false,
+            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+        };
     }
 
     const stackLines = stackTrace.split('\n');
@@ -24,7 +35,7 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
 
     // Step 1: Collect all unique mapUrls from stack trace
     const urlsToFetch = new Set<string>();
-    const linePattern = /(http[s]?:\/\/.*index-.*\.js):(\d+):(\d+)/;
+    const linePattern = /(http[s]?:\/\/[^\s)]+\.js):(\d+):(\d+)/;
     
     for (const line of stackLines) {
         const match = line.match(linePattern);
@@ -32,6 +43,14 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
             const mapUrl = match[1] + '.map';
             urlsToFetch.add(mapUrl);
         }
+    }
+
+    if (urlsToFetch.size === 0) {
+        return {
+            stackTrace,
+            didTranslate: false,
+            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+        };
     }
 
     // Step 2: Fetch all sourcemaps in parallel
@@ -62,6 +81,7 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
                     } else {
                         const errorMsg = `Sourcemap not found: ${getFileName(mapUrl)} (${mapRes.status} ${mapRes.statusText})`;
                         failedUrls.set(mapUrl, errorMsg);
+                        console.error(errorMsg);
                     }
                 } catch (fetchError) {
                     clearTimeout(timeoutId);
@@ -85,6 +105,7 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
     );
 
     // Step 3: Process all stack lines in parallel while maintaining order
+    let translatedFrameCount = 0;
     try {
         const processedLines = await Promise.all(
             stackLines.map((line) => {
@@ -100,7 +121,11 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
                             column: parseInt(columnNumber)
                         });
                         if (originalPosition.source) {
-                            return `    at ${originalPosition.name || ''} (${originalPosition.source}:${originalPosition.line}:${originalPosition.column})`;
+                            translatedFrameCount += 1;
+                            if (originalPosition.name) {
+                                return `    at ${originalPosition.name} (${originalPosition.source}:${originalPosition.line}:${originalPosition.column})`;
+                            }
+                            return `    at ${originalPosition.source}:${originalPosition.line}:${originalPosition.column}`;
                         }
                     }
                 }
@@ -114,14 +139,19 @@ export async function translateStackTrace(stackTrace: string): Promise<string> {
             consumer.destroy();
         }
     }
-    
-    // Prepend warnings if there were any failures
-    if (failedUrls.size > 0) {
-        const warnings = Array.from(failedUrls.values()).map(msg => `⚠️ ${msg}`);
-        return [...warnings, '', ...newStackLines].join('\n');
+
+    if (translatedFrameCount === 0) {
+        return {
+            stackTrace,
+            didTranslate: false,
+            errorMessage: STACK_TRACE_TRANSLATION_FAILED_MESSAGE
+        };
     }
-    
-    return newStackLines.join('\n');
+
+    return {
+        stackTrace: newStackLines.join('\n'),
+        didTranslate: true
+    };
 }
 
 // Helper function to extract filename from URL for cleaner error messages

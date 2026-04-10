@@ -243,8 +243,6 @@ export const languageEnglish = {
         settingsCloseButtonSize: "Adjusts the size of the close (X) button in the top right corner of the settings window. Default is 24.",
         showTypingEffect: "When enabled, it will show a typing indicator while the assistant is generating a response.",
         dynamicOutputPrompt: "When enabled, the schema information will be included in the request.",
-        sourcemapTranslate:
-            "If enabled, stack traces from errors will be automatically translated to show the original source code location, using sourcemaps. This is useful for debugging.",
         realmDirectOpen: "If enabled, clicking a character in RisuRealm preview will directly open the character description.",
         openRouterProviderOrder:
             "The order of providers to use, the first provider will be used first, if the provider is not available, it will use the next provider. See datail on https://openrouter.ai/docs/guides/routing/provider-selection#ordering-specific-providers",
@@ -1522,11 +1520,8 @@ export const languageEnglish = {
     showTypingEffect: "Show Typing Effect",
     dynamicRequest: "Dynamic Request",
     dynamicOutputPrompt: "Dynamic Output Prompt",
-    sourcemapTranslate: "Translate stack traces using sourcemaps",
     settingsCloseButtonSize: "Settings Close Button Size",
     translating: "Translating...",
-    showOriginal: "Show Original Code Address",
-    translateCode: "Translate Code Address",
     apply: "Apply",
     add: "Add",
     nightlyWarning:

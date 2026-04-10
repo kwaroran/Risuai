@@ -26,11 +26,15 @@
     import { getChatBranches } from "src/ts/gui/branches";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
     import { translateStackTrace } from "../../ts/sourcemap";
+    import versionData from "../../../version.json";
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
-    let isTranslated = $state(false);
+    let stackTraceTranslationError = $state('');
     let isTranslating = $state(false);
+    const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
+    const risuVersion = versionData.version;
+    const stackTraceTranslationFailedMessage = 'Stack trace translation failed. Showing original obfuscated stack trace below.';
 
     let btn
     let input = $state('')
@@ -80,7 +84,7 @@
     $effect.pre(() => {
         showDetails = false;
         translatedStackTrace = '';
-        isTranslated = false;
+        stackTraceTranslationError = '';
         isTranslating = false;
         if(btn){
             btn.focus()
@@ -103,33 +107,27 @@
     });
 
     $effect(() => {
-        if (showDetails) {
-            const shouldAutoTranslate = DBState.db.sourcemapTranslate;
-            isTranslated = shouldAutoTranslate;
-            if (shouldAutoTranslate && !translatedStackTrace) {
-                loadTranslatedTrace();
-            }
+        if ($alertStore.type === 'error' && $alertStore.stackTrace && !translatedStackTrace && !stackTraceTranslationError && !isTranslating) {
+            void loadTranslatedTrace();
         }
     });
 
     async function loadTranslatedTrace() {
-        if (isTranslating || translatedStackTrace) return;
+        if (isTranslating || translatedStackTrace || stackTraceTranslationError || !$alertStore.stackTrace) return;
         isTranslating = true;
         try {
-            translatedStackTrace = await translateStackTrace($alertStore.stackTrace);
+            const result = await translateStackTrace($alertStore.stackTrace);
+            if (result.didTranslate) {
+                translatedStackTrace = result.stackTrace;
+            } else {
+                stackTraceTranslationError = result.errorMessage ?? stackTraceTranslationFailedMessage;
+            }
         } catch (e) {
             console.error("Failed to translate stack trace:", e);
-            isTranslated = false;
+            stackTraceTranslationError = stackTraceTranslationFailedMessage;
         } finally {
             isTranslating = false;
         }
-    }
-
-    async function handleToggleTranslate() {
-        if (!isTranslated && !translatedStackTrace) {
-            await loadTranslatedTrace();
-        }
-        isTranslated = !isTranslated;
     }
 
     const beautifyJSON = (data:string) =>{
@@ -215,16 +213,16 @@
                             {/if}
                         </Button>
                         {#if showDetails}
-                            <Button styled="outlined" size="sm" onclick={handleToggleTranslate} disabled={isTranslating} className="ml-2">
+                            <div class="stack-trace-meta">
+                                <span>Risu version: {risuVersion}</span>
                                 {#if isTranslating}
-                                    {language.translating}
-                                {:else if isTranslated}
-                                    {language.showOriginal}
-                                {:else}
-                                    {language.translateCode}
+                                    <span>{language.translating}</span>
                                 {/if}
-                            </Button>
-                            <pre class="stack-trace">{@html isTranslated ? translatedStackTrace : $alertStore.stackTrace}</pre>
+                            </div>
+                            {#if stackTraceTranslationError}
+                                <div class="stack-trace-error">{stackTraceTranslationError}</div>
+                            {/if}
+                            <pre class="stack-trace">{displayedStackTrace}</pre>
                         {/if}
                     </div>
                 {/if}
@@ -1047,6 +1045,23 @@
         word-break: break-all;
         max-height: 200px;
         overflow-y: auto;
+    }
+
+    .stack-trace-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        color: var(--risu-theme-textcolor2);
+        font-family: monospace;
+        font-size: 0.75rem;
+    }
+
+    .stack-trace-error {
+        margin-top: 0.5rem;
+        color: #fca5a5;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
     }
 
     .request-log-code {

@@ -189,12 +189,25 @@ async function removeColdStorageItem(key:string) {
     }
 }
 
-export function listColdDataKeys(): string[] {
+export async function listColdDataKeys(): Promise<string[]> {
     const keys:string[] = []
     for(let i=0;i<DBState.db.characters.length;i++){
 
         if(DBState.db.characters[i].coldstorage){
             keys.push(DBState.db.characters[i].coldstorage!)
+
+            //load character so we can check the chats for cold storage keys. This is needed because if the character is in cold storage, the chats won't have cold storage keys, but the chat data will be in the character cold storage data, so we need to load it to find those keys.
+            const coldData = await getColdStorageItem(DBState.db.characters[i].coldstorage!)
+            if(coldData && !Array.isArray(coldData) && coldData.character){
+                const characterData = coldData.character as character
+                for(let j=0;j<characterData.chats.length;j++){
+                    const chat = characterData.chats[j]
+                    if(chat.message?.[0]?.data?.startsWith(coldStorageHeader)){
+                        const coldDataKey = chat.message[0].data.slice(coldStorageHeader.length)
+                        keys.push(coldDataKey)
+                    }
+                }
+            }
         }
         for(let j=0;j<DBState.db.characters[i].chats.length;j++){
             const chat = DBState.db.characters[i].chats[j]

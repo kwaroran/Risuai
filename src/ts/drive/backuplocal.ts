@@ -142,7 +142,7 @@ export async function SaveLocalBackup(){
 
     if(!forageStorage.isAccount){
         //save coldstorages
-        const coldKeys = listColdDataKeys()
+        const coldKeys = await listColdDataKeys()
         for(let i=0;i<coldKeys.length;i++){
             const key = coldKeys[i]
             let message = `Saving local Backup Cold data... (${i + 1} / ${coldKeys.length})`

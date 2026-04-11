@@ -217,6 +217,7 @@ export async function makeColdData(){
 
     for(let i=0;i<DBState.db.characters.length;i++){
         for(let j=0;j<DBState.db.characters[i].chats.length;j++){
+            console.log(`Checking chat ${j} of character ${DBState.db.characters[i].name ?? i} for cold storage eligibility`)
             
             const chat = DBState.db.characters[i].chats[j]
             let greatestTime = chat.lastDate ?? 0
@@ -291,8 +292,8 @@ export async function makeColdData(){
     for(let i=0;i<DBState.db.characters.length;i++){
 
         const lastInteraction = DBState.db.characters[i].lastInteraction ?? Date.now()
-        if(lastInteraction < coldTime){
-        
+        if(lastInteraction < coldTime && !DBState.db.characters[i].coldstorage){
+            console.log(`Character ${DBState.db.characters[i].name ?? i} has not been interacted with since ${new Date(lastInteraction).toLocaleDateString()}, moving to cold storage`)
             const id = crypto.randomUUID()
             const writeSuccess = await setColdStorageItem(id, {
                 character: DBState.db.characters[i]
@@ -300,14 +301,12 @@ export async function makeColdData(){
 
             if(!writeSuccess){
                 console.error(`Cold storage write failed for character ${i}, keeping original data`)
-                alertError(language.errors.coldStorageWriteFailed)
                 continue
             }
 
             const verifyData = await getColdStorageItem(id)
-            if(!verifyData || (!Array.isArray(verifyData) && !verifyData.characters)){
-                console.error(`Cold storage verification failed for character ${DBState.db.characters[i].chaId ?? i}, keeping original data`)
-                alertError(language.errors.coldStorageVerifyFailed)
+            if(!verifyData || (!Array.isArray(verifyData) && !verifyData.character)){
+                console.error(`Cold storage verification failed for character ${DBState.db.characters[i].chaId ?? i}, keeping original data`, verifyData)
                 continue
             }
 

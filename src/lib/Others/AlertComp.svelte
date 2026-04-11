@@ -208,9 +208,7 @@
 
                     {#if localStorage.getItem('tos2') && Date.now() - new Date('2026-05-15').getTime() < 0}
                         <div class="text-gray-500 mt-4 text-sm">
-                            You accepted previous version of Terms of Service and Privacy Policy.
-                            Please review the updated documents by clicking the links above,
-                            you can still continue using Risuai using original terms until {new Date('2026-05-15').toLocaleDateString()}.
+                            You can still continue using Risuai using original terms until {new Date('2026-05-15').toLocaleDateString()}.
                         </div>
                     {/if}
                 {:else}

@@ -4,7 +4,7 @@ import { defaultSdDataFunc, type character, setDatabase, type customscript, type
 import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
 import { language } from "src/lang"
 import { v4 as uuidv4, v4 } from 'uuid';
-import { characterFormatUpdate } from "./characters"
+import { changeChar, characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { compressImage, getImageType } from "./media"
@@ -1830,8 +1830,7 @@ export async function downloadRisuHub(id:string, arg:{
             db = getDatabase()
             if(db.characters[db.characters.length-1] && (db.goCharacterOnImport || arg.forceRedirect)){
                 const index = db.characters.length-1
-                characterFormatUpdate(index);
-                selectedCharID.set(index);
+                changeChar(index)
             }   
             return
         }
@@ -1847,8 +1846,7 @@ export async function downloadRisuHub(id:string, arg:{
         let db = getDatabase()
         if(db.characters[db.characters.length-1] && (db.goCharacterOnImport || arg.forceRedirect)){
             const index = db.characters.length-1
-            characterFormatUpdate(index);
-            selectedCharID.set(index);
+            changeChar(index)
             alertStore.set({
                 type: 'none',
                 msg: ''

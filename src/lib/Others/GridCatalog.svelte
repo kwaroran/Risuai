@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { characterFormatUpdate, getCharImage, removeChar } from "../../ts/characters";
+    import { changeChar, characterFormatUpdate, getCharImage, removeChar } from "../../ts/characters";
     import { type Database } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import BarIcon from "../SideBars/BarIcon.svelte";
@@ -18,12 +18,6 @@
     let { endGrid = () => {} }: Props = $props();
     let search = $state('')
     let selected = $state(3)
-
-    function changeChar(index = -1){
-        characterFormatUpdate(index)
-        selectedCharID.set(index)
-        endGrid()
-    }
 
     function formatChars(search:string, db:Database, trash = false){
         let charas:{

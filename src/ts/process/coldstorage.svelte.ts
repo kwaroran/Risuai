@@ -14,6 +14,7 @@ import { compress as fflateCompress, decompress as fflateDecompress } from "ffla
 import { fetchProtectedResource } from "../sionyw"
 import { alertError } from "../alert"
 import { language } from "src/lang"
+import type { character } from "../storage/database.svelte"
 
 export const coldStorageHeader = '\uEF01COLDSTORAGE\uEF01'
 
@@ -190,6 +191,10 @@ async function removeColdStorageItem(key:string) {
 export function listColdDataKeys(): string[] {
     const keys:string[] = []
     for(let i=0;i<DBState.db.characters.length;i++){
+
+        if(DBState.db.characters[i].coldstorage){
+            keys.push(DBState.db.characters[i].coldstorage!)
+        }
         for(let j=0;j<DBState.db.characters[i].chats.length;j++){
             const chat = DBState.db.characters[i].chats[j]
             if(chat.message?.[0]?.data?.startsWith(coldStorageHeader)){
@@ -208,7 +213,7 @@ export async function makeColdData(){
     }
 
     const currentTime = Date.now()
-    const coldTime = currentTime - 1000 * 60 * 60 * 24 * 30 //30 days before now
+    const coldTime = currentTime - 1000 * 60 * 60 * 24 * 10 //10 days before now
 
     for(let i=0;i<DBState.db.characters.length;i++){
         for(let j=0;j<DBState.db.characters[i].chats.length;j++){
@@ -280,6 +285,68 @@ export async function makeColdData(){
                 chat.localLore = []
 
             }
+        }
+    }
+
+    for(let i=0;i<DBState.db.characters.length;i++){
+
+        const lastInteraction = DBState.db.characters[i].lastInteraction ?? Date.now()
+        if(lastInteraction < coldTime){
+        
+            const id = crypto.randomUUID()
+            const writeSuccess = await setColdStorageItem(id, {
+                character: DBState.db.characters[i]
+            })
+
+            if(!writeSuccess){
+                console.error(`Cold storage write failed for character ${i}, keeping original data`)
+                alertError(language.errors.coldStorageWriteFailed)
+                continue
+            }
+
+            const verifyData = await getColdStorageItem(id)
+            if(!verifyData || (!Array.isArray(verifyData) && !verifyData.characters)){
+                console.error(`Cold storage verification failed for character ${DBState.db.characters[i].chaId ?? i}, keeping original data`)
+                alertError(language.errors.coldStorageVerifyFailed)
+                continue
+            }
+
+            const coldCharacter:character = {
+                type: 'character',
+                image: DBState.db.characters[i].image,
+                name: DBState.db.characters[i].name,
+                firstMessage: "",
+                desc: "",
+                notes: "",
+                chats: DBState.db.characters[i].chats,
+                chatFolders: [],
+                chatPage: 0,
+                viewScreen: "emotion",
+                bias: [],
+                emotionImages: [],
+                globalLore: [],
+                chaId: DBState.db.characters[i].chaId,
+                sdData: [],
+                customscript: [],
+                triggerscript: [],
+                utilityBot: false,
+                exampleMessage: "",
+                creatorNotes: "",
+                systemPrompt: "",
+                postHistoryInstructions: "",
+                alternateGreetings: [],
+                tags: [],
+                creator: "",
+                characterVersion: "",
+                personality: "",
+                scenario: "",
+                firstMsgIndex: 0,
+                replaceGlobalNote: "",
+                additionalText: "",
+                coldstorage: id
+            }
+
+            DBState.db.characters[i] = coldCharacter
         }
     }
 }

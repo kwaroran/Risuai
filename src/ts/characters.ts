@@ -13,6 +13,7 @@ import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
 import { PngChunk } from "./pngChunk";
+import { getColdStorageItem } from "./process/coldstorage.svelte";
 
 export function createNewCharacter() {
     DBState.db.characters.push(createBlankChar())
@@ -864,7 +865,7 @@ export async function addCharacter(arg:{
     MobileGUIStack.set(1)
 }
 
-export function changeChar(index: number, arg:{
+export async function changeChar(index: number, arg:{
     reseter?:()=>any,
 } = {}) {
     const reseter = arg.reseter ?? (() => {})
@@ -872,6 +873,16 @@ export function changeChar(index: number, arg:{
       return
     }
     reseter();
+    if(DBState.db.characters?.[index]?.coldstorage){
+        const coldData = await getColdStorageItem(DBState.db.characters[index].coldstorage!)
+        if(coldData){
+            DBState.db.characters[index] = coldData
+        }
+        else{
+            alertError(language.errors.coldStorageVerifyFailed)
+            return
+        }
+    }
     characterFormatUpdate(index, {
       updateInteraction: true,
     });

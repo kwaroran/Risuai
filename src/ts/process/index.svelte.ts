@@ -459,6 +459,36 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     const lorepmt = await loadLoreBookV3Prompt()
+
+    const positionRegex = /{{position::(.+?)}}/g
+    const replaceposition = (text:string):{text:string, replaced:boolean} => {
+        let replaced = false
+        const result = text.replace(positionRegex, (match, p1) => {
+            replaced = true
+            const posMatch = 'pt_' + p1
+            const matchingPrompts: string[] = []
+            for (const v of lorepmt.actives) {
+                if (v.pos === posMatch) {
+                    matchingPrompts.push(v.prompt)
+                }
+            }
+            return matchingPrompts.join('\n')
+        })
+        return {text: result, replaced}
+    }
+
+    // maxDepth controls how many levels of nesting are resolved. Currently set to 5, adjust if needed.
+    const resolvePosition = (text:string, maxDepth:number = 5) => {
+        let result = text
+        for(let i=0; i<maxDepth;i++) {
+            const r = replaceposition(result)
+            result = r.text
+            if(!r.replaced) break
+        }
+        result = result.replace(positionRegex, '')
+        return result
+    }
+
     const normalActives = lorepmt.actives.filter(v => {
         return v.pos === '' && v.inject === null
     })
@@ -467,7 +497,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const lorebook of normalActives){
         unformated.lorebook.push({
             role: lorebook.role,
-            content: risuChatParser(lorebook.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         })
     }
 
@@ -478,7 +508,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const lorebook of descActives){
         const c = {
             role: lorebook.role,
-            content: risuChatParser(lorebook.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         }
         if(lorebook.pos === 'before_desc'){
             unformated.description.unshift(c)
@@ -516,7 +546,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const lorebook of postEverythingLorebooks){
         unformated.postEverything.push({
             role: lorebook.role,
-            content: risuChatParser(lorebook.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         })
     }
 
@@ -537,7 +567,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const lorebook of postEverythingAssistantLorebooks){
         unformated.postEverything.push({
             role: lorebook.role,
-            content: risuChatParser(lorebook.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         })
     }
 
@@ -548,7 +578,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     //for unexpected error
     currentTokens += 50
     
-    const positionRegex = /{{position::(.+?)}}/g
     const positionParser = (text:string, loc:string) => {
         console.log(injectionLorePosSet)
         if(injectionLorePosSet.has(loc)){
@@ -572,16 +601,8 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
             }
         }
-        return text.replace(positionRegex, (match, p1) => {
-            const posMatch = 'pt_' + p1
-            const matchingPrompts: string[] = []
-            for (const v of lorepmt.actives) {
-                if (v.pos === posMatch) {
-                    matchingPrompts.push(v.prompt)
-                }
-            }
-            return matchingPrompts.join('\n')
-        })
+
+        return resolvePosition(text)
     }
 
     let hasCachePoint = false

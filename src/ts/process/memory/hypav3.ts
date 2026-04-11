@@ -39,6 +39,7 @@ export interface HypaV3Settings {
     preserveOrphanedMemory: boolean;
     processRegexScript: boolean;
     doNotSummarizeUserMessage: boolean;
+    summaryChunkSeparator: string;
     // Experimental
     useExperimentalImpl: boolean;
     summarizationRequestsPerMinute: number;
@@ -100,6 +101,19 @@ export interface HypaV3Result {
 const logPrefix = "[HypaV3]";
 const memoryPromptTag = "Past Events Summary";
 const summarySeparator = "\n\n";
+
+function splitBySeparator(text: string, separator: string): string[] {
+    try {
+        const regexMatch = separator.match(/^\/(.+)\/([gimuy]*)$/);
+        if (regexMatch) {
+            const [, pattern, flags] = regexMatch;
+            return text.split(new RegExp(pattern, flags));
+        }
+        return text.split(new RegExp(separator));
+    } catch {
+        return text.split("\n\n");
+    }
+}
 
 export async function hypaMemoryV3(
     chats: OpenAIChat[],
@@ -600,8 +614,7 @@ async function hypaMemoryV3MainExp(
         // Dynamically generate embedding texts
         const ebdTexts: EmbeddingText<Summary>[] = unusedSummaries.flatMap(
             (summary, summaryIndex) => {
-                const splitted = summary.text
-                    .split("\n\n")
+                const splitted = splitBySeparator(summary.text, settings.summaryChunkSeparator)
                     .filter((e) => e.trim().length > 0);
 
                 return splitted.map((chunk, chunkIndex) => ({
@@ -1320,8 +1333,7 @@ async function hypaMemoryV3Main(
         const summaryChunks: SummaryChunk[] = [];
 
         unusedSummaries.forEach((summary) => {
-            const splitted = summary.text
-                .split("\n\n")
+            const splitted = splitBySeparator(summary.text, settings.summaryChunkSeparator)
                 .filter((e) => e.trim().length > 0);
 
             summaryChunks.push(
@@ -1788,6 +1800,7 @@ export function createHypaV3Preset(
         preserveOrphanedMemory: false,
         processRegexScript: false,
         doNotSummarizeUserMessage: false,
+        summaryChunkSeparator: "\\n\\n",
         // Experimental
         useExperimentalImpl: false,
         summarizationRequestsPerMinute: 20,

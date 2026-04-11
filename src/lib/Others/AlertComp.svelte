@@ -26,6 +26,7 @@
     import { getChatBranches } from "src/ts/gui/branches";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
     import { translateStackTrace } from "../../ts/sourcemap";
+    import { isIOS, isNodeServer, isTauri } from "src/ts/platform";
     import versionData from "../../../version.json";
 
     let showDetails = $state(false);
@@ -34,8 +35,35 @@
     let isTranslating = $state(false);
     const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
     const risuVersion = versionData.version;
+    const risuEnvironment = isTauri ? "local" : isNodeServer ? "node" : "web";
+    const userAgent = typeof navigator === "undefined" ? "Unknown" : navigator.userAgent || "Unknown";
+
+    function getOSName() {
+        if (typeof navigator === "undefined") {
+            return "Unknown";
+        }
+
+        const ua = navigator.userAgent || "";
+        const platform = navigator.platform || "";
+
+        if (/Windows/i.test(ua)) return "Windows";
+        if (/Android/i.test(ua)) return "Android";
+        if (isIOS()) return "iOS";
+        if (/CrOS/i.test(ua)) return "ChromeOS";
+        if (/Mac/i.test(platform) || /Mac OS X/i.test(ua)) return "macOS";
+        if (/Linux/i.test(platform) || /Linux/i.test(ua)) return "Linux";
+
+        return platform || "Unknown";
+    }
+
+    const osName = getOSName();
     const stackTraceCodeBlock = $derived.by(() => {
-        const lines = [`Risu version: ${risuVersion}`]
+        const lines = [
+            `Risu version: ${risuVersion}`,
+            `OS: ${osName}`,
+            `User-Agent: ${userAgent}`,
+            `Risu environment: ${risuEnvironment}`
+        ]
 
         if (stackTraceTranslationFailed) {
             lines.push(language.stackTraceTranslationFailed)

@@ -4,7 +4,8 @@ import {
     readFile,
     exists,
     mkdir,
-    remove
+    remove,
+    readDir
 } from "@tauri-apps/plugin-fs"
 import { forageStorage } from "../globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
@@ -168,6 +169,67 @@ export async function setColdStorageItem(key:string, value:any):Promise<boolean>
             return false
         }
     }
+}
+
+export async function listColdStorageItems():Promise<{items:string[]}> {
+    if(forageStorage.isAccount){
+        const d = await fetchProtectedResource('/hub/account/coldstorage', {
+            method: 'GET',
+            headers: {
+                'x-risu-key': 'list-keys',
+            }
+        })
+
+        if(d.status === 200){
+            const buf = await d.arrayBuffer()
+            const text = new TextDecoder().decode(await decompress(new Uint8Array(buf)))
+            return JSON.parse(text)
+        }
+        return null
+    }
+
+    else if(isNodeServer){
+        const fullKeys = await (forageStorage.realStorage as NodeStorage).keys()
+        const keys = fullKeys.filter(k => k.startsWith('coldstorage/')).map(k => k.replace('coldstorage/', ''))
+        return {
+            items: keys
+        }
+    }
+
+    else if(isTauri){
+        const entries = await readDir('./coldstorage', { baseDir: BaseDirectory.AppData })
+        const keys = entries.filter(e => e.name.endsWith('.json')).map(e => e.name.slice(0, -5))
+        return {
+            items: keys
+        }
+    }
+    else{
+        const opfs = await navigator.storage.getDirectory()
+        const entries = opfs.entries()
+        const keys = []
+        for await (const [name, handle] of entries) {
+            if(name.startsWith('coldstorage_') && name.endsWith('.json')){
+                keys.push(name.slice(12, -5))
+            }
+        }
+        return {
+            items: keys
+        }
+    }
+}
+
+export async function cleanColdStorage(){
+    const actualUsedKeys = await listColdDataKeys()
+    const allKeys = (await listColdStorageItems()).items
+    for(let i=0;i<allKeys.length;i++){
+        const key = allKeys[i]
+        if(!actualUsedKeys.includes(key)){
+            alertWait(`Removing unused cold storage item: ${key} (${i + 1} / ${allKeys.length})`)
+            await removeColdStorageItem(key)
+        }
+    }
+
+    alertClear()
 }
 
 async function removeColdStorageItem(key:string) {

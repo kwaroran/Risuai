@@ -1672,6 +1672,8 @@ export const languageEnglish = {
     nanoGPTSelectFromList: "Select from List",
     nanoGPTManualInput: "Manual Input",
     nanoGPTManualModelSelect: "Manual Model Select",
+    coldStorage: "Cold Storage",
+    cleanColdStorage: "Clean Unused Cold Storage",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

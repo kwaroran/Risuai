@@ -181,9 +181,7 @@ export async function listColdStorageItems():Promise<{items:string[]}> {
         })
 
         if(d.status === 200){
-            const buf = await d.arrayBuffer()
-            const text = new TextDecoder().decode(await decompress(new Uint8Array(buf)))
-            return JSON.parse(text)
+            return await d.json()
         }
         return null
     }
@@ -221,21 +219,57 @@ export async function listColdStorageItems():Promise<{items:string[]}> {
 export async function cleanColdStorage(){
     const actualUsedKeys = await listColdDataKeys()
     const allKeys = (await listColdStorageItems()).items
-    for(let i=0;i<allKeys.length;i++){
-        const key = allKeys[i]
-        if(!actualUsedKeys.includes(key)){
-            alertWait(`Removing unused cold storage item: ${key} (${i + 1} / ${allKeys.length})`)
-            await removeColdStorageItem(key)
+    const unusedKeys = allKeys.filter(k => !actualUsedKeys.includes(k))
+    console.log('Cleaning cold storage, actual used keys:', actualUsedKeys, 'all keys:', allKeys, 'unused keys:', unusedKeys)
+
+    if(forageStorage.isAccount){
+        await removeColdStorageItems(unusedKeys)
+    }
+    else{
+        for(let i=0;i<unusedKeys.length;i++){
+            const key = unusedKeys[i]
+            alertWait(`Removing unused cold storage item: ${key} (${i + 1} / ${unusedKeys.length})`)
+            await removeColdStorageItems([key])
         }
     }
 
     alertClear()
 }
 
-async function removeColdStorageItem(key:string) {
-    if(isTauri){
+async function removeColdStorageItems(keys:string[]) {
+    
+    if(forageStorage.isAccount){
         try {
-            await remove('./coldstorage/'+key+'.json')
+            const res = await fetchProtectedResource('/hub/account/coldstorage', {
+                method: 'POST',
+                headers: {
+                    'x-risu-key': 'remove',
+                    'x-action': 'remove'
+                },
+                body: JSON.stringify({ keys })
+            })
+            if(res.status !== 200){
+                console.error('Error removing cold storage item:', await res.text().catch(() => 'unknown'))
+            }
+        } catch (error) {
+            console.error('Cold storage account remove failed:', error)
+        }
+    }
+    else if(isNodeServer){
+        try {
+            const storage = forageStorage.realStorage as NodeStorage
+            for(let i=0;i<keys.length;i++){
+                await storage.removeItem('coldstorage/' + keys[i])
+            }
+        } catch (error) {
+            console.error(error)
+        }
+    }
+    else if(isTauri){
+        try {
+            for(let i=0;i<keys.length;i++){
+                await remove('./coldstorage/'+keys[i]+'.json')
+            }
         } catch (error) {
             console.error(error)
         }
@@ -244,7 +278,9 @@ async function removeColdStorageItem(key:string) {
         //use opfs
         try {
             const opfs = await navigator.storage.getDirectory()
-            await opfs.removeEntry('coldstorage_' + key+'.json')
+            for(let i=0;i<keys.length;i++){
+                await opfs.removeEntry('coldstorage_' + keys[i]+'.json')
+            }
         } catch (error) {
             console.error(error)
         }
@@ -257,19 +293,7 @@ export async function listColdDataKeys(): Promise<string[]> {
 
         if(DBState.db.characters[i].coldstorage){
             keys.push(DBState.db.characters[i].coldstorage!)
-
-            //load character so we can check the chats for cold storage keys. This is needed because if the character is in cold storage, the chats won't have cold storage keys, but the chat data will be in the character cold storage data, so we need to load it to find those keys.
-            const coldData = await getColdStorageItem(DBState.db.characters[i].coldstorage!)
-            if(coldData && !Array.isArray(coldData) && coldData.character){
-                const characterData = coldData.character as character
-                for(let j=0;j<characterData.chats.length;j++){
-                    const chat = characterData.chats[j]
-                    if(chat.message?.[0]?.data?.startsWith(coldStorageHeader)){
-                        const coldDataKey = chat.message[0].data.slice(coldStorageHeader.length)
-                        keys.push(coldDataKey)
-                    }
-                }
-            }
+            keys.push(...(DBState.db.characters[i].coldStoragedChats ?? []))
         }
         for(let j=0;j<DBState.db.characters[i].chats.length;j++){
             const chat = DBState.db.characters[i].chats[j]
@@ -302,6 +326,16 @@ async function makeColdDataForCharacter(i:number, coldTime:number){
             return
         }
 
+        //get cold storaged chats in this character
+        const coldStoragedChats:string[] = []
+        for(let j=0;j<DBState.db.characters[i].chats.length;j++){
+            const chat = DBState.db.characters[i].chats[j]
+            if(chat.message?.[0]?.data?.startsWith(coldStorageHeader)){
+                const coldDataKey = chat.message[0].data.slice(coldStorageHeader.length)
+                coldStoragedChats.push(coldDataKey)
+            }
+        }
+
         // Not a full character object,
         // just the data needed to show in the character list and load the chat when clicked. The rest will be loaded back when the character is opened.
         const coldCharacter:character = {
@@ -321,7 +355,8 @@ async function makeColdDataForCharacter(i:number, coldTime:number){
             chatPage: 0,
             chaId: DBState.db.characters[i].chaId,
             firstMsgIndex: 0,
-            coldstorage: id
+            coldstorage: id,
+            coldStoragedChats: coldStoragedChats
         } as any
 
         DBState.db.characters[i] = coldCharacter

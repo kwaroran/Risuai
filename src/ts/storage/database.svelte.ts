@@ -1403,6 +1403,7 @@ export interface character{
     prebuiltAssetExclude?:string[]
     modules?:string[]
     coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 
@@ -1482,6 +1483,7 @@ export interface groupChat{
     prebuiltAssetExclude?:string[]
     modules?:string[]
     coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 export interface botPreset{

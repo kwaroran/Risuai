@@ -176,7 +176,7 @@ export async function listColdStorageItems():Promise<{items:string[]}> {
         const d = await fetchProtectedResource('/hub/account/coldstorage', {
             method: 'GET',
             headers: {
-                'x-risu-key': 'list-keys',
+                'x-risu-key': '@list-keys',
             }
         })
 

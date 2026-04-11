@@ -28,7 +28,7 @@ async function decompress(data:Uint8Array) {
     })
 }
 
-async function getColdStorageItem(key:string) {
+export async function getColdStorageItem(key:string) {
 
     if(forageStorage.isAccount){
         const d = await fetchProtectedResource('/hub/account/coldstorage', {
@@ -91,7 +91,7 @@ async function getColdStorageItem(key:string) {
     }
 }
 
-async function setColdStorageItem(key:string, value:any):Promise<boolean> {
+export async function setColdStorageItem(key:string, value:any):Promise<boolean> {
 
     let compressed:Uint8Array
     try {
@@ -185,6 +185,20 @@ async function removeColdStorageItem(key:string) {
             console.error(error)
         }
     }
+}
+
+export function listColdDataKeys(): string[] {
+    const keys:string[] = []
+    for(let i=0;i<DBState.db.characters.length;i++){
+        for(let j=0;j<DBState.db.characters[i].chats.length;j++){
+            const chat = DBState.db.characters[i].chats[j]
+            if(chat.message?.[0]?.data?.startsWith(coldStorageHeader)){
+                const coldDataKey = chat.message[0].data.slice(coldStorageHeader.length)
+                keys.push(coldDataKey)
+            }
+        }
+    }
+    return keys
 }
 
 export async function makeColdData(){

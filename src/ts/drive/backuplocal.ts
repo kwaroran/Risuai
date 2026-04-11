@@ -9,6 +9,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
+import { getColdStorageItem, listColdDataKeys, setColdStorageItem } from "../process/coldstorage.svelte";
 
 function getBasename(data:string){
     const baseNameRegex = /\\/g
@@ -135,6 +136,23 @@ export async function SaveLocalBackup(){
             }
             if(forageStorage.isAccount && !isCached){
                 await sleep(1000)
+            }
+        }
+    }
+
+    if(!forageStorage.isAccount){
+        //save coldstorages
+        const coldKeys = listColdDataKeys()
+        for(let i=0;i<coldKeys.length;i++){
+            const key = coldKeys[i]
+            let message = `Saving local Backup Cold data... (${i + 1} / ${coldKeys.length})`
+            alertWait(message)
+            const data = await getColdStorageItem(key)
+            if(data){
+                const encoded = new TextEncoder().encode(JSON.stringify(data))
+                await writer.writeBackup(`coldstorage/${key}.json`, encoded)
+            } else {
+                missingAssets.push(`coldstorage/${key}.json`)
             }
         }
     }
@@ -434,6 +452,18 @@ export function LoadLocalBackup(){
                                 type: "wait",
                                 msg: "Success, Refreshing your app."
                             });
+                        }
+                    }
+                    else if (name.startsWith('coldstorage/')) {
+                        const key = name.replace('coldstorage/', '').replace('.json', '')
+                        const text = new TextDecoder().decode(data)
+                        if(!forageStorage.isAccount){
+                            try {
+                                const jsonData = JSON.parse(text)
+                                await setColdStorageItem(key, jsonData)
+                            } catch (e) {
+                                console.error(`Failed to parse cold storage item ${key}:`, e)
+                            }
                         }
                     } else {
                         if (isTauri) {

@@ -74,7 +74,7 @@ export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
     }
     if(apply.includes('hypaV3Preset')) {
         let presetIndex = DBState.db.hypaV3Presets?.findIndex(p => p.name === loadout.hypaV3PresetName)
-        if(presetIndex !== -1){
+        if(presetIndex >= 0){
             DBState.db.hypaV3PresetId = presetIndex
         }
     }

@@ -510,7 +510,6 @@
             </button>
         </div>
 
-        <CustomSideBar />
         {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}            
             <Toggles bind:chara={chara} />
         {/if}

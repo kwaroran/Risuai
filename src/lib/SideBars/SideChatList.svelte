@@ -20,6 +20,7 @@
     import { language } from "src/lang";
     import Toggles from "./Toggles.svelte";
     import { changeChatTo, createChatCopyName } from "src/ts/globalApi.svelte";
+    import CustomSideBar from "./CustomSidebar.svelte";
 
     interface Props {
         chara: character|groupChat;
@@ -509,6 +510,7 @@
             </button>
         </div>
 
+        <CustomSideBar />
         {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}            
             <Toggles bind:chara={chara} />
         {/if}

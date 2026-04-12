@@ -13,13 +13,14 @@
     import { applyLoadout, saveCurrentLoadout, type Loadout } from "src/ts/loadout";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
 
-    type LoadoutApplyOption = 'modules' | 'globalVariables' | 'preset' | 'persona';
+    type LoadoutApplyOption = 'modules' | 'globalVariables' | 'preset' | 'persona' | 'hypaV3Preset';
 
     let loadOptions: Record<LoadoutApplyOption, boolean> = $state({
         modules: true,
         globalVariables: true,
         preset: true,
         persona: true,
+        hypaV3Preset: true,
     });
 
     const loadOptionLabels: Record<LoadoutApplyOption, string> = {
@@ -27,6 +28,7 @@
         globalVariables: 'Global Variables',
         preset: 'Preset',
         persona: 'Persona',
+        hypaV3Preset: 'HypaV3 Preset',
     };
 
     let saveName = $state('');
@@ -109,7 +111,14 @@
                 {#if loadout.presetName}
                     <span
                         >Preset: <span class="text-textcolor/60"
-                            >{loadout.presetName}</span 
+                            >{loadout.presetName}</span
+                        ></span
+                    >
+                {/if}
+                {#if loadout.hypaV3PresetName}
+                    <span
+                        >HypaV3: <span class="text-textcolor/60"
+                            >{loadout.hypaV3PresetName}</span
                         ></span
                     >
                 {/if}

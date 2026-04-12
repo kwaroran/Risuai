@@ -19,7 +19,7 @@ export function makeLoadout(options:{
 }): Loadout {
     const character = getCurrentCharacter()
     const id = crypto.randomUUID()
-    const preset = DBState.db.botPresets[DBState.db.botPresetsId]
+    const preset = DBState.db.botPresets?.[DBState.db.botPresetsId]
     return safeStructuredClone({
         name: options.name,
         id: id,
@@ -28,7 +28,7 @@ export function makeLoadout(options:{
         characterIds: character ? [character.chaId] : [],
         modules: DBState.db.enabledModules,
         globalVariables: DBState.db.globalChatVariables,
-        presetName: preset.name ?? '',
+        presetName: preset?.name ?? '',
         personaId: DBState.db.personas[DBState.db.selectedPersona]?.id
     });
 }
@@ -42,16 +42,19 @@ export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
     'persona'
 ]) {
     loadout.lastUsed = Date.now()
-    loadout.characterIds.push(getCurrentCharacter()?.chaId)
+    const chaId = getCurrentCharacter()?.chaId
+    if(chaId){
+        loadout.characterIds.push(chaId)
+    }
     if(apply.includes('persona')) {
         let personaIndex = DBState.db.personas?.findIndex(p => p.id === loadout.personaId)
-        if(personaIndex !== -1){
+        if(personaIndex >= 0){
             changeUserPersona(personaIndex)
         }
     }
     if(apply.includes('preset')) {
         let presetIndex = DBState.db.botPresets?.findIndex(p => p.name === loadout.presetName)
-        if(presetIndex !== -1){
+        if(presetIndex >= 0){
             changeToPreset(presetIndex)
         }
     }

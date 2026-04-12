@@ -1941,7 +1941,7 @@ export function saveCurrentPreset(){
     let db = DBState.db
     let pres = db.botPresets
 
-    if(db.botPresetsId === -1){
+    if(db.botPresetsId < 0 || !pres?.[db.botPresetsId]){
         return
     }
     const savedPreset:botPreset =  {

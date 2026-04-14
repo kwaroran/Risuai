@@ -1214,6 +1214,16 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
     let reasoningContent = ""
     const db = getDatabase()
 
+    const appendStreamingFragment = (current:string, incoming?:string) => {
+        if(!incoming){
+            return current
+        }
+        if(incoming.length > current.length && incoming.startsWith(current)){
+            return incoming
+        }
+        return current + incoming
+    }
+
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
             const combined = new Uint8Array(dataUint.length + chunk.length);
@@ -1260,20 +1270,20 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                             }
                             const choices = JSON.parse(rawChunk).choices
                             for(const choice of choices){
-                                const chunk = choice.delta.content ?? choices.text
+                                const chunk = choice.delta.content ?? choice.text
                                 if(chunk){
                                     if(arg.multiGen){
                                         const ind = choice.index.toString()
                                         if(!readed[ind]){
                                             readed[ind] = ""
                                         }
-                                        readed[ind] += chunk
+                                        readed[ind] = appendStreamingFragment(readed[ind], chunk)
                                     }
                                     else{
                                         if(!readed["0"]){
                                             readed["0"] = ""
                                         }
-                                        readed["0"] += chunk
+                                        readed["0"] = appendStreamingFragment(readed["0"], chunk)
                                     }
                                 }
                                 // Check for tool calls in the delta
@@ -1307,14 +1317,14 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                             toolCallsData[index].function.name = toolCall.function.name
                                         }
                                         if(toolCall.function?.arguments) {
-                                            toolCallsData[index].function.arguments += toolCall.function.arguments
+                                            toolCallsData[index].function.arguments = appendStreamingFragment(toolCallsData[index].function.arguments, toolCall.function.arguments)
                                         }
                                     }
                                     
                                     readed["__tool_calls"] = JSON.stringify(toolCallsData)
                                 }
                                 if(choice?.delta?.reasoning_content){
-                                    reasoningContent += choice.delta.reasoning_content
+                                    reasoningContent = appendStreamingFragment(reasoningContent, choice.delta.reasoning_content)
                                 }
                             }
                         } catch (error) {}

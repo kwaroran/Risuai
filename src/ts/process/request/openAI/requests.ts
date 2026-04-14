@@ -1221,6 +1221,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
             combined.set(chunk, dataUint.length);
             dataUint = Buffer.from(combined);
             let JSONreaded:{[key:string]:string} = {}
+            reasoningContent = ""
                         try {
                 const datas = dataUint.toString().split('\n')
                 let readed:{[key:string]:string} = {}

@@ -151,7 +151,7 @@ export const popUpEditorStore = $state({
     open: false,
     value: '',
     mode: 'default' as 'default',
-    language: 'risulanguage' as string
+    language: 'markdown' as string
 })
 
 export const loadoutModalStore = $state({

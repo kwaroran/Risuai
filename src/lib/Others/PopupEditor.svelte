@@ -8,7 +8,7 @@
     import Toggles from '../SideBars/Toggles.svelte';
     import { getCurrentCharacter } from 'src/ts/storage/database.svelte';
 
-    let languageMode = $state(popUpEditorStore.language || 'markdown');
+    let languageMode = $state(popUpEditorStore.language !== 'risulanguage' ? popUpEditorStore.language : 'markdown');
     let previewing = $state(false);
     let tokens = $state(0);
     let MonacoComponent: (typeof MonacoEditorType)|null = $state(null)
@@ -60,7 +60,7 @@
          <div class="flex items-center justify-between">
             <h2 class="text-xl font-bold">Popup Editor</h2>
             <div class="flex items-center gap-2">
-                {#if languageMode !== 'lua'}
+                {#if popUpEditorStore.language === 'risulanguage'}
                     {#if !previewing}
                         <select
                             bind:value={languageMode}
@@ -77,7 +77,7 @@
                         {previewing ? language.edit : language.preview}
                     </button>
                 {:else}
-                    <span class="bg-bgcolor border-none rounded px-2 py-1 text-sm">Lua</span>
+                    <span class="bg-bgcolor border-none rounded px-2 py-1 text-sm">{languageMode}</span>
                 {/if}
                 <button
                     class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"

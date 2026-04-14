@@ -177,7 +177,7 @@
         optimaizedInput = true,
         highlight = false,
         onchange = () => {},
-        popupLanguage = 'markdown'
+        popupLanguage = 'risulanguage'
     }: Props = $props();
     let selectingAutoComplete = $state(0)
     // TODO: Review if highlight prop can change dynamically - if so, this needs to be reactive

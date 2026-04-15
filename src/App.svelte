@@ -99,7 +99,7 @@
     }
 
 }}>
-    {#if import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
+    {#if !import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
         <Legal />
     {:else if aprilFools}
 

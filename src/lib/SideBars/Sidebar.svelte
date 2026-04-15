@@ -313,6 +313,9 @@
         db.characterOrder.splice(mainIndex.index, 1)
       }
     }
+
+    DBState.db.characterOrder = db.characterOrder
+    checkCharOrder()
   }
 
   type DragEv = DragEvent & {
@@ -334,16 +337,20 @@
 
   const avatarDragOver = (e:DragEv) => {
     e.preventDefault()
+    e.stopPropagation()
     e.dataTransfer.dropEffect = 'move'
   }
 
   const avatarDrop = (ind:DragData, e:DragEv) => {
     e.preventDefault()
+    e.stopPropagation()
     try {
       if(currentDrag){
         createFolder(currentDrag,ind)
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('avatarDrop error:', error)
+    }
   }
 
   const preventAll = (e:Event) => {
@@ -499,12 +506,14 @@
   <div class="flex grow w-full flex-col items-center overflow-x-hidden overflow-y-auto pr-0">
     <div class="h-4 min-h-4 w-14" role="listitem" ondragover={(e) => {
       e.preventDefault()
+      e.stopPropagation()
       e.dataTransfer.dropEffect = 'move'
       e.currentTarget.classList.add('bg-green-500')
     }} ondragleave={(e) => {
       e.currentTarget.classList.remove('bg-green-500')
     }} ondrop={(e) => {
       e.preventDefault()
+      e.stopPropagation()
       e.currentTarget.classList.remove('bg-green-500')
       const da = currentDrag
       if(da){
@@ -653,12 +662,14 @@
           }"></div>
           <div class="h-4 min-h-4 w-14 relative z-10" role="listitem" ondragover={(e) => {
             e.preventDefault()
+            e.stopPropagation()
             e.dataTransfer.dropEffect = 'move'
             e.currentTarget.classList.add('bg-green-500')
           }} ondragleave={(e) => {
             e.currentTarget.classList.remove('bg-green-500')
           }} ondrop={(e) => {
             e.preventDefault()
+            e.stopPropagation()
             e.currentTarget.classList.remove('bg-green-500')
             const da = currentDrag
             if(da && char.type === 'folder'){
@@ -704,12 +715,14 @@
             </div>
             <div class="h-4 min-h-4 w-14 relative z-20" role="listitem" ondragover={(e) => {
               e.preventDefault()
+              e.stopPropagation()
               e.dataTransfer.dropEffect = 'move'
               e.currentTarget.classList.add('bg-green-500')
             }} ondragleave={(e) => {
               e.currentTarget.classList.remove('bg-green-500')
             }} ondrop={(e) => {
               e.preventDefault()
+              e.stopPropagation()
               e.currentTarget.classList.remove('bg-green-500')
               const da = currentDrag
               if(da && char.type === 'folder'){
@@ -722,12 +735,14 @@
       {/if}
       <div class="h-4 min-h-4 w-14" role="listitem" ondragover={((e) => {
         e.preventDefault()
+        e.stopPropagation()
         e.dataTransfer.dropEffect = 'move'
         e.currentTarget.classList.add('bg-green-500')
       })} ondragleave={(e) => {
         e.currentTarget.classList.remove('bg-green-500')
       }} ondrop={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         e.currentTarget.classList.remove('bg-green-500')
         const da = currentDrag
         if(da){

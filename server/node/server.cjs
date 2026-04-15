@@ -1213,28 +1213,32 @@ app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
-    const filePath = req.headers['file-path'];
-    if (!filePath) {
-        res.status(400).send({
-            error:'File path required'
-        });
-        return;
-    }
-    if(!isHex(filePath)){
-        res.status(400).send({
-            error:'Invaild Path'
-        });
-        return;
-    }
+    const filePaths = req.headers['file-path']?.split('$$') || []
 
-    try {
-        await fs.rm(path.join(savePath, filePath));
-        res.send({
-            success: true,
-        });
-    } catch (error) {
-        next(error);
+    for(const filePath of filePaths){
+        if (!filePath) {
+            res.status(400).send({
+                error:'File path required'
+            });
+            return;
+        }
+        if(!isHex(filePath)){
+            res.status(400).send({
+                error:'Invaild Path'
+            });
+            return;
+        }
+
+        try {
+            await fs.rm(path.join(savePath, filePath));
+            res.send({
+                success: true,
+            });
+        } catch (error) {
+            next(error);
+        }
     }
+    
 });
 
 app.get('/api/list', authenticatedRouteLimiter, async (req, res, next) => {

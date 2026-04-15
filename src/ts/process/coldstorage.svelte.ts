@@ -222,7 +222,7 @@ export async function cleanColdStorage(){
     const unusedKeys = allKeys.filter(k => !actualUsedKeys.includes(k))
     console.log('Cleaning cold storage, actual used keys:', actualUsedKeys, 'all keys:', allKeys, 'unused keys:', unusedKeys)
 
-    if(forageStorage.isAccount){
+    if(forageStorage.isAccount || isNodeServer){
         await removeColdStorageItems(unusedKeys)
     }
     else{
@@ -258,9 +258,8 @@ async function removeColdStorageItems(keys:string[]) {
     else if(isNodeServer){
         try {
             const storage = forageStorage.realStorage as NodeStorage
-            for(let i=0;i<keys.length;i++){
-                await storage.removeItem('coldstorage/' + keys[i])
-            }
+            const deleteKeys = keys.map(k => 'coldstorage/' + k);
+            (storage as NodeStorage).removeItem(deleteKeys)
         } catch (error) {
             console.error(error)
         }

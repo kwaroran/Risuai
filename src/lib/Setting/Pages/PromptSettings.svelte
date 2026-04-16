@@ -308,6 +308,7 @@
     {#if !DBState.db.auxModelUnderModelSettings}
         <AuxModelSelectors />
     {/if}
+    
     {#snippet fallbackModelList(arg:'model'|'memory'|'translate'|'emotion'|'otherAx')}
         {#each DBState.db.fallbackModels[arg] as model, i}
             <span class="text-textcolor mt-4">

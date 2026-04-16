@@ -169,6 +169,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
                 { value: 'high', label: 'High' },
+                { value: 'xhigh', label: 'XHigh', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeXHighEffort) },
                 { value: 'max', label: 'Max' },
             ]
         },

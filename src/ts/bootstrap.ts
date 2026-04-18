@@ -203,12 +203,6 @@ export async function loadData() {
                     characterURLImport()
                 }
             }
-            LoadingStatusState.text = "Checking Unnecessary Files..."
-            try {
-                await cleanChunks()
-            } catch (error) {
-                console.error(error)
-            }
             LoadingStatusState.text = "Loading Plugins..."
             try {
                 await loadPlugins()

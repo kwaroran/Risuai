@@ -20,6 +20,7 @@ import TranslatorPresetSettings from 'src/lib/Setting/Pages/Language/TranslatorP
 import BanCharacterSetSettings from 'src/lib/Setting/Pages/Advanced/BanCharacterSetSettings.svelte';
 import CustomModelsSettings from 'src/lib/Setting/Pages/Advanced/CustomModelsSettings.svelte';
 import SettingsExportButtons from 'src/lib/Setting/Pages/Advanced/SettingsExportButtons.svelte';
+import CustomSidebarConfigButton from 'src/lib/Setting/Pages/Advanced/CustomSidebarConfigButton.svelte';
 
 /**
  * Registry of custom components.
@@ -31,6 +32,7 @@ export const customComponents: Record<string, Component<any>> = {
     'BanCharacterSetSettings': BanCharacterSetSettings,
     'CustomModelsSettings': CustomModelsSettings,
     'SettingsExportButtons': SettingsExportButtons,
+    'CustomSidebarConfig': CustomSidebarConfigButton,
     // Add more as we migrate complex settings
 } as const;
 

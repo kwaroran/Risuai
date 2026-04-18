@@ -674,6 +674,7 @@ export function setDatabase(data:Database){
     data.keepSessionAlive ??= 'off'
     data.loadouts ??= []
     data.longPressToPopupEditor ??= false
+    data.customSidebarItems ??= []
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1209,6 +1210,15 @@ export interface Database{
     longPressToPopupEditor?: boolean
     loadouts: Loadout[]
     disableAprilFools?:boolean
+    customSidebarItems: CustomSideBarItem[]
+    lastLoadedLoadoutName: string
+}
+
+export interface CustomSideBarItem{
+    id: string
+    type: 'model'|'databaseKey'|'loadout'|'persona'|'preset'|'setting'
+    subType: string
+    label: string
 }
 
 export interface SeparateParameters{

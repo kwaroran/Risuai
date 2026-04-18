@@ -107,7 +107,7 @@ export const replacePlaceholders = (msg:string, name:string) => {
                 .replace(/(\{\{((set)|(get))var::.+?\}\})/gu,'')
 }
 
-function checkPersonaBinded(){
+export function checkPersonaBinded(){
     try {
         let db = getDatabase()
         const selectedChar = get(selectedCharID)

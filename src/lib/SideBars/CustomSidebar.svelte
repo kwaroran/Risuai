@@ -1,17 +1,66 @@
 <script lang="ts">
-    import { Cog } from '@lucide/svelte'
-
-    let customSideBarConfigOpen = $state(false)
+    import { Cog, PinIcon } from '@lucide/svelte'
+    import { DBState, loadoutModalStore, openPersonaList, openPresetList } from 'src/ts/stores.svelte';
+    import Button from '../UI/GUI/Button.svelte';
+    import type { CustomSideBarItem } from 'src/ts/storage/database.svelte';
+    import { language } from 'src/lang';
+    import TextInput from '../UI/GUI/TextInput.svelte';
+    import { getFullSettingsData } from 'src/ts/setting/utils';
+    import ModelList from '../UI/ModelList.svelte';
+    import { get } from 'svelte/store';
+    import SettingRenderer from '../Setting/SettingRenderer.svelte';
+    import { checkPersonaBinded, getUserName } from 'src/ts/util';
+    let configPage:'list'|'add'|'addSettingsSubmenu' = $state('list')
+    let search = $state('')
 </script>
 
-<div class="border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2">
-    <button>
-        <Cog />
-    </button>
-</div>
 
-{#if customSideBarConfigOpen}
-    <div class="border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2">
-        Custom sidebar configuration goes here.
-    </div>
-{/if}
+<div class="rounded-sm flex flex-col w-full gap-2">
+
+    {#each DBState.db.customSidebarItems as item}
+        {#if item.type === 'model'}
+            <ModelList bind:value={DBState.db.aiModel} noMargin />
+        {:else if item.type === 'preset'}
+            <Button onclick={() => {
+                openPresetList.set(!get(openPresetList))
+            }}>{
+                DBState.db.botPresets?.[DBState.db.botPresetsId]?.name
+                ||
+                language.presets
+            }</Button>
+        {:else if item.type === 'loadout'}
+            <div>{
+                DBState.db.lastLoadedLoadoutName || language.loadouts
+            }</div>
+            <Button onclick={() => {
+                loadoutModalStore.open = !loadoutModalStore.open
+            }}>{language.loadouts}</Button>
+        {:else if item.type === 'persona'}
+            <Button className="flex" onclick={() => {
+                openPersonaList.set(!get(openPersonaList))
+            }}>
+                <div class="flex-1 flex-col flex text-left">
+                    <span>{getUserName()}</span>
+                    {#if checkPersonaBinded()?.note}
+                        <span class="text-xs text-textcolor2">{checkPersonaBinded()?.note}</span>
+                    {/if}
+                </div>
+
+                <button class={{
+                    "ml-2": true,
+                    "text-textcolor2": !checkPersonaBinded(),
+                    "text-textcolor": checkPersonaBinded()
+                }} onclick={(e) => {
+                    e.stopPropagation()
+                    
+                }}>
+                    <PinIcon size={20} />
+                </button>
+            </Button>
+        {:else if item.type === 'setting'}
+            <SettingRenderer items={
+                [getFullSettingsData().find(s => s.id === item.subType)]
+            } />
+        {/if}
+    {/each}
+</div>

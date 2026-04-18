@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Cog, PinIcon } from '@lucide/svelte'
-    import { DBState, loadoutModalStore, openPersonaList, openPresetList } from 'src/ts/stores.svelte';
+    import { DBState, loadoutModalStore, openPersonaList, openPresetList, selectedCharID } from 'src/ts/stores.svelte';
     import Button from '../UI/GUI/Button.svelte';
     import type { CustomSideBarItem } from 'src/ts/storage/database.svelte';
     import { language } from 'src/lang';
@@ -10,6 +10,7 @@
     import { get } from 'svelte/store';
     import SettingRenderer from '../Setting/SettingRenderer.svelte';
     import { checkPersonaBinded, getUserName } from 'src/ts/util';
+    import { v4 } from 'uuid';
     let configPage:'list'|'add'|'addSettingsSubmenu' = $state('list')
     let search = $state('')
 </script>
@@ -34,6 +35,9 @@
             }}>{DBState.db.lastLoadedLoadoutName || language.loadouts}</Button>
         {:else if item.type === 'persona'}
             <Button className="flex" onclick={() => {
+                if(checkPersonaBinded()){
+                    return
+                }
                 openPersonaList.set(!get(openPersonaList))
             }}>
                 <div class="flex-1 flex-col flex text-left">
@@ -49,7 +53,16 @@
                     "text-textcolor": checkPersonaBinded()
                 }} onclick={(e) => {
                     e.stopPropagation()
-                    
+                    const chatIndex =DBState.db.characters[$selectedCharID].chatPage
+                    if(!DBState.db.personas[DBState.db.selectedPersona].id){
+                        DBState.db.personas[DBState.db.selectedPersona].id = v4()
+                    }
+                    if(checkPersonaBinded()) {
+                        DBState.db.characters[$selectedCharID].chats[chatIndex].bindedPersona = ''
+                    }
+                    else{
+                        DBState.db.characters[$selectedCharID].chats[chatIndex].bindedPersona = DBState.db.personas[DBState.db.selectedPersona].id
+                    }
                 }}>
                     <PinIcon size={20} />
                 </button>

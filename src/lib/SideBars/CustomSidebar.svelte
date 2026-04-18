@@ -13,6 +13,19 @@
     import { v4 } from 'uuid';
     let configPage:'list'|'add'|'addSettingsSubmenu' = $state('list')
     let search = $state('')
+
+    let bindedPersona = $derived.by(() => {
+
+        DBState.db.characters[$selectedCharID].chatPage
+        return checkPersonaBinded()
+    })
+
+    let personaName = $derived.by(() => {
+        if(bindedPersona){
+            return bindedPersona?.name
+        }
+        return DBState.db.username
+    })
 </script>
 
 
@@ -35,22 +48,22 @@
             }}>{DBState.db.lastLoadedLoadoutName || language.loadouts}</Button>
         {:else if item.type === 'persona'}
             <Button className="flex" onclick={() => {
-                if(checkPersonaBinded()){
+                if(bindedPersona){
                     return
                 }
                 openPersonaList.set(!get(openPersonaList))
             }}>
                 <div class="flex-1 flex-col flex text-left">
-                    <span>{getUserName()}</span>
-                    {#if checkPersonaBinded()?.note}
-                        <span class="text-xs text-textcolor2">{checkPersonaBinded()?.note}</span>
+                    <span>{personaName}</span>
+                    {#if bindedPersona?.note}
+                        <span class="text-xs text-textcolor2">{bindedPersona?.note}</span>
                     {/if}
                 </div>
 
                 <button class={{
                     "ml-2": true,
-                    "text-textcolor2": !checkPersonaBinded(),
-                    "text-textcolor": checkPersonaBinded()
+                    "text-textcolor2": !bindedPersona,
+                    "text-textcolor": bindedPersona
                 }} onclick={(e) => {
                     e.stopPropagation()
                     const chatIndex =DBState.db.characters[$selectedCharID].chatPage

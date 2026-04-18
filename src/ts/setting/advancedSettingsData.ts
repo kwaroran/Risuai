@@ -138,6 +138,8 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.allowExt', type: 'check', fallbackLabel: 'Allow all in file select', bindKey: 'allowAllExtentionFiles', classes: 'mt-4' },
     { id: 'adv.dynamicModelRegistry', type: 'check', labelKey: 'dynamicModelRegistry', bindKey: 'dynamicModelRegistry', classes: 'mt-4' },
     { id: 'adv.disableSeperateParameterChangeOnPresetChange', type: 'check', labelKey: 'disableSeperateParameterChangeOnPresetChange', bindKey: 'disableSeperateParameterChangeOnPresetChange', classes: 'mt-4' },
+    { id: 'adv.coldstorage', type: 'check', labelKey: 'coldstorage', bindKey: 'coldstorage', classes: 'mt-4', helpKey: 'coldstorage' },
+
     // Experimental Section (visible when useExperimental is true)
     {
         id: 'adv.exp.googleToken', type: 'check', labelKey: 'googleCloudTokenization', bindKey: 'googleClaudeTokenizing',
@@ -146,10 +148,6 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.exp.cachePoint', type: 'check', labelKey: 'automaticCachePoint', bindKey: 'automaticCachePoint',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
-    },
-    {
-        id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
     },
     // Unrecommended Section
     {

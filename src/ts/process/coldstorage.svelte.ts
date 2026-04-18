@@ -441,7 +441,7 @@ async function makeColdDataForChat(i:number, j:number, coldTime:number){
 
 export async function makeColdData(){
 
-    if(!DBState.db.chatCompression){
+    if(!DBState.db.coldstorage){
         return
     }
 

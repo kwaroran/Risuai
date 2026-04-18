@@ -301,6 +301,7 @@ export const languageEnglish = {
         hypaV3QueryChatCount:
             "The number of recent chat messages used as the query for similarity search. " +
             "Higher values use more chat context to determine similarity.",
+        coldstorage: "Coldstorage is a feature that automatically moves old chats and character data to a seperate storage to reduce the size of the main storage and improve performance. This will reduce the transfer time, transfer traffic and improve the performance when loading chats."
     },
     setup: {
         chooseProvider: "Choose AI Provider",

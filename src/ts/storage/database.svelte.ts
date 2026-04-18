@@ -1107,7 +1107,7 @@ export interface Database{
     localActivationInGlobalLorebook: boolean
     showFolderName: boolean
     automaticCachePoint: boolean
-    chatCompression: boolean
+    coldstorage: boolean
     claudeRetrivalCaching: boolean
     outputImageModal: boolean
     playMessageOnTranslateEnd:boolean

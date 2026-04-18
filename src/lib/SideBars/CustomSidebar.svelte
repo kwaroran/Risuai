@@ -29,12 +29,9 @@
                 language.presets
             }</Button>
         {:else if item.type === 'loadout'}
-            <div>{
-                DBState.db.lastLoadedLoadoutName || language.loadouts
-            }</div>
             <Button onclick={() => {
                 loadoutModalStore.open = !loadoutModalStore.open
-            }}>{language.loadouts}</Button>
+            }}>{DBState.db.lastLoadedLoadoutName || language.loadouts}</Button>
         {:else if item.type === 'persona'}
             <Button className="flex" onclick={() => {
                 openPersonaList.set(!get(openPersonaList))

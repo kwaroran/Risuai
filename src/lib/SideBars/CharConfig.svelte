@@ -165,6 +165,14 @@
     });
 
     $effect.pre(() => {
+        if (DBState.db.characters[$selectedCharID].ttsMode === 'openai' && (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig === undefined) {
+            (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig = {
+                enabled: false,
+            };
+        }
+    });
+
+    $effect.pre(() => {
         if(DBState.db.characters[$selectedCharID].type === 'group' && ($CharConfigSubMenu === 4 || $CharConfigSubMenu === 5)){
             $CharConfigSubMenu = 0
         }
@@ -847,12 +855,51 @@
                 <OptionInput value="v2">v2</OptionInput>
             </SelectInput>
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'openai'}
-            <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].oaiVoice}>
-                <OptionInput value="">Unset</OptionInput>
-                {#each oaiVoices as voice}
-                    <OptionInput value={voice}>{voice}</OptionInput>
-                {/each}
-            </SelectInput>
+            <span class="text-textcolor">Voice</span>
+            {#if !DBState.db.characters[$selectedCharID].oaiTTSConfig?.enabled}
+                <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].oaiVoice}>
+                    <OptionInput value="">Unset</OptionInput>
+                    {#each oaiVoices as voice}
+                        <OptionInput value={voice}>{voice}</OptionInput>
+                    {/each}
+                </SelectInput>
+            {:else}
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.voice}
+                    placeholder={DBState.db.characters[$selectedCharID].oaiVoice || 'alloy'} />
+            {/if}
+
+            <span class="text-textcolor">Advanced (OpenAI-compatible endpoint)</span>
+            <Check bind:check={DBState.db.characters[$selectedCharID].oaiTTSConfig.enabled} />
+
+            {#if DBState.db.characters[$selectedCharID].oaiTTSConfig?.enabled}
+                <span class="text-textcolor">Base URL</span>
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.baseURL}
+                    placeholder="https://api.openai.com/v1" />
+
+                <span class="text-textcolor">API Key (overrides global)</span>
+                <TextInput className="mb-4 mt-2" hideText={DBState.db.hideApiKey}
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.apiKey}
+                    placeholder="Leave empty to use global OpenAI API key" />
+
+                <span class="text-textcolor">Model</span>
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.model}
+                    placeholder="tts-1" />
+
+                <span class="text-textcolor">Response Format</span>
+                <SelectInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.format}>
+                    <OptionInput value="">mp3 (default)</OptionInput>
+                    <OptionInput value="mp3">mp3</OptionInput>
+                    <OptionInput value="opus">opus</OptionInput>
+                    <OptionInput value="aac">aac</OptionInput>
+                    <OptionInput value="flac">flac</OptionInput>
+                    <OptionInput value="wav">wav</OptionInput>
+                    <OptionInput value="pcm">pcm</OptionInput>
+                </SelectInput>
+            {/if}
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'huggingface'}
             <span class="text-textcolor">Model</span>
             <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].hfTTS.model} />

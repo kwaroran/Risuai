@@ -48,11 +48,14 @@ export function unregisterTTSPostprocessor(fn: TTSHookFn<AfterTTSContext, AfterT
 }
 
 export function getTTSPreprocessors(): ReadonlyArray<TTSHookFn<BeforeTTSContext, BeforeTTSResult>> {
-    return preprocessors;
+    // Defensive copy: callers iterate over this while hooks may be registered
+    // or unregistered mid-flight (e.g. a plugin unloading). Handing out the
+    // backing array would let such mutations skip or duplicate iterations.
+    return preprocessors.slice();
 }
 
 export function getTTSPostprocessors(): ReadonlyArray<TTSHookFn<AfterTTSContext, AfterTTSResult>> {
-    return postprocessors;
+    return postprocessors.slice();
 }
 
 export async function runHookPipeline<Ctx extends object, Res extends { skip?: boolean }>(

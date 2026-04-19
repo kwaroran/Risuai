@@ -113,23 +113,29 @@ export async function sayTTS(character:character,text:string) {
                 break
             }
             case 'openai':{
-                const key = db.openAIKey
-                const res = await globalFetch('https://api.openai.com/v1/audio/speech', {
+                const cfg = character.oaiTTSConfig?.enabled ? character.oaiTTSConfig : null
+                const baseURL = (cfg?.baseURL || 'https://api.openai.com/v1').replace(/\/+$/, '')
+                const apiKey  = (cfg?.apiKey || db.openAIKey || '').trim()
+                const model   = cfg?.model || 'tts-1'
+                const voice   = cfg?.voice || character.oaiVoice || 'alloy'
+                const format  = cfg?.format || 'mp3'
+
+                const res = await globalFetch(`${baseURL}/audio/speech`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + key,
+                        ...(apiKey ? { 'Authorization': 'Bearer ' + apiKey } : {}),
                     },
                     body: {
-                        model: 'tts-1',
+                        model,
                         input: text,
-                        voice: character.oaiVoice,
-                        
+                        voice,
+                        response_format: format,
                     },
                     rawResponse: true,
                 })
                 const dat = res.data
-    
+
                 if(res.ok){
                     try {
                         const audio = Buffer.from(dat).buffer
@@ -139,20 +145,20 @@ export async function sayTTS(character:character,text:string) {
                         sourceNode.buffer = audioBuffer;
                         sourceNode.connect(audioContext.destination);
                         sourceNode.start();
-                    } catch (error) {                    
+                    } catch (error) {
                         alertError(language.errors.httpError + `${error}`)
                     }
                 }
                 else{
-                    if(dat.error && dat.error.message){                    
+                    if(dat.error && dat.error.message){
                         alertError((language.errors.httpError + `${dat.error.message}`))
                     }
-                    else{                    
+                    else{
                         alertError((language.errors.httpError + `${Buffer.from(res.data).toString()}`))
                     }
                 }
                 break;
-    
+
             }
             case 'novelai': {
                 const audioContext = new AudioContext();

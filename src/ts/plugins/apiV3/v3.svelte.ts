@@ -1209,7 +1209,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return;
             }
 
-            if(!receiverPlugin.allowedIPC?.includes(pluginName)){
+            if(!receiverPlugin.allowedIPC?.includes(currentPluginName)){
                 console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but receiver plugin does not allow IPC communication from this plugin. declare //@allowed-ipc ${currentPluginName} in the reciver plugin script to allow IPC communication.`);
                 return;
             }

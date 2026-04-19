@@ -168,6 +168,7 @@
         if (DBState.db.characters[$selectedCharID].ttsMode === 'openai' && (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig === undefined) {
             (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig = {
                 enabled: false,
+                format: 'mp3',
             };
         }
     });
@@ -891,7 +892,6 @@
                 <span class="text-textcolor">Response Format</span>
                 <SelectInput className="mb-4 mt-2"
                     bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.format}>
-                    <OptionInput value="">mp3 (default)</OptionInput>
                     <OptionInput value="mp3">mp3</OptionInput>
                     <OptionInput value="opus">opus</OptionInput>
                     <OptionInput value="aac">aac</OptionInput>

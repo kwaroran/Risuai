@@ -485,7 +485,15 @@ export function getNovelAIVoices(){
 
 export function FixNAITTS(data:character){
     if (data.naittsConfig === undefined){
-        data.naittsConfig = { voice: 'Anananan' }
+        // Mirror the defaults used by CharConfig.svelte's $effect.pre
+        // initializer so that the NovelAI request URL — which templates
+        // in `version` and branches on `customvoice` — gets valid values
+        // instead of the literal string "undefined".
+        data.naittsConfig = {
+            customvoice: false,
+            voice: 'Anananan',
+            version: 'v2',
+        }
     }
 
     return data

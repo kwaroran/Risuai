@@ -17,28 +17,60 @@ import {
 
 let sourceNode:AudioBufferSourceNode = null
 
-async function playAudio(audio: ArrayBuffer, mimeType: string, ctx: { ttsMode: string; characterId: string }): Promise<void> {
+/**
+ * Run every registered TTS postprocessor hook against the audio bytes, honoring
+ * replacement audio / mimeType / skip semantics. Before each hook invocation a
+ * fresh slice of the current base audio is handed to the hook as its disposable
+ * copy — the plugin sandbox postMessage layer transfers that buffer into the
+ * iframe and neuters it on the host side, so reusing a single slice across
+ * multiple hooks would leave all hooks after the first with a detached buffer.
+ *
+ * Returns the final audio bytes (possibly replaced by a hook), the final
+ * mimeType, and whether a hook requested a skip.
+ */
+async function runPostprocessorPipeline(
+    audio: ArrayBuffer,
+    mimeType: string,
+    ctx: { ttsMode: string; characterId: string },
+): Promise<{ audio: ArrayBuffer; mimeType: string; skip: boolean }> {
     const hooks = getTTSPostprocessors();
-    // The plugin sandbox transfers ArrayBuffer ownership across postMessage,
-    // which neuters the original on this side. Hand the hooks a disposable
-    // copy so the main thread always retains a usable buffer to play.
-    const audioForHook = hooks.length > 0 ? audio.slice(0) : audio;
+    if (hooks.length === 0) return { audio, mimeType, skip: false };
 
-    const afterResult = await runHookPipeline<AfterTTSContext, AfterTTSResult>(
-        hooks,
-        { audio: audioForHook, mimeType, ttsMode: ctx.ttsMode, characterId: ctx.characterId },
-    );
-    if (afterResult.skip) return;
+    let currentAudio = audio;
+    let currentMime = mimeType;
 
-    // If a hook returned replacement audio, use it. Otherwise the ctx still
-    // points at audioForHook, which is detached after being transferred —
-    // detect via byteLength === 0 and fall back to the untouched original.
-    const finalAudio = afterResult.ctx.audio.byteLength > 0
-        ? afterResult.ctx.audio
-        : audio;
+    for (const hook of hooks) {
+        const disposable = currentAudio.slice(0); // fresh clone per hook
+        let result: AfterTTSResult | void;
+        try {
+            result = await Promise.resolve().then(() =>
+                hook({
+                    audio: disposable,
+                    mimeType: currentMime,
+                    ttsMode: ctx.ttsMode,
+                    characterId: ctx.characterId,
+                })
+            );
+        } catch (err) {
+            console.error('[TTS postprocessor] threw, continuing with next hook:', err);
+            continue;
+        }
+
+        if (!result) continue;
+        if (result.skip) return { audio: currentAudio, mimeType: currentMime, skip: true };
+        if (result.audio && result.audio.byteLength > 0) currentAudio = result.audio;
+        if (typeof result.mimeType === 'string' && result.mimeType) currentMime = result.mimeType;
+    }
+
+    return { audio: currentAudio, mimeType: currentMime, skip: false };
+}
+
+async function playAudio(audio: ArrayBuffer, mimeType: string, ctx: { ttsMode: string; characterId: string }): Promise<void> {
+    const processed = await runPostprocessorPipeline(audio, mimeType, ctx);
+    if (processed.skip) return;
 
     const audioContext = new AudioContext();
-    const decoded = await audioContext.decodeAudioData(finalAudio);
+    const decoded = await audioContext.decodeAudioData(processed.audio);
     sourceNode = audioContext.createBufferSource();
     sourceNode.buffer = decoded;
     sourceNode.connect(audioContext.destination);
@@ -312,21 +344,27 @@ export async function sayTTS(character:character,text:string) {
 
                 if (response.ok) {
                     const mimeType = 'audio/wav'
+                    const hookCtx = { ttsMode: character.ttsMode ?? '', characterId: character.chaId }
                     const volume = character.gptSoVitsConfig.volume
                     if (volume !== undefined && volume !== 1.0) {
-                        // Volume != 1.0 requires a GainNode in the graph, so route here
-                        // instead of playAudio to preserve existing per-character volume control.
-                        const audioContext = new AudioContext();
-                        const decoded = await audioContext.decodeAudioData(response.data.buffer);
-                        sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = decoded;
-                        const gainNode = audioContext.createGain();
-                        gainNode.gain.value = volume;
-                        sourceNode.connect(gainNode);
-                        gainNode.connect(audioContext.destination);
-                        sourceNode.start();
+                        // Volume != 1.0 requires a GainNode in the graph, so we can't
+                        // route through playAudio directly. Run the postprocessor
+                        // pipeline first to honor plugin hooks consistently, then
+                        // build the gain-enabled graph with the final bytes.
+                        const processed = await runPostprocessorPipeline(response.data.buffer, mimeType, hookCtx)
+                        if (!processed.skip) {
+                            const audioContext = new AudioContext();
+                            const decoded = await audioContext.decodeAudioData(processed.audio);
+                            sourceNode = audioContext.createBufferSource();
+                            sourceNode.buffer = decoded;
+                            const gainNode = audioContext.createGain();
+                            gainNode.gain.value = volume;
+                            sourceNode.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+                            sourceNode.start();
+                        }
                     } else {
-                        await playAudio(response.data.buffer, mimeType, { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
+                        await playAudio(response.data.buffer, mimeType, hookCtx)
                     }
                 } else {
                     const textBuffer: Uint8Array = response.data.buffer

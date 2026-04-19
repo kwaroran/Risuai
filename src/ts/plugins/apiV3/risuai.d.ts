@@ -1932,12 +1932,20 @@ interface RisuaiPluginAPI {
      * @param options.messages - Array of chat messages to send to the model
      * @param options.staticModel - Optional static model name to use (e.g., 'gpt-4')
      * @param options.mode - Request mode
+     * @param options.allowPlugins - If true, allow the call to resolve to a
+     *   plugin-provided model (`pluginmodel:::*`). Default is false: plugin
+     *   models are blocked to guard against accidental IPC loops between
+     *   provider plugins. Opt in when the plugin legitimately needs to use
+     *   the user's plugin-supplied main or auxiliary model (e.g. a TTS
+     *   preprocessor rewriting text with the configured otherAx model).
+     *   Loop avoidance becomes the opting-in plugin's responsibility.
      * @returns The model's response, which may be a string or a stream depending on the mode
      */
     runLLMModel(options: {
         messages: any[];
         staticModel?: string;
         mode: string;
+        allowPlugins?: boolean;
     }): Promise<any>;
 
     /**

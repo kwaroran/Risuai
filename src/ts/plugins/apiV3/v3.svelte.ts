@@ -1167,14 +1167,21 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             mode: ModelModeExtended
             messages: OpenAIChat[]
             staticModel?: string
+            allowPlugins?: boolean
         }) => {
             return requestChatDataMain({
                 formated: options.messages,
                 bias: {},
                 staticModel: options.staticModel,
 
-                //Executing plugin provider is block because it can be used for loopholes for ipc right now.
-                blockPlugins: true
+                // Calls into plugin-provided models are blocked by default to
+                // guard against accidental IPC loops between provider plugins.
+                // Plugin authors who need to reach the user's plugin-supplied
+                // main or auxiliary model (e.g. a TTS preprocessor that
+                // rewrites text with the configured otherAx model) can opt in
+                // explicitly with `allowPlugins: true`, accepting responsibility
+                // for avoiding provider-to-provider call loops.
+                blockPlugins: !options.allowPlugins,
             }, options.mode)
         },
         sendChat: async (message: string) => {

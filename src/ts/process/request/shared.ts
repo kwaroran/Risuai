@@ -1,4 +1,5 @@
 import { getDatabase } from 'src/ts/storage/database.svelte'
+import { parseAdditionalParamJsonValue } from './additionalParams'
 
 export type LLMParameter =
     | 'temperature'
@@ -91,10 +92,10 @@ export function applyAdditionalParameters<T extends Record<string, any>>(
         }
 
         if (value.startsWith('json::')) {
-            try {
-                body = setObjectValue(body, key, JSON.parse(value.replace('json::', '')))
+            const parsedValue = parseAdditionalParamJsonValue(value.replace('json::', ''))
+            if (parsedValue !== undefined) {
+                body = setObjectValue(body, key, parsedValue)
             }
-            catch (error) {}
             continue
         }
 

@@ -114,7 +114,7 @@ export async function sayTTS(character:character,text:string) {
             }
             case 'openai':{
                 const cfg = character.oaiTTSConfig?.enabled ? character.oaiTTSConfig : null
-                const baseURL = (cfg?.baseURL || 'https://api.openai.com/v1').replace(/\/+$/, '')
+                const baseURL = (cfg?.baseURL?.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '')
                 const apiKey  = (cfg?.apiKey || db.openAIKey || '').trim()
                 const model   = cfg?.model || 'tts-1'
                 const voice   = cfg?.voice || character.oaiVoice || 'alloy'

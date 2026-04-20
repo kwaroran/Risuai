@@ -374,6 +374,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     }
     else if(body?.thinking?.budget_tokens && body?.thinking?.budget_tokens > 0){
         body.thinking.type = 'enabled'
+        body.thinking.display = 'summarized'
     }
     else if(body?.thinking?.budget_tokens === null){
         delete body.thinking

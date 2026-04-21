@@ -11,7 +11,7 @@ import type { MultiModal } from "../index.svelte"
 import { extractJSON } from "../templates/jsonSchema"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters } from './shared'
+import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from './shared'
 
 interface Claude3TextBlock {
     type: 'text',
@@ -384,6 +384,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     }
 
     const bedrock = arg.modelInfo.format === LLMFormat.AWSBedrockClaude
+    const additionalParams = getAdditionalParameters(aiModel)
 
     if(bedrock && aiModel !== 'reverse_proxy'){
         function getCredentialParts(key:string) {
@@ -431,16 +432,22 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             delete params.top_p
         }
 
+        let bedrockHeaders: Record<string, string> = {
+            ["Host"]: host,
+            ["Content-Type"]: "application/json",
+            ["accept"]: "application/json",
+        }
+
+        if(additionalParams.length > 0){
+            params = applyAdditionalParameters(params, bedrockHeaders, additionalParams)
+        }
+
         const rq = new HttpRequest({
             method: "POST",
             protocol: "https:",
             hostname: host,
             path: `/model/${awsModel}/invoke${stream ? "-with-response-stream" : ""}`,
-            headers: {
-              ["Host"]: host,
-              ["Content-Type"]: "application/json",
-              ["accept"]: "application/json",
-            },
+            headers: bedrockHeaders,
             body: JSON.stringify(params),
         });
         
@@ -563,6 +570,10 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
 
     if(db.usePlainFetch){
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
+    }
+
+    if(additionalParams.length > 0){
+        body = applyAdditionalParameters(body, headers, additionalParams)
     }
 
     if(arg.tools && arg.tools.length > 0){

@@ -12,10 +12,12 @@
 
     let {
         value = $bindable(),
-        withImportExport = false
+        withImportExport = false,
+        paramKey,
     }:{
         value: SeparateParameters
         withImportExport?: boolean
+        paramKey?: string
     } = $props()
 </script>
 
@@ -35,7 +37,7 @@
 <SliderInput min={0} max={200} marginBottom step={0.01} fixed={2} bind:value={value.frequency_penalty} disableable/>
 <span class="text-textcolor">{language.presensePenalty}</span>
 <SliderInput min={0} max={200} marginBottom step={0.01} fixed={2} bind:value={value.presence_penalty} disableable/>
-<ClaudeThinkingSeparateParams bind:value={value} />
+<ClaudeThinkingSeparateParams bind:value={value} {paramKey} />
 <span class="text-textcolor">{'Verbosity'}</span>
 <SliderInput min={0} max={2} marginBottom step={1} fixed={0} bind:value={value.verbosity} disableable/>
 

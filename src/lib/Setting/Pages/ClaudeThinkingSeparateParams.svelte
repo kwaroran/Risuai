@@ -11,9 +11,11 @@
     type AuxModelKey = keyof typeof DBState.db.seperateModels
 
     let {
-        value = $bindable()
+        value = $bindable(),
+        paramKey,
     }:{
         value: SeparateParameters
+        paramKey?: string
     } = $props()
 
     const auxModelKeys: AuxModelKey[] = ['memory', 'emotion', 'translate', 'otherAx']

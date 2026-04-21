@@ -3,9 +3,6 @@
     import { DBState } from 'src/ts/stores.svelte';
     import Accordion from 'src/lib/UI/Accordion.svelte';
     import CheckInput from 'src/lib/UI/GUI/CheckInput.svelte';
-    import SliderInput from 'src/lib/UI/GUI/SliderInput.svelte';
-    import Help from 'src/lib/Others/Help.svelte';
-    import ClaudeThinkingSeparateParams from './ClaudeThinkingSeparateParams.svelte';
     import AllSeperateParameters from 'src/lib/Others/AllSeperateParameters.svelte';
 
     const paramLabels: Record<string, string> = {
@@ -21,7 +18,7 @@
     {#if DBState.db.seperateParametersEnabled}
         {#each Object.keys(DBState.db.seperateParameters) as param}
             <Accordion name={language[paramLabels[param]] ?? param} styled>
-                <AllSeperateParameters bind:value={DBState.db.seperateParameters[param]} />
+                <AllSeperateParameters bind:value={DBState.db.seperateParameters[param]} paramKey={param} />
             </Accordion>
         {/each}
     {/if}

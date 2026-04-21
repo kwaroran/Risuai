@@ -55,6 +55,7 @@ export const samplingParameterItems: SettingItem[] = [
         labelKey: 'temperature',
         helpKey: 'tempature',
         bindKey: 'temperature',
+        condition: (ctx) => ctx.modelInfo.parameters.includes('temperature'),
         options: {
             min: 0,
             max: 200,

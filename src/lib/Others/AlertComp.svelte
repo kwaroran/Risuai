@@ -26,16 +26,25 @@
     import { getChatBranches } from "src/ts/gui/branches";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
     import { translateStackTrace } from "../../ts/sourcemap";
+    import { getDetailedOSLabel, getFallbackOSLabel, getRisuEnvironmentLabel } from "src/ts/platform";
     import versionData from "../../../version.json";
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
     let stackTraceTranslationFailed = $state(false);
     let isTranslating = $state(false);
+    let osLabel = $state(getFallbackOSLabel());
     const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
     const risuVersion = versionData.version;
+    const risuEnvironment = getRisuEnvironmentLabel();
+    const userAgent = typeof navigator === "undefined" ? "Unknown" : navigator.userAgent || "Unknown";
     const stackTraceCodeBlock = $derived.by(() => {
-        const lines = [`Risu version: ${risuVersion}`]
+        const lines = [
+            `Risu version: ${risuVersion}`,
+            `OS: ${osLabel}`,
+            `User-Agent: ${userAgent}`,
+            `Risu environment: ${risuEnvironment}`
+        ]
 
         if (stackTraceTranslationFailed) {
             lines.push(language.stackTraceTranslationFailed)
@@ -70,6 +79,10 @@
         hljs.registerLanguage('json', json)
     }
 
+    $effect(() => {
+        void loadDetailedOSLabel();
+    });
+
     function highlightJson(code: string): string {
         try {
             return hljs.highlight(code, { language: 'json' }).value
@@ -95,6 +108,15 @@
             if (copiedKey === key) copiedKey = null
         }, 1500)
     }
+
+    async function loadDetailedOSLabel() {
+        try {
+            osLabel = await getDetailedOSLabel();
+        } catch (error) {
+            console.warn("Failed to load detailed OS information:", error);
+        }
+    }
+
     $effect.pre(() => {
         showDetails = false;
         translatedStackTrace = '';

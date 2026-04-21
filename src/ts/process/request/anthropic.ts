@@ -366,7 +366,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
         // Adaptive thinking mode
         delete body.thinking
-        body.thinking = { type: 'adaptive' }
+        body.thinking = { type: 'adaptive', display: 'summarized' }
         body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
     }
     else if(body?.thinking?.budget_tokens === 0){

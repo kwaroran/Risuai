@@ -997,7 +997,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const depthPrompt of depthPrompts){
         const chat:OpenAIChat = {
             role: depthPrompt.role,
-            content: risuChatParser(depthPrompt.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(depthPrompt.prompt), {chara: currentChar})
         }
         currentTokens += await tokenizer.tokenizeChat(chat)
     }
@@ -1125,7 +1125,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     for(const depthPrompt of depthPrompts){
         const chat:OpenAIChat = {
             role: depthPrompt.role,
-            content: risuChatParser(depthPrompt.prompt, {chara: currentChar})
+            content: risuChatParser(resolvePosition(depthPrompt.prompt), {chara: currentChar})
         }
         const depth = depthPrompt.pos === 'depth' ? (depthPrompt.depth) : (unformated.chats.length - depthPrompt.depth)
         unformated.chats.splice(depth,0,chat)

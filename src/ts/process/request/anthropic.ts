@@ -385,6 +385,9 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
 
     const bedrock = arg.modelInfo.format === LLMFormat.AWSBedrockClaude
     const additionalParams = getAdditionalParameters(aiModel)
+    const hasCustomAnthropicBeta = additionalParams.some(([key]) => {
+        return key.startsWith('header::') && key.slice('header::'.length).toLocaleLowerCase() === 'anthropic-beta'
+    })
 
     if(bedrock && aiModel !== 'reverse_proxy'){
         function getCredentialParts(key:string) {
@@ -553,27 +556,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         "accept": "application/json",
     }
 
-    let betas:string[] = []
-
-    if(body.max_tokens > 8192){
-        betas.push('output-128k-2025-02-19')
-    }
-
-
-    if(db.claude1HourCaching){
-        betas.push('extended-cache-ttl-2025-04-11')
-    }
-
-    if(betas.length > 0){
-        headers['anthropic-beta'] = betas.join(',')
-    }
-
     if(db.usePlainFetch){
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
-    }
-
-    if(additionalParams.length > 0){
-        body = applyAdditionalParameters(body, headers, additionalParams)
     }
 
     if(arg.tools && arg.tools.length > 0){
@@ -585,6 +569,25 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             }
         })
 
+    }
+
+    if(additionalParams.length > 0){
+        body = applyAdditionalParameters(body, headers, additionalParams)
+    }
+
+    let betas:string[] = []
+
+    if(body.max_tokens > 8192){
+        betas.push('output-128k-2025-02-19')
+    }
+
+
+    if(db.claude1HourCaching){
+        betas.push('extended-cache-ttl-2025-04-11')
+    }
+
+    if(betas.length > 0 && !hasCustomAnthropicBeta){
+        headers['anthropic-beta'] = betas.join(',')
     }
 
     if(arg.previewBody){

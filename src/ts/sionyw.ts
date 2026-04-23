@@ -4,6 +4,7 @@ import { DBState } from "./stores.svelte";
 import { readFile, BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "src/ts/platform"
 import * as client from 'openid-client'
+import { getKeypairStore, saveKeypairStore } from "./util";
 
 let accessToken = ''
 let refreshToken = ''
@@ -101,7 +102,7 @@ async function fetchProtectedResourceSPA(url: string, options: RequestInit = {},
                     oauthData.client_secret
                 )
 
-                const dPoPKeyPair = await getDPoPKeys()
+                const dPoPKeyPair = await getKeypairStore('')
                 if(!dPoPKeyPair){
                     return badLoginResponse("No DPoP keys found")
                 }
@@ -185,63 +186,6 @@ async function fetchProtectedResourceRisuAuthVersion(url: string, options: Reque
         }
     })
     return res
-}
-
-function openDpopDB():Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open("DPoPDB", 1);
-
-        request.onupgradeneeded = (event) => {
-            const db = (event.target as IDBOpenDBRequest).result;
-            if (!db.objectStoreNames.contains("DPoPStore")) {
-                db.createObjectStore("DPoPStore");
-            }
-        };
-
-        request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
-        request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
-    });
-}
-
-async function saveDPoPKeys(keyPair: CryptoKeyPair) {
-    const db = await openDpopDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction("DPoPStore", 'readwrite');
-        const store = tx.objectStore("DPoPStore");
-
-        const data = {
-            privateKey: keyPair.privateKey,
-            publicKey: keyPair.publicKey,
-        };
-
-        const request = store.put(data, 'dpop');
-
-        request.onsuccess = () => resolve(true);
-        request.onerror = (event) => reject((event.target as IDBRequest).error);
-    });
-}
-
-async function getDPoPKeys():Promise<CryptoKeyPair | null> {
-    const db = await openDpopDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction("DPoPStore", 'readonly');
-        const store = tx.objectStore("DPoPStore");
-        const request = store.get('dpop');
-
-        request.onsuccess = (event) => {
-            const result = (event.target as IDBRequest).result;
-            if (result) {
-                resolve({
-                    privateKey: result.privateKey,
-                    publicKey: result.publicKey,
-                } as CryptoKeyPair);
-            } else {
-                resolve(null);
-            }
-        };
-
-        request.onerror = (event) => reject((event.target as IDBRequest).error);
-    })
 }
 
 export async function loginToSionyw(){
@@ -341,7 +285,7 @@ async function loginToSionywSPAVersion(){
             )
 
             // Store DPoP key pair securely in indexedDB
-            await saveDPoPKeys(dPoPKeyPair)
+            await saveKeypairStore('',dPoPKeyPair)
 
             // Store the refresh token securely
             await writeFileUnSecure('oauthData.json', new TextEncoder().encode(JSON.stringify({

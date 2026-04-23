@@ -1,12 +1,17 @@
 import { get } from "svelte/store"
 import { parseChatML } from "../parser/chatML";
 import { getDatabase, type character, type customscript, type groupChat } from "../storage/database.svelte"
+import {
+    defaultTranslatorPrompt,
+    getCurrentTranslatorPresetFromState,
+    type TranslatorPreset,
+} from "./presets";
 import { globalFetch } from "../globalApi.svelte"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { alertError } from "../alert"
 import { requestChatData } from "../process/request/request"
 import { doingChat, type OpenAIChat } from "../process/index.svelte"
-import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser.svelte"
+import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser/parser.svelte"
 import { selectedCharID } from "../stores.svelte"
 import { getModuleRegexScripts } from "../process/modules"
 import { getNodetextToSentence, sleep } from "../util"
@@ -26,6 +31,10 @@ export const LLMCacheStorage = localforage.createInstance({
 })
 
 let waitTrans = 0
+
+export function getCurrentTranslatorPreset(): TranslatorPreset {
+    return getCurrentTranslatorPresetFromState(getDatabase())
+}
 
 export async function translate(text:string, reverse:boolean) {
     let db = getDatabase()
@@ -280,7 +289,7 @@ export async function translateHTML(html: string, reverse:boolean, charArg:simpl
         const r = await translateLLM(html, {to: tr, from: from, regenerate})
         if(db.playMessageOnTranslateEnd){
             const audio = new Audio(sendSound);
-            audio.play();
+            audio.play().catch(() => {});
         }
 
         return applyEdittransRegex(r, charArg, alwaysExistChar)
@@ -522,7 +531,8 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
     console.log(translatorNote)
 
     let formated:OpenAIChat[] = []
-    let prompt = db.translatorPrompt || `You are a translator. translate the following html or text into {{slot}}. do not output anything other than the translation.`
+    const preset = getCurrentTranslatorPreset()
+    let prompt = preset.prompt || defaultTranslatorPrompt
     let parsedPrompt = parseChatML(prompt.replaceAll('{{slot::from}}', arg.from).replaceAll('{{slot}}', arg.to).replaceAll('{{solt::content}}', text).replaceAll('{{slot::content}}', text).replaceAll('{{slot::tnote}}', translatorNote))
     if(parsedPrompt){
         formated = parsedPrompt
@@ -545,7 +555,7 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
         bias: {},
         useStreaming: false,
         noMultiGen: true,
-        maxTokens: db.translatorMaxResponse,
+        maxTokens: preset.maxResponse,
     }, 'translate')
 
     if(rq.type === 'fail'){
@@ -565,6 +575,46 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
 
 export async function getLLMCache(text:string):Promise<string | null>{
     return await LLMCacheStorage.getItem(text)
+}
+
+export async function searchLLMCache(partialKey:string):Promise<{key: string, value: string}[]>{
+    const results:{key: string, value: string}[] = []
+    await LLMCacheStorage.iterate<string, void>((value, key) => {
+        if(key.includes(partialKey)){
+            results.push({key, value})
+        }
+    })
+    return results
+}
+
+export async function setLLMCache(key:string, value:string):Promise<void>{
+    await LLMCacheStorage.setItem(key, value)
+}
+
+export async function exportLLMCacheAsJSON():Promise<Record<string, string>>{
+    const result:Record<string, string> = {}
+    await LLMCacheStorage.iterate<string, void>((value, key) => {
+        result[key] = value
+    })
+    return result
+}
+
+export async function importLLMCacheFromJSON(data:Record<string, string>):Promise<{count: number, failed: number}>{
+    let count = 0
+    let failed = 0
+    for(const [key, value] of Object.entries(data)){
+        try{
+            await LLMCacheStorage.setItem(key, value)
+            count++
+        }catch{
+            failed++
+        }
+    }
+    return {count, failed}
+}
+
+export async function clearLLMCache():Promise<void>{
+    await LLMCacheStorage.clear()
 }
 
 

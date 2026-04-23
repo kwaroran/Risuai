@@ -26,6 +26,7 @@ interface ProviderPlugin {
     versionOfPlugin?: string
     updateURL?: string
     enabled?: boolean
+    allowedIPC?: string[]
 }
 interface ProviderPluginCustomLink {
     link: string
@@ -179,6 +180,7 @@ export async function importPlugin(code:string|null = null, argu:{
         let updateURL: string = ''
         let versionOfPlugin: string = '' //This is the version of the plugin itself, not the API version
         let apiVersion = '2.0'
+        let ipcList: string[] = []
         for (const line of splitedJs) {
             if (line.startsWith('//@name')) {
                 const provied = line.slice(7)
@@ -300,6 +302,18 @@ export async function importPlugin(code:string|null = null, argu:{
                     return
                 }
             }
+
+            if(line.startsWith('//@allowed-ipc')){
+                const provied = line.trim().split(' ')
+                if(provied.length < 2){
+                    showError('plugin allowed IPC declaration is incorrect, did you put space after //@allowed-ipc?')
+                    return
+                }
+
+                const allowedIPCList = provied.slice(1)
+
+                ipcList.push(...allowedIPCList)
+            }
         }
 
         if (name.length === 0) {
@@ -370,6 +384,7 @@ export async function importPlugin(code:string|null = null, argu:{
             argMeta: argMeta,
             versionOfPlugin: versionOfPlugin,
             updateURL: updateURL,
+            allowedIPC: ipcList,
             enabled: true
         }
 
@@ -427,7 +442,7 @@ export async function loadPlugins() {
     await loadV3Plugins(pluginV3)
 }
 
-type PluginV2ProviderArgument = {
+export type PluginV2ProviderArgument = {
     prompt_chat: OpenAIChat[]
     frequency_penalty: number
     min_p: number
@@ -440,12 +455,12 @@ type PluginV2ProviderArgument = {
     max_tokens: number
 }
 
-type PluginV2ProviderOptions = {
+export type PluginV2ProviderOptions = {
     tokenizer?: string
     tokenizerFunc?: (content: string) => number[] | Promise<number[]>
 }
 
-type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
+export type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
 type ReplacerFunction = (content: OpenAIChat[], type: string) => OpenAIChat[] | Promise<OpenAIChat[]>
 
 export const pluginV2 = {
@@ -741,10 +756,15 @@ export const getV2PluginAPIs = () => {
             }
             DBState.db = db;
         },
-        setDatabase: (newDb: any) => {
+        setDatabase: async (newDb: any) => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
             for (const key of Object.keys(newDb)) {
+                if (key === 'plugins') {
+                    console.warn('[WARN] Plugin attempted to access plugin directly. this would be blocked in future versions. Instead, use the provided APIs to manage plugins. Attempting to handle plugin installation via plugin for new plugins in the provided database object.')
+                    newDb[key] = await handlePluginInstallViaPlugin(newDb.plugins)
+                }
+                
                 if (allowedDbKeys.includes(key)) {
                     (db as any)[key] = newDb[key];
                 }
@@ -899,4 +919,27 @@ export async function pluginProcess(arg: {
         success: false,
         content: language.pluginProviderNotFound
     }
+}
+
+export async function handlePluginInstallViaPlugin(plugins: RisuPlugin[]){
+
+    const trimmedPlugins: RisuPlugin[] = []
+    for(const plugin of plugins){
+        if(!DBState.db.plugins.find((p: RisuPlugin) => p.name === plugin.name && p.script === plugin.script)){
+
+            if(plugin.version !== '3.0'){
+                console.warn(`Plugin "${plugin.name}" has version "${plugin.version}", which is not supported for installation via plugin. Only API version 3.0 plugins can be installed via plugin. Skipping installation of this plugin.`)
+                continue
+            }
+            const confirmation = await alertConfirm(language.confirmInstallPluginViaPlugin.replace('{plugin}', plugin.name))
+            if(confirmation){
+                trimmedPlugins.push(plugin)
+            }
+        }
+        else{
+            console.warn(`Plugin "${plugin.name}" already exists, skipping installation via plugin.`)
+        }
+    }
+
+    return trimmedPlugins
 }

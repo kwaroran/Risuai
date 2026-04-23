@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import type { character, Database, groupChat } from "./storage/database.svelte";
-import { type simpleCharacterArgument } from "./parser.svelte";
+import { type simpleCharacterArgument } from "./parser/parser.svelte";
 import type { alertData } from "./alert";
 import { moduleUpdate } from "./process/modules";
 import { resetScriptCache } from "./process/scripts";
@@ -138,11 +138,32 @@ export const bodyIntercepterStore = $state([] as {
     id: string,
     callback: (body: any, type: string) => Promise<any>
 }[])
+export const easyPanelStore = $state({
+    open: false,
+})
 export const popupStore = $state({
     children: null as null | import("svelte").Snippet,
     mouseX: 0,
     mouseY: 0,
-openId: 0,
+    openId: 0,
+})
+export const popUpEditorStore = $state({
+    open: false,
+    value: '',
+    mode: 'default' as 'default',
+    language: 'markdown' as string
+})
+
+export const loadoutModalStore = $state({
+    open: false
+})
+
+export const irisStore = $state({
+    open: false
+})
+
+export const customSideBarConfigDialogStore = $state({
+    open: false
 })
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now

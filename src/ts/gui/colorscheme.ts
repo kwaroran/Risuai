@@ -4,7 +4,7 @@ import { downloadFile } from "../globalApi.svelte";
 import { BufferToText, selectSingleFile } from "../util";
 import { alertError } from "../alert";
 import { isLite } from "../lite";
-import { CustomCSSStore, SafeModeStore } from "../stores.svelte";
+import { CustomCSSStore, DBState, SafeModeStore } from "../stores.svelte";
 
 export interface ColorScheme{
     bgcolor: string;
@@ -152,12 +152,10 @@ export const colorSchemeList = Object.keys(colorShemes) as (keyof typeof colorSh
 
 export function changeColorScheme(colorScheme: string){
     try {
-        let db = getDatabase()
         if(colorScheme !== 'custom'){
-            db.colorScheme = safeStructuredClone(colorShemes[colorScheme])
+            DBState.db.colorScheme = safeStructuredClone(colorShemes[colorScheme])
         }
-        db.colorSchemeName = colorScheme
-        setDatabase(db)
+        DBState.db.colorSchemeName = colorScheme
         updateColorScheme()   
     } catch (error) {}
 }
@@ -192,17 +190,14 @@ export function updateColorScheme(){
 
 export function changeColorSchemeType(type: 'light'|'dark'){
     try {
-        let db = getDatabase()
-        db.colorScheme.type = type
-        setDatabase(db)
+        DBState.db.colorScheme.type = type
         updateColorScheme()
         updateTextThemeAndCSS()
     } catch (error) {}
 }
 
 export function exportColorScheme(){
-    let db = getDatabase()
-    let json = JSON.stringify(db.colorScheme)
+    let json = JSON.stringify(DBState.db.colorScheme)
     downloadFile('colorScheme.json', json)
 }
 
@@ -231,9 +226,7 @@ export async function importColorScheme(){
             return
         }
         changeColorScheme('custom')
-        let db = getDatabase()
-        db.colorScheme = colorScheme
-        setDatabase(db)
+        DBState.db.colorScheme = colorScheme
         updateColorScheme()
     }
     catch(e){
@@ -244,7 +237,7 @@ export async function importColorScheme(){
 }
 
 export function updateTextThemeAndCSS(){
-    let db = getDatabase()
+    let db = DBState.db
     const root = document.querySelector(':root') as HTMLElement;
     if(!root){
         return

@@ -28,6 +28,7 @@ export type SettingType =
     | 'textarea'   // Multiline text (TextAreaInput)
     | 'slider'     // Slider (SliderInput)
     | 'select'     // Dropdown (SelectInput)
+    | 'segmented'  // Sliding segmented control (SegmentedControl)
     | 'color'      // Color picker (ColorInput)
     | 'header'     // Section header (h2, span, warning)
     | 'button'     // Action button (Button)
@@ -39,7 +40,23 @@ export type SettingType =
  */
 export interface SelectOption {
     value: string;
-    label: string;
+    label?: string;
+    /** i18n key for translation — takes precedence over label */
+    labelKey?: string;
+    /** Optional condition — when provided, the option is only shown if this returns true */
+    condition?: (ctx: SettingContext) => boolean;
+}
+
+/**
+ * Segment option for sliding segmented control
+ */
+export interface SegmentOption {
+    value: string | number;
+    label?: string;
+    /** i18n key for translation — takes precedence over label */
+    labelKey?: string;
+    /** Optional condition — when provided, the option is only shown if this returns true */
+    condition?: (ctx: SettingContext) => boolean;
 }
 
 /**
@@ -58,9 +75,14 @@ export interface SettingOptions {
     // select
     selectOptions?: SelectOption[];
     
+    // segmented control
+    segmentOptions?: SegmentOption[];
+    
     // text, textarea
     placeholder?: string;
     hideText?: boolean;     // For password-like inputs
+    inputClassName?: string;
+    marginBottom?: boolean;
     
     // button
     onClick?: () => void | Promise<void>;
@@ -126,6 +148,9 @@ export interface SettingItem {
 
     /** Custom CSS classes for the main container or label */
     classes?: string;
+
+    /** Custom CSS classes for wrapper around label + input controls */
+    containerClasses?: string;
         
     /**
      * Component ID for custom components (type: 'custom')
@@ -137,6 +162,24 @@ export interface SettingItem {
      * Props to pass to custom component
      */
     componentProps?: CustomComponentProps;
+
+    /**
+     * Optional getter function for the setting's value. 
+     * Recommended over bindKey/bindPath for complete type safety and reactivity.
+     * TODO: Consider making SettingItem generic or using discriminated unions to eliminate `any` from accessor signatures.
+     */
+    getValue?: (db: Database, ctx?: SettingContext) => any;
+
+    /**
+     * Optional setter function for the setting's value.
+     * TODO: Consider making SettingItem generic or using discriminated unions to eliminate `any` from accessor signatures.
+     */
+    setValue?: (db: Database, val: any, ctx?: SettingContext) => void;
+
+    /**
+     * Optional callback fired when the value changes (useful for side-effects like CSS updates)
+     */
+    onChange?: (val: any, ctx: SettingContext) => void;
 }
 
 /**

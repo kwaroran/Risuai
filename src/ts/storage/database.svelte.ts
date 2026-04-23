@@ -12,10 +12,12 @@ import { defaultColorScheme, type ColorScheme } from '../gui/colorscheme';
 import type { PromptItem, PromptSettings } from '../process/prompt';
 import type { OobaChatCompletionRequestParams } from '../model/ooba';
 import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../process/memory/hypav3'
+import { normalizeTranslatorPresetState, type TranslatorPreset } from '../translator/presets'
 import { isTauri, isNodeServer } from "src/ts/platform"
+import { safeStructuredClone } from '../polyfill';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.2.161" //<APP_VERSION_POINT>
+export let appVer = "2026.4.181" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 
@@ -220,6 +222,9 @@ export function setDatabase(data:Database){
     if(checkNullish(data.hypaMemoryKey)){
         data.hypaMemoryKey = ""
     }
+    if(checkNullish(data.voyageApiKey)){
+        data.voyageApiKey = ""
+    }
     if(checkNullish(data.supaModelType)){
         data.supaModelType = "none"
     }
@@ -361,6 +366,12 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.nanogptKey ??= ''
+    data.nanogptRequestModel ??= ''
+    data.nanogptRequestModelName ??= ''
+    data.nanogptProvider ??= ''
+    data.nanogptSubscriptionState ??= ''
+    data.nanogptUseSubscriptionEndpoint ??= false
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -389,6 +400,14 @@ export function setDatabase(data:Database){
     data.customProxyRequestModel ??= ''
     data.generationSeed ??= -1
     data.newOAIHandle ??= true
+    data.localNetworkMode ??= false
+    if (typeof data.localNetworkMode !== 'boolean') {
+        data.localNetworkMode = false
+    }
+    data.localNetworkTimeoutSec ??= 600
+    if (typeof data.localNetworkTimeoutSec !== 'number' || Number.isNaN(data.localNetworkTimeoutSec)) {
+        data.localNetworkTimeoutSec = 600
+    }
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
     data.fishSpeechKey ??= ''
@@ -448,6 +467,14 @@ export function setDatabase(data:Database){
     }
     if (data.botPresets) {
         for (const preset of data.botPresets) {
+            preset.localNetworkMode ??= false
+            preset.localNetworkTimeoutSec ??= 600
+            if (typeof preset.localNetworkMode !== 'boolean') {
+                preset.localNetworkMode = false
+            }
+            if (typeof preset.localNetworkTimeoutSec !== 'number' || Number.isNaN(preset.localNetworkTimeoutSec)) {
+                preset.localNetworkTimeoutSec = 600
+            }
             if (typeof preset.openrouterProvider === 'string') {
                 const oldProvider = preset.openrouterProvider as unknown as string;
                 preset.openrouterProvider = {
@@ -523,8 +550,10 @@ export function setDatabase(data:Database){
         memory: {},
         emotion: {},
         translate: {},
-        otherAx: {}
+        otherAx: {},
+        overrides: {}
     }
+    data.seperateParameters.overrides ??= {}
     data.customFlags ??= []
     data.enableCustomFlags ??= false
     data.assetMaxDifference ??= 4
@@ -548,12 +577,15 @@ export function setDatabase(data:Database){
         )
     }
     data.hypaV3PresetId ??= 0
+    normalizeTranslatorPresetState(data)
     data.showDeprecatedTriggerV2 ??= false
     data.returnCSSError ??= true
     data.realmDirectOpen ??= false
     data.checkCorruption ??= false
     data.toggleConfirmRecommendedPreset ??= false
     data.useExperimentalGoogleTranslator ??= false
+    data.thinkingType ??= 'budget'
+    data.adaptiveThinkingEffort ??= 'high'
     if(data.antiClaudeOverload){ //migration
         data.antiClaudeOverload = false
         data.antiServerOverloads = true
@@ -602,7 +634,6 @@ export function setDatabase(data:Database){
     data.rememberToolUsage ??= true
     data.simplifiedToolUse ??= false
     data.streamGeminiThoughts ??= false
-    data.sourcemapTranslate ??= false
     data.settingsCloseButtonSize ??= 24
     data.hideAllImages ??= false
     data.ImagenModel ??= 'imagen-4.0-generate-001'
@@ -634,6 +665,16 @@ export function setDatabase(data:Database){
         data.promptInfoInsideChat = false
     }
     data.createFolderOnBranch ??= true
+    data.hamburgerButtonBottom ??= false
+    data.dynamicModelRegistry ??= true
+    data.saveSignatures ??= false
+    // If the user uses plugins, its probably better to enable RisuAI Pro Tools by default
+    // Because its likely they are power users who would benefit from the features
+    data.enableRisuaiProTools ??= data.plugins.length > 0
+    data.keepSessionAlive ??= 'off'
+    data.loadouts ??= []
+    data.longPressToPopupEditor ??= false
+    data.customSidebarItems ??= []
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -784,6 +825,8 @@ export interface Database{
         FontColorQuote2 : string
     }
     requestRetrys:number
+    localNetworkMode:boolean
+    localNetworkTimeoutSec:number
     emotionPrompt2:string
     useSayNothing:boolean
     didFirstSetup: boolean
@@ -796,6 +839,7 @@ export interface Database{
     useStreaming:boolean
     supaMemoryKey:string
     hypaMemoryKey:string
+    voyageApiKey:string
     supaModelType:string
     textScreenColor?:string
     textBorder?:boolean
@@ -848,6 +892,12 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    nanogptKey:string
+    nanogptRequestModel:string
+    nanogptRequestModelName:string
+    nanogptProvider:string
+    nanogptSubscriptionState:string
+    nanogptUseSubscriptionEndpoint:boolean
     openrouterFallback:boolean
     selectedPersona:number
     personas:{
@@ -899,6 +949,8 @@ export interface Database{
     allowAllExtentionFiles?:boolean
     translatorPrompt:string
     translatorMaxResponse:number
+    translatorPresets: TranslatorPreset[]
+    translatorPresetId: number
     top_p: number,
     google: {
         accessToken: string
@@ -1008,6 +1060,7 @@ export interface Database{
         emotion: SeparateParameters,
         translate: SeparateParameters,
         otherAx: SeparateParameters
+        overrides: Record<string, SeparateParameters>
     }
     translateBeforeHTMLFormatting:boolean
     autoTranslateCachedOnly:boolean
@@ -1044,6 +1097,8 @@ export interface Database{
     toggleConfirmRecommendedPreset?: boolean
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
+    thinkingType: 'off' | 'budget' | 'adaptive'
+    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
         url: string,
@@ -1053,7 +1108,7 @@ export interface Database{
     localActivationInGlobalLorebook: boolean
     showFolderName: boolean
     automaticCachePoint: boolean
-    chatCompression: boolean
+    coldstorage: boolean
     claudeRetrivalCaching: boolean
     outputImageModal: boolean
     playMessageOnTranslateEnd:boolean
@@ -1131,7 +1186,6 @@ export interface Database{
         reference_image: string
         reference_base64image: string
     }
-    sourcemapTranslate:boolean
     settingsCloseButtonSize:number
     promptDiffPrefs:PromptDiffPrefs
     enableBookmark?: boolean
@@ -1143,11 +1197,31 @@ export interface Database{
     echoMessage?:string
     echoDelay?:number
     createFolderOnBranch?:boolean
+    hamburgerButtonBottom?:boolean
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
+    dynamicModelRegistry?:boolean
+    enableRisuaiProTools?:boolean
+    epEnabled?:boolean
+    seperateParametersByModel?:boolean
+    disableSeperateParameterChangeOnPresetChange?:boolean
+    saveSignatures?:boolean
+    keepSessionAlive: 'off' | 'pip' | 'sound'
+    longPressToPopupEditor?: boolean
+    loadouts: Loadout[]
+    disableAprilFools?:boolean
+    customSidebarItems: CustomSideBarItem[]
+    lastLoadedLoadoutName: string
 }
 
-interface SeparateParameters{
+export interface CustomSideBarItem{
+    id: string
+    type: 'model'|'databaseKey'|'loadout'|'persona'|'preset'|'setting'
+    subType: string
+    label: string
+}
+
+export interface SeparateParameters{
     temperature?:number
     top_k?:number
     repetition_penalty?:number
@@ -1158,6 +1232,8 @@ interface SeparateParameters{
     presence_penalty?:number
     reasoning_effort?:number
     thinking_tokens?:number
+    thinking_type?: 'off' | 'budget' | 'adaptive'
+    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
     outputImageModal?:boolean
     verbosity?:number
 }
@@ -1336,6 +1412,8 @@ export interface character{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 
@@ -1414,12 +1492,16 @@ export interface groupChat{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 export interface botPreset{
     name?:string
     apiType?: string
     openAIKey?: string
+    localNetworkMode?: boolean
+    localNetworkTimeoutSec?: number
     mainPrompt: string
     jailbreak: string
     globalNote:string
@@ -1483,6 +1565,7 @@ export interface botPreset{
         emotion: SeparateParameters,
         translate: SeparateParameters,
         otherAx: SeparateParameters
+        overrides: Record<string, SeparateParameters>
     }
     customAPIFormat?:LLMFormat
     systemContentReplacement?: string
@@ -1493,6 +1576,8 @@ export interface botPreset{
     regex?:customscript[]
     reasonEffort?:number
     thinkingTokens?:number
+    thinkingType?: 'off' | 'budget' | 'adaptive'
+    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean
     seperateModels?:{
@@ -1817,6 +1902,8 @@ export const presetTemplate:botPreset = {
     name: "New Preset",
     apiType: "gemini-3-flash-preview",
     openAIKey: "",
+    localNetworkMode: false,
+    localNetworkTimeoutSec: 600,
     mainPrompt: defaultMainPrompt,
     jailbreak: defaultJailbreak,
     globalNote: "",
@@ -1861,12 +1948,18 @@ export const defaultSdDataFunc = () =>{
 }
 
 export function saveCurrentPreset(){
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
+
+    if(db.botPresetsId === -1){
+        return
+    }
     const savedPreset:botPreset =  {
         name: pres[db.botPresetsId].name,
         apiType: db.apiType,
         openAIKey: db.openAIKey,
+        localNetworkMode: db.localNetworkMode,
+        localNetworkTimeoutSec: db.localNetworkTimeoutSec,
         mainPrompt:db.mainPrompt,
         jailbreak: db.jailbreak,
         globalNote: db.globalNote,
@@ -1928,6 +2021,8 @@ export function saveCurrentPreset(){
         image: pres?.[db.botPresetsId]?.image ?? '',
         reasonEffort: db.reasoningEffort ?? 0,
         thinkingTokens: db.thinkingTokens ?? null,
+        thinkingType: db.thinkingType ?? 'budget',
+        adaptiveThinkingEffort: db.adaptiveThinkingEffort ?? 'high',
         outputImageModal: db.outputImageModal ?? false,
         seperateModelsForAxModels: db.doNotChangeSeperateModels ? false : db.seperateModelsForAxModels ?? false,
         seperateModels: db.doNotChangeSeperateModels ? null : safeStructuredClone(db.seperateModels),
@@ -1949,33 +2044,32 @@ export function saveCurrentPreset(){
         pres[db.botPresetsId] = savedPreset
     }
     db.botPresets = pres
-    setDatabase(db)
 }
 
 export function copyPreset(id:number){
     saveCurrentPreset()
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = safeStructuredClone(pres[id])
     newPres.name += " Copy"
     db.botPresets.push(newPres)
-    setDatabase(db)
 }
 
 export function changeToPreset(id =0, savecurrent = true){
     if(savecurrent){
         saveCurrentPreset()
     }
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = pres[id]
     db.botPresetsId = id
-    db = setPreset(db, newPres)
-    setDatabase(db)
+    setPreset(db, newPres)
 }
 
 export function setPreset(db:Database, newPres: botPreset){
     db.apiType = newPres.apiType ?? db.apiType
+    db.localNetworkMode = newPres.localNetworkMode ?? db.localNetworkMode
+    db.localNetworkTimeoutSec = newPres.localNetworkTimeoutSec ?? db.localNetworkTimeoutSec
     db.mainPrompt = newPres.mainPrompt ?? db.mainPrompt
     db.jailbreak = newPres.jailbreak ?? db.jailbreak
     db.globalNote = newPres.globalNote ?? db.globalNote
@@ -2041,12 +2135,6 @@ export function setPreset(db:Database, newPres: botPreset){
     db.groupOtherBotRole = newPres.groupOtherBotRole ?? 'user'
     db.groupTemplate = newPres.groupTemplate ?? ''
     db.seperateParametersEnabled = newPres.seperateParametersEnabled ?? false
-    db.seperateParameters = newPres.seperateParameters ? safeStructuredClone(newPres.seperateParameters) : {
-        memory: {},
-        emotion: {},
-        translate: {},
-        otherAx: {}
-    }
     db.customAPIFormat = safeStructuredClone(newPres.customAPIFormat) ?? LLMFormat.OpenAICompatible
     db.systemContentReplacement = newPres.systemContentReplacement ?? ''
     db.systemRoleReplacement = newPres.systemRoleReplacement ?? 'user'
@@ -2055,6 +2143,8 @@ export function setPreset(db:Database, newPres: botPreset){
     db.presetRegex = newPres.regex ?? []
     db.reasoningEffort = newPres.reasonEffort ?? 0
     db.thinkingTokens = newPres.thinkingTokens ?? null
+    db.thinkingType = newPres.thinkingType ?? 'budget'
+    db.adaptiveThinkingEffort = newPres.adaptiveThinkingEffort ?? 'high'
     db.outputImageModal = newPres.outputImageModal ?? false
     if(!db.doNotChangeSeperateModels){
         db.seperateModelsForAxModels = newPres.seperateModelsForAxModels ?? false
@@ -2075,6 +2165,18 @@ export function setPreset(db:Database, newPres: botPreset){
         }
         db.fallbackWhenBlankResponse = newPres.fallbackWhenBlankResponse ?? false
     }
+    if(db.disableSeperateParameterChangeOnPresetChange){
+        db.seperateParameters = safeStructuredClone(db.seperateParameters)
+    }
+    else{
+         db.seperateParameters = newPres.seperateParameters ? safeStructuredClone(newPres.seperateParameters) : {
+            memory: {},
+            emotion: {},
+            translate: {},
+            otherAx: {},
+            overrides: {}
+        }   
+    }
     db.modelTools = safeStructuredClone(newPres.modelTools ?? [])
     db.verbosity = newPres.verbosity ?? 1
     db.dynamicOutput = newPres.dynamicOutput
@@ -2094,6 +2196,7 @@ import type { HypaModel } from '../process/memory/hypamemory';
 import type { SerializableHypaV3Data } from '../process/memory/hypav3';
 import { defaultHotkeys, type Hotkey } from '../defaulthotkeys';
 import type { OpenAIChat } from '../process/index.svelte';
+import type { Loadout } from '../loadout';
 
 export async function downloadPreset(id:number, type:'json'|'risupreset'|'return' = 'json'){
     saveCurrentPreset()
@@ -2170,7 +2273,7 @@ export async function importPreset(f:{
         pre = {...presetTemplate,...(JSON.parse(Buffer.from(f.data).toString('utf-8')))}
         console.log(pre)
     }
-    let db = getDatabase()
+    let db = DBState.db
     if(pre.presetVersion && pre.presetVersion >= 3){
         //NAI preset
         const pr = safeStructuredClone(prebuiltPresets.NAI)
@@ -2192,7 +2295,6 @@ export async function importPreset(f:{
         pr.NAISettings.mirostat_tau = pre.parameters.mirostat_tau
         pr.name = pre.name ?? "Imported"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
 
@@ -2298,7 +2400,6 @@ export async function importPreset(f:{
         }
         pr.name = "Imported ST Preset"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
     pre.name ??= "Imported"
@@ -2306,5 +2407,4 @@ export async function importPreset(f:{
         db.botPresets = []
     }
     db.botPresets.push(pre)
-    setDatabase(db)
 }

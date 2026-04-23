@@ -437,6 +437,7 @@ async fn streamed_fetch(
     body: String,
     app: AppHandle,
     method: String,
+    timeout_secs: Option<u64>,
 ) -> String {
     //parse headers
     let headers_json: Value = match serde_json::from_str(&headers) {
@@ -462,6 +463,7 @@ async fn streamed_fetch(
     }
 
     let client = reqwest::Client::new();
+    let timeout_secs = timeout_secs.unwrap_or(240);
     let builder: reqwest::RequestBuilder;
     if method == "POST" {
 
@@ -470,14 +472,14 @@ async fn streamed_fetch(
         builder = client
         .post(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(240))
+        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "GET" {
         builder = client
         .get(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(240));
+        .timeout(Duration::from_secs(timeout_secs));
     }
     else if method == "PUT" {
 
@@ -486,7 +488,7 @@ async fn streamed_fetch(
         builder = client
         .put(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(240))
+        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "DELETE" {
@@ -496,7 +498,7 @@ async fn streamed_fetch(
         builder = client
         .delete(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(240))
+        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else {

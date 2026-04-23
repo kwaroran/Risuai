@@ -2,15 +2,16 @@ import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
 import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { replaceAsync, simplifySchema, sleep } from "src/ts/util"
 import { v4 } from "uuid"
 import type { MultiModal } from "../index.svelte"
 import { extractJSON } from "../templates/jsonSchema"
-import { applyParameters, type RequestDataArgumentExtended, type requestDataResponse, type StreamResponseChunk } from "./request"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
+import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
+import { applyParameters } from './shared'
 
 interface Claude3TextBlock {
     type: 'text',
@@ -351,12 +352,24 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         messages: finalChat,
         system: systemPrompt.trim(),
         max_tokens: maxTokens,
-        stream: useStreaming ?? false
+        stream: useStreaming ?? false,
     }, arg.modelInfo.parameters, {
         'thinking_tokens': 'thinking.budget_tokens'
-    }, arg.mode)
+    }, arg.mode, {
+        modelId: arg.modelInfo.id
+    })
 
-    if(body?.thinking?.budget_tokens === 0){
+    // Handle thinking mode: off, adaptive, or budget
+    if(db.thinkingType === 'off'){
+        delete body.thinking
+    }
+    else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
+        // Adaptive thinking mode
+        delete body.thinking
+        body.thinking = { type: 'adaptive' }
+        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
+    }
+    else if(body?.thinking?.budget_tokens === 0){
         delete body.thinking
     }
     else if(body?.thinking?.budget_tokens && body?.thinking?.budget_tokens > 0){
@@ -412,7 +425,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         params.anthropic_version = "bedrock-2023-05-31"
         delete params.model
         delete params.stream
-        if (params.thinking?.type === "enabled"){
+        if (params.thinking?.type === "enabled" || params.thinking?.type === "adaptive"){
             params.temperature = 1.0
             delete params.top_k
             delete params.top_p
@@ -505,8 +518,12 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                 resText += '\n{{redacted_thinking}}\n'
             }
         }
-    
-    
+
+        if(thinking){
+            resText += "</Thoughts>\n\n"
+        }
+
+
         if(arg.extractJson && db.jsonSchemaEnabled){
             return {
                 type: 'success',
@@ -604,87 +621,148 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             }
         }
 
-        const resultsUrl = replacerURL + `/batches/${r.id}/results`
         const statusUrl = replacerURL + `/batches/${r.id}`
+        const resultsUrl = replacerURL + `/batches/${r.id}/results`
+        const cancelUrl = replacerURL + `/batches/${r.id}/cancel`
+        const abortSignal = arg.abortSignal
 
-        let received = false
-        while(!received){
-            try {
-                await sleep(3000)
-                if(arg?.abortSignal?.aborted){
-                    return {
-                        type: 'fail',
-                        result: 'Request aborted'
-                    }
-                }
+        // Streaming is used in batch API to apply successful response even after abortSignal is fired
+        // In order to do otherwise, `request.ts` and `index.svelte.ts` should be edited to bypass abort signal check
+        const stream = new ReadableStream<StreamResponseChunk>({
+            async start(controller){
+                const batchStartTime = Date.now()
+                const BATCH_TIMEOUT = 24 * 60 * 60 * 1000 + 600 * 1000 // 24 hours + 10 minutes
+                let cancelRequested = false
 
-                const statusRes = await fetchNative(statusUrl, {
-                    "method": "GET",
-                    "headers": {
-                        "x-api-key": apiKey,
-                        "anthropic-version": "2023-06-01",
-                    },
-                    "signal": arg.abortSignal,
-                    "interceptor": 'anthropic_batching_status'
-                })
-
-                if(statusRes.status !== 200){
-                    return {
-                        type: 'fail',
-                        result: await textifyReadableStream(statusRes.body)
-                    }
-                }
-
-                const statusData = await statusRes.json()
-
-                if(statusData.processing_status !== 'ended'){
-                    continue
-                }
-
-                const batchRes = await fetchNative(resultsUrl, {
-                    "method": "GET",
-                    "headers": {
-                        "x-api-key": apiKey,
-                        "anthropic-version": "2023-06-01",
-                    },
-                    "signal": arg.abortSignal,
-                    "interceptor": 'anthropic_batching_results'
-                })
-
-                if(batchRes.status !== 200){
-                    return {
-                        type: 'fail',
-                        result: await textifyReadableStream(batchRes.body)
-                    }
-                }
-
-                //since jsonl
-                const batchTextData = (await batchRes.text()).split('\n').filter((v) => v.trim() !== ''). map((v) => {
+                while(true){
                     try {
-                        return JSON.parse(v)
+                        await sleep(3000)
+                        if(abortSignal?.aborted && !cancelRequested){
+                            cancelRequested = true
+                            try {
+                                await fetchNative(cancelUrl, {
+                                    "body": "{}",
+                                    "method": "POST",
+                                    "headers": headers,
+                                    "interceptor": 'anthropic_batching_cancel'
+                                })
+                            } catch(e) {
+                                // ignore cancel request errors
+                            }
+                        }
+                        if(Date.now() - batchStartTime > BATCH_TIMEOUT){
+                            controller.error(new Error('Claude batch request timed out after 24 hours'))
+                            return
+                        }
+
+                        const statusRes = await fetchNative(statusUrl, {
+                            "method": "GET",
+                            "headers": headers,
+                            "signal": cancelRequested ? undefined : abortSignal,
+                            "interceptor": 'anthropic_batching_status'
+                        })
+
+                        if(statusRes.status !== 200){
+                            controller.error(new Error(await textifyReadableStream(statusRes.body)))
+                            return
+                        }
+
+                        const statusData = await statusRes.json()
+
+                        if(statusData.processing_status !== 'ended'){
+                            continue
+                        }
+
+                        const batchRes = await fetchNative(resultsUrl, {
+                            "method": "GET",
+                            "headers": headers,
+                            "signal": cancelRequested ? undefined : abortSignal,
+                            "interceptor": 'anthropic_batching_results'
+                        })
+
+                        if(batchRes.status !== 200){
+                            controller.error(new Error(await textifyReadableStream(batchRes.body)))
+                            return
+                        }
+
+                        //since jsonl
+                        const batchTextData = (await batchRes.text()).split('\n').filter((v) => v.trim() !== ''). map((v) => {
+                            try {
+                                return JSON.parse(v)
+                            } catch (error) {
+                                return null
+                            }
+                        }).filter((v) => v !== null)
+                        
+                        for(const batchData of batchTextData){
+                            const type = batchData?.result?.type
+                            console.log('Claude batch result type:', type)
+                            if(batchData?.result?.type === 'succeeded'){
+                                const contents = batchData.result.message.content ?? []
+                                let resText = ''
+                                let thinking = false
+                                for(const content of contents){
+                                    if(content.type === 'text'){
+                                        if(thinking){
+                                            resText += "</Thoughts>\n\n"
+                                            thinking = false
+                                        }
+                                        resText += content.text
+                                    }
+                                    if(content.type === 'thinking'){
+                                        if(!thinking){
+                                            resText += "<Thoughts>\n"
+                                            thinking = true
+                                        }
+                                        resText += content.thinking ?? ''
+                                    }
+                                    if(content.type === 'redacted_thinking'){
+                                        if(!thinking){
+                                            resText += "<Thoughts>\n"
+                                            thinking = true
+                                        }
+                                        resText += '\n{{redacted_thinking}}\n'
+                                    }
+                                }
+
+                                if(thinking){
+                                    resText += "</Thoughts>\n\n"
+                                    thinking = false
+                                }
+
+                                controller.enqueue({ "0": resText })
+                                controller.close()
+                                return
+                            }
+                            if(batchData?.result?.type === 'errored'){
+                                const batchError = batchData.result.error
+
+                                const message = batchError?.error?.message ? 
+                                `${batchError.error.type}: ${batchError.error.message}` : 
+                                JSON.stringify(batchError)
+
+                                controller.error(new Error(message))
+                                return
+                            }
+                            if(batchData?.result?.type === 'canceled'){
+                                controller.close()
+                                return
+                            }
+                            if(batchData?.result?.type === 'expired'){
+                                controller.error(new Error('Claude batch request expired'))
+                                return
+                            }
+                        }
                     } catch (error) {
-                        return null
+                        console.error('Error while waiting for Claude batch results:', error)
                     }
-                }).filter((v) => v !== null)
-                for(const batchData of batchTextData){
-                    const type = batchData?.result?.type
-                    console.log('Claude batch result type:', type)
-                    if(batchData?.result?.type === 'succeeded'){
-                        return {
-                            type: 'success',
-                            result: batchData.result.message.content?.[0]?.text ?? ''
-                        }
-                    }
-                    if(batchData?.result?.type === 'errored'){
-                        return {
-                            type: 'fail',
-                            result:  JSON.stringify(batchData.result.error),
-                        }
-                    }
-                }   
-            } catch (error) {
-                console.error('Error while waiting for Claude batch results:', error)
+                }
             }
+        })
+
+        return {
+            type: 'streaming',
+            result: stream
         }
     }
     
@@ -834,6 +912,12 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                     } catch (error) {
                         await sleep(1)
                     }
+                }
+                if(thinking){
+                    text += "</Thoughts>\n\n"
+                    controller.enqueue({
+                        "0": text
+                    })
                 }
                 controller.close()
             },
@@ -990,6 +1074,9 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
         }
     }
 
+    if(thinking){
+        resText += "</Thoughts>\n\n"
+    }
 
     arg.additionalOutput ??= ""
     if(arg.extractJson && db.jsonSchemaEnabled){

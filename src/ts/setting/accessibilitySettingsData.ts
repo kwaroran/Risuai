@@ -67,6 +67,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['partial', 'edit', 'block', 'hover']
     },
     {
+        id: 'acc.longPressToPopupEditor',
+        type: 'check',
+        labelKey: 'longPressToPopupEditor',
+        bindKey: 'longPressToPopupEditor',
+        keywords: ['long', 'press', 'popup', 'editor']
+    },
+    {
         id: 'acc.enableDragPartialEdit',
         type: 'check',
         labelKey: 'enableDragPartialEdit',
@@ -181,5 +188,21 @@ export const accessibilitySettingsItems: SettingItem[] = [
         labelKey: 'createFolderOnBranch',
         bindKey: 'createFolderOnBranch',
         keywords: ['create', 'folder', 'branch'],
-    }
+    },
+    {
+        id: 'acc.hamburgerButtonBottom',
+        type: 'check',
+        labelKey: 'hamburgerButtonBottom',
+        bindKey: 'hamburgerButtonBottom',
+        keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
+    },
+    {
+        id: 'acc.enableRisuaiProTools',
+        type: 'check',
+        labelKey: 'enableRisuaiProTools',
+        bindKey: 'enableRisuaiProTools',
+        keywords: ['pro', 'tools', 'accessibility'],
+    },
+    { type: 'custom', id: 'acc.customSidebarConfig', componentId: 'CustomSidebarConfig' },
+
 ];

@@ -2,7 +2,7 @@ import { AppendableBuffer, saveAsset, type LocalWriter, type VirtualWriter } fro
 import * as fflate from "fflate";
 import { asBuffer, Semaphore, sleep } from "../util";
 import { alertStore } from "../alert";
-import { hasher } from "../parser.svelte";
+import { hasher } from "../parser/parser.svelte";
 import { hubURL } from "../characterCards";
 
 // File size and chunk size constants

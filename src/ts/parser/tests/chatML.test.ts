@@ -2,7 +2,7 @@ import fc from 'fast-check'
 import { expect, test, vi } from 'vitest'
 import { parseChatML } from '../chatML'
 
-vi.mock(import('../../parser.svelte'), () => ({
+vi.mock(import('../parser.svelte'), () => ({
   risuChatParser: (s: string) => s,
 }))
 

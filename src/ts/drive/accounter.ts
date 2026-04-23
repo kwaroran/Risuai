@@ -44,7 +44,7 @@ export async function loadRisuAccountData() {
         alertError("Not logged in error")
         return
     }
-    const s = await fetchProtectedResource(hubURL + '/hub/account/load', {
+    const s = await fetchProtectedResource('/hub/account/load', {
         method: "POST",
     })
     if(s.status !== 200){

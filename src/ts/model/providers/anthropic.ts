@@ -10,11 +10,30 @@ export const AnthropicModels: LLMModel[] = [
         provider: LLMProvider.Anthropic,
         format: LLMFormat.Anthropic,
         flags: [
-            LLMFlags.hasPrefill,
             LLMFlags.hasImageInput,
             LLMFlags.hasFirstSystemPrompt,
             LLMFlags.hasStreaming,
-            LLMFlags.claudeThinking
+            LLMFlags.claudeThinking,
+            LLMFlags.claudeAdaptiveThinking
+        ],
+        parameters: [...ClaudeParameters, 'thinking_tokens'],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
+
+    // Claude 4.6 (No Date)
+    {
+        name: "Claude 4.6 Sonnet",
+        id: 'claude-sonnet-4-6',
+        shortName: "4.6 Sonnet",
+        provider: LLMProvider.Anthropic,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeThinking,
+            LLMFlags.claudeAdaptiveThinking
         ],
         parameters: [...ClaudeParameters, 'thinking_tokens'],
         tokenizer: LLMTokenizer.Claude,
@@ -53,7 +72,6 @@ export const AnthropicModels: LLMModel[] = [
             LLMFlags.hasStreaming,
             LLMFlags.claudeThinking
         ],
-        recommended: true,
         parameters: [...ClaudeParameters, 'thinking_tokens'],
         tokenizer: LLMTokenizer.Claude
     },

@@ -7,7 +7,7 @@ import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
 import { compressImage } from '../media'
 import { decodeRPack, encodeRPack } from "../rpack/rpack_js"
-import { HideIconStore, moduleBackgroundEmbedding, ReloadGUIPointer } from "../stores.svelte"
+import { DBState, HideIconStore, moduleBackgroundEmbedding, ReloadGUIPointer } from "../stores.svelte"
 import {get} from "svelte/store"
 
 export interface MCPModule{
@@ -232,18 +232,16 @@ export async function importModule(){
         return
     }
     let fileData = f.data
-    const db = getDatabase()
     if(f.name.endsWith('.risum')){
         try {
             const buf = Buffer.from(fileData)
             const module = await readModule(buf)
-            db.modules.push(module)
-            setDatabase(db)
-            return   
+            DBState.db.modules.push(module)
         } catch (error) {
             console.error(error)
             alertError(language.errors.noData)
         }
+        return
     }
     try {
         const importData = JSON.parse(Buffer.from(fileData).toString())
@@ -263,11 +261,12 @@ export async function importModule(){
                     return false
                 }
             }
-            db.modules.push(importData)
-            setDatabase(db)
+            DBState.db.modules.push(importData)
             return
         }
-        if(importData.type === 'risu' && importData.data){
+        // importData.type === 'risu' in conflict with HypaV3 preset exports
+        // difference: record vs. array
+        if(importData.type === 'risu' && importData.data && Array.isArray(importData.data)){
             const lores:loreBook[] = importData.data
             const importModule = {
                 name: importData.name || 'Imported Lorebook',
@@ -275,8 +274,7 @@ export async function importModule(){
                 lorebook: lores,
                 id: v4()
             }
-            db.modules.push(importModule)
-            setDatabase(db)
+            DBState.db.modules.push(importModule)
             return
         }
         if(importData.entries){
@@ -287,8 +285,7 @@ export async function importModule(){
                 lorebook: lores,
                 id: v4()
             }
-            db.modules.push(importModule)
-            setDatabase(db)
+            DBState.db.modules.push(importModule)
             return
         }
         if(importData.type === 'regex'  && importData.data){
@@ -299,13 +296,14 @@ export async function importModule(){
                 regex: regexs,
                 id: v4()
             }
-            db.modules.push(importModule)
-            setDatabase(db)
+            DBState.db.modules.push(importModule)
             return
         }
     } catch (error) {
-        alertNormal(language.errors.noData)
+        console.error(error)
     }
+
+    alertNormal(language.errors.noData)
 }
 
 function getModuleById(id:string){

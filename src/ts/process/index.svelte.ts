@@ -46,25 +46,10 @@ export interface OpenAIChat{
 }
 
 export interface MultiModal{
-    type:'image'|'video'|'audio'
+    type:'image'|'video'|'audio'|'signature'
     base64:string,
     height?:number,
     width?:number
-}
-
-export interface OpenAIChatFull extends OpenAIChat{
-    function_call?: {
-        name: string
-        arguments:string
-    }
-    tool_calls?:{
-        function: {
-            name: string
-            arguments:string
-        }
-        id:string
-        type:'function'
-    }[]
 }
 
 export interface requestTokenPart{
@@ -91,6 +76,13 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     chatProcessStage.set(0)
     const abortSignal = arg.signal ?? (new AbortController()).signal
     
+    // NOTE: `throwError()` can be called before these are populated (e.g. HypaV3 early validation errors).
+    // Keep them declared up-front to avoid TDZ ReferenceErrors in production builds.
+    let selectedChar = -1
+    let selectedChat = -1
+    let currentChar:character
+    let generationInfo:MessageGenerationInfo|undefined = undefined
+
     const stageTimings = {
         stage1Start: 0,
         stage2Start: 0,
@@ -102,9 +94,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         stage4Duration: 0
     }
 
-    const generationInfo: MessageGenerationInfo = {
-        model: getGenerationModelString()
-    }
     let isAborted = false
     let findCharCache:{[key:string]:character} = {}
     function findCharacterbyIdwithCache(id:string){
@@ -136,27 +125,56 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     function throwError(error:string){
-
-        if(DBState.db.inlayErrorResponse){
-            if(DBState.db.characters[selectedChar].chats[selectedChat].message[DBState.db.characters[selectedChar].chats[selectedChat].message.length - 1].role === 'char'){
-                DBState.db.characters[selectedChar].chats[selectedChat].message[DBState.db.characters[selectedChar].chats[selectedChat].message.length - 1].data += `\n\`\`\`risuerror\n${error}\n\`\`\``
-            }
-            else{
-
-                DBState.db.characters[selectedChar].chats[selectedChat].message.push({
-                    role: 'char',
-                    data: `\`\`\`risuerror\n${error}\n\`\`\``,
-                    saying: currentChar.chaId,
-                    time: Date.now(),
-                    generationInfo,
-                })
-            }
-
+        if(!DBState?.db?.inlayErrorResponse){
+            alertError(error)
             return
         }
 
-        alertError(error)
-        return
+        try{
+            const db = DBState.db
+
+            // Prefer already-resolved selection, but fall back to current store/db pointers.
+            const sc = selectedChar >= 0 ? selectedChar : get(selectedCharID)
+            const charRoom = db.characters?.[sc]
+            if(!charRoom){
+                alertError(error)
+                return
+            }
+            const st = selectedChat >= 0 ? selectedChat : charRoom.chatPage
+            const chatRoom = charRoom.chats?.[st]
+            if(!chatRoom || !Array.isArray(chatRoom.message)){
+                alertError(error)
+                return
+            }
+
+            const messages = chatRoom.message
+            const last = messages[messages.length - 1]
+            const suffix = `\n\`\`\`risuerror\n${error}\n\`\`\``
+
+            if(last?.role === 'char'){
+                last.data += suffix
+                return
+            }
+
+            const m:Message = {
+                role: 'char',
+                data: `\`\`\`risuerror\n${error}\n\`\`\``,
+                time: Date.now(),
+            }
+            if(currentChar?.chaId){
+                m.saying = currentChar.chaId
+            }
+            if(generationInfo){
+                m.generationInfo = generationInfo
+            }
+            messages.push(m)
+            return
+        }
+        catch(e){
+            console.error(e)
+            alertError(error)
+            return
+        }
     }
 
     let isDoing = get(doingChat)
@@ -199,10 +217,10 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     DBState.db.statics.messages += 1
-    let selectedChar = get(selectedCharID)
+    selectedChar = get(selectedCharID)
     const nowChatroom = DBState.db.characters[selectedChar]
     nowChatroom.lastInteraction = Date.now()
-    let selectedChat = nowChatroom.chatPage
+    selectedChat = nowChatroom.chatPage
     nowChatroom.chats[nowChatroom.chatPage].message = nowChatroom.chats[nowChatroom.chatPage].message.map((v) => {
         v.chatId = v.chatId ?? v4()
         return v
@@ -234,7 +252,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
     }
 
-    let currentChar:character
     let caculatedChatTokens = 0
     if(DBState.db.aiModel.startsWith('gpt')){
         caculatedChatTokens += 5
@@ -556,13 +573,14 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             }
         }
         return text.replace(positionRegex, (match, p1) => {
-            const MatchingLorebooks = lorepmt.actives.filter(v => {
-                return v.pos === ('pt_' + p1)
-            })
-
-            return MatchingLorebooks.map(v => {
-                return v.prompt
-            }).join('\n')
+            const posMatch = 'pt_' + p1
+            const matchingPrompts: string[] = []
+            for (const v of lorepmt.actives) {
+                if (v.pos === posMatch) {
+                    matchingPrompts.push(v.prompt)
+                }
+            }
+            return matchingPrompts.join('\n')
         })
     }
 
@@ -734,7 +752,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
 
     let chats:OpenAIChat[] = examples
 
-    if(!DBState.db.aiModel.startsWith('novelai') || DBState.db?.promptSettings?.trimStartNewChat){
+    if(!DBState.db.aiModel.startsWith('novelai') && !DBState.db?.promptSettings?.trimStartNewChat){
         chats.push({
             role: 'system',
             content: '[Start a new chat]',
@@ -841,7 +859,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         const modelinfo = getModelInfo(DBState.db.aiModel)
         if(inlays.length > 0){
             for(const inlay of inlays){
-                const inlayName = inlay.replace('{{inlayed::', '').replace('{{inlay::', '').replace('}}', '')
+                const inlayName = inlay.replace('{{inlayed::', '').replace('{{inlay::', '').replace('}}', '').replace('{{inlayeddata::', '')
                 const inlayData = await getInlayAsset(inlayName)
                 if(inlayData?.type === 'image'){
                     if(modelinfo.flags.includes(LLMFlags.hasImageInput)){
@@ -864,6 +882,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                             base64: inlayData.data
                         })
                     }
+                }
+                if(inlayData?.type === 'signature'){
+                    multimodal.push({
+                        type: 'signature',
+                        base64: inlayData.data
+                    })
                 }
                 formatedChat = formatedChat.replace(inlay, '')
             }
@@ -1425,7 +1449,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     const generationId = v4()
     const generationModel = getGenerationModelString()
 
-    Object.assign(generationInfo, {
+    generationInfo = {
         model: generationModel,
         generationId: generationId,
         inputTokens: inputTokens,
@@ -1437,7 +1461,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             stage3: 0,
             stage4: 0
         }
-    })
+    }
 
     chatProcessStage.set(3)
     stageTimings.stage3Start = Date.now()
@@ -1503,29 +1527,56 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             })
         }
         DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = true
+        DBState.db.characters[selectedChar].reloadKeys += 1
         let lastResponseChunk:{[key:string]:string} = {}
-        while(abortSignal.aborted === false){
-            const readed = (await reader.read())
-            if(readed.value){
-                lastResponseChunk = readed.value
-                const firstChunkKey = Object.keys(lastResponseChunk)[0]
-                result = lastResponseChunk[firstChunkKey]
-                if(!result){
-                    result = ''
+        let streamAborted:boolean = abortSignal.aborted
+        const abortReader = () => {
+            streamAborted = true
+            void reader.cancel().catch(() => {})
+        }
+        abortSignal.addEventListener('abort', abortReader, { once: true })
+        try {
+            while(streamAborted === false){
+                let readed: ReadableStreamReadResult<{ [key: string]: string }>
+                try {
+                    readed = await reader.read()
                 }
-                if(DBState.db.removeIncompleteResponse){
-                    result = trimUntilPunctuation(result)
+                catch(error){
+                    if(abortSignal.aborted || streamAborted){
+                        streamAborted = true
+                        break
+                    }
+                    throw error
                 }
-                let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
-                DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
-                emoChanged = result2.emoChanged
-                DBState.db.characters[selectedChar].reloadKeys += 1
+                if(readed.value){
+                    lastResponseChunk = readed.value
+                    const firstChunkKey = Object.keys(lastResponseChunk)[0]
+                    result = lastResponseChunk[firstChunkKey]
+                    if(!result){
+                        result = ''
+                    }
+                    if(DBState.db.removeIncompleteResponse){
+                        result = trimUntilPunctuation(result)
+                    }
+                    let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
+                    DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
+                    emoChanged = result2.emoChanged
+                    DBState.db.characters[selectedChar].reloadKeys += 1
+                }
+                if(readed.done){
+                    break
+                }
             }
-            if(readed.done){
-                DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
-                DBState.db.characters[selectedChar].reloadKeys += 1
-                break
-            }   
+        }
+        finally {
+            abortSignal.removeEventListener('abort', abortReader)
+            DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
+            DBState.db.characters[selectedChar].reloadKeys += 1
+            void reader.cancel().catch(() => {})
+        }
+
+        if(streamAborted || abortSignal.aborted){
+            return false
         }
 
         addRerolls(generationId, Object.values(lastResponseChunk))

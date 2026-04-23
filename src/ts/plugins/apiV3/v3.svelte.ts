@@ -1,4 +1,4 @@
-import { allowedDbKeys, getV2PluginAPIs, type RisuPlugin } from "../plugins.svelte";
+import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
@@ -9,9 +9,18 @@ import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
 import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
+import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type ColorScheme } from "src/ts/gui/colorscheme";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
+import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
+import { hasher } from "src/ts/parser/parser.svelte";
+import localforage from "localforage";
+import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
+import { sendChat as processSendChat, doingChat } from "src/ts/process/index.svelte";
+import { getModelInfo } from "src/ts/model/modellist";
+import type { ModelModeExtended } from "src/ts/process/request/shared";
+import { requestChatDataMain } from "src/ts/process/request/request";
 
 /*
     V3 API for RisuAI Plugins
@@ -32,6 +41,7 @@ import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/plugi
         - Note that Class or Callbacks inside arrays or objects are not supported
 */
 
+const pluginChannel = new Map<string, Function>();
 
 class SafeElement {
     #element: HTMLElement;
@@ -135,14 +145,14 @@ class SafeElement {
     public focus() {
         this.#element.focus();
     }
-    public getChildren(): SafeElement[] {
+    public getChildren(): SafeClassArray<SafeElement> {
         const children: SafeElement[] = [];
         this.#element.childNodes.forEach(node => {
             if(node instanceof HTMLElement) {
                 children.push(new SafeElement(node));
             }
         });
-        return children;
+        return new SafeClassArray<SafeElement>(children);
     }
     public getParent(): SafeElement | null {
         if(this.#element.parentElement) {
@@ -174,7 +184,7 @@ class SafeElement {
     public nodeType(): number {
         return this.#element.nodeType;
     }
-    public querySelectorAll(selector: string): SafeElement[] {
+    public querySelectorAll(selector: string): SafeClassArray<SafeElement> {
         const nodeList = this.#element.querySelectorAll(selector);
         const elements: SafeElement[] = [];
         nodeList.forEach(node => {
@@ -182,7 +192,7 @@ class SafeElement {
                 elements.push(new SafeElement(node));
             }
         });
-        return elements;
+        return new SafeClassArray<SafeElement>(elements);
     }
     public querySelector(selector: string): SafeElement | null {
         const element = this.#element.querySelector(selector);
@@ -195,9 +205,8 @@ class SafeElement {
         const element = this.querySelector('#' + id);
         return element;
     }
-    public getElementsByClassName(className: string): SafeElement[] {
-        const nodeList = this.querySelectorAll('.' + className);
-        return nodeList;
+    public getElementsByClassName(className: string): SafeClassArray<SafeElement> {
+        return this.querySelectorAll('.' + className);
     }
     public getClientRects(): DOMRectList {
         return this.#element.getClientRects();
@@ -272,6 +281,7 @@ class SafeElement {
                     type: event.type,
                     key: event.key,
                     code: event.code,
+                    repeat: event.repeat,
                     altKey: event.altKey,
                     ctrlKey: event.ctrlKey,
                     shiftKey: event.shiftKey,
@@ -505,27 +515,88 @@ const unloadV3Plugin = async (pluginName: string) => {
 }
 
 const permissionGivenPlugins: Set<string> = new Set();
+const permissionDeniedPlugins: Set<string> = new Set();
+const permissionForage = localforage.createInstance({
+    name: 'plugin_permissions',
+    storeName: 'plugin_permissions'
+});
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer') => {
+type PluginV3ProviderOptions = PluginV2ProviderOptions & {
+    model?: LLMModel
+}
+
+export const customV3ProviderMetaStore:LLMModel[] = []
+
+const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider'|'sendChat', reconfirm: boolean|'periodically' = false) => {
     if(permissionGivenPlugins.has(pluginName)){
         return true;
     }
+    if(permissionDeniedPlugins.has(pluginName)){
+        return false;
+    }
+
+    let pluginHash = ''
+
+    let requiresReconfirm = false;
+
+    if(reconfirm === 'periodically'){
+        const lastGrantTime:number = await permissionForage.getItem(pluginName + '_' + permissionDesc + '_lastGrantTime');
+        const now = Date.now();
+        if(!lastGrantTime || now - lastGrantTime > 3 * 24 * 60 * 60 * 1000){ //3 days
+            requiresReconfirm = true;
+        }
+    }
+    else if(reconfirm === true){
+        requiresReconfirm = true;
+    }
+
+    pluginHash = await hasher(
+        new TextEncoder().encode(
+            DBState.db.plugins.find(p => p.name === pluginName)?.script
+        )
+    ) + `_${permissionDesc}`;
+
+    if(!requiresReconfirm &&await permissionForage.getItem(pluginHash)){
+        permissionGivenPlugins.add(pluginName);
+        return true;
+    }   
+    
+
     let alertTitle =
         permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
         : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
         : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
         : permissionDesc === 'replacer' ? language.replacerPermissionConsent.replace("{}", pluginName)
+        : permissionDesc === 'provider' ? language.providerPermissionConsent.replace("{}", pluginName)
+        : permissionDesc === 'sendChat' ? language.sendChatConsent.replace("{}", pluginName)
         : `Error`
     if(alertTitle === 'Error'){
         return false;
     }
     const conf = await alertConfirm(alertTitle)
-    if(conf){
+    if(conf && pluginHash){
         permissionGivenPlugins.add(pluginName);
+        await permissionForage.setItem(pluginHash, true);
+        if(reconfirm === 'periodically'){
+            await permissionForage.setItem(pluginName + '_' + permissionDesc + '_lastGrantTime', Date.now());
+        }
         return true;
     }
+    permissionDeniedPlugins.add(pluginName);
     return false;
 }
+
+const urlBlacklist = [
+    'risuai.xyz',
+    'risuai.net',
+    'sionyw.com',
+]
+
+const authorizationHeaders = [
+    'x-api-key',
+    'authorization',
+    'proxy-authorization',
+]
 
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
@@ -533,16 +604,74 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
     return {
 
         //Old APIs from v2.1
-        risuFetch: oldApis.risuFetch,
-        nativeFetch: oldApis.nativeFetch,
+        risuFetch: (url, options) => {
+            console.error(`[DEPRECATION WARNING] risuFetch is deprecated and will be removed in future versions. Please use nativeFetch instead.`)
+            for(const blocked of urlBlacklist){
+                if(url.toLowerCase().includes(blocked)){
+                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+
+            //scan headers
+            const headers = options?.headers || {};
+            for(const headerName in headers){
+                if(authorizationHeaders.includes(headerName.toLowerCase())){
+                    console.warn(`Request contains potentially sensitive header '${headerName}'. handling of such headers may be changed to only work with nativeFetch.`);
+                }
+            }
+            return oldApis.risuFetch(url, options);
+        },
+        nativeFetch: (url, options) => {
+            for(const blocked of urlBlacklist){
+                if(url.toLowerCase().includes(blocked)){
+                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+                }
+            }
+
+            //scan headers
+            const headers = options?.headers || {};
+            for(const headerName in headers){
+                if(authorizationHeaders.includes(headerName.toLowerCase())){
+                    console.warn(`Request contains potentially sensitive header '${headerName}'. handling of such headers may be changed to use server-side approch with write-only api access in the future for better security.`);
+                }
+            }
+            return oldApis.nativeFetch(url, options);
+        },
         getChar: oldApis.getChar,
         setChar: oldApis.setChar,
-        addProvider: oldApis.addProvider,
+        addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string }>, options?: PluginV3ProviderOptions) => {
+            console.warn(`[WARN] addProvider is a powerful API that can potentially be unsafe if used incorrectly. addProvider's functionality might be limited or changed in future updates to ensure security. please use other APIs if possible.`);
+            let provs = get(customProviderStore)
+            provs.push(name)
+            pluginV2.providers.set(name, async (arg, abortSignal) => {
+               await getPluginPermission(plugin.name, 'provider', 'periodically');
+               //mode is overridden to v3, due to vulnerabilities using mode.
+               //Alternative to mode will be added in future
+               arg.mode = 'v3'
+               return await func(arg, abortSignal);
+            }),
+            pluginV2.providerOptions.set(name, options ?? {})
+            customProviderStore.set(provs)
+
+            const modelData:LLMModel = {
+                id: `pluginmodel:::${name}`,
+                name: options?.model?.name ?? name,
+                shortName: options?.model?.shortName ?? name,
+                fullName: options?.model?.fullName ?? name,
+                internalID: options?.model?.internalID ?? `pluginmodel:::${name}`,
+                provider: LLMProvider.AsIs,
+                format: LLMFormat.Plugin,
+                flags: options?.model?.flags ?? [LLMFlags.hasFullSystemPrompt],
+                parameters: options?.model?.parameters ?? ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'repetition_penalty', 'min_p', 'top_a', 'top_k', 'thinking_tokens'],
+                tokenizer:options?.model?.tokenizer ??  LLMTokenizer.Unknown
+            }
+            customV3ProviderMetaStore.push(modelData);
+        },
         addRisuScriptHandler: oldApis.addRisuScriptHandler,
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
         addRisuReplacer: async (name:string,func:Function) => {
             //permission check for replacer
-            const conf = await getPluginPermission(plugin.name, 'replacer');
+            const conf = await getPluginPermission(plugin.name, 'replacer', 'periodically');
             if(!conf){
                 return;
             }
@@ -556,7 +685,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
         getDatabase: async (includeOnly:string[]|'all' = 'all') => {
-            const conf = await getPluginPermission(plugin.name, 'db');
+            const conf = await getPluginPermission(plugin.name, 'db', 'periodically');
             if(!conf){
                 return null;
             }
@@ -571,7 +700,71 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return liteDB;
         },
 
-        
+        installPlugin: handlePluginInstallViaPlugin,
+
+        // --- Color Scheme APIs ---
+        changeColorScheme: (name: string) => {
+            changeColorScheme(name)
+        },
+        setColorScheme: (scheme: ColorScheme) => {
+            const requiredKeys = ['bgcolor','darkbg','borderc','selected','draculared','textcolor','textcolor2','darkBorderc','darkbutton','type'] as const
+            for (const key of requiredKeys) {
+                if (typeof (scheme as any)[key] !== 'string') {
+                    throw new Error(`Invalid color scheme: missing or invalid '${key}'`)
+                }
+            }
+            if (scheme.type !== 'light' && scheme.type !== 'dark') {
+                throw new Error('Invalid color scheme type: must be "light" or "dark"')
+            }
+            const db = DBState.db
+            db.colorSchemeName = 'custom'
+            db.colorScheme = scheme
+            updateColorScheme()
+        },
+        getColorScheme: () => {
+            const db = DBState.db
+            return {
+                name: db.colorSchemeName,
+                scheme: $state.snapshot(db.colorScheme)
+            }
+        },
+
+        // --- Text Theme APIs ---
+        changeTextTheme: (name: string) => {
+            if (!['standard','highcontrast'].includes(name)) {
+                throw new Error(`Invalid text theme: ${name}`)
+            }
+            const db = DBState.db
+            db.textTheme = name
+            updateTextThemeAndCSS()
+        },
+        setCustomTextTheme: (theme: {
+            FontColorStandard: string,
+            FontColorBold: string,
+            FontColorItalic: string,
+            FontColorItalicBold: string,
+            FontColorQuote1: string,
+            FontColorQuote2: string
+        }) => {
+            const requiredKeys = ['FontColorStandard','FontColorBold','FontColorItalic','FontColorItalicBold','FontColorQuote1','FontColorQuote2'] as const
+            for (const key of requiredKeys) {
+                if (typeof (theme as any)[key] !== 'string') {
+                    throw new Error(`Invalid text theme: missing or invalid '${key}'`)
+                }
+            }
+            const db = DBState.db
+            db.textTheme = 'custom'
+            db.customTextTheme = theme
+            updateTextThemeAndCSS()
+        },
+        getTextTheme: () => {
+            const db = DBState.db
+            return {
+                name: db.textTheme,
+                customTheme: $state.snapshot(db.customTextTheme)
+            }
+        },
+
         //Deprecated APIs from v2.1
         //Use getArgument / setArgument instead if possible
         getArg: oldApis.getArg,
@@ -688,7 +881,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             name:string,
             callback: any,
             icon:string = '',
-            iconType:'html'|'img'|'none' = 'none'
+            iconType:'html'|'img'|'none' = 'none',
+            id?:string
         ) => {
             if(iconType !== 'html' && iconType !== 'img' && iconType !== 'none'){
                 throw new Error("iconType must be 'html', 'img' or 'none'");
@@ -696,19 +890,29 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(typeof name !== 'string' || name.trim() === ''){
                 throw new Error("name must be a non-empty string");
             }
-            const id = v4()
-            additionalSettingsMenu.push({
-                id,
+            const menuId = id || v4()
+            const menuDef:MenuDef = {
+                id: menuId,
                 name,
                 icon,
                 iconType,
                 callback
-            })
+            }
+            const existingIndex = additionalSettingsMenu.findIndex(item => item.id === menuId)
+            if(existingIndex !== -1){
+                additionalSettingsMenu[existingIndex] = menuDef
+                addPluginUnloadCallback(
+                    plugin.name,
+                    makeMenuUnloadCallback(menuId, additionalSettingsMenu)
+                )
+                return {id: menuId}
+            }
+            additionalSettingsMenu.push(menuDef)
             addPluginUnloadCallback(
                 plugin.name,
-                makeMenuUnloadCallback(id, additionalSettingsMenu)
+                makeMenuUnloadCallback(menuId, additionalSettingsMenu)
             )
-            return {id:id};
+            return {id: menuId};
         },
         registerBodyIntercepter: async (callback: (body: any, type: string) => any) => {
 
@@ -742,13 +946,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 name: string,
                 icon: string,
                 iconType: 'html'|'img'|'none',
-                location?: 'action'|'chat'|'hamburger'
+                location?: 'action'|'chat'|'hamburger',
+                id?: string
             },
             callback: () => void
         ) => {
-            let { name, icon, iconType, location } = arg;
+            let { name, icon, iconType, location, id: providedId } = arg;
             location = location || 'action';
-            //Reserved for future use
             if(iconType !== 'html' && iconType !== 'img' && iconType !== 'none'){
                 throw new Error("iconType must be 'html', 'img' or 'none'");
             }
@@ -758,13 +962,26 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(typeof icon !== 'string'){
                 throw new Error("icon must be a string");
             }
-            const id = v4()
+            const id = providedId || v4()
             const menuDef:MenuDef = {
                 name,
                 icon,
                 iconType,
                 callback,
                 id
+            }
+
+            const buttonStores = [additionalFloatingActionButtons, additionalHamburgerMenu, additionalChatMenu]
+            for(const store of buttonStores){
+                const existingIndex = store.findIndex(item => item.id === id)
+                if(existingIndex !== -1){
+                    store[existingIndex] = menuDef
+                    addPluginUnloadCallback(
+                        plugin.name,
+                        makeMenuUnloadCallback(id, store)
+                    )
+                    return {id}
+                }
             }
 
             switch(location){
@@ -796,7 +1013,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     throw new Error("Invalid location for button")
                 }
             }
-            return {id:id};
+            return {id};
         },
         registerMCP: registerMCPModule,
         unregisterMCP: unregisterMCPModule,
@@ -896,6 +1113,12 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         _clearSafeLocalStorage: oldApis.safeLocalStorage.clear,
         _keySafeLocalStorage: oldApis.safeLocalStorage.key,
         _keysSafeLocalStorage: oldApis.safeLocalStorage.keys,
+        searchTranslationCache: async (partialKey: string) => {
+            return searchLLMCache(partialKey)
+        },
+        getTranslationCache: async (key: string) => {
+            return getLLMCache(key)
+        },
         _getAliases: () => {
             return {
                 'pluginStorage':{
@@ -916,6 +1139,105 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     'keys': '_keysSafeLocalStorage',
                 }
             }
+        },
+        runLLMModel: async (options: {
+            mode: ModelModeExtended
+            messages: OpenAIChat[]
+            staticModel?: string
+        }) => {
+            return requestChatDataMain({
+                formated: options.messages,
+                bias: {},
+                staticModel: options.staticModel,
+
+                //Executing plugin provider is block because it can be used for loopholes for ipc right now.
+                blockPlugins: true
+            }, options.mode)
+        },
+        sendChat: async (message: string) => {
+            const conf = await getPluginPermission(plugin.name, 'sendChat');
+            if(!conf){
+                return false;
+            }
+
+            if(typeof message !== 'string'){
+                throw new Error("Message must be a string");
+            }
+
+            if(get(doingChat)){
+                throw new Error("A chat is already in progress");
+            }
+
+            if(getModelInfo(DBState.db.aiModel).id.startsWith('pluginmodel:::')){
+                // Executing plugin provider is block because it can be used for loopholes for ipc right now.
+                throw new Error("Sending chat with plugin-based model is currently blocked");
+            }
+
+            const charId = get(selectedCharID);
+            const char = DBState.db.characters[charId];
+            if(!char){
+                throw new Error("No character selected");
+            }
+
+            const chat = char.chats[char.chatPage];
+            if(!chat){
+                throw new Error("No active chat found");
+            }
+
+            if(message){
+                chat.message.push({
+                    role: 'user',
+                    data: message,
+                    time: Date.now(),
+                });
+            }
+
+            try {
+                await processSendChat(-1, {});
+            } finally {
+                // Plugin API path does not pass through the UI unlock logic,
+                // so release doingChat here on both success and failure.
+                doingChat.set(false);
+            }
+
+            return true;
+        },
+        addPluginChannelListener: (channelName: string, callback: Function) => {
+            pluginChannel.set(plugin.name + channelName, callback);
+        },
+        postPluginChannelMessage: (pluginName: string, channelName: string, message: any) => {
+
+            const currentPluginName = plugin.name;
+            const receiverPlugin = DBState.db.plugins.find(p => p.name === pluginName);
+
+            if(!receiverPlugin){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to non-existent plugin '${pluginName}' on channel '${channelName}'.`);
+                return;
+            }
+
+            if(!receiverPlugin.allowedIPC?.includes(pluginName)){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but receiver plugin does not allow IPC communication from this plugin. declare //@allowed-ipc ${currentPluginName} in the reciver plugin script to allow IPC communication.`);
+                return;
+            }
+
+            if(!plugin.allowedIPC?.includes(receiverPlugin.name)){
+                console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but the sender plugin does not allow IPC communication to this plugin. declare //@allowed-ipc ${receiverPlugin.name} in the sender plugin script to allow IPC communication.`);
+                return;
+            }
+
+
+            const callback = pluginChannel.get(pluginName + channelName);
+            if(callback){
+                callback(message, {
+                    sender: currentPluginName,
+                    channel: channelName
+                });
+            }
+        },
+        saveSecretHeader: async (key: string, value: string|string[]) => {
+            //TODO: Implement server-side secret storage with write-only access for plugins, to enhance security when handling sensitive information like API keys.
+            //This will have rate-limit, to prevent saving it publicly and writing as secret every time before using it.
+            console.warn(`[RisuAI Plugin: ${plugin.name}] saveServerSecret is not implemented yet. This API is intended for securely storing sensitive information like API keys with write-only access for plugins. Please avoid using this API until it is implemented.`);
         }
     }
 }

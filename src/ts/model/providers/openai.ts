@@ -1,6 +1,72 @@
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, OpenAIParameters, GPT5Parameters, type LLMModel } from '../types'
 
 export const OpenAIModels: LLMModel[] = [
+    // GPT-5.4 (March 2026)
+    {
+        id: 'gpt-5.4',
+        internalID: 'gpt-5.4',
+        name: 'GPT 5.4',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base,
+        recommended: true
+    },
+    {
+        id: 'gpt-5.4-2026-03-05',
+        internalID: 'gpt-5.4-2026-03-05',
+        name: 'GPT 5.4 (2026-03-05)',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base
+    },
+    {
+        id: 'gpt-5.4-pro',
+        internalID: 'gpt-5.4-pro',
+        name: 'GPT 5.4 Pro',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base
+    },
+    {
+        id: 'gpt-5.4-pro-2026-03-05',
+        internalID: 'gpt-5.4-pro-2026-03-05',
+        name: 'GPT 5.4 Pro (2026-03-05)',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base
+    },
     // GPT-5.2 (December 2025)
     {
         id: 'gpt-5.2',

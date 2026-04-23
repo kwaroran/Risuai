@@ -1,24 +1,24 @@
 import DOMPurify from 'dompurify';
 import markdownit from 'markdown-it'
-import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from './storage/database.svelte';
-import { DBState, selIdState } from './stores.svelte';
-import { aiWatermarkingLawApplies, getFileSrc } from './globalApi.svelte';
+import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from '../storage/database.svelte';
+import { DBState, selIdState } from '../stores.svelte';
+import { aiWatermarkingLawApplies, getFileSrc } from '../globalApi.svelte';
 import { isTauri, isNodeServer } from "src/ts/platform"
-import { getChatVar, setChatVar, getGlobalChatVar } from './parser/chatVar.svelte';
-import { processScriptFull } from './process/scripts';
+import { getChatVar, setChatVar, getGlobalChatVar } from './chatVar.svelte';
+import { processScriptFull } from '../process/scripts';
 import { get } from 'svelte/store';
 import css, { type CssAtRuleAST } from '@adobe/css-tools'
-import { selectedCharID } from './stores.svelte';
-import { calcString } from './process/infunctions';
-import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from './util';
-import { getInlayAssetBlob } from './process/files/inlays';
-import { getModuleAssets, getModuleLorebooks, getModules } from './process/modules';
+import { selectedCharID } from '../stores.svelte';
+import { calcString } from '../process/infunctions';
+import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from '../util';
+import { getInlayAssetBlob } from '../process/files/inlays';
+import { getModuleAssets, getModuleLorebooks, getModules } from '../process/modules';
 import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/atom-one-dark.min.css'
 import { language } from 'src/lang';
 import katex from 'katex'
-import { getModelInfo } from './model/modellist';
-import { registerCBS, type matcherArg, type RegisterCallback } from './cbs';
+import { getModelInfo } from '../model/modellist';
+import { registerCBS, type matcherArg, type RegisterCallback } from '../cbs';
 import cssSelectorParser from 'postcss-selector-parser'
 
 const markdownItOptions = {
@@ -792,18 +792,20 @@ const metaCodes = [
     '\u180E', //mongolian vowel separator
 ]
 
-export function addMetadataToElement(data:string, modelShortName:string){
-    if(!aiWatermarkingLawApplies()){
-        return data
-    }
+const encodedMetadataCache = new Map<string, string>()
 
-    let metadata = '{' + [
-        'aigen',
+function encodeMetadata(modelShortName:string){
+    const metadata = '{' + [
         'risuai',
         modelShortName.toLocaleLowerCase().replace(/[^a-z]/g, ''),
     ].join('|') + '}'
-    let encodedMetaCode = ''
 
+    const cached = encodedMetadataCache.get(metadata)
+    if(cached !== undefined){
+        return cached
+    }
+
+    let encodedMetaCode = ''
     for(let i=0;i<metadata.length;i++){
         let byte = (metadata.charCodeAt(i) - 97).toString(6).padStart(2,'0')
         for(let j=0;j<byte.length;j++){
@@ -836,6 +838,16 @@ export function addMetadataToElement(data:string, modelShortName:string){
         }
     }
 
+    encodedMetadataCache.set(metadata, encodedMetaCode)
+    return encodedMetaCode
+}
+
+export function addMetadataToElement(data:string, modelShortName:string){
+    if(!aiWatermarkingLawApplies()){
+        return data
+    }
+
+    const encodedMetaCode = encodeMetadata(modelShortName)
     console.log('Encoded metadata:', encodedMetaCode.length, 'characters')
     console.log('This requires at least', Math.ceil(encodedMetaCode.length / 32), '<p> tags to store')
 

@@ -1,5 +1,6 @@
 import localforage from "localforage";
 import { type HypaModel, localModels } from "./hypamemory";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 import { TaskRateLimiter, TaskCanceledError } from "./taskRateLimiter";
 import { runEmbedding } from "../transformers";
 import { globalFetch } from "src/ts/globalApi.svelte";
@@ -112,6 +113,23 @@ export class HypaProcessorV2<TMetadata> {
     const resultMap: Map<string, EmbeddingResult<TMetadata>> = new Map();
     const toEmbed: EmbeddingText<TMetadata>[] = [];
 
+    const ctxProvider = isContextModel(this.options.model) ? getContextProvider(this.options.model) : null;
+    const ctxGroups = new Map<string, string[]>();
+    if (ctxProvider && saveToMemory) {
+      const groups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of ebdTexts) {
+        const g = groups.get(item.metadata) || [];
+        g.push(item);
+        groups.set(item.metadata, g);
+      }
+      for (const [, g] of groups) {
+        const texts = g.map(item => item.content);
+        for (const item of g) {
+          ctxGroups.set(item.id, texts);
+        }
+      }
+    }
+
     // Load cache
     const loadPromises = ebdTexts.map(async (item, index) => {
       const { id, content, metadata } = item;
@@ -124,7 +142,7 @@ export class HypaProcessorV2<TMetadata> {
 
       try {
         const cached = await this.forage.getItem<EmbeddingResult<TMetadata>>(
-          this.getCacheKey(content)
+          this.getCacheKey(content, ctxGroups.get(id))
         );
 
         if (cached) {
@@ -153,6 +171,28 @@ export class HypaProcessorV2<TMetadata> {
 
     await Promise.all(loadPromises);
 
+    if (ctxProvider && toEmbed.length > 0 && saveToMemory) {
+      const missMetadatas = new Set(
+        toEmbed.map((item) => item.metadata).filter(Boolean)
+      );
+
+      const additionalItems = ebdTexts.filter(
+        (item) =>
+          item.metadata &&
+          missMetadatas.has(item.metadata) &&
+          !toEmbed.some((e) => e.id === item.id)
+      );
+
+      for (const item of additionalItems) {
+        resultMap.delete(item.id);
+        if (this.vectors.has(item.id)) {
+          this.vectors.delete(item.id);
+        }
+      }
+
+      toEmbed.push(...additionalItems);
+    }
+
     if (toEmbed.length === 0) {
       return ebdTexts.map((item) => resultMap.get(item.id));
     }
@@ -168,7 +208,46 @@ export class HypaProcessorV2<TMetadata> {
 
     const chunks = this.chunkArray(toEmbed, chunkSize);
 
-    if (this.isLocalModel()) {
+    if (ctxProvider && saveToMemory) {
+      const metadataGroups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of toEmbed) {
+        const key = item.metadata;
+        const group = metadataGroups.get(key) || [];
+        group.push(item);
+        metadataGroups.set(key, group);
+      }
+
+      const groupEntries = Array.from(metadataGroups.entries());
+      const groups = groupEntries.map(([, group]) =>
+        group.map((item) => item.content)
+      );
+
+      const results = await ctxProvider.embedDocumentGroups(groups);
+
+      for (let i = 0; i < groupEntries.length; i++) {
+        const [, group] = groupEntries[i];
+        const embeddings = results[i];
+
+        for (let j = 0; j < group.length; j++) {
+          const { id, content, metadata } = group[j];
+          const embedding = embeddings[j];
+
+          const ebdResult: EmbeddingResult<TMetadata> = {
+            id, content, embedding, metadata
+          };
+
+          await this.forage.setItem(this.getCacheKey(content, ctxGroups.get(id)), {
+            content, embedding
+          });
+
+          if (saveToMemory) {
+            this.vectors.set(id, ebdResult);
+          }
+
+          resultMap.set(id, ebdResult);
+        }
+      }
+    } else if (this.isLocalModel()) {
       // Local model: Sequential processing
       for (let i = 0; i < chunks.length; i++) {
         // Progress callback
@@ -289,14 +368,19 @@ export class HypaProcessorV2<TMetadata> {
     return dot / (Math.sqrt(magA) * Math.sqrt(magB));
   }
 
-  private getCacheKey(content: string): string {
+  private getCacheKey(content: string, contextTexts?: string[]): string {
     const db = getDatabase();
     const suffix =
       this.options.model === "custom" && db.hypaCustomSettings?.model?.trim()
         ? `-${db.hypaCustomSettings.model.trim()}`
         : "";
 
-    return `${content}|${this.options.model}${suffix}`;
+    const ctxProvider = isContextModel(this.options.model) ? getContextProvider(this.options.model) : null;
+    const ctxSuffix = ctxProvider
+      ? ctxProvider.getCacheKeySuffix(contextTexts)
+      : "";
+
+    return `${content}|${this.options.model}${suffix}${ctxSuffix}`;
   }
 
   private getOptimalChunkSize(): number {
@@ -311,7 +395,7 @@ export class HypaProcessorV2<TMetadata> {
     }
 
     // WASM
-    const cpuCores = navigator.hardwareConcurrency || 4;
+    const cpuCores = (navigator as Navigator).hardwareConcurrency || 4;
     const baseChunkSize = isMobile ? Math.floor(cpuCores / 2) : cpuCores;
 
     return Math.min(baseChunkSize, 10);
@@ -394,6 +478,9 @@ export class HypaProcessorV2<TMetadata> {
         "https://api.openai.com/v1/embeddings",
         fetchArgs
       );
+    } else if (isContextModel(this.options.model)) {
+      const provider = getContextProvider(this.options.model);
+      return await provider.embedQueries(contents);
     } else {
       throw new Error(`Unsupported model: ${this.options.model}`);
     }

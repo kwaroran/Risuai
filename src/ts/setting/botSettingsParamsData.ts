@@ -129,17 +129,30 @@ export const modelSpecificParameterItems: SettingItem[] = [
         bindKey: 'thinkingType',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
-            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) ||
-            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle),
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
         options: {
             segmentOptions: [
                 { value: 'off', label: 'Off' },
                 { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) },
                 { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
-                { value: 'enabled', label: 'Enabled', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) },
             ]
         },
         keywords: ['thinking', 'type', 'mode', 'adaptive', 'budget'],
+    },
+    {
+        id: 'params.deepseekThinkingType',
+        type: 'segmented',
+        fallbackLabel: 'Thinking Mode',
+        bindKey: 'deepseekThinkingType',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle),
+        options: {
+            segmentOptions: [
+                { value: 'off', label: 'Off' },
+                { value: 'enabled', label: 'Enabled' },
+            ]
+        },
+        keywords: ['thinking', 'type', 'mode', 'deepseek', 'reasoning'],
     },
     {
         id: 'params.thinkingTokens',
@@ -163,19 +176,33 @@ export const modelSpecificParameterItems: SettingItem[] = [
         labelKey: 'adaptiveThinkingEffort',
         bindKey: 'adaptiveThinkingEffort',
         condition: (ctx) =>
-            (ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
-             ctx.db.thinkingType === 'adaptive') ||
-            (ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) &&
-             ctx.db.thinkingType === 'enabled'),
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
+            ctx.db.thinkingType === 'adaptive',
         options: {
             segmentOptions: [
-                { value: 'low', label: 'Low', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
-                { value: 'medium', label: 'Medium', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
                 { value: 'high', label: 'High' },
                 { value: 'max', label: 'Max' },
             ]
         },
-        keywords: ['adaptive', 'thinking', 'effort', 'reasoning'],
+        keywords: ['adaptive', 'thinking', 'effort'],
+    },
+    {
+        id: 'params.deepseekReasoningEffort',
+        type: 'segmented',
+        fallbackLabel: 'Reasoning Effort',
+        bindKey: 'deepseekReasoningEffort',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) &&
+            ctx.db.deepseekThinkingType === 'enabled',
+        options: {
+            segmentOptions: [
+                { value: 'high', label: 'High' },
+                { value: 'max', label: 'Max' },
+            ]
+        },
+        keywords: ['deepseek', 'reasoning', 'effort'],
     },
     {
         id: 'params.topK',
@@ -279,8 +306,10 @@ export const allBasicParameterItems: SettingItem[] = [
 
     // Model-specific sampling parameters (in user-specified order)
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingType')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.deepseekThinkingType')!,
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingTokens')!,
     modelSpecificParameterItems.find(i => i.id === 'params.adaptiveThinkingEffort')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.deepseekReasoningEffort')!,
     ...samplingParameterItems, // temperature
     modelSpecificParameterItems.find(i => i.id === 'params.topK')!,
     modelSpecificParameterItems.find(i => i.id === 'params.minP')!,

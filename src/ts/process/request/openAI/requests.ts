@@ -462,19 +462,18 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     )
 
     if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
-        if(db.thinkingType === 'off'){
-            body.thinking = { type: 'disabled' }
-        }
-        else{
+        if(db.deepseekThinkingType === 'enabled'){
             body.thinking = {
                 type: 'enabled',
-                reasoning_effort: db.adaptiveThinkingEffort ?? 'high'
+                reasoning_effort: db.deepseekReasoningEffort ?? 'high'
             }
-            // DeepSeek ignores sampling parameters when thinking is enabled
             delete body.temperature
             delete body.top_p
             delete body.frequency_penalty
             delete body.presence_penalty
+        }
+        else{
+            body.thinking = { type: 'disabled' }
         }
     }
 
@@ -770,22 +769,18 @@ export async function requestHTTPOpenAI(
         }
         const msg:OpenAIChatFull = (dat.choices[0].message)
         let result = msg.content ?? ''
-        if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
-            console.log("Checking for reasoning content")
+        const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
+        if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningContentField){
             let reasoningContent = ""
             result = result.replace(/(.*)\<\/think\>/gms, (m, p1) => {
                 reasoningContent = p1
                 return ""
             })
-            console.log(`Reasoning Content: ${reasoningContent}`)
             if(reasoningContent){
                 reasoningContent = reasoningContent.replace(/\<think\>/gms, '')
                 result = `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${result}`
             }
         }
-        // For deepseek Official Reasoning Model: https://api-docs.deepseek.com/guides/thinking_mode#api-example
-        // Skip if <Thoughts> was already extracted from <think> tags above
-        const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
         if(reasoningContentField && !result.startsWith('<Thoughts>')){
             result = `<Thoughts>\n${reasoningContentField}\n</Thoughts>\n${result}`
         }
@@ -1230,6 +1225,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
 function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Array, StreamResponseChunk> {
     let dataUint:Uint8Array|Buffer = new Uint8Array([])
     let reasoningContent = ""
+    let reasoningFromStructured = false
     const db = getDatabase()
 
     const appendStreamingFragment = (current:string, incoming?:string) => {
@@ -1257,17 +1253,17 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     if(data.startsWith("data: ")){
                         try {
                             const rawChunk = data.replace("data: ", "")
-                            if(rawChunk === "[DONE]"){
-                                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
-                                    readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
-                                        reasoningContent = p1
-                                        return ""
-                                    })
-                
-                                    if(reasoningContent){
-                                        reasoningContent = reasoningContent.replace(/\<think\>/gm, '')
+                                if(rawChunk === "[DONE]"){
+                                    if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
+                                        readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
+                                            reasoningContent = p1
+                                            return ""
+                                        })
+                    
+                                        if(reasoningContent){
+                                            reasoningContent = reasoningContent.replace(/\<think\>/gm, '')
+                                        }
                                     }
-                                }                
                                 if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
                                     for(const key in readed){
                                         const extracted = extractJSON(readed[key], arg.extractJson)
@@ -1343,6 +1339,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                 }
                                 const reasoningChunk = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning
                                 if(reasoningChunk){
+                                    reasoningFromStructured = true
                                     reasoningContent = appendStreamingFragment(reasoningContent, reasoningChunk)
                                 }
                             }
@@ -1350,7 +1347,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     }
                 }
                 
-                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
+                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
                     readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
                         reasoningContent = p1
                         return ""

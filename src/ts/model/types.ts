@@ -24,6 +24,7 @@ export const LLMFlags = {
     noCivilIntegrity: 20,
     claudeThinking: 21,
     claudeAdaptiveThinking: 22,
+    // 23 is reserved (reserved for claudeXHighEffort, refer to PR #1410 at https://github.com/kwaroran/Risuai/pull/1410)
     deepSeekThinkingToggle: 24
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];

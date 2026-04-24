@@ -157,6 +157,9 @@
                 {@render CustomFlagButton(index,'deepSeekPrefix', 17)}
                 {@render CustomFlagButton(index,'deepSeekThinkingInput', 18)}
                 {@render CustomFlagButton(index,'deepSeekThinkingOutput', 19)}
+                {@render CustomFlagButton(index,'noCivilIntegrity', 20)}
+                {@render CustomFlagButton(index,'claudeThinking', 21)}
+                {@render CustomFlagButton(index,'claudeAdaptiveThinking', 22)}
                 {@render CustomFlagButton(index,'deepSeekThinkingToggle', 24)}
             </Accordion>
                 </div>

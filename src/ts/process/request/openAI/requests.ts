@@ -155,7 +155,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             if(arg.modelInfo.flags.includes(LLMFlags.deepSeekPrefix) && i === formatedChat.length-1 && formatedChat[i].role === 'assistant'){
                 formatedChat[i].prefix = true
             }
-            if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingInput) && i === formatedChat.length-1 && formatedChat[i].thoughts && formatedChat[i].thoughts.length > 0 && formatedChat[i].role === 'assistant'){
+            if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingInput) && formatedChat[i].thoughts && formatedChat[i].thoughts.length > 0 && formatedChat[i].role === 'assistant'){
                 formatedChat[i].reasoning_content = formatedChat[i].thoughts.join('\n')
             }
             delete formatedChat[i].memo
@@ -468,8 +468,13 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         else{
             body.thinking = {
                 type: 'enabled',
-                reasoning_effort: db.adaptiveThinkingEffort === 'max' ? 'max' : 'high'
+                reasoning_effort: db.adaptiveThinkingEffort ?? 'high'
             }
+            // DeepSeek ignores sampling parameters when thinking is enabled
+            delete body.temperature
+            delete body.top_p
+            delete body.frequency_penalty
+            delete body.presence_penalty
         }
     }
 
@@ -779,8 +784,9 @@ export async function requestHTTPOpenAI(
             }
         }
         // For deepseek Official Reasoning Model: https://api-docs.deepseek.com/guides/thinking_mode#api-example
+        // Skip if <Thoughts> was already extracted from <think> tags above
         const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
-        if(reasoningContentField){
+        if(reasoningContentField && !result.startsWith('<Thoughts>')){
             result = `<Thoughts>\n${reasoningContentField}\n</Thoughts>\n${result}`
         }
         // For openrouter, https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request#response.body.choices.message.reasoning

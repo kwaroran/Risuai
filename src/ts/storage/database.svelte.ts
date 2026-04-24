@@ -1097,7 +1097,7 @@ export interface Database{
     toggleConfirmRecommendedPreset?: boolean
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
-    thinkingType: 'off' | 'budget' | 'adaptive'
+    thinkingType: 'off' | 'budget' | 'adaptive' | 'enabled'
     adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
@@ -1232,7 +1232,7 @@ export interface SeparateParameters{
     presence_penalty?:number
     reasoning_effort?:number
     thinking_tokens?:number
-    thinking_type?: 'off' | 'budget' | 'adaptive'
+    thinking_type?: 'off' | 'budget' | 'adaptive' | 'enabled'
     adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
     outputImageModal?:boolean
     verbosity?:number
@@ -1576,7 +1576,7 @@ export interface botPreset{
     regex?:customscript[]
     reasonEffort?:number
     thinkingTokens?:number
-    thinkingType?: 'off' | 'budget' | 'adaptive'
+    thinkingType?: 'off' | 'budget' | 'adaptive' | 'enabled'
     adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean

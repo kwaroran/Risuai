@@ -136,7 +136,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
                 { value: 'off', label: 'Off' },
                 { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) },
                 { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
-                { value: 'budget', label: 'Enabled', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) },
+                { value: 'enabled', label: 'Enabled', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) },
             ]
         },
         keywords: ['thinking', 'type', 'mode', 'adaptive', 'budget'],
@@ -166,7 +166,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
             (ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
              ctx.db.thinkingType === 'adaptive') ||
             (ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) &&
-             ctx.db.thinkingType !== 'off'),
+             ctx.db.thinkingType === 'enabled'),
         options: {
             segmentOptions: [
                 { value: 'low', label: 'Low', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },

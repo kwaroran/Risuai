@@ -461,6 +461,18 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     )
 
+    if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
+        if(db.thinkingType === 'off'){
+            body.thinking = { type: 'disabled' }
+        }
+        else{
+            body.thinking = {
+                type: 'enabled',
+                reasoning_effort: db.adaptiveThinkingEffort === 'max' ? 'max' : 'high'
+            }
+        }
+    }
+
     if(arg.tools && arg.tools.length > 0){
         body.tools = arg.tools.map(tool => {
             return {

@@ -452,8 +452,7 @@ export const LLMModels: LLMModel[] = [
         parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p'],
         tokenizer: LLMTokenizer.DeepSeek,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
-        keyIdentifier: 'deepseek',
-        recommended: true
+        keyIdentifier: 'deepseek'
     },
     {
         id: 'deepseek-reasoner',
@@ -462,6 +461,29 @@ export const LLMModels: LLMModel[] = [
         format: LLMFormat.OpenAICompatible,
         flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.hasStreaming],
         parameters: [],
+        tokenizer: LLMTokenizer.DeepSeek,
+        endpoint: 'https://api.deepseek.com/beta/chat/completions',
+        keyIdentifier: 'deepseek'
+    },
+    {
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.deepSeekThinkingToggle, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
+        tokenizer: LLMTokenizer.DeepSeek,
+        endpoint: 'https://api.deepseek.com/beta/chat/completions',
+        keyIdentifier: 'deepseek',
+        recommended: true
+    },
+    {
+        id: 'deepseek-v4-pro',
+        name: 'DeepSeek V4 Pro',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.deepSeekThinkingToggle, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
         tokenizer: LLMTokenizer.DeepSeek,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
         keyIdentifier: 'deepseek',

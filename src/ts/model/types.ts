@@ -23,7 +23,8 @@ export const LLMFlags = {
     deepSeekThinkingOutput: 19,
     noCivilIntegrity: 20,
     claudeThinking: 21,
-    claudeAdaptiveThinking: 22
+    claudeAdaptiveThinking: 22,
+    deepSeekThinkingToggle: 23
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 

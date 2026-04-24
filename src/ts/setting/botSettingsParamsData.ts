@@ -129,12 +129,14 @@ export const modelSpecificParameterItems: SettingItem[] = [
         bindKey: 'thinkingType',
         condition: (ctx) =>
             ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) ||
-            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking),
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) ||
+            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle),
         options: {
             segmentOptions: [
                 { value: 'off', label: 'Off' },
-                { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking)  },
+                { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) },
                 { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
+                { value: 'budget', label: 'Enabled', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) },
             ]
         },
         keywords: ['thinking', 'type', 'mode', 'adaptive', 'budget'],
@@ -161,17 +163,19 @@ export const modelSpecificParameterItems: SettingItem[] = [
         labelKey: 'adaptiveThinkingEffort',
         bindKey: 'adaptiveThinkingEffort',
         condition: (ctx) =>
-            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
-            ctx.db.thinkingType === 'adaptive',
+            (ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
+             ctx.db.thinkingType === 'adaptive') ||
+            (ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) &&
+             ctx.db.thinkingType !== 'off'),
         options: {
             segmentOptions: [
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
+                { value: 'low', label: 'Low', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
+                { value: 'medium', label: 'Medium', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
                 { value: 'high', label: 'High' },
                 { value: 'max', label: 'Max' },
             ]
         },
-        keywords: ['adaptive', 'thinking', 'effort'],
+        keywords: ['adaptive', 'thinking', 'effort', 'reasoning'],
     },
     {
         id: 'params.topK',

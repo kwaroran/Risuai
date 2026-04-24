@@ -69,8 +69,9 @@ export interface SettingOptions {
     step?: number;
     fixed?: number;         // Decimal places for slider
     disableable?: boolean;  // Allow -1 to disable
-    customText?: string;    // Custom display text for slider
+    customText?: string | ((value: number) => string); // Custom display text for slider
     multiple?: number;      // Multiplier for display value
+    nullable?: boolean;     // Allow null for color inputs
     
     // select
     selectOptions?: SelectOption[];

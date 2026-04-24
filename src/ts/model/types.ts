@@ -24,7 +24,7 @@ export const LLMFlags = {
     noCivilIntegrity: 20,
     claudeThinking: 21,
     claudeAdaptiveThinking: 22,
-    deepSeekThinkingToggle: 23
+    deepSeekThinkingToggle: 24
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 

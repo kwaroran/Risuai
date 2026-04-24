@@ -677,7 +677,7 @@
             {@render CustomFlagButton('deepSeekPrefix', 17)}
             {@render CustomFlagButton('deepSeekThinkingInput', 18)}
             {@render CustomFlagButton('deepSeekThinkingOutput', 19)}
-            {@render CustomFlagButton('deepSeekThinkingToggle', 23)}
+            {@render CustomFlagButton('deepSeekThinkingToggle', 24)}
             {@render CustomFlagButton('claudeThinking', 21)}
             {@render CustomFlagButton('claudeAdaptiveThinking', 22)}
 

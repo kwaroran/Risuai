@@ -1276,10 +1276,14 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                     control.enqueue(JSONreaded)
                                 }
                                 else if(reasoningContent){
-                                    control.enqueue({
+                                    const chunk:Record<string,string> = {
                                         "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
                                         "__reasoning_content": reasoningContent
-                                    })
+                                    }
+                                    if(readed["__tool_calls"]){
+                                        chunk["__tool_calls"] = readed["__tool_calls"]
+                                    }
+                                    control.enqueue(chunk)
                                 }
                                 else{
                                     control.enqueue(readed)
@@ -1373,10 +1377,14 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     control.enqueue(JSONreaded)
                 }
                 else if(reasoningContent){
-                    control.enqueue({
+                    const chunk:Record<string,string> = {
                         "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
                         "__reasoning_content": reasoningContent
-                    })
+                    }
+                    if(readed["__tool_calls"]){
+                        chunk["__tool_calls"] = readed["__tool_calls"]
+                    }
+                    control.enqueue(chunk)
                 }
                 else{
                     control.enqueue(readed)

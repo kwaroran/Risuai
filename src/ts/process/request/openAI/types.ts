@@ -75,7 +75,6 @@ export interface OpenAIChatExtra {
     multimodals?: MultiModal[]
     thoughts?: string[]
     prefix?: boolean
-    reasoning_content?: string
     cachePoint?: boolean
     function?: {
         name: string

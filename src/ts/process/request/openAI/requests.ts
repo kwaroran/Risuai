@@ -155,9 +155,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             if(arg.modelInfo.flags.includes(LLMFlags.deepSeekPrefix) && i === formatedChat.length-1 && formatedChat[i].role === 'assistant'){
                 formatedChat[i].prefix = true
             }
-            if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingInput) && formatedChat[i].thoughts && formatedChat[i].thoughts.length > 0 && formatedChat[i].role === 'assistant'){
-                formatedChat[i].reasoning_content = formatedChat[i].thoughts.join('\n')
-            }
             delete formatedChat[i].memo
             delete formatedChat[i].removable
             delete formatedChat[i].attr
@@ -1270,15 +1267,11 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                         JSONreaded[key] = extracted
                                     }
                                     console.log(JSONreaded)
-                                    if(reasoningContent){
-                                        JSONreaded["__reasoning_content"] = reasoningContent
-                                    }
                                     control.enqueue(JSONreaded)
                                 }
                                 else if(reasoningContent){
                                     const chunk:Record<string,string> = {
                                         "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
-                                        "__reasoning_content": reasoningContent
                                     }
                                     if(readed["__tool_calls"]){
                                         chunk["__tool_calls"] = readed["__tool_calls"]
@@ -1371,15 +1364,11 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                         JSONreaded[key] = extracted
                     }
                     console.log(JSONreaded)
-                    if(reasoningContent){
-                        JSONreaded["__reasoning_content"] = reasoningContent
-                    }
                     control.enqueue(JSONreaded)
                 }
                 else if(reasoningContent){
                     const chunk:Record<string,string> = {
                         "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
-                        "__reasoning_content": reasoningContent
                     }
                     if(readed["__tool_calls"]){
                         chunk["__tool_calls"] = readed["__tool_calls"]
@@ -1435,11 +1424,6 @@ function wrapToolStream(
                                     arguments: call.function.arguments
                                 }
                             }))
-                        }
-
-                        const reasoningContentValue = value?.['__reasoning_content']
-                        if(reasoningContentValue){
-                            assistantMessage.reasoning_content = reasoningContentValue
                         }
 
                         messages.push(assistantMessage)

@@ -262,18 +262,18 @@
         />
 
         {#if DBState.db.ollamaInputMode === 'manual'}
-            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} placeholder="Model" oninput={() => DBState.db.ollamaModelName = ''} />
+            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaCloudModel} placeholder="Model" oninput={() => DBState.db.ollamaCloudModelName = ''} />
         {:else}
             {#await getOllamaModels(DBState.db.ollamaURL, 'cloud', DBState.db.ollamaApiKey)}
-                <ModelGrid bind:value={DBState.db.ollamaModel} loading={true} />
+                <ModelGrid bind:value={DBState.db.ollamaCloudModel} loading={true} />
             {:then cloudModels}
                 <ModelGrid
-                    bind:value={DBState.db.ollamaModel}
+                    bind:value={DBState.db.ollamaCloudModel}
                     items={cloudModels ?? []}
-                    selectedLabelOverride={DBState.db.ollamaModel ? `Cloud / ${DBState.db.ollamaModelName || DBState.db.ollamaModel}` : undefined}
+                    selectedLabelOverride={DBState.db.ollamaCloudModel ? `Cloud / ${DBState.db.ollamaCloudModelName || DBState.db.ollamaCloudModel}` : undefined}
                     onselect={(_id, name) => {
                         DBState.db.ollamaModelSource = 'cloud'
-                        DBState.db.ollamaModelName = name
+                        DBState.db.ollamaCloudModelName = name
                     }}
                 />
             {/await}
@@ -305,7 +305,7 @@
             </div>
         {/if}
 
-        {#if usesOllamaLocal && !usesOllamaCloud}
+        {#if usesOllamaLocal}
         <span class="text-textcolor mt-4">Ollama Model</span>
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} placeholder="Model" oninput={() => { DBState.db.ollamaModelSource = 'local'; DBState.db.ollamaModelName = '' }} />
         {/if}

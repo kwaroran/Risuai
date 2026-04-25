@@ -454,6 +454,12 @@ export function setDatabase(data:Database){
     data.ollamaRequestFormat ??= LLMFormat.Ollama
     data.ollamaApiKey ??= ''
     data.ollamaModelName ??= ''
+    data.ollamaCloudModel ??= ''
+    data.ollamaCloudModelName ??= ''
+    if ((data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud') && !data.ollamaCloudModel) {
+        data.ollamaCloudModel = data.ollamaModel
+        data.ollamaCloudModelName = data.ollamaModelName
+    }
     data.autoContinueChat ??= false
     data.autoContinueMinTokens ??= 0
     data.repetition_penalty ??= 1
@@ -990,6 +996,8 @@ export interface Database{
     ollamaRequestFormat:LLMFormat
     ollamaApiKey:string
     ollamaModelName:string
+    ollamaCloudModel:string
+    ollamaCloudModelName:string
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean

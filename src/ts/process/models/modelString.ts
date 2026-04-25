@@ -13,7 +13,9 @@ export function getGenerationModelString(name?:string){
         }
         case 'ollama-hosted':
         case 'ollama-cloud': {
-            const modelLabel = db.ollamaModelName || db.ollamaModel
+            const modelLabel = name === 'ollama-cloud'
+                ? db.ollamaCloudModelName || db.ollamaCloudModel
+                : db.ollamaModelName || db.ollamaModel
             return `Ollama ${name === 'ollama-cloud' ? 'Cloud' : 'Local'} ${modelLabel}`
         }
         default:

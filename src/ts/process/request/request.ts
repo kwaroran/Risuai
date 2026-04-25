@@ -1080,25 +1080,26 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     const db = getDatabase()
     const isCloud = arg.aiModel === 'ollama-cloud'
     const requestFormat = isCloud ? db.ollamaRequestFormat : LLMFormat.Ollama
+    const ollamaModel = isCloud ? db.ollamaCloudModel : db.ollamaModel
 
     if(isCloud && requestFormat === LLMFormat.OpenAICompatible){
         arg.customURL = 'https://ollama.com/v1/chat/completions'
         arg.key = db.ollamaApiKey
-        arg.modelInfo.internalID = db.ollamaModel
+        arg.modelInfo.internalID = ollamaModel
         return requestOpenAI(arg)
     }
 
     if(isCloud && requestFormat === LLMFormat.OpenAIResponseAPI){
         arg.customURL = 'https://ollama.com/v1/responses'
         arg.key = db.ollamaApiKey
-        arg.modelInfo.internalID = db.ollamaModel
+        arg.modelInfo.internalID = ollamaModel
         return requestOpenAIResponseAPI(arg)
     }
 
     if(isCloud && requestFormat === LLMFormat.Anthropic){
         arg.customURL = 'https://ollama.com/v1/messages'
         arg.key = db.ollamaApiKey
-        arg.modelInfo.internalID = db.ollamaModel
+        arg.modelInfo.internalID = ollamaModel
         return requestClaude(arg)
     }
 
@@ -1107,7 +1108,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
             type: 'success',
             result: JSON.stringify({
                 url: isCloud ? 'https://ollama.com/api/chat' : `${db.ollamaURL}/api/chat`,
-                model: db.ollamaModel,
+                model: ollamaModel,
                 source: db.ollamaModelSource,
                 stream: arg.useStreaming,
                 headers: isCloud ? { Authorization: 'Bearer ' + db.ollamaApiKey } : {}
@@ -1133,7 +1134,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     if(!arg.useStreaming){
         const response = await ollama.chat({
-            model: db.ollamaModel,
+            model: ollamaModel,
             messages: messages,
             stream: false
         })
@@ -1146,7 +1147,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     }
 
     const response = await ollama.chat({
-        model: db.ollamaModel,
+        model: ollamaModel,
         messages: messages,
         stream: true
     })

@@ -1,6 +1,6 @@
 import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
-import { globalFetch } from "../../globalApi.svelte";
+import { fetchNative, globalFetch } from "../../globalApi.svelte";
 import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
 import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
@@ -91,6 +91,95 @@ export type requestDataResponse = {
 }
 
 export interface StreamResponseChunk{[key:string]:string}
+
+function normalizeFetchHeaders(headers?: HeadersInit): { [key: string]: string } {
+    if (!headers) {
+        return {}
+    }
+    if (headers instanceof Headers) {
+        return Object.fromEntries(headers.entries())
+    }
+    if (Array.isArray(headers)) {
+        return Object.fromEntries(headers)
+    }
+    return headers as { [key: string]: string }
+}
+
+async function ollamaCloudFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    const url = input instanceof Request ? input.url : input.toString()
+    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')) as 'POST' | 'GET' | 'PUT' | 'DELETE'
+    const headers = normalizeFetchHeaders(init.headers ?? (input instanceof Request ? input.headers : undefined))
+    const body = init.body ?? (input instanceof Request ? await input.arrayBuffer() : undefined)
+
+    const response = await fetchNative(url, {
+        body: body as string | Uint8Array | ArrayBuffer | undefined,
+        headers,
+        method,
+        signal: init.signal as AbortSignal,
+        interceptor: 'ollama_sdk',
+    })
+
+    return normalizeOllamaStreamResponse(response)
+}
+
+function normalizeOllamaStreamResponse(response: Response): Response {
+    if (!response.body) {
+        return response
+    }
+
+    const decoder = new TextDecoder()
+    const encoder = new TextEncoder()
+    let depth = 0
+    let inString = false
+    let escaped = false
+
+    const stream = response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+            let out = ''
+            const text = decoder.decode(chunk, { stream: true })
+
+            for (const char of text) {
+                out += char
+
+                if (escaped) {
+                    escaped = false
+                    continue
+                }
+                if (char === '\\' && inString) {
+                    escaped = true
+                    continue
+                }
+                if (char === '"') {
+                    inString = !inString
+                    continue
+                }
+                if (inString) {
+                    continue
+                }
+                if (char === '{') {
+                    depth++
+                    continue
+                }
+                if (char === '}') {
+                    depth = Math.max(0, depth - 1)
+                    if (depth === 0) {
+                        out += '\n'
+                    }
+                }
+            }
+
+            if (out) {
+                controller.enqueue(encoder.encode(out))
+            }
+        }
+    }))
+
+    return new Response(stream, {
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText,
+    })
+}
 
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
@@ -203,10 +292,11 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
             }
     
             if(da.type !== 'fail' || da.noRetry){
-                return {
+                const usedModel = fallBackModels[fallbackIndex] || da.model
+                return usedModel ? {
                     ...da,
-                    model: fallBackModels[fallbackIndex]
-                }
+                    model: usedModel
+                } : da
             }
     
             if(da.failByServerError){
@@ -988,17 +1078,48 @@ async function requestNovelList(arg:RequestDataArgumentExtended):Promise<request
 async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDataResponse> {
     const formated = arg.formated
     const db = getDatabase()
+    const isCloud = arg.aiModel === 'ollama-cloud'
+    const requestFormat = isCloud ? db.ollamaRequestFormat : LLMFormat.Ollama
+
+    if(isCloud && requestFormat === LLMFormat.OpenAICompatible){
+        arg.customURL = 'https://ollama.com/v1/chat/completions'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo.internalID = db.ollamaModel
+        return requestOpenAI(arg)
+    }
+
+    if(isCloud && requestFormat === LLMFormat.OpenAIResponseAPI){
+        arg.customURL = 'https://ollama.com/v1/responses'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo.internalID = db.ollamaModel
+        return requestOpenAIResponseAPI(arg)
+    }
+
+    if(isCloud && requestFormat === LLMFormat.Anthropic){
+        arg.customURL = 'https://ollama.com/v1/messages'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo.internalID = db.ollamaModel
+        return requestClaude(arg)
+    }
 
     if(arg.previewBody){
         return {
             type: 'success',
             result: JSON.stringify({
-                error: "Preview body is not supported for Ollama"
+                url: isCloud ? 'https://ollama.com/api/chat' : `${db.ollamaURL}/api/chat`,
+                model: db.ollamaModel,
+                source: db.ollamaModelSource,
+                stream: arg.useStreaming,
+                headers: isCloud ? { Authorization: 'Bearer ' + db.ollamaApiKey } : {}
             })
         }
     }
 
-    const ollama = new Ollama({host: db.ollamaURL})
+    const ollama = new Ollama({
+        host: isCloud ? 'https://ollama.com' : db.ollamaURL,
+        headers: isCloud && db.ollamaApiKey ? { Authorization: 'Bearer ' + db.ollamaApiKey } : undefined,
+        fetch: isCloud ? ollamaCloudFetch : undefined
+    })
 
     const messages = []
     for (const v of formated) {
@@ -1010,6 +1131,20 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
         }
     }
 
+    if(!arg.useStreaming){
+        const response = await ollama.chat({
+            model: db.ollamaModel,
+            messages: messages,
+            stream: false
+        })
+
+        return {
+            type: 'success',
+            result: unstringlizeChat(response.message.content, formated, arg.currentChar?.name ?? ''),
+            model: arg.aiModel
+        }
+    }
+
     const response = await ollama.chat({
         model: db.ollamaModel,
         messages: messages,
@@ -1018,9 +1153,11 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     const readableStream = new ReadableStream<StreamResponseChunk>({
         async start(controller){
+            let content = ''
             for await(const chunk of response){
+                content += chunk.message.content ?? ''
                 controller.enqueue({
-                    "0": chunk.message.content
+                    "0": content
                 })
             }
             controller.close()
@@ -1029,7 +1166,8 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     return {
         type: 'streaming',
-        result: readableStream
+        result: readableStream,
+        model: arg.aiModel
     }
 }
 

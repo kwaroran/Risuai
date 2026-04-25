@@ -1253,28 +1253,32 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     if(data.startsWith("data: ")){
                         try {
                             const rawChunk = data.replace("data: ", "")
-                                if(rawChunk === "[DONE]"){
-                                    if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
-                                        readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
-                                            reasoningContent = p1
-                                            return ""
-                                        })
-                    
-                                        if(reasoningContent){
-                                            reasoningContent = reasoningContent.replace(/\<think\>/gm, '')
-                                        }
+                            if(rawChunk === "[DONE]"){
+                                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
+                                    readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
+                                        reasoningContent = p1
+                                        return ""
+                                    })
+
+                                    if(reasoningContent){
+                                        reasoningContent = reasoningContent.replace(/\<think\>/gm, '')
                                     }
+                                }
                                 if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
                                     for(const key in readed){
                                         const extracted = extractJSON(readed[key], arg.extractJson)
                                         JSONreaded[key] = extracted
                                     }
                                     console.log(JSONreaded)
+                                    if(reasoningContent){
+                                        JSONreaded["__reasoning_content"] = reasoningContent
+                                    }
                                     control.enqueue(JSONreaded)
                                 }
                                 else if(reasoningContent){
                                     control.enqueue({
-                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`
+                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
+                                        "__reasoning_content": reasoningContent
                                     })
                                 }
                                 else{
@@ -1363,11 +1367,15 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                         JSONreaded[key] = extracted
                     }
                     console.log(JSONreaded)
+                    if(reasoningContent){
+                        JSONreaded["__reasoning_content"] = reasoningContent
+                    }
                     control.enqueue(JSONreaded)
                 }
                 else if(reasoningContent){
                     control.enqueue({
-                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`
+                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
+                        "__reasoning_content": reasoningContent
                     })
                 }
                 else{
@@ -1408,7 +1416,7 @@ function wrapToolStream(
                     if(toolCalls && toolCalls.length > 0){
                         const messages = body.messages as OpenAIChatExtra[]
 
-                        messages.push({
+                        const assistantMessage: OpenAIChatExtra = {
                             role: 'assistant',
                             content: (db.simplifiedToolUse ? '' : content),
                             tool_calls: toolCalls.map(call => ({
@@ -1419,7 +1427,14 @@ function wrapToolStream(
                                     arguments: call.function.arguments
                                 }
                             }))
-                        })
+                        }
+
+                        const reasoningContentValue = value?.['__reasoning_content']
+                        if(reasoningContentValue){
+                            assistantMessage.reasoning_content = reasoningContentValue
+                        }
+
+                        messages.push(assistantMessage)
 
                         const callCodes: string[] = []
                     

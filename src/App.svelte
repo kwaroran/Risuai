@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore, irisStore, customSideBarConfigDialogStore } from './ts/stores.svelte';
     import Sidebar from './lib/SideBars/Sidebar.svelte';
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
@@ -30,14 +30,24 @@
     import PluginAlertModal from './lib/Others/PluginAlertModal.svelte';
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
+    import sendSound from './etc/send.mp3'
+    import PopupEditor from './lib/Others/PopupEditor.svelte';
+    import LoadoutModal from './lib/Others/LoadoutModal.svelte';
+    import IrisModal from './lib/Others/IrisModal.svelte';
+    import Legal from './lib/Others/Legal.svelte';
+    import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
+
 
   
     let didFirstSetup: boolean  = $derived(DBState.db?.didFirstSetup)
     let gridOpen = $state(false)
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
+    let keepingSessionAlive = $state(false)
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'link'
@@ -57,9 +67,7 @@
         } else if (name.endsWith('.risum')) {
             const data = new Uint8Array(await file.arrayBuffer())
             const module = await readModule(Buffer.from(data))
-            const db = getDatabase()
-            db.modules.push(module)
-            setDatabase(db)
+            DBState.db.modules.push(module)
             alertNormal(language.successImport)
         } else {
             await importCharacterProcess({
@@ -69,8 +77,32 @@
             checkCharOrder()
         }
     }
+}} onclick={() => {
+    if(keepingSessionAlive){
+        return
+    }
+
+    const aliveMode = DBState?.db?.keepSessionAlive
+    switch(aliveMode){
+        case 'pip':{
+
+            break
+        }
+        case 'sound':{
+            console.log("Starting silent audio to keep session alive")
+            const silentAudio = new Audio(sendSound);
+            silentAudio.loop = true;
+            silentAudio.volume = 0.000001;
+            silentAudio.play();
+            keepingSessionAlive = true;
+            break
+        }
+    }
+
 }}>
-    {#if aprilFools}
+    {#if !import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
+        <Legal />
+    {:else if aprilFools}
 
         <div class="bg-[#212121] w-full h-screen min-h-screen text-black flex relative">
             <div class="w-full max-w-3xl mx-auto py-8 px-4 flex justify-center items-center">
@@ -126,18 +158,18 @@
                     <p class="text-[#bbbbbb] mb-6">
                         <!-- svelte-ignore a11y_missing_attribute -->
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        Go to <a class="text-blue-500 cursor-pointer" onclick={() => {
+                        <a class="text-blue-500 cursor-pointer" onclick={() => {
                             aprilFoolsPage = 0
                             aprilFools = false
                         }}>
-                            Risuai  
+                            Go to Risuai  
                         </a>
                     </p>
 
                     {/if}
                 </div>
             </div>
-            <span class="absolute top-4 left-4 font-bold text-[#bbbbbb] text-md md:text-lg">RisyGTP-9</span>
+            <span class="absolute top-4 left-4 font-bold text-[#bbbbbb] text-md md:text-lg">RisyGTP 9+ Mytho Ultra Free</span>
         </div>
     {:else if !$loadedStore}
         <div class="w-full h-full flex justify-center items-center text-textcolor text-xl bg-gray-900 flex-col">
@@ -212,5 +244,17 @@
     {/if}
     {#if easyPanelStore.open}
         <EasyPanel />
+    {/if}
+    {#if popUpEditorStore.open}
+        <PopupEditor />
+    {/if}
+    {#if loadoutModalStore.open}
+        <LoadoutModal />
+    {/if}
+    {#if irisStore.open}
+        <IrisModal />
+    {/if}
+    {#if customSideBarConfigDialogStore.open}
+        <CustomSidebarConfig />
     {/if}
 </main>

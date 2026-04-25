@@ -90,7 +90,6 @@
                     var suggestMessagesNew = rq2.result.split('\n').filter(msg => msg.startsWith('-')).map(msg => msg.replace('-','').trim())
                     const db:Database = DBState.db;
                     db.characters[$selectedCharID].chats[currentChar.chatPage].suggestMessages = suggestMessagesNew
-                    setDatabase(db)
                     suggestMessages = suggestMessagesNew
                 }
                 progress = false

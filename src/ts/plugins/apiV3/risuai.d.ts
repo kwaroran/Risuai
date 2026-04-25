@@ -332,6 +332,38 @@ interface DatabaseSubset {
 }
 
 // ============================================================================
+// Color Scheme & Text Theme Types
+// ============================================================================
+
+/**
+ * Color scheme definition for UI theming.
+ */
+interface ColorScheme {
+    bgcolor: string;
+    darkbg: string;
+    borderc: string;
+    selected: string;
+    draculared: string;
+    textcolor: string;
+    textcolor2: string;
+    darkBorderc: string;
+    darkbutton: string;
+    type: 'light' | 'dark';
+}
+
+/**
+ * Custom text theme definition for chat text colors.
+ */
+interface CustomTextTheme {
+    FontColorStandard: string;
+    FontColorBold: string;
+    FontColorItalic: string;
+    FontColorItalicBold: string;
+    FontColorQuote1: string;
+    FontColorQuote2: string;
+}
+
+// ============================================================================
 // SafeElement API
 // ============================================================================
 
@@ -571,9 +603,9 @@ interface SafeElement {
 
     /**
      * Gets all child elements
-     * @returns Array of child SafeElements
+     * @returns SafeClassArray of child SafeElements
      */
-    getChildren(): Promise<SafeElement[]>;
+    getChildren(): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Gets the parent element
@@ -584,9 +616,9 @@ interface SafeElement {
     /**
      * Queries all descendant elements matching a selector
      * @param selector - CSS selector
-     * @returns Array of matching SafeElements
+     * @returns SafeClassArray of matching SafeElements
      */
-    querySelectorAll(selector: string): Promise<SafeElement[]>;
+    querySelectorAll(selector: string): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Queries the first descendant element matching a selector
@@ -605,9 +637,9 @@ interface SafeElement {
     /**
      * Gets elements by class name
      * @param className - Class name
-     * @returns Array of matching SafeElements
+     * @returns SafeClassArray of matching SafeElements
      */
-    getElementsByClassName(className: string): Promise<SafeElement[]>;
+    getElementsByClassName(className: string): Promise<SafeClassArray<SafeElement>>;
 
     /**
      * Checks if element matches a selector
@@ -1322,6 +1354,47 @@ interface RisuaiPluginAPI {
      */
     setDatabase(db: DatabaseSubset): Promise<void>;
 
+    // ========== Color Scheme APIs ==========
+
+    /**
+     * Change to a preset color scheme by name.
+     * Available presets: 'default', 'dark', 'light', 'cherry', 'galaxy', 'nature', 'realblack', 'monokai-light', 'monokai-black'
+     * @param name - Preset color scheme name
+     */
+    changeColorScheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom color scheme. Automatically sets colorSchemeName to 'custom'.
+     * @param scheme - ColorScheme object with all color values
+     */
+    setColorScheme(scheme: ColorScheme): Promise<void>;
+
+    /**
+     * Get the current color scheme name and values.
+     * @returns Object with name and scheme
+     */
+    getColorScheme(): Promise<{ name: string; scheme: ColorScheme }>;
+
+    // ========== Text Theme APIs ==========
+
+    /**
+     * Change to a preset text theme.
+     * @param name - 'standard' | 'highcontrast'
+     */
+    changeTextTheme(name: string): Promise<void>;
+
+    /**
+     * Apply a custom text theme. Automatically sets textTheme to 'custom'.
+     * @param theme - CustomTextTheme object with all font color values
+     */
+    setCustomTextTheme(theme: CustomTextTheme): Promise<void>;
+
+    /**
+     * Get the current text theme name and custom theme values.
+     * @returns Object with name and customTheme
+     */
+    getTextTheme(): Promise<{ name: string; customTheme: CustomTextTheme }>;
+
     // ========== Network APIs ==========
 
     /**
@@ -1332,14 +1405,27 @@ interface RisuaiPluginAPI {
      */
     nativeFetch(url: string, options?: RequestInit): Promise<Response>;
 
+    /**
+     * Saves a secret header for network requests, for protected Headers (like Authorization) that are stripped by Risuai for security.
+     * To use saved secret headers, use an object `{ secretHeader: 'Header-Name' }` in the `headers` field of `nativeFetch` options,
+     * Like `{ headers: {"Authorization":{ secretHeader: 'Authorization' }} }`
+     * @m This API is work in progress and may have breaking changes in the future.
+     * @param key - Header key (e.g., 'Authorization')
+     * @param value - Header value.
+     */
+    saveSecretHeader(key: string, prefix: string, value: string|string[]): Promise<void>;
+
     // ========== UI Registration ==========
 
     /**
-     * Registers a settings menu item
+     * Registers a settings menu item.
+     * If `id` is provided and a setting with that ID already exists, it will be replaced in-place (preserving position).
+     *
      * @param name - Display name
      * @param callback - Callback function when clicked
      * @param icon - Icon content (HTML or image URL)
      * @param iconType - Icon type ('html', 'img', or 'none')
+     * @param id - Optional stable ID. If omitted, a UUID is generated. If provided and already registered, the existing entry is replaced in-place.
      *
      * @example
      * ```typescript
@@ -1350,7 +1436,8 @@ interface RisuaiPluginAPI {
      *     // Build settings UI...
      *   },
      *   '⚙️',
-     *   'html'
+     *   'html',
+     *   'my-plugin-settings'
      * );
      * ```
      */
@@ -1358,28 +1445,45 @@ interface RisuaiPluginAPI {
         name: string,
         callback: () => void | Promise<void>,
         icon?: string,
-        iconType?: IconType
+        iconType?: IconType,
+        id?: string
     ): Promise<UIPartResponse>;
 
 
     /**
-     * Registers a floating action button
-     * @param name - Display name
+     * Registers a floating action button.
+     * If `id` is provided and a button with that ID already exists, it will be replaced in-place (preserving position).
+     * When replacing, the button stays in its original location store regardless of the `location` parameter.
+     *
      * @param arg - Button configuration
+     * @param arg.name - Display name
      * @param arg.icon - Icon content (HTML or image URL)
      * @param arg.iconType - Icon type ('html', 'img', or 'none')
-     * @param arg.location - Button location ('action', 'chat', or 'hamburger')
+     * @param arg.location - Button location ('action', 'chat', or 'hamburger'). Ignored when replacing an existing button.
+     * @param arg.id - Optional stable ID. If omitted, a UUID is generated. If provided and already registered, the existing button is replaced in-place.
      * @param callback - Callback function when clicked
      *
      * @example
      * ```typescript
+     * // First registration
      * await risuai.registerButton({
      *   name: 'My Action',
      *   icon: '🔥',
      *   iconType: 'html',
-     *   location: 'action'
+     *   location: 'action',
+     *   id: 'my-plugin-action'
      * }, async () => {
      *     console.log('Action button clicked!');
+     * });
+     *
+     * // Later: replace in-place (position preserved)
+     * await risuai.registerButton({
+     *   name: 'Updated Action',
+     *   icon: '✨',
+     *   iconType: 'html',
+     *   id: 'my-plugin-action'
+     * }, async () => {
+     *     console.log('Updated!');
      * });
      * ```
      */
@@ -1387,7 +1491,8 @@ interface RisuaiPluginAPI {
         name: string,
         icon: string,
         iconType: 'html'|'img'|'none',
-        location?: 'action'|'chat'|'hamburger'
+        location?: 'action'|'chat'|'hamburger',
+        id?: string
     }, callback: () => void): Promise<UIPartResponse>;
 
     /**
@@ -1706,6 +1811,28 @@ interface RisuaiPluginAPI {
      * @remarks This API is subject to change. API might be changed, deprecated, or removed in the future without prior notice.
      */
     postPluginChannelMessage(pluginName: string, channelName: string, message: any): Promise<void>;
+
+    // ========== Model Requesters ==========
+
+    /**
+     * Runs a request through a specified LLM model with given messages and options.
+     * @param options - Options for the LLM request
+     * @param options.messages - Array of chat messages to send to the model
+     * @param options.staticModel - Optional static model name to use (e.g., 'gpt-4')
+     * @param options.mode - Request mode
+     * @returns The model's response, which may be a string or a stream depending on the mode
+     */
+    runLLMModel(options: {
+        messages: any[];
+        staticModel?: string;
+        mode: string;
+    }): Promise<any>;
+
+    /**
+     * Sends a chat message as if it were sent by the user, triggering the normal chat processing flow.
+     * @param message - The chat message to send, if string is a blank message, it will trigger the send action without adding a new message.
+     */
+    sendChat(message: string): Promise<void>;
 }
 
 // ============================================================================

@@ -67,6 +67,45 @@
                 }
                 onchange()
             }}
+            onkeydown={async (e) => {
+                if(
+                    (e.ctrlKey || e.shiftKey || e.altKey)    
+                    && hotkeyMatches(DBState.db.hotkeys.find(hk => hk.action === 'popupEditor'), e)
+                ){
+                    e.preventDefault()
+                    popUpEditorStore.value = value
+                    popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
+                    popUpEditorStore.open = true
+
+                    //lazy wait
+                    while(popUpEditorStore.open){
+                        await sleep(100)
+                    }
+
+                    value = popUpEditorStore.value
+                    onInput()
+                }
+            }}
+
+            oncontextmenu={(e) => {
+                if(DBState.db.longPressToPopupEditor){
+                    e.preventDefault()
+                    popUpEditorStore.value = value
+                    popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
+                    popUpEditorStore.open = true
+
+                    //lazy wait
+                    const checkInterval = setInterval(() => {
+                        if(!popUpEditorStore.open){
+                            value = popUpEditorStore.value
+                            onInput()
+                            clearInterval(checkInterval)
+                        }
+                    }, 100)
+                }
+            }}
 ></textarea>
 {:else}
     <div
@@ -102,8 +141,9 @@
     import { highlighter, getNewHighlightId, removeHighlight, AllCBS } from 'src/ts/gui/highlight'
     import { sleep } from 'src/ts/util';
     import { onDestroy, onMount } from 'svelte';
-  import { disableHighlight } from 'src/ts/stores.svelte';
+  import { DBState, disableHighlight, popUpEditorStore } from 'src/ts/stores.svelte';
   import { isMobile } from 'src/ts/platform'
+    import { hotkeyMatches } from 'src/ts/hotkey';
     interface Props {
         size?: 'xs'|'sm'|'md'|'lg'|'xl'|'default';
         autocomplete?: 'on'|'off';
@@ -119,6 +159,7 @@
         optimaizedInput?: boolean;
         highlight?: boolean;
         onchange?: () => void;
+        popupLanguage?: string;
     }
 
     let {
@@ -135,7 +176,8 @@
         className = '',
         optimaizedInput = true,
         highlight = false,
-        onchange = () => {}
+        onchange = () => {},
+        popupLanguage = 'markdown'
     }: Props = $props();
     let selectingAutoComplete = $state(0)
     // TODO: Review if highlight prop can change dynamically - if so, this needs to be reactive

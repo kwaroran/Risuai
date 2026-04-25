@@ -1,23 +1,10 @@
 <script lang="ts">
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
     import type { LLMModel } from 'src/ts/model/types';
-    import { customComponents } from 'src/ts/setting/customComponents';
-    import { language } from 'src/lang';
     import { DBState } from 'src/ts/stores.svelte';
     import { getModelInfo } from 'src/ts/model/modellist';
-    import Check from 'src/lib/UI/GUI/CheckInput.svelte';
-    import TextInput from 'src/lib/UI/GUI/TextInput.svelte';
-    import NumberInput from 'src/lib/UI/GUI/NumberInput.svelte';
-    import TextAreaInput from 'src/lib/UI/GUI/TextAreaInput.svelte';
-    import SliderInput from 'src/lib/UI/GUI/SliderInput.svelte';
-    import SelectInput from 'src/lib/UI/GUI/SelectInput.svelte';
-    import SegmentedControl from 'src/lib/UI/GUI/SegmentedControl.svelte';
-    import OptionInput from 'src/lib/UI/GUI/OptionInput.svelte';
-    import ColorInput from 'src/lib/UI/GUI/ColorInput.svelte';
-    import Button from 'src/lib/UI/GUI/Button.svelte';
-    import Help from 'src/lib/Others/Help.svelte';
-    import Accordion from 'src/lib/UI/Accordion.svelte';
-    import Self from './SettingRenderer.svelte';
+    import { settingRegistry } from 'src/ts/setting/settingRegistry';
+    import { checkCondition } from 'src/ts/setting/utils';
 
     interface Props {
         items: SettingItem[];
@@ -39,179 +26,15 @@
         modelInfo: effectiveModelInfo,
         subModelInfo: effectiveSubModelInfo,
     });
-
-    function getLabel(item: SettingItem): string {
-        if (item.labelKey && language[item.labelKey]) {
-            return language[item.labelKey];
-        }
-        return item.fallbackLabel ?? '';
-    }
-
-    /**
-     * Check if item should be visible based on condition
-     */
-    function checkCondition(item: SettingItem): boolean {
-        if (!item.condition) return true;
-        return item.condition(ctx);
-    }
-
-    /**
-     * When a select or segmented control has conditional options, reset the value if it no longer matches any visible option
-     * It selects last selectable entry when reset happens
-     */
-    $effect(() => {
-        for (const item of items) {
-            if (item.type === 'select' && item.options?.selectOptions && checkCondition(item)) {
-                const filteredOpts = item.options.selectOptions.filter(opt => !opt.condition || opt.condition(ctx));
-                const currentVal = (DBState.db as any)[item.bindKey];
-                if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
-                    (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
-                }
-            } else if (item.type === 'segmented' && item.options?.segmentOptions && checkCondition(item)) {
-                const filteredOpts = item.options.segmentOptions.filter(opt => !opt.condition || opt.condition(ctx));
-                const currentVal = (DBState.db as any)[item.bindKey];
-                if (filteredOpts.length > 0 && !filteredOpts.some(o => o.value === currentVal)) {
-                    (DBState.db as any)[item.bindKey] = filteredOpts[filteredOpts.length - 1].value;
-                }
-            }
-        }
-    });
-
-    /**
-     * Get value from nested path (e.g., 'ooba.top_p')
-     */
-    function getBindValue(item: SettingItem): any {
-        if (item.bindPath) {
-            const parts = item.bindPath.split('.');
-            let value: any = DBState.db;
-            for (const part of parts) {
-                value = value?.[part];
-            }
-            return value;
-        }
-        return (DBState.db as any)[item.bindKey];
-    }
-
-    /**
-     * Set value to nested path (e.g., 'ooba.top_p')
-     */
-    function setBindValue(item: SettingItem, newValue: any): void {
-        if (item.bindPath) {
-            const parts = item.bindPath.split('.');
-            let obj: any = DBState.db;
-            for (let i = 0; i < parts.length - 1; i++) {
-                obj = obj[parts[i]];
-            }
-            obj[parts[parts.length - 1]] = newValue;
-        } else if (item.bindKey) {
-            (DBState.db as any)[item.bindKey] = newValue;
-        }
-    }
 </script>
 
 {#each items as item (item.id)}
-    {#if checkCondition(item)}
-        {#if item.type === 'header'}
-            {#if item.options?.level === 'h2'}
-                <h2 class="mb-2 text-2xl font-bold mt-2 {item.classes ?? ''}">{getLabel(item)}</h2>
-            {:else if item.options?.level === 'warning'}
-                <span class="text-draculared text-xs mb-2 {item.classes ?? ''}">{getLabel(item)}</span>
-            {:else}
-                <span class="text-textcolor mt-4 mb-2 {item.classes ?? ''}">{getLabel(item)}</span>
-            {/if}
-        {:else if item.type === 'check'}
-            <div class="flex items-center {item.classes ?? 'mt-2'}">
-                <Check bind:check={(DBState.db as any)[item.bindKey]} name={getLabel(item)}>
-                    {#if item.showExperimental}<Help key="experimental"/>{/if}
-                    {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
-                </Check>
-            </div>
-        {:else if item.type === 'text'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <TextInput
-                marginBottom={true}
-                size="sm"
-                bind:value={(DBState.db as any)[item.bindKey]}
-                placeholder={item.options?.placeholder}
-                hideText={item.options?.hideText}
-            />
-        {:else if item.type === 'number'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <NumberInput
-                marginBottom={true}
-                size="sm"
-                min={item.options?.min}
-                max={item.options?.max}
-                bind:value={(DBState.db as any)[item.bindKey]}
-            />
-        {:else if item.type === 'textarea'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <TextAreaInput
-                bind:value={(DBState.db as any)[item.bindKey]}
-                placeholder={item.options?.placeholder}
-            />
-        {:else if item.type === 'slider'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <SliderInput 
-                marginBottom={true}
-                min={item.options?.min} 
-                max={item.options?.max}
-                step={item.options?.step}
-                fixed={item.options?.fixed}
-                multiple={item.options?.multiple}
-                disableable={item.options?.disableable}
-                customText={item.options?.customText}
-                bind:value={(DBState.db as any)[item.bindKey]}
-            />
-        {:else if item.type === 'select'}
-            <span class="text-textcolor {item.classes ?? 'mt-4'}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <SelectInput bind:value={(DBState.db as any)[item.bindKey]}>
-                {#each (item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)) as opt}
-                    <OptionInput value={opt.value}>{opt.label}</OptionInput>
-                {/each}
-            </SelectInput>
-        {:else if item.type === 'segmented'}
-            <span class="text-textcolor {item.classes ?? ''}">{getLabel(item)}
-                {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
-            </span>
-            <SegmentedControl
-                bind:value={(DBState.db as any)[item.bindKey]}
-                options={(item.options?.segmentOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx))}
-            />
-        {:else if item.type === 'color'}
-            <div class="flex items-center {item.classes ?? 'mt-2'}">
-                <ColorInput bind:value={(DBState.db as any)[item.bindKey]} />
-                <span class="ml-2">{getLabel(item)}</span>
-            </div>
-        {:else if item.type === 'button'}
-            <Button 
-                className={item.classes ?? 'mt-4'}
-                onclick={item.options?.onClick}
-            >
-                {getLabel(item)}
-            </Button>
-        {:else if item.type === 'accordion'}
-            <Accordion name={getLabel(item)} styled={item.options?.styled ?? false}>
-                {#if item.options?.children}
-                    <Self items={item.options.children} {modelInfo} {subModelInfo} />
-                {/if}
-            </Accordion>
-        {:else if item.type === 'custom' && item.componentId}
-            {@const CustomComponent = customComponents[item.componentId]}
-            {#if CustomComponent}
-                <CustomComponent {...item.componentProps} />
-            {/if}
+    {#if checkCondition(item, ctx)}
+        {@const Component = settingRegistry[item.type]}
+        {#if Component}
+            <Component {item} {ctx} />
+        {:else}
+            <div class="text-draculared text-xs mt-2">Unknown setting type: {item.type}</div>
         {/if}
     {/if}
 {/each}
-

@@ -1277,7 +1277,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                 }
                                 else if(reasoningContent){
                                     const chunk:Record<string,string> = {
-                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
+                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
                                         "__reasoning_content": reasoningContent
                                     }
                                     if(readed["__tool_calls"]){
@@ -1378,7 +1378,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                 }
                 else if(reasoningContent){
                     const chunk:Record<string,string> = {
-                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`,
+                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
                         "__reasoning_content": reasoningContent
                     }
                     if(readed["__tool_calls"]){

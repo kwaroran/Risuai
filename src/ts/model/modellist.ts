@@ -30,7 +30,7 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
             internalID: id,
             provider: LLMProvider.DeepInfra,
             format: LLMFormat.OpenAICompatible,
-            parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p'],
+            parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
             flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekThinkingOutput, LLMFlags.hasStreaming],
             tokenizer: LLMTokenizer.DeepSeek,
             endpoint: 'https://api.deepinfra.com/v1/openai/chat/completions',
@@ -484,7 +484,7 @@ export const LLMModels: LLMModel[] = [
         provider: LLMProvider.DeepSeek,
         format: LLMFormat.OpenAICompatible,
         flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.hasStreaming],
-        parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p'],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
         tokenizer: LLMTokenizer.DeepSeek,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
         keyIdentifier: 'deepseek'

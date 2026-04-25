@@ -449,6 +449,11 @@ export function setDatabase(data:Database){
     data.maxSupaChunkSize ??= 1200
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
+    data.ollamaModelSource ??= data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud' ? 'cloud' : 'local'
+    data.ollamaInputMode ??= 'manual'
+    data.ollamaRequestFormat ??= LLMFormat.Ollama
+    data.ollamaApiKey ??= ''
+    data.ollamaModelName ??= ''
     data.autoContinueChat ??= false
     data.autoContinueMinTokens ??= 0
     data.repetition_penalty ??= 1
@@ -980,6 +985,11 @@ export interface Database{
     maxSupaChunkSize:number
     ollamaURL:string
     ollamaModel:string
+    ollamaModelSource:'local'|'cloud'
+    ollamaInputMode:'list'|'manual'
+    ollamaRequestFormat:LLMFormat
+    ollamaApiKey:string
+    ollamaModelName:string
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean

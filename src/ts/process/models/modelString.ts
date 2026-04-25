@@ -11,6 +11,11 @@ export function getGenerationModelString(name?:string){
             const modelLabel = db.nanogptRequestModelName || db.nanogptRequestModel
             return 'NanoGPT ' + modelLabel + (db.nanogptUseSubscriptionEndpoint ? ' [SUB]' : '')
         }
+        case 'ollama-hosted':
+        case 'ollama-cloud': {
+            const modelLabel = db.ollamaModelName || db.ollamaModel
+            return `Ollama ${name === 'ollama-cloud' ? 'Cloud' : 'Local'} ${modelLabel}`
+        }
         default:
             return name ?? db.aiModel
     }

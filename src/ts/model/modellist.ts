@@ -407,12 +407,25 @@ export const LLMModels: LLMModel[] = [
     // Ollama
     {
         id: 'ollama-hosted',
-        name: 'Ollama',
-        provider: LLMProvider.AsIs,
+        name: 'Local',
+        fullName: 'Ollama Local',
+        provider: LLMProvider.Ollama,
         format: LLMFormat.Ollama,
-        flags: [LLMFlags.hasFullSystemPrompt],
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
         parameters: OpenAIParameters,
-        tokenizer: LLMTokenizer.Unknown
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true
+    },
+    {
+        id: 'ollama-cloud',
+        name: 'Cloud',
+        fullName: 'Ollama Cloud',
+        provider: LLMProvider.Ollama,
+        format: LLMFormat.Ollama,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true
     },
     // WebLLM
     {

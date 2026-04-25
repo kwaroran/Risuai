@@ -1096,7 +1096,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         modelId: arg.modelInfo.id
     })
 
-    if(aiModel === 'ollama-hosted'){
+    if(aiModel === 'ollama-cloud'){
         delete body.store
     }
 

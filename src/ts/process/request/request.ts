@@ -1099,7 +1099,11 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     if(isCloud && requestFormat === LLMFormat.Anthropic){
         arg.customURL = 'https://ollama.com/v1/messages'
         arg.key = db.ollamaApiKey
-        arg.modelInfo.internalID = ollamaModel
+        arg.modelInfo = {
+            ...arg.modelInfo,
+            internalID: ollamaModel,
+            parameters: ['temperature', 'top_k', 'top_p']
+        }
         return requestClaude(arg)
     }
 

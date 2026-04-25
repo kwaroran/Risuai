@@ -67,6 +67,18 @@ export const advancedSettingsItems: SettingItem[] = [
         }
     },
 
+    // Keep Session alive
+    {
+        id: 'adv.keepSessionAlive', type: 'select', labelKey: 'keepSessionAlive', bindKey: 'keepSessionAlive', helpKey: 'keepSessionAlive',
+        options: {
+            selectOptions: [
+                { value: 'off', label: 'Off' },
+                { value: 'sound', label: 'Via Sound' },
+            ]
+        }
+    },
+    
+
     // Height Mode
     {
         id: 'adv.heightMode', type: 'select', labelKey: 'heightMode', bindKey: 'heightMode',
@@ -100,10 +112,24 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.showUnrec', type: 'check', labelKey: 'showUnrecommended', bindKey: 'showUnrecommended', helpKey: 'showUnrecommended', classes: 'mt-4' },
     { id: 'adv.imgComp', type: 'check', labelKey: 'imageCompression', bindKey: 'imageCompression', helpKey: 'imageCompression', classes: 'mt-4' },
     { id: 'adv.useExp', type: 'check', labelKey: 'useExperimental', bindKey: 'useExperimental', helpKey: 'useExperimental', classes: 'mt-4' },
-    { id: 'adv.sourceMap', type: 'check', labelKey: 'sourcemapTranslate', bindKey: 'sourcemapTranslate', helpKey: 'sourcemapTranslate', classes: 'mt-4' },
     { id: 'adv.forceProxy', type: 'check', labelKey: 'forceProxyAsOpenAI', bindKey: 'forceProxyAsOpenAI', helpKey: 'forceProxyAsOpenAI', classes: 'mt-4' },
     { id: 'adv.legacyMedia', type: 'check', labelKey: 'legacyMediaFindings', bindKey: 'legacyMediaFindings', helpKey: 'legacyMediaFindings', classes: 'mt-4' },
     { id: 'adv.autoFill', type: 'check', labelKey: 'autoFillRequestURL', bindKey: 'autofillRequestUrl', helpKey: 'autoFillRequestURL', classes: 'mt-4' },
+    {
+        id: 'adv.localNetworkMode',
+        type: 'check',
+        fallbackLabel: 'Local Network Mode (Experimental)',
+        bindKey: 'localNetworkMode',
+        helpKey: 'localNetworkModeDesc',
+        classes: 'mt-4'
+    },
+    {
+        id: 'adv.localNetworkTimeout', type: 'number', fallbackLabel: 'Local Network Timeout (sec)', bindKey: 'localNetworkTimeoutSec',
+        condition: (ctx) => ctx.db.localNetworkMode,
+        classes: 'block mb-1',
+        containerClasses: 'pl-7',
+        options: { min: 30, max: 3600, inputClassName: 'w-full', marginBottom: false }
+    },
     { id: 'adv.autoCont', type: 'check', labelKey: 'autoContinueChat', bindKey: 'autoContinueChat', helpKey: 'autoContinueChat', classes: 'mt-4' },
     { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', classes: 'mt-4' },
     { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', classes: 'mt-4' },
@@ -112,6 +138,8 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.allowExt', type: 'check', fallbackLabel: 'Allow all in file select', bindKey: 'allowAllExtentionFiles', classes: 'mt-4' },
     { id: 'adv.dynamicModelRegistry', type: 'check', labelKey: 'dynamicModelRegistry', bindKey: 'dynamicModelRegistry', classes: 'mt-4' },
     { id: 'adv.disableSeperateParameterChangeOnPresetChange', type: 'check', labelKey: 'disableSeperateParameterChangeOnPresetChange', bindKey: 'disableSeperateParameterChangeOnPresetChange', classes: 'mt-4' },
+    { id: 'adv.coldstorage', type: 'check', labelKey: 'coldStorage', bindKey: 'coldstorage', classes: 'mt-4', helpKey: 'coldstorage' },
+
     // Experimental Section (visible when useExperimental is true)
     {
         id: 'adv.exp.googleToken', type: 'check', labelKey: 'googleCloudTokenization', bindKey: 'googleClaudeTokenizing',
@@ -121,11 +149,6 @@ export const advancedSettingsItems: SettingItem[] = [
         id: 'adv.exp.cachePoint', type: 'check', labelKey: 'automaticCachePoint', bindKey: 'automaticCachePoint',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
     },
-    {
-        id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
-    },
-
     // Unrecommended Section
     {
         id: 'adv.cot', type: 'check', labelKey: 'cot', bindKey: 'chainOfThought',

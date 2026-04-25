@@ -36,6 +36,7 @@ interface requestDataArgument{
     PresensePenalty?: number
     frequencyPenalty?: number,
     useStreaming?:boolean
+    forceStreaming?:boolean
     isGroupChat?:boolean
     useEmotion?:boolean
     continue?:boolean
@@ -49,6 +50,7 @@ interface requestDataArgument{
     escape?:boolean
     tools?: MCPTool[]
     rememberToolUsage?: boolean
+    blockPlugins?:boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{
@@ -60,6 +62,7 @@ export interface RequestDataArgumentExtended extends requestDataArgument{
     mode?:ModelModeExtended
     key?:string
     additionalOutput?:string
+    saveSignatures?:boolean
 }
 
 export type requestDataResponse = {
@@ -92,7 +95,7 @@ export interface StreamResponseChunk{[key:string]:string}
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
     const fallBackModels:string[] = safeStructuredClone(db?.fallbackModels?.[model] ?? [])
-    const tools = await getTools()
+    const tools = arg.tools ?? (await getTools())
     fallBackModels.push('')
     let da:requestDataResponse
 
@@ -331,12 +334,19 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
         }
     }
 
+    if(arg.blockPlugins && targ.modelInfo.id.startsWith('pluginmodel:::')){
+        return {
+            type: 'fail',
+            result: 'Plugin calls are blocked by the caller.'
+        }
+    }
+
     targ.formated = safeStructuredClone(arg.formated)
     targ.maxTokens = arg.maxTokens ??db.maxResponse
     targ.temperature = arg.temperature ?? (db.temperature / 100)
     targ.bias = arg.bias
     targ.currentChar = arg.currentChar
-    targ.useStreaming = db.useStreaming && arg.useStreaming
+    targ.useStreaming = arg.forceStreaming ? true : db.useStreaming && arg.useStreaming
     targ.continue = arg.continue ?? false
     targ.biasString = arg.biasString ?? []
     targ.multiGen = ((db.genTime > 1 && targ.aiModel.startsWith('gpt') && (!arg.continue)) && (!arg.noMultiGen))
@@ -362,7 +372,14 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     switch(format){
         case LLMFormat.OpenAICompatible:
         case LLMFormat.Mistral:
+        case LLMFormat.NanoGPT:
             return requestOpenAI(targ)
+        case LLMFormat.NanoGPTResponses:
+            return requestOpenAIResponseAPI(targ)
+        case LLMFormat.NanoGPTMessages:
+            return requestClaude(targ)
+        case LLMFormat.NanoGPTLegacy:
+            return requestOpenAILegacyInstruct(targ)
         case LLMFormat.OpenAILegacyInstruct:
             return requestOpenAILegacyInstruct(targ)
         case LLMFormat.NovelAI:
@@ -630,7 +647,7 @@ async function requestOobaLegacy(arg:RequestDataArgumentExtended):Promise<reques
     const dat = res.data as any
     if(res.ok){
         try {
-            let result:string = dat.results[0].text
+            let result:string = dat.results[0].text ?? ''
 
             return {
                 type: 'success',
@@ -713,7 +730,7 @@ async function requestOoba(arg:RequestDataArgumentExtended):Promise<requestDataR
             result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
         }
     }
-    const text:string = response.data.choices[0].text
+    const text:string = response.data.choices[0].text ?? ''
     return {
         type: 'success',
         result: text.replace(/##\n/g, '')
@@ -792,7 +809,7 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
         else{
             return {
                 type: 'success',
-                result: d.content,
+                result: d.content ?? '',
                 model: 'custom'
             }
         }   
@@ -874,7 +891,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
     if(!da.ok){
         return {
             type: "fail",
-            result: da.data,
+            result: (typeof da.data === 'string') ? da.data : JSON.stringify(da.data),
             noRetry: true
         }
     }
@@ -983,16 +1000,19 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     const ollama = new Ollama({host: db.ollamaURL})
 
-    const response = await ollama.chat({
-        model: db.ollamaModel,
-        messages: formated.map((v) => {
-            return {
+    const messages = []
+    for (const v of formated) {
+        if (v.role === 'assistant' || v.role === 'user' || v.role === 'system') {
+            messages.push({
                 role: v.role,
                 content: v.content
-            }
-        }).filter((v) => {
-            return v.role === 'assistant' || v.role === 'user' || v.role === 'system'
-        }),
+            })
+        }
+    }
+
+    const response = await ollama.chat({
+        model: db.ollamaModel,
+        messages: messages,
         stream: true
     })
 
@@ -1236,7 +1256,7 @@ async function requestHorde(arg:RequestDataArgumentExtended):Promise<requestData
             if(generations && generations.length > 0){
                 return {
                     type: "success",
-                    result: unstringlizeChat(generations[0].text, formated, currentChar?.name ?? '')
+                    result: unstringlizeChat(generations[0].text ?? '', formated, currentChar?.name ?? '')
                 }
             }
             return {
@@ -1276,7 +1296,7 @@ async function requestWebLLM(arg:RequestDataArgumentExtended):Promise<requestDat
     } as any)
     return {
         type: 'success',
-        result: unstringlizeChat(v.generated_text as string, formated, currentChar?.name ?? '')
+        result: unstringlizeChat((v.generated_text as string) ?? '', formated, currentChar?.name ?? '')
     }
 }
 

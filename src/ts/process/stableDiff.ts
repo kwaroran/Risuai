@@ -52,7 +52,7 @@ export async function stableDiff(currentChar:character,prompt:string){
         return false
     }
 
-    const r = rq.result
+    const r = rq.result.replace(/<Thoughts>[\s\S]*?<\/Thoughts>/g, '').trim()
 
 
     const genPrompt = currentChar.newGenData.prompt.replaceAll('{{slot}}', r)
@@ -813,12 +813,15 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
 
         // LoRAs
         if (config.loras && Array.isArray(config.loras)) {
-            body.loras = config.loras
-                .filter((lora: any) => lora && lora.path && lora.path.trim() !== "")
-                .map((lora: any) => ({
-                    path: lora.path,
-                    scale: typeof lora.scale === 'number' ? lora.scale : 1.0
-                }));
+            body.loras = [];
+            for (const lora of config.loras) {
+                if (lora && lora.path && lora.path.trim() !== "") {
+                    body.loras.push({
+                        path: lora.path,
+                        scale: typeof lora.scale === 'number' ? lora.scale : 1.0
+                    });
+                }
+            }
         }
 
         // Request

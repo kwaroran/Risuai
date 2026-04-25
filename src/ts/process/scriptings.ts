@@ -4,13 +4,13 @@ import { hasher, type simpleCharacterArgument, risuChatParser } from "../parser/
 import { LuaEngine, LuaFactory } from "wasmoon";
 import { getCurrentCharacter, getCurrentChat, getDatabase, setDatabase, type Chat, type character, type groupChat, type triggerscript } from "../storage/database.svelte";
 import { get } from "svelte/store";
-import { ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
+import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage } from "./stableDiff";
 import { writeInlayImage, getInlayAsset } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
-import { requestChatData } from "./request/request";
+import { requestChatData, type StreamResponseChunk } from "./request/request";
 import { v4 } from "uuid";
 import { getModuleLorebooks, getModuleTriggers } from "./modules";
 import { Mutex } from "../mutex";
@@ -440,7 +440,41 @@ export async function runScripted(code:string, arg:{
                 return await hasher(new TextEncoder().encode(value))
             })
 
-            declareAPI('LLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false) => {
+            const parseLuaOptions = (optionsStr?: string) => {
+                if (!optionsStr) {
+                    return {};
+                }
+
+                try {
+                    const parsed = JSON.parse(optionsStr);
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch {
+                    return {};
+                }
+            };
+
+            const collectLuaStreamText = async (stream: ReadableStream<StreamResponseChunk>) => {
+                const reader = stream.getReader();
+                let text = '';
+
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            break;
+                        }
+                        if (value && typeof value['0'] === 'string') {
+                            text = value['0'];
+                        }
+                    }
+                } finally {
+                    reader.releaseLock();
+                }
+
+                return text;
+            };
+
+            declareAPI('LLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false, optionsStr: string = '') => {
                 let prompt:{
                     role: string,
                     content: string
@@ -508,10 +542,12 @@ export async function runScripted(code:string, arg:{
                     }
                 }
 
+                const options = parseLuaOptions(optionsStr) as { streaming?: boolean }
                 const result = await requestChatData({
                     formated: promptbody,
                     bias: {},
-                    useStreaming: false,
+                    useStreaming: options.streaming === true,
+                    forceStreaming: options.streaming === true,
                     noMultiGen: true,
                 }, 'model')
 
@@ -522,7 +558,21 @@ export async function runScripted(code:string, arg:{
                     })
                 }
 
-                if(result.type === 'streaming' || result.type === 'multiline'){
+                if(result.type === 'streaming'){
+                    try {
+                        return JSON.stringify({
+                            success: true,
+                            result: await collectLuaStreamText(result.result)
+                        })
+                    } catch (error) {
+                        return JSON.stringify({
+                            success: false,
+                            result: 'Error: ' + error
+                        })
+                    }
+                }
+
+                if(result.type === 'multiline'){
                     return JSON.stringify({
                         success: false,
                         result: result.result
@@ -580,22 +630,19 @@ export async function runScripted(code:string, arg:{
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
                 if(typeof name !== 'string'){
                     throw('Invalid data type')
                 }
-                db.characters[selectedChar].name = name
-                setDatabase(db)
+                DBState.db.characters[selectedChar].name = name
             })
 
             declareAPI('getDescription', (id:string) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char = db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 if(char.type === 'group'){
                     throw('Character is a group')
                 }
@@ -606,9 +653,8 @@ export async function runScripted(code:string, arg:{
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char =db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 if(typeof data !== 'string'){
                     throw('Invalid data type')
                 }
@@ -616,14 +662,12 @@ export async function runScripted(code:string, arg:{
                     throw('Character is a group')
                 }
                 char.desc = desc
-                db.characters[selectedChar] = char
-                setDatabase(db)
+                DBState.db.characters[selectedChar] = char
             })
 
             declareAPI('getCharacterFirstMessage', (id:string) => {
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char = db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 return char.firstMessage
             })
 
@@ -638,8 +682,7 @@ export async function runScripted(code:string, arg:{
                     return false
                 }
                 char.firstMessage = data
-                db.characters[selectedChar] = char
-                setDatabase(db)
+                DBState.db.characters[selectedChar] = char
                 return true
             })
 
@@ -678,8 +721,7 @@ export async function runScripted(code:string, arg:{
                 if(typeof data !== 'string'){
                     return false
                 }
-                db.characters[selectedChar].backgroundHTML = data
-                setDatabase(db)
+                DBState.db.characters[selectedChar].backgroundHTML = data
                 return true
             })
 
@@ -691,10 +733,22 @@ export async function runScripted(code:string, arg:{
                     return
                 }
 
-                const loreBooks = [...selectedChar.chats[selectedChar.chatPage]?.localLore ?? [], ...selectedChar.globalLore, ...getModuleLorebooks()]
-                const found = loreBooks.filter((b) => b.comment === search)
+                const loreSources = [
+                    selectedChar.chats[selectedChar.chatPage]?.localLore ?? [],
+                    selectedChar.globalLore,
+                    getModuleLorebooks()
+                ]
 
-                return JSON.stringify(found.map((b) => ({ ...b, content: risuChatParser(b.content, { chara: selectedChar }) })))
+                const found = []
+                for (const source of loreSources) {
+                    for (const b of source) {
+                        if (b.comment === search) {
+                            found.push({ ...b, content: risuChatParser(b.content, { chara: selectedChar }) })
+                        }
+                    }
+                }
+
+                return JSON.stringify(found)
             })
 
             type upsertLoreBookOptions = {
@@ -782,7 +836,7 @@ export async function runScripted(code:string, arg:{
                 return JSON.stringify(loreBooks)
             })
 
-            declareAPI('axLLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false) => {
+            declareAPI('axLLMMain', async (id:string, promptStr:string, useMultimodal: boolean = false, optionsStr: string = '') => {
                 let prompt:{
                     role: string,
                     content: string
@@ -850,10 +904,12 @@ export async function runScripted(code:string, arg:{
                     }
                 }
 
+                const options = parseLuaOptions(optionsStr) as { streaming?: boolean }
                 const result = await requestChatData({
                     formated: promptbody,
                     bias: {},
-                    useStreaming: false,
+                    useStreaming: options.streaming === true,
+                    forceStreaming: options.streaming === true,
                     noMultiGen: true,
                 }, 'otherAx')
 
@@ -864,7 +920,21 @@ export async function runScripted(code:string, arg:{
                     })
                 }
 
-                if(result.type === 'streaming' || result.type === 'multiline'){
+                if(result.type === 'streaming'){
+                    try {
+                        return JSON.stringify({
+                            success: true,
+                            result: await collectLuaStreamText(result.result)
+                        })
+                    } catch (error) {
+                        return JSON.stringify({
+                            success: false,
+                            result: 'Error: ' + error
+                        })
+                    }
+                }
+
+                if(result.type === 'multiline'){
                     return JSON.stringify({
                         success: false,
                         result: result.result
@@ -1174,14 +1244,16 @@ function loadLoreBooks(id)
     return json.decode(loadLoreBooksMain(id):await())
 end
 
-function LLM(id, prompt, useMultimodal)
+function LLM(id, prompt, useMultimodal, options)
     useMultimodal = useMultimodal or false
-    return json.decode(LLMMain(id, json.encode(prompt), useMultimodal):await())
+    options = options or {}
+    return json.decode(LLMMain(id, json.encode(prompt), useMultimodal, json.encode(options)):await())
 end
 
-function axLLM(id, prompt, useMultimodal)
+function axLLM(id, prompt, useMultimodal, options)
     useMultimodal = useMultimodal or false
-    return json.decode(axLLMMain(id, json.encode(prompt), useMultimodal):await())
+    options = options or {}
+    return json.decode(axLLMMain(id, json.encode(prompt), useMultimodal, json.encode(options)):await())
 end
 
 function getCharacterImage(id)

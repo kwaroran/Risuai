@@ -3,8 +3,9 @@ import { globalFetch } from "src/ts/globalApi.svelte";
 import { runEmbedding } from "../transformers";
 import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 
-export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'
+export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
 // In a typical environment, bge-m3 is a heavy model.
 // If your GPU can't handle this model, you'll see errror below.
@@ -64,7 +65,7 @@ export class HypaProcesser{
         for (let i = 0; i < subPrompts.length; i += 1) {
           const input = subPrompts[i];
     
-          const data = await this.getEmbeds(input)
+          const data = await this.getEmbeds(input, 'document')
     
           embeddings.push(...data);
         }
@@ -73,7 +74,17 @@ export class HypaProcesser{
     }
     
     
-    async getEmbeds(input:string[]|string):Promise<VectorArray[]> {
+    async getEmbeds(input:string[]|string, inputType:'query'|'document' = 'query'):Promise<VectorArray[]> {
+        if(isContextModel(this.model)){
+            const provider = getContextProvider(this.model)
+            const inputs:string[] = Array.isArray(input) ? input : [input]
+            if(inputType === 'query'){
+                return await provider.embedQueries(inputs)
+            }
+            const groups = inputs.map(s => [s])
+            const results = await provider.embedDocumentGroups(groups)
+            return results.map(group => group[0])
+        }
         if(Object.keys(localModels.models).includes(this.model)){
             const inputs:string[] = Array.isArray(input) ? input : [input]
             let results:Float32Array[] = await runEmbedding(inputs, localModels.models[this.model], localModels.gpuModels.includes(this.model) ? 'webgpu' : 'wasm')
@@ -197,9 +208,10 @@ export class HypaProcesser{
         query: VectorArray,
       ): [string, number][] {
           const memoryVectors = this.vectors
+          const sim = similarity
           const searches = memoryVectors
                 .map((vector, index) => ({
-                    similarity: similarity(query, vector.embedding),
+                    similarity: sim(query, vector.embedding),
                     index,
                 }))
                 .sort((a, b) => (a.similarity > b.similarity ? -1 : 0))
@@ -217,12 +229,34 @@ export class HypaProcesser{
     }
 }
 
-export function similarity(a:VectorArray, b:VectorArray) {    
+export function similarity(a:VectorArray, b:VectorArray) {
     let dot = 0;
     for(let i=0;i<a.length;i++){
         dot += a[i] * b[i]
     }
     return dot
+}
+
+export function cosineSimilarity(a:VectorArray, b:VectorArray):number {
+    let dot = 0;
+    let magA = 0;
+    let magB = 0;
+    for(let i=0;i<a.length;i++){
+        dot += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+export function contextHash(texts: string[]): string {
+    let h = 0x811c9dc5
+    const s = texts.join('\0')
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 0x01000193)
+    }
+    return (h >>> 0).toString(36)
 }
 
 export type VectorArray = number[]|Float32Array

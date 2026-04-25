@@ -4,7 +4,7 @@ import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, 
 import { tokenize } from "../tokenizer";
 import { getModuleTriggers } from "./modules";
 import { get } from "svelte/store";
-import { ReloadChatPointer, ReloadGUIPointer, selectedCharID, CurrentTriggerIdStore } from "../stores.svelte";
+import { ReloadChatPointer, ReloadGUIPointer, selectedCharID, CurrentTriggerIdStore, DBState } from "../stores.svelte";
 import { processMultiCommand } from "./command";
 import { parseKeyValue, sleep } from "../util";
 import { alertError, alertInput, alertNormal, alertSelect } from "../alert";
@@ -314,6 +314,7 @@ export type triggerV2RunLLM = {
     value: string,
     valueType: 'var'|'value',
     model: 'model'|'submodel',
+    streaming?: boolean,
     outputVar: string,
     indent: number
 }
@@ -1033,6 +1034,26 @@ export const requestAllowList = [
     'v2GetRequestStateLength',
     ...safeSubset
 ]
+
+async function collectStreamingText(stream: ReadableStream<{ [key: string]: string }>): Promise<string> {
+    const reader = stream.getReader()
+    let lastChunk = ''
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (value) {
+            const firstKey = Object.keys(value)[0]
+            if (firstKey) {
+                lastChunk = value[firstKey] ?? lastChunk
+            }
+        }
+        if (done) {
+            break
+        }
+    }
+
+    return lastChunk
+}
 
 export async function runTrigger(char:character,mode:triggerMode, arg:{
     chat: Chat,
@@ -1884,12 +1905,16 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                     let result = await requestChatData({
                         formated: promptbody,
                         bias: {},
-                        useStreaming: false,
+                        useStreaming: effect.streaming ?? false,
                         noMultiGen: true,
                     }, effect.model)
 
-                    if(result.type === 'fail' || result.type === 'streaming' || result.type === 'multiline'){
+                    if(result.type === 'fail' || result.type === 'multiline'){
                         setVar(risuChatParser(effect.outputVar, {chara:char}), 'null')
+                    }
+                    else if(result.type === 'streaming'){
+                        const text = await collectStreamingText(result.result)
+                        setVar(risuChatParser(effect.outputVar, {chara:char}), text)
                     }
                     else{
                         setVar(risuChatParser(effect.outputVar, {chara:char}), result.result)
@@ -2100,11 +2125,9 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                 }
                 case 'v2SetPersonaDesc':{
                     const value = effect.valueType === 'value' ? risuChatParser(effect.value,{chara:char}) : getVar(risuChatParser(effect.value,{chara:char}))
-                    const db = getDatabase()
-                    if(db.personas[db.selectedPersona]){
-                        db.personas[db.selectedPersona].personaPrompt = value
-                        db.personaPrompt = value
-                        setDatabase(db)
+                    if(DBState.db.personas[DBState.db.selectedPersona]){
+                        DBState.db.personas[DBState.db.selectedPersona].personaPrompt = value
+                        DBState.db.personaPrompt = value
                     }
                     break
                 }
@@ -2436,9 +2459,12 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                 }
                 case 'v2GetAllLorebooks':{
                     char.globalLore = char.globalLore ?? []
-                    const allPrompts = char.globalLore
-                        .filter(lore => lore && lore.content !== undefined)
-                        .map(lore => lore.content)
+                    const allPrompts: string[] = []
+                    for (const lore of char.globalLore) {
+                        if (lore && lore.content !== undefined) {
+                            allPrompts.push(lore.content)
+                        }
+                    }
                     setVar(risuChatParser(effect.outputVar, {chara:char}), JSON.stringify(allPrompts))
                     break
                 }
@@ -2446,14 +2472,13 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                     char.globalLore = char.globalLore ?? []
                     const name = effect.nameType === 'value' ? risuChatParser(effect.name,{chara:char}) : getVar(risuChatParser(effect.name,{chara:char}))
                     const regex = new RegExp(name, 'i')
-                    const matchingIndices = char.globalLore
-                        .map((lore, index) => {
-                            if(lore && lore.comment !== undefined && regex.test(lore.comment)){
-                                return index
-                            }
-                            return -1
-                        })
-                        .filter(index => index !== -1)
+                    const matchingIndices: number[] = []
+                    for (let i = 0; i < char.globalLore.length; i++) {
+                        const lore = char.globalLore[i]
+                        if (lore && lore.comment !== undefined && regex.test(lore.comment)) {
+                            matchingIndices.push(i)
+                        }
+                    }
                     setVar(risuChatParser(effect.outputVar, {chara:char}), JSON.stringify(matchingIndices))
                     break
                 }

@@ -43,6 +43,8 @@ import {
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
 import { registerModelDynamic } from "./model/modellist";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { appDataDir, join } from "@tauri-apps/api/path";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -68,9 +70,16 @@ export async function loadData() {
                 if (!await exists('database/database.bin', { baseDir: BaseDirectory.AppData })) {
                     await writeFile('database/database.bin', encodeRisuSaveLegacy({}), { baseDir: BaseDirectory.AppData });
                 }
+                const appDataDirPath = await appDataDir();
                 try {
                     LoadingStatusState.text = "Reading Save File..."
-                    const readed = await readFile('database/database.bin', { baseDir: BaseDirectory.AppData })
+                    const dbPath = await join(appDataDirPath, 'database/database.bin');
+                    const assetUrl = convertFileSrc(dbPath);
+                    const response = await fetch(assetUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to load database: ${response.status}`);
+                    }
+                    const readed = new Uint8Array(await response.arrayBuffer());
                     LoadingStatusState.text = "Cleaning Unnecessary Files..."
                     getDbBackups() //this also cleans the backups
                     LoadingStatusState.text = "Decoding Save File..."
@@ -84,7 +93,13 @@ export async function loadData() {
                         if (!backupLoaded) {
                             try {
                                 LoadingStatusState.text = `Reading Backup File ${backup}...`
-                                const backupData = await readFile(`database/dbbackup-${backup}.bin`, { baseDir: BaseDirectory.AppData })
+                                const backupPath = await join(appDataDirPath, `database/dbbackup-${backup}.bin`);
+                                const backupAssetUrl = convertFileSrc(backupPath);
+                                const backupResponse = await fetch(backupAssetUrl);
+                                if (!backupResponse.ok) {
+                                    throw new Error(`Failed to load backup ${backup}: ${backupResponse.status}`);
+                                }
+                                const backupData = new Uint8Array(await backupResponse.arrayBuffer());
                                 setDatabase(
                                     await decodeRisuSave(backupData)
                                 )
@@ -188,12 +203,6 @@ export async function loadData() {
                     characterURLImport()
                 }
             }
-            LoadingStatusState.text = "Checking Unnecessary Files..."
-            try {
-                await cleanChunks()
-            } catch (error) {
-                console.error(error)
-            }
             LoadingStatusState.text = "Loading Plugins..."
             try {
                 await loadPlugins()
@@ -237,21 +246,20 @@ export async function loadData() {
                 initMobileGesture()
                 MobileGUI.set(true)
             }
+            await makeColdData()
             loadedStore.set(true)
             selectedCharID.set(-1)
             startObserveDom()
             assignIds()
-            makeColdData()
             registerModelDynamic()
             saveDb()
             moduleUpdate()
-            if (import.meta.env.VITE_RISU_TOS === 'TRUE') {
-                alertTOS().then((a) => {
-                    if (a === false) {
-                        location.reload()
-                    }
-                })
-            }
+            alertTOS().then((a) => {
+                if (a === false) {
+                    location.reload()
+                }
+            })
+            
         } catch (error) {
             alertError(error)
         }
@@ -279,7 +287,9 @@ async function registerSw() {
 function updateErrorHandling() {
     const errorHandler = (event: ErrorEvent) => {
         console.error(event.error);
-        alertError(event.error);
+        if(!(event.error.target instanceof Worker)){
+            alertError(event.error);            
+        }
     };
     const rejectHandler = (event: PromiseRejectionEvent) => {
         console.error(event.reason);
@@ -568,6 +578,9 @@ async function cleanChunks() {
                 if(!uncleanable.has(n)) {
                     await forageStorage.removeItem(asset)
                 }
+            }
+            else if (asset.endsWith('.meta')){
+                continue
             }
             else if (asset.startsWith('remotes/')) {
                 const name = getBasename(asset).slice(0, -10) //remove .local.bin

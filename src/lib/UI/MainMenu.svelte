@@ -2,12 +2,49 @@
     import { DBState } from 'src/ts/stores.svelte';
     import Hub from "./Realm/RealmMain.svelte";
     import { OpenRealmStore, RealmInitialOpenChar } from "src/ts/stores.svelte";
-    import { ArrowLeft } from "@lucide/svelte";
+    import { ArrowLeft, ArrowRight, FolderCodeIcon, GlobeIcon, MailIcon, Send } from "@lucide/svelte";
     import { getVersionString, openURL } from "src/ts/globalApi.svelte";
     import { language } from "src/lang";
     import { getRisuHub, hubAdditionalHTML } from "src/ts/characterCards";
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import Title from "./Title.svelte";
+
+    type RelatedLink = {
+      title: string;
+      description: string;
+      href: string;
+      logoIcon: "source" | "globe" | "mail" | "paper-airplane";
+    };
+
+    const relatedLinkIconClass =
+      "h-40 w-40 md:h-44 md:w-44 origin-right -rotate-12 opacity-[0.12] transition-all duration-500 group-hover:scale-105 group-hover:opacity-[0.22]";
+
+    const relatedLinks: RelatedLink[] = [
+      {
+        title: "Discord",
+        description: "Join our Discord server to chat with other users and the developer.",
+        href: "https://discord.gg/Exy3NrqkGm",
+        logoIcon: "paper-airplane"
+      },
+      {
+        title: "Website",
+        description: "See the official website for the project.",
+        href: "https://risuai.net",
+        logoIcon: "globe"
+      },
+      {
+        title: "GitHub",
+        description: "View the source code and contribute to the project.",
+        href: "https://github.com/kwaroran/RisuAI",
+        logoIcon: "source"
+      },
+      {
+        title: "Email",
+        description: "Contact the developer directly.",
+        href: "mailto:support@risuai.net",
+        logoIcon: "mail"
+      }
+    ];
 </script>
 <div class="h-full w-full flex flex-col overflow-y-auto items-center">
     {#if !$OpenRealmStore}
@@ -50,41 +87,31 @@
       <h1 class="text-2xl font-bold mb-4">
         Related Links
       </h1>
-        <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-        <button class="bg-darkbg rounded-lg p-4 flex flex-col hover:bg-selected transition-colors relative lg:w-96 w-full items-start text-start" onclick={() => {
-          openURL("https://discord.gg/Exy3NrqkGm")
-        }}>
-          <h2 class="text-xl">Discord</h2>
-          <span class="text-textcolor2">
-            Join our Discord server to chat with other users and the developer.
-          </span>
-        </button>
-        <button class="bg-darkbg rounded-lg p-4 flex flex-col hover:bg-selected transition-colors relative lg:w-96 w-full items-start text-start" onclick={() => {
-          openURL("https://risuai.net")
-        }}>
-          <h2 class="text-xl">
-            Website
-          </h2>
-          <span class="text-textcolor2">
-            See the official website for the project.
-          </span>
-        </button>
-        <button class="bg-darkbg rounded-lg p-4 flex flex-col hover:bg-selected transition-colors relative lg:w-96 w-full items-start text-start" onclick={() => {
-          openURL("https://github.com/kwaroran/RisuAI")
-        }}>
-          <h2 class="text-xl">Github</h2>
-          <span class="text-textcolor2">
-            View the source code and contribute to the project.
-          </span>
-        </button>
-        <button class="bg-darkbg rounded-lg p-4 flex flex-col hover:bg-selected transition-colors relative lg:w-96 w-full items-start text-start" onclick={() => {
-          openURL("mailto:support@risuai.net")
-        }}>
-          <h2 class="text-xl">Email</h2>
-          <span class="text-textcolor2">
-            Contact the developer directly.
-          </span>
-        </button>
+        <div class="grid w-full grid-cols-1 gap-4 p-2 md:grid-cols-2">
+          {#each relatedLinks as relatedLink}
+            <button class="group relative flex min-h-[140px] flex-col justify-center overflow-hidden rounded-2xl border border-borderc/10 bg-darkbg p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-borderc/30 hover:bg-selected/50 hover:shadow-xl hover:shadow-darkbg/50" onclick={() => {
+              openURL(relatedLink.href)
+            }}>
+              <div class="relative z-10 w-[68%] sm:w-[70%]">
+                  <h2 class="text-2xl font-bold tracking-tight text-textcolor">{relatedLink.title}</h2>
+                  <span class="mt-2 block text-base leading-relaxed text-textcolor2">
+                    {relatedLink.description}
+                  </span>
+              </div>
+              
+              <div aria-hidden="true" class="pointer-events-none absolute -right-12 top-1/2 -translate-y-1/2 text-textcolor">
+                  {#if relatedLink.logoIcon === "globe"}
+                    <GlobeIcon class={relatedLinkIconClass} strokeWidth={1} />
+                  {:else if relatedLink.logoIcon === "mail"}
+                    <MailIcon class={relatedLinkIconClass} strokeWidth={1} />
+                  {:else if relatedLink.logoIcon === "paper-airplane"}
+                    <Send class={relatedLinkIconClass} strokeWidth={1} />
+                  {:else if relatedLink.logoIcon === "source"}
+                    <FolderCodeIcon class={relatedLinkIconClass} strokeWidth={1} />
+                  {/if}
+              </div>
+            </button>
+          {/each}
       </div>
 
       {:else}

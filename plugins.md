@@ -320,6 +320,9 @@ await element.setInnerHTML('<script>alert("XSS")</script>');
 // Get HTML
 const html = await element.getInnerHTML();
 const outerHtml = await element.getOuterHTML();
+
+// Set outer HTML (replaces the element itself, also sanitized)
+await element.setOuterHTML('<div class="replaced">Replaced!</div>');
 ```
 
 #### Attributes (Security Restricted)
@@ -429,6 +432,26 @@ All other event types are blocked for security reasons.
 await element.focus();
 ```
 
+#### Node Information
+
+```javascript
+// Get the tag name (e.g., "DIV", "BUTTON")
+const tag = await element.nodeName();
+
+// Get the node type (1 = ELEMENT_NODE)
+const type = await element.nodeType();
+```
+
+#### Scroll Into View
+
+```javascript
+// Scroll element into viewport
+await element.scrollIntoView();
+
+// With options
+await element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+```
+
 #### Element Creation
 
 ```javascript
@@ -455,15 +478,19 @@ Use `SafeMutationObserver` to watch for changes:
 
 ```javascript
 // Create observer
+// The callback receives a SafeClassArray<SafeMutationRecord>
 const observer = await Risuai.createMutationObserver(async (mutations) => {
-  for (const mutation of mutations) {
-    console.log(`Type: ${mutation.type}`);
+  const mutationArray = await Risuai.unwarpSafeArray(mutations);
+  for (const mutation of mutationArray) {
+    // SafeMutationRecord uses async getter methods
+    console.log(`Type: ${await mutation.getType()}`);
 
-    // mutation.target is a SafeElement
-    const target = mutation.target;
+    // getTarget() returns a SafeElement
+    const target = await mutation.getTarget();
 
-    // mutation.addedNodes is SafeElement[]
-    for (const node of mutation.addedNodes) {
+    // getAddedNodes() returns SafeClassArray<SafeElement>
+    const addedNodes = await Risuai.unwarpSafeArray(await mutation.getAddedNodes());
+    for (const node of addedNodes) {
       console.log(`Node added: ${await node.nodeName()}`);
     }
   }
@@ -477,6 +504,28 @@ await observer.observe(body, {
   subtree: true,
   attributes: true
 });
+```
+
+### SafeClassArray
+
+`SafeClassArray<T>` is a secure array-like container used in several APIs (e.g., mutation observer callbacks, `getAddedNodes()`). Use `unwarpSafeArray()` to convert it to a standard JavaScript array:
+
+```javascript
+// Recommended: use unwarpSafeArray for easy iteration
+const items = await Risuai.unwarpSafeArray(safeArray);
+for (const item of items) {
+  console.log(item);
+}
+
+// Or use SafeClassArray methods directly
+const length = await safeArray.length();
+for (let i = 0; i < length; i++) {
+  const item = await safeArray.at(i);
+  console.log(item);
+}
+
+// Push a new item
+await safeArray.push(newItem);
 ```
 
 ## Plugin UI
@@ -559,6 +608,22 @@ Risuai.registerButton({
 - `'img'` - Image URL
 - `'none'` - No icon (text only)
 
+### Unregistering UI Elements
+
+Both `registerSetting` and `registerButton` return a `UIPartResponse` with an `id`. Use `unregisterUIPart` to remove a registered element:
+
+```javascript
+const btn = await Risuai.registerButton({
+  name: 'My Button',
+  icon: '🔥',
+  iconType: 'html',
+  location: 'action'
+}, async () => { /* ... */ });
+
+// Later, remove it
+await Risuai.unregisterUIPart(btn.id);
+```
+
 ## Data Storage
 
 ### Plugin Arguments
@@ -615,6 +680,31 @@ const deviceId = await Risuai.safeLocalStorage.getItem('device_id');
 - Storing device-specific settings
 - Sharing data between plugins
 
+### Local Plugin Storage
+
+`getLocalPluginStorage()` returns a `SafeLocalPluginStorage` instance: device-local storage that supports any JSON-serializable value (unlike `safeLocalStorage` which is strings-only), with generic type support:
+
+```javascript
+const storage = await Risuai.getLocalPluginStorage();
+
+// Store any JSON-serializable value
+await storage.setItem('config', { theme: 'dark', fontSize: 14 });
+
+// Retrieve with type inference
+const config = await storage.getItem('config');
+
+// List all keys
+const keys = await storage.keys();
+
+// Remove an item or clear all
+await storage.removeItem('config');
+await storage.clear();
+```
+
+**Use `getLocalPluginStorage()` when:**
+- You need to store structured objects (not just strings)
+- Data should stay on one device
+
 ### Database Access
 
 Access Risuai's database for characters, personas, and more:
@@ -622,6 +712,9 @@ Access Risuai's database for characters, personas, and more:
 ```javascript
 // Get database (remember: async!)
 const db = await Risuai.getDatabase();
+
+// Request only specific keys for better performance
+const db = await Risuai.getDatabase(['characters', 'personas']);
 
 // Access allowed properties
 console.log(db.characters);
@@ -636,6 +729,8 @@ await Risuai.setDatabase(db); // Full save
 await Risuai.setDatabaseLite(db);
 ```
 
+`getDatabase()` returns `null` if the user has not granted database access consent.
+
 **Allowed database keys:**
 - `characters`
 - `modules`
@@ -645,6 +740,22 @@ await Risuai.setDatabaseLite(db);
 - `personas`
 - `plugins`
 - `pluginCustomStorage`
+- `temperature`
+- `askRemoval`
+- `maxContext`
+- `maxResponse`
+- `frequencyPenalty`
+- `PresensePenalty`
+- `theme`
+- `textTheme`
+- `lineHeight`
+- `seperateModelsForAxModels`
+- `seperateModels`
+- `customCSS`
+- `guiHTML`
+- `colorSchemeName`
+- `characterOrder`
+- `selectedPersona`
 
 ### Character Operations
 
@@ -667,6 +778,32 @@ await Risuai.setCharacter(character);
 **Legacy names** (still work, but prefer new names):
 - `Risuai.getChar()` : Use `Risuai.getCharacter()`
 - `Risuai.setChar()` : Use `Risuai.setCharacter()`
+
+### Character & Chat by Index
+
+Access characters and chats by their position in the database, and get the currently selected indices:
+
+```javascript
+// Get the index of the currently selected character and chat
+const charIndex = await Risuai.getCurrentCharacterIndex();
+const chatIndex = await Risuai.getCurrentChatIndex();
+
+// Read a character by index
+const character = await Risuai.getCharacterFromIndex(0);
+if (character) {
+  console.log(character.name);
+}
+
+// Save a modified character back by index
+character.description = 'Updated description';
+await Risuai.setCharacterToIndex(0, character);
+
+// Read a specific chat for a character
+const chat = await Risuai.getChatFromIndex(charIndex, chatIndex);
+
+// Save a modified chat back
+await Risuai.setChatToIndex(charIndex, chatIndex, chat);
+```
 
 ## Advanced Features
 
@@ -697,69 +834,6 @@ Direct browser fetch (may have CORS issues):
 ```javascript
 const response = await Risuai.nativeFetch('https://api.example.com/data');
 const data = await response.json();
-```
-
-### Custom AI Providers
-
-Add custom AI backend providers:
-
-```javascript
-Risuai.addProvider(
-  'MyCustomProvider',
-  async (args, abortSignal) => {
-    try {
-      const response = await Risuai.nativeFetch(
-        'https://api.my-llm.com/generate',
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${await Risuai.getArgument('api_key')}` },
-          body: JSON.stringify({
-            messages: args.prompt_chat,
-            temperature: args.temperature,
-            max_tokens: args.max_tokens
-          }),
-          signal: abortSignal
-        }
-      );
-
-      const data = await response.json();
-
-      return {
-        success: true,
-        content: data.response // String or ReadableStream<string>
-      };
-    } catch (error) {
-      console.log(`Provider error: ${error.message}`);
-      return {
-        success: false,
-        content: `Error: ${error.message}`
-      };
-    }
-  },
-  {
-    // Optional: custom tokenizer
-    tokenizerFunc: async (content) => {
-      // Return token IDs as number[]
-      return [/* token ids */];
-    }
-  }
-);
-```
-
-**Provider Arguments:**
-```javascript
-{
-  prompt_chat: OpenAIChat[], // Message history
-  temperature: number,
-  max_tokens: number,
-  frequency_penalty: number,
-  min_p: number,
-  presence_penalty: number,
-  repetition_penalty: number,
-  top_k: number,
-  top_p: number,
-  mode: string
-}
 ```
 
 ### Script Handlers
@@ -820,7 +894,262 @@ Risuai.removeRisuReplacer('beforeRequest', replacerFunction);
 const imageData = await Risuai.readImage('asset-id');
 
 // Save assets
-await Risuai.saveAsset(assetData, 'my-asset');
+const savedPath = await Risuai.saveAsset(assetData);
+```
+
+### Theming
+
+#### Color Scheme
+
+Change the application color scheme at runtime:
+
+```javascript
+// Switch to a preset color scheme
+// Available presets: 'default', 'dark', 'light', 'cherry', 'galaxy',
+//                   'nature', 'realblack', 'monokai-light', 'monokai-black'
+await Risuai.changeColorScheme('dark');
+
+// Get the current scheme name and values
+const { name, scheme } = await Risuai.getColorScheme();
+console.log(name); // e.g., 'dark'
+console.log(scheme.bgcolor);
+
+// Apply a fully custom color scheme
+await Risuai.setColorScheme({
+  bgcolor: '#1a1a2e',
+  darkbg: '#16213e',
+  borderc: '#0f3460',
+  selected: '#e94560',
+  draculared: '#e94560',
+  textcolor: '#ffffff',
+  textcolor2: '#a8a8b3',
+  darkBorderc: '#0a2040',
+  darkbutton: '#0f3460',
+  type: 'dark'
+});
+```
+
+#### Text Theme
+
+Control chat text colors:
+
+```javascript
+// Switch to a preset text theme: 'standard' | 'highcontrast'
+await Risuai.changeTextTheme('highcontrast');
+
+// Get current theme
+const { name, customTheme } = await Risuai.getTextTheme();
+
+// Apply a custom text theme
+await Risuai.setCustomTextTheme({
+  FontColorStandard: '#ffffff',
+  FontColorBold: '#ffdd57',
+  FontColorItalic: '#aabbff',
+  FontColorItalicBold: '#ffaaff',
+  FontColorQuote1: '#88ffaa',
+  FontColorQuote2: '#ffaa88'
+});
+```
+
+### Custom AI Provider
+
+Register a plugin as a custom AI provider that Risuai can use for generation:
+
+```javascript
+await Risuai.addProvider(
+  'MyProvider',
+  async (args, abortSignal) => {
+    const response = await Risuai.nativeFetch('https://api.example.com/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: args.prompt_chat,
+        temperature: args.temperature / 100,
+        max_tokens: args.max_tokens
+      }),
+      signal: abortSignal
+    });
+
+    if (!response.ok) {
+      return { success: false, content: 'Request failed' };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      content: data.choices[0].message.content
+      // content can also be a ReadableStream<string> for streaming
+    };
+  },
+  {
+    tokenizer: 'gpt-4' // optional: tokenizer to use for context counting
+  }
+);
+```
+
+**`ProviderArguments` fields:**
+- `prompt_chat` — OpenAI-format message array
+- `temperature`, `max_tokens`, `frequency_penalty`, `presence_penalty`
+- `min_p`, `repetition_penalty`, `top_k`, `top_p`
+- `mode` — generation mode string
+
+### MCP Integration
+
+Register a custom [Model Context Protocol](https://modelcontextprotocol.io/) module to expose tools the AI can call:
+
+```javascript
+await Risuai.registerMCP(
+  {
+    identifier: 'plugin:my-tools', // must start with 'plugin:'
+    name: 'My Tools',
+    version: '1.0.0',
+    description: 'Custom tools provided by my plugin'
+  },
+  // getToolList — return available tools
+  async () => [
+    {
+      name: 'get_weather',
+      description: 'Gets current weather for a city',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          city: { type: 'string', description: 'City name' }
+        },
+        required: ['city']
+      }
+    }
+  ],
+  // callTool — handle tool invocations
+  async (toolName, content) => {
+    if (toolName === 'get_weather') {
+      const weather = await fetchWeather(content.city);
+      return [{ type: 'text', text: weather }];
+    }
+    return [{ type: 'text', text: 'Unknown tool' }];
+  }
+);
+
+// Later, unregister the MCP module
+await Risuai.unregisterMCP('plugin:my-tools');
+```
+
+**Tool call content types** (`MCPToolCallContent`):
+- `{ type: 'text', text: string }` — plain text result
+- `{ type: 'image' | 'audio', data: string, mimeType: string }` — base64 media
+- `{ type: 'resource', resource: { uri, mimeType, text } }` — resource reference
+
+### Body Interceptors
+
+Intercept and modify HTTP request bodies sent to LLM APIs (sensitive fields like API keys are stripped before your callback):
+
+```javascript
+const interceptor = await Risuai.registerBodyIntercepter(async (body, type) => {
+  // Modify request body before it's sent
+  body.temperature = 0.7;
+  body.stream = true;
+  return body;
+});
+
+// Returns null if user denies permission
+if (interceptor) {
+  console.log('Interceptor registered:', interceptor.id);
+
+  // Later, unregister
+  await Risuai.unregisterBodyIntercepter(interceptor.id);
+}
+```
+
+### Plugin Lifecycle
+
+#### Cleanup on Unload
+
+Register a function to run when the plugin is unloaded (e.g., when the user disables it or reloads plugins):
+
+```javascript
+await Risuai.onUnload(async () => {
+  // Clean up resources, remove event listeners, etc.
+  console.log('Plugin unloading...');
+});
+```
+
+#### Reload All Plugins
+
+Force a reload of all plugins (use sparingly):
+
+```javascript
+await Risuai.loadPlugins();
+```
+
+### Permissions
+
+Some APIs require explicit user consent. Use `requestPluginPermission` to prompt the user:
+
+```javascript
+// Request a specific permission
+const granted = await Risuai.requestPluginPermission('fetchLogs');
+if (granted) {
+  const logs = await Risuai.getFetchLogs();
+}
+```
+
+**Available permissions:** `'fetchLogs'`, `'db'`, `'mainDom'`, `'replacer'`
+
+### Fetch Logs
+
+Access a log of recent LLM HTTP requests (requires `'fetchLogs'` permission):
+
+```javascript
+const granted = await Risuai.requestPluginPermission('fetchLogs');
+if (!granted) {
+  console.log('Permission denied');
+  return;
+}
+
+const logs = await Risuai.getFetchLogs();
+// logs is null if consent was not given
+if (logs) {
+  for (const entry of logs) {
+    console.log(`[${new Date(entry.timestamp).toISOString()}] ${entry.url}`);
+    console.log(`Status: ${entry.status}`);
+  }
+}
+```
+
+### Utilities
+
+#### Runtime Information
+
+```javascript
+const info = await Risuai.getRuntimeInfo();
+console.log(info.apiVersion);  // e.g., '3.0'
+console.log(info.platform);    // e.g., 'web', 'electron'
+console.log(info.saveMethod);  // e.g., 'indexeddb', 'filesystem'
+```
+
+#### Unwrap SafeClassArray
+
+Convert any `SafeClassArray<T>` to a plain JavaScript array:
+
+```javascript
+const array = await Risuai.unwarpSafeArray(safeArray);
+```
+
+#### Translation Cache
+
+Search or retrieve entries from the LLM translation cache:
+
+```javascript
+// Search by partial key
+const results = await Risuai.searchTranslationCache('hello');
+for (const { key, value } of results) {
+  console.log(`${key} => ${value}`);
+}
+
+// Exact key lookup
+const translation = await Risuai.getTranslationCache('hello world');
+if (translation) {
+  console.log('Cached:', translation);
+}
 ```
 
 ## Best Practices
@@ -1023,67 +1352,7 @@ Add clear comments and metadata:
 })();
 ```
 
-### Example 3: Custom AI Provider
-
-```javascript
-//@name custom_llm
-//@display-name Custom LLM Provider
-//@api 3.0
-//@arg endpoint string API endpoint URL
-//@arg api_key string Your API key
-
-(async () => {
-  try {
-    Risuai.addProvider(
-      'CustomLLM',
-      async (args, abortSignal) => {
-        const endpoint = await Risuai.getArgument('endpoint');
-        const apiKey = await Risuai.getArgument('api_key');
-
-        try {
-          const response = await Risuai.nativeFetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              messages: args.prompt_chat,
-              temperature: args.temperature,
-              max_tokens: args.max_tokens,
-              top_p: args.top_p
-            }),
-            signal: abortSignal
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          const data = await response.json();
-
-          return {
-            success: true,
-            content: data.choices[0].message.content
-          };
-        } catch (error) {
-          console.log(`Provider error: ${error.message}`);
-          return {
-            success: false,
-            content: `Error: ${error.message}`
-          };
-        }
-      }
-    );
-
-    console.log('CustomLLM provider registered');
-  } catch (error) {
-    console.log(`Error: ${error.message}`);
-  }
-})();
-```
-
-### Example 4: DOM Manipulation & Mutation Observer
+### Example 3: DOM Manipulation & Mutation Observer
 
 ```javascript
 //@name dom_monitor

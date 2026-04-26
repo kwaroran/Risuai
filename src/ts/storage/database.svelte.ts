@@ -456,6 +456,7 @@ export function setDatabase(data:Database){
     data.ollamaModelName ??= ''
     data.ollamaCloudModel ??= ''
     data.ollamaCloudModelName ??= ''
+    data.ollamaThinkingMode ??= 'auto'
     if ((data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud') && !data.ollamaCloudModel) {
         data.ollamaCloudModel = data.ollamaModel
         data.ollamaCloudModelName = data.ollamaModelName
@@ -998,6 +999,7 @@ export interface Database{
     ollamaModelName:string
     ollamaCloudModel:string
     ollamaCloudModelName:string
+    ollamaThinkingMode:'auto'|'off'|'on'|'low'|'medium'|'high'
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean

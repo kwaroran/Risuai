@@ -309,6 +309,30 @@
         <span class="text-textcolor mt-4">Ollama Model</span>
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} placeholder="Model" oninput={() => { DBState.db.ollamaModelSource = 'local'; DBState.db.ollamaModelName = '' }} />
         {/if}
+
+        {#if usesOllamaLocal || (usesOllamaCloud && DBState.db.ollamaRequestFormat === LLMFormat.Ollama)}
+        <span class="text-textcolor mt-4">Ollama Thinking</span>
+        <SelectInput bind:value={DBState.db.ollamaThinkingMode}>
+            <OptionInput value="auto">
+                Auto
+            </OptionInput>
+            <OptionInput value="off">
+                Off
+            </OptionInput>
+            <OptionInput value="on">
+                On
+            </OptionInput>
+            <OptionInput value="low">
+                Low
+            </OptionInput>
+            <OptionInput value="medium">
+                Medium
+            </OptionInput>
+            <OptionInput value="high">
+                High
+            </OptionInput>
+        </SelectInput>
+        {/if}
     {/if}
     {#if DBState.db.aiModel === 'nanogpt' || DBState.db.subModel === 'nanogpt'}
         <span class="text-textcolor mt-4">NanoGPT {language.apiKey}</span>

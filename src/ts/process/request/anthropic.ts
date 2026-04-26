@@ -73,6 +73,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     const db = getDatabase()
     const aiModel = arg.aiModel
     const useStreaming = arg.useStreaming
+    const ollamaCloudAnthropic = aiModel === 'ollama-cloud'
     let replacerURL = arg.customURL ?? ('https://api.anthropic.com/v1/messages')
     let apiKey = arg.key || ((aiModel === 'reverse_proxy') ? db.proxyKey : db.claudeAPIKey)
     const maxTokens = arg.maxTokens
@@ -546,6 +547,11 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         "accept": "application/json",
     }
 
+    if(ollamaCloudAnthropic){
+        headers["Authorization"] = "Bearer " + apiKey
+        delete headers["x-api-key"]
+    }
+
     let betas:string[] = []
 
     if(body.max_tokens > 8192){
@@ -587,7 +593,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    if(db.claudeBatching){
+    if(db.claudeBatching && !ollamaCloudAnthropic){
         if(body.stream !== undefined){
             delete body.stream
         }

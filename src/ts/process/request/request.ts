@@ -92,6 +92,27 @@ export type requestDataResponse = {
 
 export interface StreamResponseChunk{[key:string]:string}
 
+type OllamaThinkMode = boolean | 'low' | 'medium' | 'high'
+
+function getOllamaThinkMode(mode: string): OllamaThinkMode | undefined {
+    switch (mode) {
+        case 'off':
+            return false
+        case 'on':
+            return true
+        case 'low':
+        case 'medium':
+        case 'high':
+            return mode
+        default:
+            return undefined
+    }
+}
+
+function formatThinkingOutput(thinking: string, content: string): string {
+    return thinking ? `<Thoughts>\n${thinking}\n</Thoughts>\n\n${content}` : content
+}
+
 function normalizeFetchHeaders(headers?: HeadersInit): { [key: string]: string } {
     if (!headers) {
         return {}
@@ -1081,6 +1102,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     const isCloud = arg.aiModel === 'ollama-cloud'
     const requestFormat = isCloud ? db.ollamaRequestFormat : LLMFormat.Ollama
     const ollamaModel = isCloud ? db.ollamaCloudModel : db.ollamaModel
+    const ollamaThinkMode = getOllamaThinkMode(db.ollamaThinkingMode)
 
     if(isCloud && requestFormat === LLMFormat.OpenAICompatible){
         arg.customURL = 'https://ollama.com/v1/chat/completions'
@@ -1115,6 +1137,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
                 model: ollamaModel,
                 source: db.ollamaModelSource,
                 stream: arg.useStreaming,
+                think: ollamaThinkMode,
                 headers: isCloud ? { Authorization: 'Bearer ' + db.ollamaApiKey } : {}
             })
         }
@@ -1140,12 +1163,14 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
         const response = await ollama.chat({
             model: ollamaModel,
             messages: messages,
-            stream: false
+            stream: false,
+            think: ollamaThinkMode
         })
 
+        const result = formatThinkingOutput(response.message.thinking ?? '', response.message.content)
         return {
             type: 'success',
-            result: unstringlizeChat(response.message.content, formated, arg.currentChar?.name ?? ''),
+            result: unstringlizeChat(result, formated, arg.currentChar?.name ?? ''),
             model: arg.aiModel
         }
     }
@@ -1153,16 +1178,19 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     const response = await ollama.chat({
         model: ollamaModel,
         messages: messages,
-        stream: true
+        stream: true,
+        think: ollamaThinkMode
     })
 
     const readableStream = new ReadableStream<StreamResponseChunk>({
         async start(controller){
             let content = ''
+            let thinking = ''
             for await(const chunk of response){
+                thinking += chunk.message.thinking ?? ''
                 content += chunk.message.content ?? ''
                 controller.enqueue({
-                    "0": content
+                    "0": formatThinkingOutput(thinking, content)
                 })
             }
             controller.close()

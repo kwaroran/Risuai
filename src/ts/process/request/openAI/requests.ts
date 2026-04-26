@@ -1033,6 +1033,10 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         modelId: arg.modelInfo.id
     })
 
+    if(aiModel === 'ollama-cloud'){
+        delete body.store
+    }
+
     let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
     if(arg.modelInfo?.endpoint){
         requestURL = arg.modelInfo.endpoint

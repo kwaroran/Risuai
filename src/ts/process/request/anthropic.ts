@@ -73,6 +73,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     const db = getDatabase()
     const aiModel = arg.aiModel
     const useStreaming = arg.useStreaming
+    const ollamaCloudAnthropic = aiModel === 'ollama-cloud'
     let replacerURL = arg.customURL ?? ('https://api.anthropic.com/v1/messages')
     let apiKey = arg.key || ((aiModel === 'reverse_proxy') ? db.proxyKey : db.claudeAPIKey)
     const maxTokens = arg.maxTokens
@@ -556,6 +557,26 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         "accept": "application/json",
     }
 
+    if(ollamaCloudAnthropic){
+        headers["Authorization"] = "Bearer " + apiKey
+        delete headers["x-api-key"]
+    }
+
+    let betas:string[] = []
+
+    if(body.max_tokens > 8192){
+        betas.push('output-128k-2025-02-19')
+    }
+
+
+    if(db.claude1HourCaching){
+        betas.push('extended-cache-ttl-2025-04-11')
+    }
+
+    if(betas.length > 0){
+        headers['anthropic-beta'] = betas.join(',')
+    }
+
     if(db.usePlainFetch){
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
     }
@@ -601,7 +622,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    if(db.claudeBatching){
+    if(db.claudeBatching && !ollamaCloudAnthropic){
         if(body.stream !== undefined){
             delete body.stream
         }

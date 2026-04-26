@@ -1118,7 +1118,7 @@ export interface Database{
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
     thinkingType: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
         url: string,
@@ -1253,7 +1253,7 @@ export interface SeparateParameters{
     reasoning_effort?:number
     thinking_tokens?:number
     thinking_type?: 'off' | 'budget' | 'adaptive'
-    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
+    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     outputImageModal?:boolean
     verbosity?:number
 }
@@ -1597,7 +1597,7 @@ export interface botPreset{
     reasonEffort?:number
     thinkingTokens?:number
     thinkingType?: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean
     seperateModels?:{

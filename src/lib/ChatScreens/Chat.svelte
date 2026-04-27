@@ -53,6 +53,7 @@
         totalPages?: number;
         isComment?: boolean;
         disabled?: boolean | 'allBefore';
+        onEdit?: (idx: number, data: string) => void;
     }
 
     let {
@@ -75,6 +76,7 @@
         totalPages = 1,
         isComment = false,
         disabled = false,
+        onEdit = () => {},
     }: Props = $props();
 
     let msgDisplay = $state('')
@@ -110,14 +112,19 @@
         }
     }
 
+    function saveMessageData(data:string){
+        DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = data
+        onEdit(idx, data)
+    }
+
     async function edit(){
-        DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = message
+        saveMessageData(message)
     }
 
     function handlePartialEditSave(e: CustomEvent<{ newData: string }>) {
         if (idx >= 0) {
             message = e.detail.newData
-            DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = e.detail.newData
+            saveMessageData(e.detail.newData)
             displaya(e.detail.newData)
         }
     }

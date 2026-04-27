@@ -22,7 +22,7 @@
     import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
-    import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
+    import { getRerolls } from 'src/ts/process/prereroll';
     import { processMultiCommand } from 'src/ts/process/command';
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
@@ -47,6 +47,8 @@
     let autoMode = $state(false)
     let rerolls:Message[][] = []
     let rerollid = -1
+    let rerollStartIndex = -1
+    let importedGeneratedRerollIds = new Set<string>()
     let lastCharId = -1
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
@@ -57,6 +59,60 @@
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
+
+    function resetRerolls(){
+        rerolls = []
+        rerollid = -1
+        rerollStartIndex = -1
+        importedGeneratedRerollIds = new Set<string>()
+    }
+
+    function cloneSwipeSegment(segment:Message[]){
+        return safeStructuredClone(segment).map((message) => {
+            delete message.swipes
+            delete message.swipeId
+            return message
+        })
+    }
+
+    function cloneSwipeSegments(segments:Message[][]){
+        return segments.map(cloneSwipeSegment)
+    }
+
+    function persistRerollsOnVisibleChat(){
+        if(rerollStartIndex < 0 || rerollid < 0 || rerolls.length <= 1){
+            return
+        }
+        const messages = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+        const activeMessage = messages[rerollStartIndex]
+        if(!activeMessage){
+            return
+        }
+        activeMessage.swipes = cloneSwipeSegments(rerolls)
+        activeMessage.swipeId = rerollid
+    }
+
+    function loadPersistedRerolls(){
+        if(rerolls.length > 0){
+            return
+        }
+        const messages = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+        for(let i = messages.length - 1; i >= 0; i--){
+            const message = messages[i]
+            if(Array.isArray(message.swipes) && message.swipes.length > 0){
+                rerollStartIndex = i
+                rerolls = cloneSwipeSegments(message.swipes)
+                rerollid = Math.min(Math.max(message.swipeId ?? 0, 0), rerolls.length - 1)
+                rerolls[rerollid] = cloneSwipeSegment(messages.slice(i))
+                const genId = rerolls[rerollid]?.[0]?.generationInfo?.generationId
+                if(genId){
+                    importedGeneratedRerollIds.add(genId)
+                }
+                persistRerollsOnVisibleChat()
+                return
+            }
+        }
+    }
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
@@ -146,8 +202,7 @@
             return
         }
         if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+            resetRerolls()
         }
 
         let cha = DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message
@@ -207,7 +262,7 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
-        rerolls = []
+        resetRerolls()
         await sleep(10)
         updateInputSizeAll()
         await sendChatMain(continueResponse)
@@ -218,35 +273,22 @@
         if($doingChat){
             return
         }
+        const selectedChar = $selectedCharID
+        const selectedChat = DBState.db.characters[selectedChar].chatPage
         if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+            resetRerolls()
         }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = Prereroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
+        loadPersistedRerolls()
+        importGeneratedRerolls()
         if(rerollid < rerolls.length - 1){
             if(Array.isArray(rerolls[rerollid + 1])){
                 rerollid += 1
-                let rerollData = safeStructuredClone(rerolls[rerollid])
-                let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-                for(let i = 0; i < rerollData.length; i++){
-                    msgs[msgs.length - rerollData.length + i] = rerollData[i]
-                }
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
+                applyRerollData(rerolls[rerollid])
             }
             return
         }
-        if(rerolls.length === 0){
-            rerolls.push(safeStructuredClone([DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)]))
-            rerollid = rerolls.length - 1
-        }
-        let cha = safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message)
+        const savedMessages = safeStructuredClone(DBState.db.characters[selectedChar].chats[selectedChat].message)
+        let cha = safeStructuredClone(savedMessages)
         if(cha.length === 0 ){
             return
         }
@@ -265,8 +307,81 @@
                 return
             }
         }
-        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = cha
-        await sendChatMain()
+        const removedMessages = safeStructuredClone(savedMessages.slice(cha.length))
+        if(removedMessages.length === 0){
+            return
+        }
+        rerollStartIndex = cha.length
+        if(rerolls.length === 0){
+            rerolls.push(cloneSwipeSegment(removedMessages))
+            rerollid = rerolls.length - 1
+        }
+        DBState.db.characters[selectedChar].chats[selectedChat].message = cha
+        const success = await sendChatMain()
+        if(!success && DBState.db.characters[selectedChar]?.chats?.[selectedChat]){
+            DBState.db.characters[selectedChar].chats[selectedChat].message = savedMessages
+        }
+    }
+
+    function applyRerollData(rerollData:Message[]){
+        const messages = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+        const startIndex = rerollStartIndex >= 0 ? rerollStartIndex : Math.max(0, messages.length - rerollData.length)
+        const nextRerollData = cloneSwipeSegment(rerollData)
+        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = [
+            ...messages.slice(0, startIndex),
+            ...nextRerollData
+        ]
+        persistRerollsOnVisibleChat()
+    }
+
+    function importGeneratedRerolls(){
+        const messages = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+        const currentReroll = rerolls[rerollid]
+        const activeMessage = Array.isArray(currentReroll) && currentReroll.length === 1
+            ? currentReroll[0]
+            : messages.at(-1)
+        const genId = activeMessage?.generationInfo?.generationId
+        const cachedRerolls = genId ? getRerolls(genId) : null
+        if(!activeMessage || !genId || !cachedRerolls || cachedRerolls.length <= 1 || importedGeneratedRerollIds.has(genId)){
+            return
+        }
+
+        if(rerollStartIndex < 0){
+            rerollStartIndex = Math.max(0, messages.length - 1)
+        }
+
+        const baseMessage = cloneSwipeSegment([activeMessage])[0]
+        cachedRerolls[0] = activeMessage.data
+        const generatedRerolls = cachedRerolls.map((data) => [{
+            ...cloneSwipeSegment([baseMessage])[0],
+            data
+        }])
+        const replaceIndex = rerollid >= 0 ? rerollid : rerolls.length
+
+        if(rerollid < 0){
+            rerolls.push(...generatedRerolls)
+            rerollid = 0
+        }
+        else{
+            rerolls.splice(replaceIndex, 1, ...generatedRerolls)
+            rerollid = replaceIndex
+        }
+        importedGeneratedRerollIds.add(genId)
+        persistRerollsOnVisibleChat()
+    }
+
+    function updateCurrentRerollMessage(idx:number, data:string){
+        loadPersistedRerolls()
+        const rerollData = rerolls[rerollid]
+        if(!Array.isArray(rerollData)){
+            return
+        }
+        const rerollMessageIndex = idx - rerollStartIndex
+        if(rerollMessageIndex < 0 || rerollMessageIndex >= rerollData.length){
+            return
+        }
+        rerollData[rerollMessageIndex].data = data
+        persistRerollsOnVisibleChat()
     }
 
     async function unReroll() {
@@ -274,46 +389,39 @@
             return
         }
         if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+            resetRerolls()
         }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = PreUnreroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
-        if(rerollid <= 0){
-            return
-        }
+        loadPersistedRerolls()
+        importGeneratedRerolls()
         if(Array.isArray(rerolls[rerollid - 1])){
             rerollid -= 1
-            let rerollData = safeStructuredClone(rerolls[rerollid])
-            let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-            for(let i = 0; i < rerollData.length; i++){
-                msgs[msgs.length - rerollData.length + i] = rerollData[i]
-            }
-            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
+            applyRerollData(rerolls[rerollid])
+            return
         }
     }
 
+
     let abortController:null|AbortController = null
 
-    async function sendChatMain(continued:boolean = false) {
+    async function sendChatMain(continued:boolean = false):Promise<boolean> {
 
         let previousLength = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length
         messageInput = ''
         abortController = new AbortController()
+        let success = false
         try {
-            await sendChat(-1, {
+            success = await sendChat(-1, {
                 signal:abortController.signal,
                 continue:continued
             })
-            if(previousLength < DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length){
-                rerolls.push(safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message).slice(previousLength))
+            if(success && previousLength < DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length){
+                if(rerollStartIndex < 0 || rerolls.length === 0){
+                    rerollStartIndex = previousLength
+                }
+                rerolls.push(cloneSwipeSegment(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.slice(previousLength)))
                 rerollid = rerolls.length - 1
+                importGeneratedRerolls()
+                persistRerollsOnVisibleChat()
             }
         } catch (error) {
             console.error(error)
@@ -325,6 +433,7 @@
             const audio = new Audio(sendSound);
             audio.play().catch(() => {});
         }
+        return success
     }
 
     function abortChat(){
@@ -811,6 +920,7 @@
                 loadPages={loadPages}
                 onReroll={reroll}
                 unReroll={unReroll}
+                onEdit={updateCurrentRerollMessage}
                 currentCharacter={currentCharacter}
                 currentUsername={currentUsername}
                 userIcon={userIcon}

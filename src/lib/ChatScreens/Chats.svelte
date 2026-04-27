@@ -20,6 +20,7 @@
         currentCharacter,
         onReroll,
         unReroll,
+        onEdit = () => {},
         currentUsername,
         userIcon,
         loadPages,
@@ -30,6 +31,7 @@
         currentCharacter: character|groupChat
         onReroll: () => void
         unReroll: () => void
+        onEdit?: (idx: number, data: string) => void
         currentUsername: string
         userIcon: string
         loadPages: number
@@ -97,6 +99,7 @@
                         img: message.role === 'user' ? userImage : charImage,
                         onReroll: onReroll,
                         unReroll: unReroll,
+                        onEdit: onEdit,
                         rerollIcon: 'dynamic',
                         character: simpleChar,
                         largePortrait: message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false),

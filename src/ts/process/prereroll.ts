@@ -27,3 +27,7 @@ export function addRerolls(genId:string, values:string[]){
     rerolls[genId] = values;
     rerollIndex[genId] = 0;
 }
+
+export function getRerolls(genId:string):string[]|null{
+    return rerolls[genId] ?? null
+}

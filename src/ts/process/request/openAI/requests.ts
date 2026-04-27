@@ -155,6 +155,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             if(arg.modelInfo.flags.includes(LLMFlags.deepSeekPrefix) && i === formatedChat.length-1 && formatedChat[i].role === 'assistant'){
                 formatedChat[i].prefix = true
             }
+            if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingInput) && i === formatedChat.length-1 && formatedChat[i].thoughts && formatedChat[i].thoughts.length > 0 && formatedChat[i].role === 'assistant'){
+                formatedChat[i].reasoning_content = formatedChat[i].thoughts.join('\n')
+            }
             delete formatedChat[i].memo
             delete formatedChat[i].removable
             delete formatedChat[i].attr

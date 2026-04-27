@@ -23,7 +23,8 @@ export const LLMFlags = {
     deepSeekThinkingOutput: 19,
     noCivilIntegrity: 20,
     claudeThinking: 21,
-    claudeAdaptiveThinking: 22
+    claudeAdaptiveThinking: 22,
+    claudeXHighEffort: 23
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 
@@ -43,7 +44,8 @@ export const LLMProvider = {
     DeepSeek: 12,
     DeepInfra: 13,
     Echo: 14,
-    NanoGPT: 15
+    NanoGPT: 15,
+    Ollama: 16
 } as const;
 export type LLMProvider = (typeof LLMProvider)[keyof typeof LLMProvider];
 
@@ -125,7 +127,8 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.DeepSeek, 'DeepSeek'],
     [LLMProvider.DeepInfra, 'DeepInfra'],
     [LLMProvider.Echo, 'For Developer'],
-    [LLMProvider.NanoGPT, 'NanoGPT']
+    [LLMProvider.NanoGPT, 'NanoGPT'],
+    [LLMProvider.Ollama, 'Ollama']
 ])
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']

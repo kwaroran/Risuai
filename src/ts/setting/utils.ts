@@ -5,6 +5,7 @@ import { accessibilitySettingsItems } from './accessibilitySettingsData';
 import { advancedSettingsItems } from './advancedSettingsData';
 import { basicParameterItems, modelSpecificParameterItems, penaltyParameterItems, samplingParameterItems, seedSetting } from './botSettingsParamsData';
 import { chatFormatSettingsItems } from './chatFormatSettingsData';
+import { displaySettingsItems } from './displaySettingsData.svelte';
 
 /**
  * Sentinel value representing an uninitialized local state in wrapper components.
@@ -74,6 +75,7 @@ export function getFullSettingsData(searchTerm = '') {
         penaltyParameterItems,
         modelSpecificParameterItems,
         chatFormatSettingsItems,
+        displaySettingsItems,
     );
 
     if(!searchTerm) return full;

@@ -1,5 +1,8 @@
 const express = require('express');
 const app = express();
+if (process.env.TRUST_PROXY) {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+}
 const http = require('http');
 const path = require('path');
 const net = require('net');

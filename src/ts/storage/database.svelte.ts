@@ -449,6 +449,18 @@ export function setDatabase(data:Database){
     data.maxSupaChunkSize ??= 1200
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
+    data.ollamaModelSource ??= data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud' ? 'cloud' : 'local'
+    data.ollamaInputMode ??= 'manual'
+    data.ollamaRequestFormat ??= LLMFormat.Ollama
+    data.ollamaApiKey ??= ''
+    data.ollamaModelName ??= ''
+    data.ollamaCloudModel ??= ''
+    data.ollamaCloudModelName ??= ''
+    data.ollamaThinkingMode ??= 'auto'
+    if ((data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud') && !data.ollamaCloudModel) {
+        data.ollamaCloudModel = data.ollamaModel
+        data.ollamaCloudModelName = data.ollamaModelName
+    }
     data.autoContinueChat ??= false
     data.autoContinueMinTokens ??= 0
     data.repetition_penalty ??= 1
@@ -982,6 +994,14 @@ export interface Database{
     maxSupaChunkSize:number
     ollamaURL:string
     ollamaModel:string
+    ollamaModelSource:'local'|'cloud'
+    ollamaInputMode:'list'|'manual'
+    ollamaRequestFormat:LLMFormat
+    ollamaApiKey:string
+    ollamaModelName:string
+    ollamaCloudModel:string
+    ollamaCloudModelName:string
+    ollamaThinkingMode:'auto'|'off'|'on'|'low'|'medium'|'high'
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean
@@ -1101,7 +1121,7 @@ export interface Database{
     thinkingTokens: number
     thinkingType: 'off' | 'budget' | 'adaptive'
     deepseekThinkingType: 'off' | 'enabled'
-    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     deepseekReasoningEffort: 'high' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
@@ -1238,7 +1258,7 @@ export interface SeparateParameters{
     thinking_tokens?:number
     thinking_type?: 'off' | 'budget' | 'adaptive'
     deepseek_thinking_type?: 'off' | 'enabled'
-    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
+    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     deepseek_reasoning_effort?: 'high' | 'max'
     outputImageModal?:boolean
     verbosity?:number
@@ -1584,7 +1604,7 @@ export interface botPreset{
     thinkingTokens?:number
     thinkingType?: 'off' | 'budget' | 'adaptive'
     deepseekThinkingType?: 'off' | 'enabled'
-    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     deepseekReasoningEffort?: 'high' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean

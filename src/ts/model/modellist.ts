@@ -472,7 +472,7 @@ export const LLMModels: LLMModel[] = [
         name: 'Deepseek Reasoner',
         provider: LLMProvider.DeepSeek,
         format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingOutput, LLMFlags.hasStreaming],
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.hasStreaming],
         parameters: [],
         tokenizer: LLMTokenizer.DeepSeek,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',

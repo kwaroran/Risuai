@@ -567,21 +567,6 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         delete headers["x-api-key"]
     }
 
-    let betas:string[] = []
-
-    if(body.max_tokens > 8192){
-        betas.push('output-128k-2025-02-19')
-    }
-
-
-    if(db.claude1HourCaching){
-        betas.push('extended-cache-ttl-2025-04-11')
-    }
-
-    if(betas.length > 0){
-        headers['anthropic-beta'] = betas.join(',')
-    }
-
     if(db.usePlainFetch){
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
     }

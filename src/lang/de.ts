@@ -578,6 +578,8 @@ export const languageGerman = {
     "emotion": "Emotionsname",
     "value": "Wert",
     "reroll": "Regenerieren",
+    "deleteRerollMessage": "Variante löschen",
+    "deleteRerollMessageConfirm": "Aktuell ausgewählte Reroll-Nachricht löschen?",
     "chatList": "Chatliste",
     "removeChat": "Diese Nachricht entfernen?",
     "loreBook": "Lore-Buch",

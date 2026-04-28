@@ -727,6 +727,8 @@ export const languageEnglish = {
     emotion: "Emotion Name",
     value: "Value",
     reroll: "Regenerate",
+    deleteRerollMessage: "Delete this reroll",
+    deleteRerollMessageConfirm: "Delete the currently selected reroll message?",
     chatList: "Chat List",
     removeChat: "Remove this message?",
     loreBook: "Lorebook",

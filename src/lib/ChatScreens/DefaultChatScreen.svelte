@@ -116,6 +116,18 @@
         activeMessage.swipeId = rerollIndex
     }
 
+    function clearPersistedRerolls(messages:Message[]){
+        if(rerollStartIndex < 0){
+            return
+        }
+        const activeMessage = messages[rerollStartIndex]
+        if(!activeMessage){
+            return
+        }
+        delete activeMessage.swipes
+        delete activeMessage.swipeId
+    }
+
     function loadPersistedRerolls(){
         if(rerolls.length > 0){
             return
@@ -124,9 +136,16 @@
         for(let i = messages.length - 1; i >= 0; i--){
             const message = messages[i]
             if(Array.isArray(message.swipes) && message.swipes.length > 0){
+                const swipeId = Math.min(Math.max(message.swipeId ?? 0, 0), message.swipes.length - 1)
+                const activeSwipeLength = message.swipes[swipeId]?.length ?? 0
+                if(activeSwipeLength === 0 || activeSwipeLength !== messages.length - i){
+                    delete message.swipes
+                    delete message.swipeId
+                    continue
+                }
                 rerollStartIndex = i
                 rerolls = cloneSwipeSegments(message.swipes)
-                rerollIndex = Math.min(Math.max(message.swipeId ?? 0, 0), rerolls.length - 1)
+                rerollIndex = swipeId
                 rerolls[rerollIndex] = cloneSwipeSegment(messages.slice(i))
                 const genId = rerolls[rerollIndex]?.[0]?.generationInfo?.generationId
                 if(genId){
@@ -308,6 +327,10 @@
             return
         }
         const savedMessages = safeStructuredClone(DBState.db.characters[selectedChar].chats[selectedChat].message)
+        const lastMessage = savedMessages.at(-1)
+        if(lastMessage?.role !== 'char' || lastMessage.isComment){
+            return
+        }
         let cha = safeStructuredClone(savedMessages)
         if(cha.length === 0 ){
             return
@@ -403,6 +426,45 @@
         }
         rerollData[rerollMessageIndex].data = data
         persistRerollsOnMessages(getVisibleMessages())
+    }
+
+    function canDeleteCurrentReroll(idx:number){
+        if($doingChat){
+            return false
+        }
+        const messages = getVisibleMessages()
+        const lastMessageIndex = messages.length - 1
+        if(idx !== lastMessageIndex || messages[idx]?.role !== 'char' || messages[idx]?.isComment){
+            return false
+        }
+        const activeRerollLength = rerolls[rerollIndex]?.length ?? 0
+        if(rerollStartIndex >= 0 && idx >= rerollStartIndex && idx < rerollStartIndex + activeRerollLength && rerolls.length > 1){
+            return true
+        }
+        return messages.some((message, index) => {
+            const swipes = message.swipes
+            const activeSwipeLength = swipes?.[message.swipeId ?? 0]?.length ?? 0
+            return index <= idx && idx < index + activeSwipeLength && Array.isArray(swipes) && swipes.length > 1
+        })
+    }
+
+    function deleteCurrentReroll(idx:number){
+        if($doingChat){
+            return
+        }
+        loadPersistedRerolls()
+        importGeneratedRerolls()
+        if(!canDeleteCurrentReroll(idx)){
+            return
+        }
+
+        rerolls.splice(rerollIndex, 1)
+        rerollIndex = Math.min(rerollIndex, rerolls.length - 1)
+        applyRerollData(rerolls[rerollIndex])
+
+        if(rerolls.length <= 1){
+            clearPersistedRerolls(getVisibleMessages())
+        }
     }
 
     function hasRerollContent(segment:Message[]){
@@ -961,6 +1023,8 @@
                 onReroll={reroll}
                 unReroll={unReroll}
                 onEdit={updateCurrentRerollMessage}
+                onDeleteReroll={deleteCurrentReroll}
+                canDeleteReroll={canDeleteCurrentReroll}
                 currentCharacter={currentCharacter}
                 currentUsername={currentUsername}
                 userIcon={userIcon}

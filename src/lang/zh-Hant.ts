@@ -642,7 +642,7 @@ export const languageChineseTraditional = {
     "value": "值",
     "reroll": "重新生成",
     "hideMessagePageCount": "隱藏訊息頁數計數器",
-    "deleteRerollMessage": "刪除重新生成的訊息",
+    "deleteRerollMessage": "刪除此版本",
     "deleteRerollMessageConfirm": "刪除目前選取的重新生成訊息？",
     "rerollConfirm": "生成新訊息並加入列表嗎？",
     "noSwipesRerollConfirm": "沒有其他重新生成的訊息。生成新訊息並加入列表嗎？",

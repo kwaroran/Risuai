@@ -578,6 +578,8 @@ export const languageChinese = {
     "emotion": "情绪名称",
     "value": "值",
     "reroll": "重新生成",
+    "deleteRerollMessage": "删除此版本",
+    "deleteRerollMessageConfirm": "删除当前选中的重新生成消息？",
     "chatList": "聊天列表",
     "removeChat": "确定要移除此消息吗？",
     "loreBook": "世界书",

@@ -21,6 +21,8 @@
         onReroll,
         unReroll,
         onEdit = () => {},
+        onDeleteReroll = () => {},
+        canDeleteReroll = () => false,
         currentUsername,
         userIcon,
         loadPages,
@@ -32,6 +34,8 @@
         onReroll: () => void
         unReroll: () => void
         onEdit?: (idx: number, data: string) => void
+        onDeleteReroll?: (idx: number) => void
+        canDeleteReroll?: (idx: number) => boolean
         currentUsername: string
         userIcon: string
         loadPages: number
@@ -76,13 +80,15 @@
         }
 
         const reloadPointerMap = get(ReloadChatPointer);
+        const lastMessageIndex = messages.length - 1
 
         for(let i=loadStart ; i >= loadEnd; i--){
             if(i < 0) break; // Prevent out of bounds
             const message = messages[i];
+            const isLastAssistantMessage = i === lastMessageIndex && message.role === 'char' && !message.isComment;
             const messageLargePortrait = message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false);
             const reloadPointer = reloadPointerMap[i] ?? 0;
-            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + isLastAssistantMessage.toString() + (message.swipeId ?? '').toString() + (message.swipes?.length ?? '').toString() + reloadPointer.toString();
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
             if(!hashes.has(currentHash)){
@@ -100,6 +106,8 @@
                         onReroll: onReroll,
                         unReroll: unReroll,
                         onEdit: onEdit,
+                        onDeleteReroll: onDeleteReroll,
+                        canDeleteReroll: canDeleteReroll,
                         rerollIcon: 'dynamic',
                         character: simpleChar,
                         largePortrait: message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false),
@@ -108,6 +116,7 @@
                         name: message.role === 'user' ? currentUsername : currentCharacter.name,
                         isComment: message.isComment ?? false,
                         disabled: message.disabled ?? false,
+                        isLastAssistantMessage: isLastAssistantMessage,
                     },
 
                 })

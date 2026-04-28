@@ -596,6 +596,8 @@ export const languageKorean = {
     "emotion": "감정 이름",
     "value": "값",
     "reroll": "재생성",
+    "deleteRerollMessage": "이 버전 삭제",
+    "deleteRerollMessageConfirm": "현재 선택한 재생성 메시지를 삭제하시겠습니까?",
     "chatList": "채팅 리스트",
     "removeChat": "이 메시지를 삭제하시겠습니까?",
     "loreBook": "로어북",

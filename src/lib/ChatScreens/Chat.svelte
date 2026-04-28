@@ -113,6 +113,9 @@
     }
 
     function saveMessageData(data:string){
+        if(idx < 0){
+            return
+        }
         DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = data
         onEdit(idx, data)
     }

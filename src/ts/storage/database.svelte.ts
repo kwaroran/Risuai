@@ -670,6 +670,7 @@ export function setDatabase(data:Database){
     data.autoScrollToNewMessage ??= true
     data.alwaysScrollToNewMessage ??= false
     data.newMessageButtonStyle ??= 'bottom-center'
+    data.largeChatPerformanceMode ??= 'off'
     data.echoMessage ??= "Echo Message"
     data.echoDelay ??= 0
     if(!isNodeServer && !isTauri){
@@ -1213,6 +1214,7 @@ export interface Database{
     autoScrollToNewMessage?: boolean
     alwaysScrollToNewMessage?: boolean
     newMessageButtonStyle?: string
+    largeChatPerformanceMode?: 'off'|'balanced'|'strong'
     pluginDevelopMode?: boolean
     echoMessage?:string
     echoDelay?:number

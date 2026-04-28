@@ -132,6 +132,22 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     { id: 'adv.autoCont', type: 'check', labelKey: 'autoContinueChat', bindKey: 'autoContinueChat', helpKey: 'autoContinueChat', classes: 'mt-4' },
     { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', classes: 'mt-4' },
+    {
+        id: 'adv.largeChatPerf',
+        type: 'segmented',
+        labelKey: 'largeChatPerformanceMode',
+        bindKey: 'largeChatPerformanceMode',
+        helpKey: 'largeChatPerformanceMode',
+        showExperimental: true,
+        classes: 'mt-4',
+        options: {
+            segmentOptions: [
+                { value: 'off', labelKey: 'largeChatPerformanceOff' },
+                { value: 'balanced', labelKey: 'largeChatPerformanceBalanced' },
+                { value: 'strong', labelKey: 'largeChatPerformanceStrong' }
+            ]
+        }
+    },
     { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', classes: 'mt-4' },
     { id: 'adv.noWaitTrans', type: 'check', labelKey: 'noWaitForTranslate', bindKey: 'noWaitForTranslate', classes: 'mt-4' },
     { id: 'adv.newImgBeta', type: 'check', labelKey: 'newImageHandlingBeta', bindKey: 'newImageHandlingBeta', classes: 'mt-4' },

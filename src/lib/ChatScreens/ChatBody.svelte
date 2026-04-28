@@ -264,7 +264,9 @@
 
             imgs.forEach(async (img) => {
                 const name = img.getAttribute('src')?.toLocaleLowerCase() || ''
-                console.log(name)
+                if((DBState.db.largeChatPerformanceMode ?? 'off') === 'off'){
+                    console.log(name)
+                }
 
                 if(
                     name.length > 200 ||
@@ -275,7 +277,9 @@
                 }
                 
                 const foundAsset = exactAssets.get(name)
-                console.log('Checking image:', name, 'Assets:', assets)
+                if((DBState.db.largeChatPerformanceMode ?? 'off') === 'off'){
+                    console.log('Checking image:', name, 'Assets:', assets)
+                }
                 if(foundAsset){
                     img.classList.add('root-loaded-image')
                     img.classList.add('root-loaded-image-' + styl)

@@ -257,7 +257,9 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
                         throw new Error('Invalid return')
                     }
                     arg.formated = got
-                    console.log('Trigger time', performance.now() - perf)
+                    if((getDatabase().largeChatPerformanceMode ?? 'off') === 'off'){
+                        console.log('Trigger time', performance.now() - perf)
+                    }
                 }
             }
             catch(e){

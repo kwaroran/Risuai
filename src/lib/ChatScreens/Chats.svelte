@@ -146,7 +146,9 @@
     };
 
     onDestroy(() => {
-        console.log('Unmounting Chats');
+        if((DBState.db.largeChatPerformanceMode ?? 'off') === 'off'){
+            console.log('Unmounting Chats');
+        }
         hashes.clear();
         mountInstances.forEach((inst) => {
             unmount(inst);
@@ -177,7 +179,9 @@
     let previousChatRoomId: string | null = null;
 
     $effect(() => {
-        console.log('Updating Chats');
+        if((DBState.db.largeChatPerformanceMode ?? 'off') === 'off'){
+            console.log('Updating Chats');
+        }
         void $ReloadChatPointer; // Make $effect track ReloadChatPointer changes
         const wasAtBottom = checkIfAtBottom();
         updateChatBody()

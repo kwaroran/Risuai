@@ -688,6 +688,11 @@ export function setDatabase(data:Database){
     data.loadouts ??= []
     data.longPressToPopupEditor ??= false
     data.customSidebarItems ??= []
+    for(const char of data.characters){
+        for(const chat of char.chats ?? []){
+            chat.isStreaming = false
+        }
+    }
     changeLanguage(data.language)
     setDatabaseLite(data)
 }

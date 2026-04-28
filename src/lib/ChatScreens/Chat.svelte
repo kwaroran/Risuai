@@ -774,7 +774,7 @@
 {/snippet}
 
 {#snippet rerolls()}
-    {#if rerollIcon || altGreeting}
+    {#if (rerollIcon && role !== 'user') || altGreeting}
         {#if DBState.db.swipe || altGreeting}
             <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
                 <ArrowLeft size={22}/>

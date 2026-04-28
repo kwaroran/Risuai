@@ -80,7 +80,13 @@
             const message = messages[i];
             const messageLargePortrait = message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false);
             const reloadPointer = reloadPointerMap[i] ?? 0;
-            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            const performanceMode = DBState.db.largeChatPerformanceMode ?? 'off';
+            const activeStreamingMessage = performanceMode !== 'off'
+                && currentCharacter.chats?.[currentCharacter.chatPage]?.isStreaming
+                && i === messages.length - 1
+                && message.role === 'char';
+            const hashMessageData = activeStreamingMessage ? '' : message.data;
+            let hashd = hashMessageData + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
             if(!hashes.has(currentHash)){

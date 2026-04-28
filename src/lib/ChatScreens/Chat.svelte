@@ -175,9 +175,23 @@
 
 
     let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
+    let activePerformanceStreamingMessage = $derived.by(() => {
+        const performanceMode = DBState.db.largeChatPerformanceMode ?? 'off'
+        const chat = DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]
+        return performanceMode !== 'off'
+            && chat?.isStreaming
+            && idx === (chat?.message?.length ?? 0) - 1
+            && role === 'char'
+    })
+    let displayMessage = $derived.by(() => {
+        if(activePerformanceStreamingMessage){
+            return DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.data ?? message
+        }
+        return message
+    })
 
     $effect.pre(() => {
-        displaya(message)
+        displaya(displayMessage)
     });
 
     const unsubscribers:Unsubscriber[] = []
@@ -422,7 +436,8 @@
                     role={role ?? null}
                     bind:translated={translated}
                     bind:translating={translating}
-                    bind:retranslate={retranslate} />
+                    bind:retranslate={retranslate}
+                    parseCacheKeyExtra={chatReloadPointer} />
             {/key}
             {#if idx >= 0 && !editMode && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
                 <PartialEditController

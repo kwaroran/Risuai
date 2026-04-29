@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowLeft, ArrowLeftRightIcon, ArrowRight, BookmarkIcon, BotIcon, CopyIcon, PowerOff, GitBranch, HamburgerIcon, LanguagesIcon, MenuIcon, PencilIcon, RefreshCcwIcon, SplitIcon, TrashIcon, UserIcon, Volume2Icon, Scissors } from "@lucide/svelte"
+    import { ArrowLeft, ArrowLeftRightIcon, ArrowRight, BookmarkIcon, BotIcon, CopyIcon, PowerOff, GitBranch, HamburgerIcon, LanguagesIcon, MenuIcon, PencilIcon, RefreshCcwIcon, RefreshCwOffIcon, SplitIcon, TrashIcon, UserIcon, Volume2Icon, Scissors } from "@lucide/svelte"
     import { aiLawApplies, changeChatTo, foldChatToMessage, getFileSrc, createChatCopyName } from "src/ts/globalApi.svelte"
     import { ColorSchemeTypeStore } from "src/ts/gui/colorscheme"
     import { longpress } from "src/ts/gui/longtouch"
@@ -755,15 +755,6 @@
                 <span class="ml-1">{language.remove}</span>
             {/if}
         </button>
-        {#if role !== 'user' && isLastAssistantMessage && canDeleteReroll(idx)}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove-reroll" onclick={deleteReroll}>
-                <TrashIcon size={20}/>
-
-                {#if showNames}
-                    <span class="ml-1">{language.deleteRerollMessage}</span>
-                {/if}
-            </button>
-        {/if}
     {/if}
 {/if}
 {/snippet}
@@ -819,7 +810,18 @@
 {/snippet}
 
 {#snippet minorIconButtonsBody(showNames:boolean)}
-    
+    {#if idx > -1 && !$ConnectionOpenStore}
+        {#if role !== 'user' && isLastAssistantMessage && canDeleteReroll(idx)}
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove-reroll" onclick={deleteReroll}>
+                <RefreshCwOffIcon size={20}/>
+
+                {#if showNames}
+                    <span class="ml-1">{language.deleteRerollMessage}</span>
+                {/if}
+            </button>
+        {/if}
+    {/if}
+
     {#if DBState.db.enableBookmark}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-bookmark {isBookmarked ? 'text-yellow-400' : ''}" onclick={async () => {
             await sleep(1)

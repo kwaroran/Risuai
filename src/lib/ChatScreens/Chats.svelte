@@ -31,8 +31,8 @@
     }:{
         messages: Message[]
         currentCharacter: character|groupChat
-        onReroll: () => void
-        unReroll: () => void
+        onReroll: (idx?: number) => void
+        unReroll: (idx?: number) => void
         onEdit?: (idx: number, data: string) => void
         onDeleteReroll?: (idx: number) => void
         canDeleteReroll?: (idx: number) => boolean

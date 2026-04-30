@@ -44,8 +44,8 @@
         rerollIcon?: boolean|'dynamic';
         role?: string;
         totalLength?: number;
-        onReroll?: () => void;
-        unReroll?: () => void;
+        onReroll?: (idx?: number) => void;
+        unReroll?: (idx?: number) => void;
         character?: simpleCharacterArgument|string|null;
         firstMessage?: boolean;
         altGreeting?: boolean;
@@ -790,19 +790,19 @@
 {/snippet}
 
 {#snippet rerolls()}
-    {#if (rerollIcon && role !== 'user' && isLastAssistantMessage) || altGreeting}
+    {#if (rerollIcon && role !== 'user' && (isLastAssistantMessage || canDeleteReroll(idx))) || altGreeting}
         {#if DBState.db.swipe || altGreeting}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={() => unReroll(idx)}>
                 <ArrowLeft size={22}/>
             </button>
             {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
                 <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
             {/if}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={() => onReroll(idx)}>
                 <ArrowRight size={22}/>
             </button>
         {:else}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={() => onReroll(idx)}>
                 <RefreshCcwIcon size={20}/>
             </button>
         {/if}
@@ -811,7 +811,7 @@
 
 {#snippet minorIconButtonsBody(showNames:boolean)}
     {#if idx > -1 && !$ConnectionOpenStore}
-        {#if role !== 'user' && isLastAssistantMessage && canDeleteReroll(idx)}
+        {#if role !== 'user' && canDeleteReroll(idx)}
             <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove-reroll" onclick={deleteReroll}>
                 <RefreshCwOffIcon size={20}/>
 

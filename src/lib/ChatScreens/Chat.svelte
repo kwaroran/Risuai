@@ -853,6 +853,7 @@
         const newChat = $state.snapshot(currentChat)
         newChat.name = createChatCopyName(newChat.name, 'Branch')
         newChat.id = v4()
+        delete newChat.rerollState
         newChat.message = newChat.message.slice(0, idx + 1).map((message) => {
             delete message.swipes
             delete message.swipeId

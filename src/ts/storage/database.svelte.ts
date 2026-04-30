@@ -1770,6 +1770,13 @@ export interface Chat{
     lastDate?:number
     bookmarks?: string[];
     bookmarkNames?: { [chatId: string]: string };
+    rerollState?: ChatRerollState
+}
+
+export interface ChatRerollState{
+    segments: Message[][]
+    index:number
+    startIndex:number
 }
 
 export interface ChatFolder{

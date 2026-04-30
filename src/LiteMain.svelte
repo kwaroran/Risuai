@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { downloadRisuHub, getRisuHub } from "src/ts/characterCards";
+    import { downloadRisuHub, getRisuHub } from "./ts/characterCards";
     import LiteCardIcon from "./lib/LiteUI/LiteCardIcon.svelte";
   import { selectedCharID } from "./ts/stores.svelte";
   import DefaultChatScreen from "./lib/ChatScreens/DefaultChatScreen.svelte";

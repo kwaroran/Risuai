@@ -135,7 +135,7 @@
         }
         activeMessage.swipes = cloneSwipeSegments(rerolls)
         activeMessage.swipeId = rerollIndex
-        persistRerollStateOnChat(chat)
+        clearRerollStateOnChat(chat)
     }
 
     function clearPersistedRerolls(messages:Message[], chat = getVisibleChat()){

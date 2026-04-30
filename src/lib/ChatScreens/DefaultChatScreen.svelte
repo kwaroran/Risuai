@@ -3,7 +3,7 @@
     import Suggestion from './Suggestion.svelte';
     import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon } from "@lucide/svelte";
     import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore } from "../../ts/stores.svelte";
-    import { tick } from 'svelte';
+    import { tick, untrack } from 'svelte';
     import Chat from "./Chat.svelte";
     import { type Chat as ChatData, type Message } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
@@ -22,7 +22,7 @@
     import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
-    import { getRerolls } from 'src/ts/process/prereroll';
+    import { RerollManager } from 'src/ts/process/rerollState';
     import { processMultiCommand } from 'src/ts/process/command';
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
@@ -45,12 +45,7 @@
     let openMenu = $state(false)
     let loadPages = $state(30)
     let autoMode = $state(false)
-    let rerolls:Message[][] = []
-    let rerollIndex = -1
-    let rerollStartIndex = -1
-    let importedGeneratedRerollIdSet = new Set<string>()
-    let lastCharId = -1
-    let lastChatPage = -1
+    const rerollManager = new RerollManager()
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
@@ -60,13 +55,6 @@
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
-
-    function resetRerolls(){
-        rerolls = []
-        rerollIndex = -1
-        rerollStartIndex = -1
-        importedGeneratedRerollIdSet = new Set<string>()
-    }
 
     function getVisibleMessages():Message[]{
         const char = DBState.db.characters[$selectedCharID]
@@ -78,216 +66,20 @@
         return char.chats[char.chatPage]
     }
 
-    function setVisibleMessages(messages:Message[]){
-        const char = DBState.db.characters[$selectedCharID]
-        char.chats[char.chatPage].message = messages
-    }
-
-    function persistRerollStateOnChat(chat = getVisibleChat()){
-        if(rerollStartIndex < 0 || rerollIndex < 0 || rerolls.length === 0){
-            delete chat.rerollState
-            return
-        }
-        chat.rerollState = {
-            segments: cloneSwipeSegments(rerolls),
-            index: Math.min(Math.max(rerollIndex, 0), rerolls.length - 1),
-            startIndex: rerollStartIndex
-        }
-    }
-
-    function clearRerollStateOnChat(chat = getVisibleChat()){
-        delete chat.rerollState
-    }
-
-    function rememberRerollSelection(charId = $selectedCharID, chatPage = DBState.db.characters[charId]?.chatPage ?? -1){
-        lastCharId = charId
-        lastChatPage = chatPage
-    }
-
-    function resetRerollsIfSelectionChanged(){
-        const charId = $selectedCharID
-        const chatPage = DBState.db.characters[charId]?.chatPage ?? -1
-        if(lastCharId !== charId || lastChatPage !== chatPage){
-            resetRerolls()
-            rememberRerollSelection(charId, chatPage)
-        }
-    }
-
-    function cloneSwipeSegment(segment:Message[]):Message[]{
-        return safeStructuredClone(segment).map((message) => {
-            delete message.swipes
-            delete message.swipeId
-            return message
-        })
-    }
-
-    function cloneSwipeSegments(segments:Message[][]):Message[][]{
-        return segments.map(cloneSwipeSegment)
-    }
-
-    function persistRerollsOnMessages(messages:Message[], chat = getVisibleChat()){
-        if(rerollStartIndex < 0 || rerollIndex < 0 || rerolls.length <= 1){
-            return
-        }
-        const activeMessage = messages[rerollStartIndex]
-        if(!activeMessage){
-            return
-        }
-        activeMessage.swipes = cloneSwipeSegments(rerolls)
-        activeMessage.swipeId = rerollIndex
-        clearRerollStateOnChat(chat)
-    }
-
-    function clearPersistedRerolls(messages:Message[], chat = getVisibleChat()){
-        if(rerollStartIndex < 0){
-            clearRerollStateOnChat(chat)
-            return
-        }
-        const activeMessage = messages[rerollStartIndex]
-        if(!activeMessage){
-            clearRerollStateOnChat(chat)
-            return
-        }
-        delete activeMessage.swipes
-        delete activeMessage.swipeId
-        clearRerollStateOnChat(chat)
-    }
-
-    function loadPersistedRerollState(messages:Message[]){
-        const chat = getVisibleChat()
-        const state = chat.rerollState
-        if(!state || !Array.isArray(state.segments) || state.segments.length === 0){
-            return false
-        }
-
-        const startIndex = Math.max(0, state.startIndex)
-        const swipeId = Math.min(Math.max(state.index ?? 0, 0), state.segments.length - 1)
-        rerollStartIndex = startIndex
-        rerolls = cloneSwipeSegments(state.segments)
-        rerollIndex = swipeId
-
-        const visibleSegment = messages.slice(startIndex)
-        if(visibleSegment.length > 0 && hasRerollContent(visibleSegment)){
-            rerolls[rerollIndex] = cloneSwipeSegment(visibleSegment)
-        }
-        else{
-            const activeSegment = rerolls[rerollIndex]
-            if(Array.isArray(activeSegment) && activeSegment.length > 0){
-                const nextMessages = [
-                    ...messages.slice(0, startIndex),
-                    ...cloneSwipeSegment(activeSegment)
-                ]
-                setVisibleMessages(nextMessages)
-                messages = nextMessages
-            }
-        }
-
-        const genId = rerolls[rerollIndex]?.[0]?.generationInfo?.generationId
-        if(genId){
-            importedGeneratedRerollIdSet.add(genId)
-        }
-        if(rerolls.length > 1){
-            persistRerollsOnMessages(messages)
-        }
-        else{
-            clearRerollStateOnChat(chat)
-        }
-        return true
-    }
-
-    function getActiveSwipeLength(message?:Message){
-        const swipes = message?.swipes
-        if(!Array.isArray(swipes) || swipes.length === 0){
-            return 0
-        }
-        const swipeId = Math.min(Math.max(message.swipeId ?? 0, 0), swipes.length - 1)
-        return swipes[swipeId]?.length ?? 0
-    }
-
-    function findPersistedRerollStartIndex(idx:number, messages = getVisibleMessages()){
-        for(let i = Math.min(idx, messages.length - 1); i >= 0; i--){
-            const message = messages[i]
-            const activeSwipeLength = getActiveSwipeLength(message)
-            if(activeSwipeLength > 0 && i <= idx && idx < i + activeSwipeLength){
-                return i
-            }
-        }
-        return -1
-    }
-
-    function currentRerollContainsIndex(idx:number){
-        const activeRerollLength = rerolls[rerollIndex]?.length ?? 0
-        return rerollStartIndex >= 0 && idx >= rerollStartIndex && idx < rerollStartIndex + activeRerollLength
-    }
-
-    function loadPersistedRerollsAtIndex(idx:number){
-        const messages = getVisibleMessages()
-        const startIndex = findPersistedRerollStartIndex(idx, messages)
-        if(startIndex < 0){
-            return false
-        }
-
-        const message = messages[startIndex]
-        if(!Array.isArray(message.swipes) || message.swipes.length === 0){
-            return false
-        }
-
-        const swipeId = Math.min(Math.max(message.swipeId ?? 0, 0), message.swipes.length - 1)
-        const activeSwipeLength = message.swipes[swipeId]?.length ?? 0
-        if(activeSwipeLength === 0){
-            return false
-        }
-
-        rerollStartIndex = startIndex
-        rerolls = cloneSwipeSegments(message.swipes)
-        rerollIndex = swipeId
-        rerolls[rerollIndex] = cloneSwipeSegment(messages.slice(startIndex, startIndex + activeSwipeLength))
-        const genId = rerolls[rerollIndex]?.[0]?.generationInfo?.generationId
-        if(genId){
-            importedGeneratedRerollIdSet.add(genId)
-        }
-        return true
-    }
-
-    function loadPersistedRerolls(){
-        if(rerolls.length > 0){
-            return
-        }
-        const messages = getVisibleMessages()
-        if(loadPersistedRerollState(messages)){
-            return
-        }
-        for(let i = messages.length - 1; i >= 0; i--){
-            const message = messages[i]
-            if(Array.isArray(message.swipes) && message.swipes.length > 0){
-                const swipeId = Math.min(Math.max(message.swipeId ?? 0, 0), message.swipes.length - 1)
-                const activeSwipeLength = getActiveSwipeLength(message)
-                if(activeSwipeLength === 0 || activeSwipeLength !== messages.length - i){
-                    continue
-                }
-                rerollStartIndex = i
-                rerolls = cloneSwipeSegments(message.swipes)
-                rerollIndex = swipeId
-                rerolls[rerollIndex] = cloneSwipeSegment(messages.slice(i))
-                const genId = rerolls[rerollIndex]?.[0]?.generationInfo?.generationId
-                if(genId){
-                    importedGeneratedRerollIdSet.add(genId)
-                }
-                persistRerollsOnMessages(messages)
-                return
-            }
-        }
-    }
-
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
     }
+
+    // Load persisted rerolls when character or chat page changes (Review 4.4: untrack inner work)
     $effect(() => {
         const charId = $selectedCharID
         const chatPage = DBState.db.characters[charId]?.chatPage ?? -1
         if(charId >= 0 && chatPage >= 0){
-            resetRerollsIfSelectionChanged()
-            loadPersistedRerolls()
+            untrack(() => {
+                rerollManager.resetIfSelectionChanged(charId, chatPage)
+                const chat = DBState.db.characters[charId].chats[chatPage]
+                rerollManager.loadPersisted(chat.message, chat)
+            })
         }
     })
     $effect(() => {
@@ -374,9 +166,10 @@
         if($doingChat){
             return
         }
-        resetRerollsIfSelectionChanged()
+        const chatPage = DBState.db.characters[selectedChar].chatPage
+        rerollManager.resetIfSelectionChanged(selectedChar, chatPage)
 
-        let cha = DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message
+        let cha = DBState.db.characters[selectedChar].chats[chatPage].message
 
         if(messageInput.startsWith('/')){
             const commandProcessed = await processMultiCommand(messageInput)
@@ -432,13 +225,13 @@
         }
         messageInput = ''
         messageInputTranslate = ''
-        DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
-        clearRerollStateOnChat(DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage])
-        resetRerolls()
+        const chat = DBState.db.characters[selectedChar].chats[chatPage]
+        chat.message = cha
+        rerollManager.clearTransient(chat)
+        rerollManager.reset()
         await sleep(10)
         updateInputSizeAll()
         await sendChatMain(continueResponse)
-
     }
 
     async function reroll(idx = -1) {
@@ -447,24 +240,20 @@
         }
         const selectedChar = $selectedCharID
         const selectedChat = DBState.db.characters[selectedChar].chatPage
-        resetRerollsIfSelectionChanged()
-        if(idx >= 0 && !currentRerollContainsIndex(idx)){
-            if(!loadPersistedRerollsAtIndex(idx)){
-                resetRerolls()
-            }
-        }
-        else{
-            loadPersistedRerolls()
-        }
-        importGeneratedRerolls()
-        if(rerollIndex < rerolls.length - 1){
-            if(Array.isArray(rerolls[rerollIndex + 1])){
-                rerollIndex += 1
-                applyRerollData(rerolls[rerollIndex])
-            }
+        rerollManager.resetIfSelectionChanged(selectedChar, selectedChat)
+
+        const messages = getVisibleMessages()
+        const chat = getVisibleChat()
+
+        // Try to navigate to the next existing variant first
+        if(rerollManager.navigateNext(idx, messages, chat)){
             return
         }
-        const savedMessages = safeStructuredClone(DBState.db.characters[selectedChar].chats[selectedChat].message)
+
+        // No next variant — generate a new one
+        const savedMessages = safeStructuredClone(getVisibleMessages())
+
+        // Review 5.1: only trigger generation on the last assistant message
         if(idx >= 0 && idx !== savedMessages.length - 1){
             return
         }
@@ -473,7 +262,7 @@
             return
         }
         let cha = safeStructuredClone(savedMessages)
-        if(cha.length === 0 ){
+        if(cha.length === 0){
             return
         }
         openMenu = false
@@ -495,194 +284,64 @@
         if(removedMessages.length === 0){
             return
         }
-        rerollStartIndex = cha.length
-        if(rerolls.length === 0){
-            rerolls.push(cloneSwipeSegment(removedMessages))
-            rerollIndex = rerolls.length - 1
-        }
-        persistRerollStateOnChat(DBState.db.characters[selectedChar].chats[selectedChat])
+
+        rerollManager.saveBeforeGeneration(removedMessages, cha.length, DBState.db.characters[selectedChar].chats[selectedChat])
         DBState.db.characters[selectedChar].chats[selectedChat].message = cha
+
         const success = await sendChatMain()
-        if(!success && DBState.db.characters[selectedChar]?.chats?.[selectedChat]){
-            DBState.db.characters[selectedChar].chats[selectedChat].message = savedMessages
-            if(rerolls.length > 1){
-                persistRerollsOnMessages(savedMessages, DBState.db.characters[selectedChar].chats[selectedChat])
-            }
-            else{
-                clearRerollStateOnChat(DBState.db.characters[selectedChar].chats[selectedChat])
-            }
-        }
-    }
 
-    function applyRerollData(rerollData:Message[]){
-        const messages = getVisibleMessages()
-        const startIndex = rerollStartIndex >= 0 ? rerollStartIndex : Math.max(0, messages.length - rerollData.length)
-        const activeSwipeLength = getActiveSwipeLength(messages[startIndex]) || rerollData.length
-        const nextRerollData = cloneSwipeSegment(rerollData)
-        const nextMessages = [
-            ...messages.slice(0, startIndex),
-            ...nextRerollData,
-            ...messages.slice(startIndex + activeSwipeLength)
-        ]
-        setVisibleMessages(nextMessages)
-        persistRerollsOnMessages(nextMessages)
-    }
-
-    function importGeneratedRerolls(){
-        const messages = getVisibleMessages()
-        const currentReroll = rerolls[rerollIndex]
-        const activeMessage = Array.isArray(currentReroll) && currentReroll.length === 1
-            ? currentReroll[0]
-            : messages.at(-1)
-        const genId = activeMessage?.generationInfo?.generationId
-        const cachedRerolls = genId ? getRerolls(genId) : null
-        if(!activeMessage || !genId || !cachedRerolls || cachedRerolls.length <= 1 || importedGeneratedRerollIdSet.has(genId)){
-            return
+        // Review 2.3: guard against char/chat switch during await
+        if(!success && $selectedCharID === selectedChar && DBState.db.characters[selectedChar]?.chats?.[selectedChat]){
+            rerollManager.handleFailedGeneration(savedMessages, DBState.db.characters[selectedChar].chats[selectedChat])
         }
-
-        if(rerollStartIndex < 0){
-            rerollStartIndex = Math.max(0, messages.length - 1)
-        }
-
-        const baseMessage = cloneSwipeSegment([activeMessage])[0]
-        const generatedRerollData = [activeMessage.data, ...cachedRerolls.slice(1)]
-        const generatedRerolls = generatedRerollData.map((data) => [{
-            ...cloneSwipeSegment([baseMessage])[0],
-            data
-        }])
-        const replaceIndex = rerollIndex >= 0 ? rerollIndex : rerolls.length
-
-        if(rerollIndex < 0){
-            rerolls.push(...generatedRerolls)
-            rerollIndex = 0
-        }
-        else{
-            rerolls.splice(replaceIndex, 1, ...generatedRerolls)
-            rerollIndex = replaceIndex
-        }
-        importedGeneratedRerollIdSet.add(genId)
-        persistRerollsOnMessages(messages)
     }
 
     function updateCurrentRerollMessage(idx:number, data:string){
-        if(!currentRerollContainsIndex(idx)){
-            if(!loadPersistedRerollsAtIndex(idx)){
-                return
-            }
-        }
-        else{
-            loadPersistedRerolls()
-        }
-        const rerollData = rerolls[rerollIndex]
-        if(!Array.isArray(rerollData)){
-            return
-        }
-        const rerollMessageIndex = idx - rerollStartIndex
-        if(rerollMessageIndex < 0 || rerollMessageIndex >= rerollData.length){
-            return
-        }
-        rerollData[rerollMessageIndex].data = data
-        persistRerollsOnMessages(getVisibleMessages())
+        const messages = getVisibleMessages()
+        const chat = getVisibleChat()
+        rerollManager.updateMessageData(idx, data, messages, chat)
     }
 
     function canDeleteCurrentReroll(idx:number){
-        if($doingChat){
-            return false
-        }
         const messages = getVisibleMessages()
-        if(messages[idx]?.role !== 'char' || messages[idx]?.isComment){
-            return false
-        }
-        const activeRerollLength = rerolls[rerollIndex]?.length ?? 0
-        if(rerollStartIndex >= 0 && idx >= rerollStartIndex && idx < rerollStartIndex + activeRerollLength && rerolls.length > 1){
-            return true
-        }
-        return messages.some((message, index) => {
-            const swipes = message.swipes
-            const activeSwipeLength = swipes?.[message.swipeId ?? 0]?.length ?? 0
-            return index <= idx && idx < index + activeSwipeLength && Array.isArray(swipes) && swipes.length > 1
-        })
+        return rerollManager.canDeleteReroll(idx, messages, $doingChat)
     }
 
     function deleteCurrentReroll(idx:number){
-        if($doingChat){
-            return
-        }
-        if(!currentRerollContainsIndex(idx)){
-            if(!loadPersistedRerollsAtIndex(idx)){
-                return
-            }
-        }
-        else{
-            loadPersistedRerolls()
-        }
-        importGeneratedRerolls()
-        if(!canDeleteCurrentReroll(idx)){
-            return
-        }
-
-        rerolls.splice(rerollIndex, 1)
-        rerollIndex = Math.min(rerollIndex, rerolls.length - 1)
-        applyRerollData(rerolls[rerollIndex])
-
-        if(rerolls.length <= 1){
-            clearPersistedRerolls(getVisibleMessages())
-        }
-    }
-
-    function hasRerollContent(segment:Message[]){
-        return segment.some((message) => message.data !== '')
-    }
-
-    function registerRerollSegment(previousLength:number, requireContent = false){
+        if($doingChat) return
         const messages = getVisibleMessages()
-        if(previousLength >= messages.length){
-            return false
-        }
-        const newSegment = messages.slice(previousLength)
-        if(requireContent && !hasRerollContent(newSegment)){
-            return false
-        }
-        if(rerollStartIndex >= 0 && rerollStartIndex !== previousLength){
-            resetRerolls()
-        }
-        if(rerollStartIndex < 0 || rerolls.length === 0){
-            rerollStartIndex = previousLength
-        }
-        rerolls.push(cloneSwipeSegment(newSegment))
-        rerollIndex = rerolls.length - 1
-        importGeneratedRerolls()
-        persistRerollsOnMessages(getVisibleMessages())
-        return true
+        const chat = getVisibleChat()
+        rerollManager.deleteVariant(idx, messages, chat)
+    }
+
+    function getSwipeInfo(idx:number):{ current:number, total:number }|null{
+        const messages = getVisibleMessages()
+        return rerollManager.getSwipeInfo(idx, messages)
+    }
+
+    function handleMessageDeleted(idx:number){
+        const messages = getVisibleMessages()
+        const chat = getVisibleChat()
+        rerollManager.handleMessageDeletion(idx, messages, chat)
     }
 
     async function unReroll(idx = -1) {
-        if($doingChat){
-            return
-        }
-        resetRerollsIfSelectionChanged()
-        if(idx >= 0 && !currentRerollContainsIndex(idx)){
-            if(!loadPersistedRerollsAtIndex(idx)){
-                resetRerolls()
-            }
-        }
-        else{
-            loadPersistedRerolls()
-        }
-        importGeneratedRerolls()
-        if(Array.isArray(rerolls[rerollIndex - 1])){
-            rerollIndex -= 1
-            applyRerollData(rerolls[rerollIndex])
-            return
-        }
+        if($doingChat) return
+        const charId = $selectedCharID
+        const chatPage = DBState.db.characters[charId]?.chatPage ?? -1
+        rerollManager.resetIfSelectionChanged(charId, chatPage)
+        const messages = getVisibleMessages()
+        const chat = getVisibleChat()
+        rerollManager.navigatePrev(idx, messages, chat)
     }
-
 
     let abortController:null|AbortController = null
 
     async function sendChatMain(continued:boolean = false):Promise<boolean> {
-
-        let previousLength = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length
+        const charId = $selectedCharID
+        const chatPage = DBState.db.characters[charId].chatPage
+        const chat = DBState.db.characters[charId].chats[chatPage]
+        let previousLength = chat.message.length
         messageInput = ''
         abortController = new AbortController()
         let success = false
@@ -692,17 +351,18 @@
                 signal:abortController.signal,
                 continue:continued
             })
+            // Review 2.5: only register on success or non-empty abort; never both register and rollback
             if(success){
-                registeredReroll = registerRerollSegment(previousLength)
+                registeredReroll = rerollManager.registerSegment(previousLength, getVisibleMessages(), getVisibleChat())
             }
             else if(abortController.signal.aborted){
-                registeredReroll = registerRerollSegment(previousLength, true)
+                registeredReroll = rerollManager.registerSegment(previousLength, getVisibleMessages(), getVisibleChat(), true)
             }
         } catch (error) {
             console.error(error)
             alertError(error)
         }
-        rememberRerollSelection()
+        rerollManager.rememberSelection($selectedCharID, DBState.db.characters[$selectedCharID]?.chatPage ?? -1)
         $doingChat = false
         if(DBState.db.playMessage){
             const audio = new Audio(sendSound);
@@ -1198,6 +858,8 @@
                 onEdit={updateCurrentRerollMessage}
                 onDeleteReroll={deleteCurrentReroll}
                 canDeleteReroll={canDeleteCurrentReroll}
+                {getSwipeInfo}
+                onMessageDeleted={handleMessageDeleted}
                 currentCharacter={currentCharacter}
                 currentUsername={currentUsername}
                 userIcon={userIcon}

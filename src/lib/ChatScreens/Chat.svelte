@@ -57,6 +57,8 @@
         onEdit?: (idx: number, data: string) => void;
         onDeleteReroll?: (idx: number) => void;
         canDeleteReroll?: (idx: number) => boolean;
+        getSwipeInfo?: (idx: number) => { current: number, total: number } | null;
+        onMessageDeleted?: (idx: number) => void;
     }
 
     let {
@@ -83,6 +85,8 @@
         onEdit = () => {},
         onDeleteReroll = () => {},
         canDeleteReroll = () => false,
+        getSwipeInfo = () => null,
+        onMessageDeleted = () => {},
     }: Props = $props();
 
     let msgDisplay = $state('')
@@ -94,6 +98,7 @@
             let msg = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message
             msg = msg.slice(0, idx)
             DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+            onMessageDeleted(idx)
             return
         }
 
@@ -109,11 +114,13 @@
                     msg.splice(idx, 1)
                 }
                 DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+                onMessageDeleted(idx)
             }
             else{
                 let msg = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message
                 msg.splice(idx, 1)
                 DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message = msg
+                onMessageDeleted(idx)
             }
         }
     }
@@ -790,13 +797,18 @@
 {/snippet}
 
 {#snippet rerolls()}
-    {#if (rerollIcon && role !== 'user' && (isLastAssistantMessage || canDeleteReroll(idx))) || altGreeting}
+    {@const swipeInfo = idx >= 0 && !altGreeting ? getSwipeInfo(idx) : null}
+    {@const hasSwipes = swipeInfo !== null && swipeInfo.total > 1}
+    {@const showReroll = (rerollIcon && role !== 'user' && (isLastAssistantMessage || hasSwipes)) || altGreeting}
+    {#if showReroll}
         {#if DBState.db.swipe || altGreeting}
             <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={() => unReroll(idx)}>
                 <ArrowLeft size={22}/>
             </button>
             {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
                 <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
+            {:else if hasSwipes}
+                <span class="flex items-center text-xs text-textcolor2">{swipeInfo.current}/{swipeInfo.total}</span>
             {/if}
             <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={() => onReroll(idx)}>
                 <ArrowRight size={22}/>

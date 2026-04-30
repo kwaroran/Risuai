@@ -23,6 +23,8 @@
         onEdit = () => {},
         onDeleteReroll = () => {},
         canDeleteReroll = () => false,
+        getSwipeInfo = () => null,
+        onMessageDeleted = () => {},
         currentUsername,
         userIcon,
         loadPages,
@@ -36,6 +38,8 @@
         onEdit?: (idx: number, data: string) => void
         onDeleteReroll?: (idx: number) => void
         canDeleteReroll?: (idx: number) => boolean
+        getSwipeInfo?: (idx: number) => { current: number, total: number } | null
+        onMessageDeleted?: (idx: number) => void
         currentUsername: string
         userIcon: string
         loadPages: number
@@ -108,6 +112,8 @@
                         onEdit: onEdit,
                         onDeleteReroll: onDeleteReroll,
                         canDeleteReroll: canDeleteReroll,
+                        getSwipeInfo: getSwipeInfo,
+                        onMessageDeleted: onMessageDeleted,
                         rerollIcon: 'dynamic',
                         character: simpleChar,
                         largePortrait: message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false),

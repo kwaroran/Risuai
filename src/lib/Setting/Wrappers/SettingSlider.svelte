@@ -29,6 +29,12 @@
             }
         });
     });
+
+    let customText = $derived(
+        typeof item.options?.customText === 'function'
+            ? item.options.customText(localValue)
+            : item.options?.customText
+    );
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
@@ -43,6 +49,6 @@
     fixed={item.options?.fixed}
     multiple={item.options?.multiple}
     disableable={item.options?.disableable}
-    customText={item.options?.customText}
+    {customText}
     bind:value={localValue}
 />

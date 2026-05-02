@@ -5,8 +5,77 @@ import { globalFetch, loadAsset } from "../globalApi.svelte";
 import { language } from "src/lang";
 import { sleep } from "../util";
 import { runVITS } from "./transformers";
+import {
+    getTTSPreprocessors,
+    getTTSPostprocessors,
+    runHookPipeline,
+    type BeforeTTSContext,
+    type BeforeTTSResult,
+    type AfterTTSContext,
+    type AfterTTSResult,
+} from "./ttsHooks";
 
 let sourceNode:AudioBufferSourceNode = null
+
+/**
+ * Run every registered TTS postprocessor hook against the audio bytes, honoring
+ * replacement audio / mimeType / skip semantics. Before each hook invocation a
+ * fresh slice of the current base audio is handed to the hook as its disposable
+ * copy — the plugin sandbox postMessage layer transfers that buffer into the
+ * iframe and neuters it on the host side, so reusing a single slice across
+ * multiple hooks would leave all hooks after the first with a detached buffer.
+ *
+ * Returns the final audio bytes (possibly replaced by a hook), the final
+ * mimeType, and whether a hook requested a skip.
+ */
+async function runPostprocessorPipeline(
+    audio: ArrayBuffer,
+    mimeType: string,
+    ctx: { ttsMode: string; characterId: string },
+): Promise<{ audio: ArrayBuffer; mimeType: string; skip: boolean }> {
+    const hooks = getTTSPostprocessors();
+    if (hooks.length === 0) return { audio, mimeType, skip: false };
+
+    let currentAudio = audio;
+    let currentMime = mimeType;
+
+    for (const hook of hooks) {
+        const disposable = currentAudio.slice(0); // fresh clone per hook
+        let result: AfterTTSResult | void;
+        try {
+            result = await Promise.resolve().then(() =>
+                hook({
+                    audio: disposable,
+                    mimeType: currentMime,
+                    ttsMode: ctx.ttsMode,
+                    characterId: ctx.characterId,
+                })
+            );
+        } catch (err) {
+            console.error('[TTS postprocessor] threw, continuing with next hook:', err);
+            continue;
+        }
+
+        if (!result) continue;
+        if (result.skip) return { audio: currentAudio, mimeType: currentMime, skip: true };
+        if (result.audio && result.audio.byteLength > 0) currentAudio = result.audio;
+        if (typeof result.mimeType === 'string' && result.mimeType) currentMime = result.mimeType;
+    }
+
+    return { audio: currentAudio, mimeType: currentMime, skip: false };
+}
+
+async function playAudio(audio: ArrayBuffer, mimeType: string, ctx: { ttsMode: string; characterId: string }): Promise<void> {
+    const processed = await runPostprocessorPipeline(audio, mimeType, ctx);
+    if (processed.skip) return;
+
+    const audioContext = new AudioContext();
+    const decoded = await audioContext.decodeAudioData(processed.audio);
+    sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = decoded;
+    sourceNode.connect(audioContext.destination);
+    sourceNode.start();
+}
 
 export async function sayTTS(character:character,text:string) {
     try {
@@ -34,7 +103,16 @@ export async function sayTTS(character:character,text:string) {
                 text = ''
             }
         }
-    
+
+        const beforeResult = await runHookPipeline<BeforeTTSContext, BeforeTTSResult>(
+            getTTSPreprocessors(),
+            { text, ttsMode: character.ttsMode ?? '', characterId: character.chaId },
+        );
+        if (beforeResult.skip) {
+            return;
+        }
+        text = beforeResult.ctx.text;
+
         switch(character.ttsMode){
             case "webspeech":{
                 if(speechSynthesis && SpeechSynthesisUtterance){
@@ -52,7 +130,6 @@ export async function sayTTS(character:character,text:string) {
                 break
             }
             case "elevenlab": {
-                const audioContext = new AudioContext();
                 const da = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${character.ttsSpeech}`, {
                     body: JSON.stringify({
                         text: text,
@@ -65,11 +142,9 @@ export async function sayTTS(character:character,text:string) {
                     }
                 })
                 if(da.status >= 200 && da.status < 300){
-                    const audioBuffer = await audioContext.decodeAudioData(await da.arrayBuffer())
-                    sourceNode = audioContext.createBufferSource();
-                    sourceNode.buffer = audioBuffer;
-                    sourceNode.connect(audioContext.destination);            
-                    sourceNode.start();
+                    const buffer = await da.arrayBuffer()
+                    const mimeType = da.headers.get('content-type') || 'audio/mpeg'
+                    await playAudio(buffer, mimeType, { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                 }
                 else{
                     alertError(await da.text())
@@ -78,7 +153,6 @@ export async function sayTTS(character:character,text:string) {
             }
             case "VOICEVOX": {
                 const jpText = await translateVox(text)
-                const audioContext = new AudioContext();
                 const query = await fetch(`${db.voicevoxUrl}/audio_query?text=${jpText}&speaker=${character.ttsSpeech}`, {
                     method: 'POST',
                     headers: { "Content-Type": "application/json"},
@@ -103,11 +177,7 @@ export async function sayTTS(character:character,text:string) {
                         body: JSON.stringify(bodyData),
                     })
                     if (getVoice.status == 200 && getVoice.headers.get('content-type') === 'audio/wav'){
-                        const audioBuffer = await audioContext.decodeAudioData(await getVoice.arrayBuffer())
-                        sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = audioBuffer;
-                        sourceNode.connect(audioContext.destination);
-                        sourceNode.start();
+                        await playAudio(await getVoice.arrayBuffer(), 'audio/wav', { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                     }
                 }
                 break
@@ -139,12 +209,7 @@ export async function sayTTS(character:character,text:string) {
                 if(res.ok){
                     try {
                         const audio = Buffer.from(dat).buffer
-                        const audioContext = new AudioContext();
-                        const audioBuffer = await audioContext.decodeAudioData(audio)
-                        sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = audioBuffer;
-                        sourceNode.connect(audioContext.destination);
-                        sourceNode.start();
+                        await playAudio(audio, 'audio/mpeg', { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                     } catch (error) {
                         alertError(language.errors.httpError + `${error}`)
                     }
@@ -161,15 +226,14 @@ export async function sayTTS(character:character,text:string) {
 
             }
             case 'novelai': {
-                const audioContext = new AudioContext();
                 if(text === ''){
                     break;
                 }
                 const encodedText = encodeURIComponent(text);
                 const encodedSeed = encodeURIComponent(character.naittsConfig.voice);
-    
+
                 const url = `https://api.novelai.net/ai/generate-voice?text=${encodedText}&voice=-1&seed=${encodedSeed}&opus=false&version=${character.naittsConfig.version}`;
-    
+
                 const response = await globalFetch(url, {
                     method: 'GET',
                     headers: {
@@ -177,15 +241,9 @@ export async function sayTTS(character:character,text:string) {
                     },
                     rawResponse: true
                 });
-            
+
                 if (response.ok) {
-                    const audioBuffer = response.data.buffer;
-                    audioContext.decodeAudioData(audioBuffer, (decodedData) => {
-                        const sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = decodedData;
-                        sourceNode.connect(audioContext.destination);
-                        sourceNode.start();
-                    });
+                    await playAudio(response.data.buffer, 'audio/wav', { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                 } else {
                     alertError("Error fetching or decoding audio data");
                 }
@@ -196,7 +254,6 @@ export async function sayTTS(character:character,text:string) {
                     if(character.hfTTS.language !== 'en'){
                         text = await runTranslator(text, false, 'en', character.hfTTS.language)
                     }
-                    const audioContext = new AudioContext();
                     const response = await fetch(`https://api-inference.huggingface.co/models/${character.hfTTS.model}`, {
                         method: 'POST',
                         headers: {
@@ -207,7 +264,7 @@ export async function sayTTS(character:character,text:string) {
                             inputs: text,
                         })
                     });
-        
+
                     if(response.status === 503 && response.headers.get('content-type') === 'application/json'){
                         const json = await response.json()
                         if(json.estimated_time){
@@ -220,13 +277,9 @@ export async function sayTTS(character:character,text:string) {
                         return
                     }
                     else if (response.status === 200) {
-                        const audioBuffer = await response.arrayBuffer();
-                        audioContext.decodeAudioData(audioBuffer, (decodedData) => {
-                            const sourceNode = audioContext.createBufferSource();
-                            sourceNode.buffer = decodedData;
-                            sourceNode.connect(audioContext.destination);
-                            sourceNode.start();
-                        });
+                        const buffer = await response.arrayBuffer();
+                        const mimeType = response.headers.get('content-type') || 'audio/wav'
+                        await playAudio(buffer, mimeType, { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                     } else {
                         alertError("Error fetching or decoding audio data");
                     }
@@ -238,8 +291,6 @@ export async function sayTTS(character:character,text:string) {
                 break;
             }
             case 'gptsovits':{
-                const audioContext = new AudioContext();
-
                 const audio: Uint8Array = await loadAsset(character.gptSoVitsConfig.ref_audio_data.assetId);
                 const base64Audio = btoa(new Uint8Array(audio).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
@@ -298,19 +349,29 @@ export async function sayTTS(character:character,text:string) {
                 console.log(response)
 
                 if (response.ok) {
-                    const audioBuffer = response.data.buffer;
-                    audioContext.decodeAudioData(audioBuffer, (decodedData) => {
-                        const sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = decodedData;
-                        
-                        const gainNode = audioContext.createGain();
-                        gainNode.gain.value = character.gptSoVitsConfig.volume || 1.0;
-                        
-                        sourceNode.connect(gainNode);
-                        gainNode.connect(audioContext.destination);
-                        
-                        sourceNode.start();
-                    });
+                    const mimeType = 'audio/wav'
+                    const hookCtx = { ttsMode: character.ttsMode ?? '', characterId: character.chaId }
+                    const volume = character.gptSoVitsConfig.volume
+                    if (volume !== undefined && volume !== 1.0) {
+                        // Volume != 1.0 requires a GainNode in the graph, so we can't
+                        // route through playAudio directly. Run the postprocessor
+                        // pipeline first to honor plugin hooks consistently, then
+                        // build the gain-enabled graph with the final bytes.
+                        const processed = await runPostprocessorPipeline(response.data.buffer, mimeType, hookCtx)
+                        if (!processed.skip) {
+                            const audioContext = new AudioContext();
+                            const decoded = await audioContext.decodeAudioData(processed.audio);
+                            sourceNode = audioContext.createBufferSource();
+                            sourceNode.buffer = decoded;
+                            const gainNode = audioContext.createGain();
+                            gainNode.gain.value = volume;
+                            sourceNode.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+                            sourceNode.start();
+                        }
+                    } else {
+                        await playAudio(response.data.buffer, mimeType, hookCtx)
+                    }
                 } else {
                     const textBuffer: Uint8Array = response.data.buffer
                     const text = Buffer.from(textBuffer).toString('utf-8')
@@ -322,7 +383,6 @@ export async function sayTTS(character:character,text:string) {
                 if (character.fishSpeechConfig.model._id === ''){
                     throw new Error('FishSpeech Model is not selected')
                 }
-                const audioContext = new AudioContext();
 
                 const body = {
                     text: text,
@@ -348,20 +408,15 @@ export async function sayTTS(character:character,text:string) {
                 console.log(response)
 
                 if (response.ok) {
-                    const audioBuffer = response.data.buffer;
-                    audioContext.decodeAudioData(audioBuffer, (decodedData) => {
-                        const sourceNode = audioContext.createBufferSource();
-                        sourceNode.buffer = decodedData;
-                        sourceNode.connect(audioContext.destination);
-                        sourceNode.start();
-                    });
+                    await playAudio(response.data.buffer, 'audio/mpeg', { ttsMode: character.ttsMode ?? '', characterId: character.chaId })
                 } else {
                     const textBuffer: Uint8Array = response.data.buffer
                     const text = Buffer.from(textBuffer).toString('utf-8')
                     throw new Error(text);
                 }
+                break;
             }
-        }   
+        }
     } catch (error) {
         alertError(`TTS Error: ${error}`)
     }
@@ -436,7 +491,15 @@ export function getNovelAIVoices(){
 
 export function FixNAITTS(data:character){
     if (data.naittsConfig === undefined){
-        data.naittsConfig.voice = 'Anananan'
+        // Mirror the defaults used by CharConfig.svelte's $effect.pre
+        // initializer so that the NovelAI request URL — which templates
+        // in `version` and branches on `customvoice` — gets valid values
+        // instead of the literal string "undefined".
+        data.naittsConfig = {
+            customvoice: false,
+            voice: 'Anananan',
+            version: 'v2',
+        }
     }
 
     return data

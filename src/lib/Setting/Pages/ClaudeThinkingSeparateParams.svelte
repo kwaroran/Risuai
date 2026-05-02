@@ -67,3 +67,17 @@
         {/each}
     </SelectInput>
 {/if}
+{#if value.deepseek_thinking_type !== undefined}
+    <span class="text-textcolor">DeepSeek Thinking Mode</span>
+    <SelectInput bind:value={value.deepseek_thinking_type}>
+        <OptionInput value="off">Off</OptionInput>
+        <OptionInput value="enabled">Enabled</OptionInput>
+    </SelectInput>
+{/if}
+{#if value.deepseek_thinking_type === 'enabled'}
+    <span class="text-textcolor">DeepSeek Reasoning Effort</span>
+    <SelectInput bind:value={value.deepseek_reasoning_effort}>
+        <OptionInput value="high">High</OptionInput>
+        <OptionInput value="max">Max</OptionInput>
+    </SelectInput>
+{/if}

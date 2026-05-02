@@ -764,6 +764,10 @@
             {@render CustomFlagButton('deepSeekPrefix', 17)}
             {@render CustomFlagButton('deepSeekThinkingInput', 18)}
             {@render CustomFlagButton('deepSeekThinkingOutput', 19)}
+            {@render CustomFlagButton('noCivilIntegrity', 20)}
+            {@render CustomFlagButton('claudeThinking', 21)}
+            {@render CustomFlagButton('claudeAdaptiveThinking', 22)}
+            {@render CustomFlagButton('deepSeekThinkingToggle', 24)}
 
         {/if}
     </Accordion>

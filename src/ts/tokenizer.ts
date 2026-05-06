@@ -40,6 +40,7 @@ export const tokenizerList = [
     ['gemma', 'Gemma'],
     ['cohere', 'Cohere'],
     ['deepseek', 'DeepSeek'],
+    ['deepseek-v4', 'DeepSeek V4'],
 ] as const
 
 export async function encodeWithTokenizer(data: string, tokenizerType: string): Promise<(number[] | Uint32Array | Int32Array)> {
@@ -64,6 +65,8 @@ export async function encodeWithTokenizer(data: string, tokenizerType: string): 
             return await tokenizeWebTokenizers(data, 'cohere');
         case 'deepseek':
             return await tokenizeWebTokenizers(data, 'DeepSeek');
+        case 'deepseek-v4':
+            return await tokenizeWebTokenizers(data, 'DeepSeekV4');
         default:
             return await tikJS(data, 'cl100k_base');
     }
@@ -113,6 +116,8 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
                 result = await tokenizeWebTokenizers(data, 'cohere'); break;
             case 'deepseek':
                 result = await tokenizeWebTokenizers(data, 'DeepSeek'); break;
+            case 'deepseek-v4':
+                result = await tokenizeWebTokenizers(data, 'DeepSeekV4'); break;
             default:
                 result = await tikJS(data, 'o200k_base'); break;
         }
@@ -167,6 +172,8 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
             result = await gemmaTokenize(data);
         } else if(modelInfo.tokenizer === LLMTokenizer.DeepSeek){
             result = await tokenizeWebTokenizers(data, 'DeepSeek');
+        } else if(modelInfo.tokenizer === LLMTokenizer.DeepSeekV4){
+            result = await tokenizeWebTokenizers(data, 'DeepSeekV4');
         } else if(modelInfo.tokenizer === LLMTokenizer.Cohere){
             result = await tokenizeWebTokenizers(data, 'cohere');
         } else {
@@ -180,7 +187,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
     return result;
 }
 
-type tokenizerType = 'novellist'|'claude'|'novelai'|'llama'|'mistral'|'llama3'|'gemma'|'cohere'|'googleCloud'|'DeepSeek'
+type tokenizerType = 'novellist'|'claude'|'novelai'|'llama'|'mistral'|'llama3'|'gemma'|'cohere'|'googleCloud'|'DeepSeek'|'DeepSeekV4'
 
 let tikParser:Tiktoken = null
 let tokenizersTokenizer:Tokenizer = null
@@ -336,6 +343,11 @@ async function tokenizeWebTokenizers(text:string, type:tokenizerType) {
             case 'DeepSeek':
                 tokenizersTokenizer = await webTokenizer.Tokenizer.fromJSON(
                     await (await fetch("/token/deepseek/tokenizer.json")
+                ).arrayBuffer())
+                break
+            case 'DeepSeekV4':
+                tokenizersTokenizer = await webTokenizer.Tokenizer.fromJSON(
+                    await (await fetch("/token/deepseek/v4/tokenizer.json")
                 ).arrayBuffer())
                 break
 

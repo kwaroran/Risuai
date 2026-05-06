@@ -107,6 +107,7 @@
                 <OptionInput value="10">GoogleCloud</OptionInput>
                 <OptionInput value="11">Cohere</OptionInput>
                 <OptionInput value="13">DeepSeek</OptionInput>
+                <OptionInput value="14">DeepSeek V4</OptionInput>
             </SelectInput>
             <span class="text-textcolor">{language.format}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].format.toString()} onchange={(e) => {

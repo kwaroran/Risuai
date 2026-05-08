@@ -92,7 +92,8 @@ export const LLMTokenizer = {
     GoogleCloud: 10,
     Cohere: 11,
     Local: 12,
-    DeepSeek: 13
+    DeepSeek: 13,
+    DeepSeekV4: 14
 } as const;
 export type LLMTokenizer = (typeof LLMTokenizer)[keyof typeof LLMTokenizer];
 

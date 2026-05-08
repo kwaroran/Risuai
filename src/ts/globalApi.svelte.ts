@@ -1791,7 +1791,11 @@ export async function fetchNative(url: string, arg: {
                         resolved = true
                     }
                 } catch (e) {
-                    error = JSON.stringify(e)
+                    // Error properties (message/name/stack) are non-enumerable, so
+                    // JSON.stringify(e) returns "{}" and discards the real cause.
+                    error = e instanceof Error
+                        ? (e.message || e.name || 'streamed_fetch parse failed')
+                        : String(e)
                     resolved = true
                 }
             })

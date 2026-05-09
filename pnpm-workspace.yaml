@@ -1,0 +1,11 @@
+sideEffectsCache: false
+ignoreScripts: false
+
+allowBuilds:
+  '@swc/core': true
+  core-js: false
+  esbuild: true
+  msgpackr-extract: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: false

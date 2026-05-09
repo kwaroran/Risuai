@@ -44,13 +44,18 @@
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
+
+    const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] => {
+        const types = Array.from(e.dataTransfer?.types ?? [])
+        return types.includes('Files') ? 'copy' : 'link'
+    }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'link'
+    e.dataTransfer.dropEffect = getMainDropEffect(e)
 }} ondrop={async (e) => {
     e.preventDefault()
     if (e.dataTransfer.types.includes('application/x-risu-internal')) {

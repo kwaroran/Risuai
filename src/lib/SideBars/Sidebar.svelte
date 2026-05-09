@@ -337,23 +337,29 @@
 
   const avatarDragOver = (e:DragEv) => {
     e.preventDefault()
-    e.stopPropagation()
-    e.dataTransfer.dropEffect = 'move'
+    if(currentDrag){
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = 'move'
+    }
   }
 
   const avatarDrop = (ind:DragData, e:DragEv) => {
     e.preventDefault()
+    if(!currentDrag){
+      return
+    }
     e.stopPropagation()
     try {
-      if(currentDrag){
-        createFolder(currentDrag,ind)
-      }
+      createFolder(currentDrag,ind)
     } catch (error) {
       console.error('avatarDrop error:', error)
     }
   }
 
   const preventAll = (e:Event) => {
+    if(!currentDrag){
+      return
+    }
     e.preventDefault()
     e.stopPropagation()
     return false
@@ -506,6 +512,7 @@
   <div class="flex grow w-full flex-col items-center overflow-x-hidden overflow-y-auto pr-0">
     <div class="h-4 min-h-4 w-14" role="listitem" ondragover={(e) => {
       e.preventDefault()
+      if(!currentDrag){ return }
       e.stopPropagation()
       e.dataTransfer.dropEffect = 'move'
       e.currentTarget.classList.add('bg-green-500')
@@ -513,12 +520,10 @@
       e.currentTarget.classList.remove('bg-green-500')
     }} ondrop={(e) => {
       e.preventDefault()
+      if(!currentDrag){ return }
       e.stopPropagation()
       e.currentTarget.classList.remove('bg-green-500')
-      const da = currentDrag
-      if(da){
-        inserter(da,{index:0})
-      }
+      inserter(currentDrag,{index:0})
     }} ondragenter={preventAll}></div>
     {#each charImages as char, ind}
       <div class="group relative flex items-center px-2"
@@ -662,6 +667,7 @@
           }"></div>
           <div class="h-4 min-h-4 w-14 relative z-10" role="listitem" ondragover={(e) => {
             e.preventDefault()
+            if(!currentDrag){ return }
             e.stopPropagation()
             e.dataTransfer.dropEffect = 'move'
             e.currentTarget.classList.add('bg-green-500')
@@ -669,11 +675,11 @@
             e.currentTarget.classList.remove('bg-green-500')
           }} ondrop={(e) => {
             e.preventDefault()
+            if(!currentDrag){ return }
             e.stopPropagation()
             e.currentTarget.classList.remove('bg-green-500')
-            const da = currentDrag
-            if(da && char.type === 'folder'){
-              inserter(da,{index:0,folder:char.id})
+            if(char.type === 'folder'){
+              inserter(currentDrag,{index:0,folder:char.id})
             }
           }} ondragenter={preventAll}></div>
           {#each char.folder as char2, ind}
@@ -715,6 +721,7 @@
             </div>
             <div class="h-4 min-h-4 w-14 relative z-20" role="listitem" ondragover={(e) => {
               e.preventDefault()
+              if(!currentDrag){ return }
               e.stopPropagation()
               e.dataTransfer.dropEffect = 'move'
               e.currentTarget.classList.add('bg-green-500')
@@ -722,11 +729,11 @@
               e.currentTarget.classList.remove('bg-green-500')
             }} ondrop={(e) => {
               e.preventDefault()
+              if(!currentDrag){ return }
               e.stopPropagation()
               e.currentTarget.classList.remove('bg-green-500')
-              const da = currentDrag
-              if(da && char.type === 'folder'){
-                inserter(da,{index:ind+1,folder:char.id})
+              if(char.type === 'folder'){
+                inserter(currentDrag,{index:ind+1,folder:char.id})
               }
             }} ondragenter={preventAll}></div>
           {/each}
@@ -735,6 +742,7 @@
       {/if}
       <div class="h-4 min-h-4 w-14" role="listitem" ondragover={((e) => {
         e.preventDefault()
+        if(!currentDrag){ return }
         e.stopPropagation()
         e.dataTransfer.dropEffect = 'move'
         e.currentTarget.classList.add('bg-green-500')
@@ -742,12 +750,10 @@
         e.currentTarget.classList.remove('bg-green-500')
       }} ondrop={(e) => {
         e.preventDefault()
+        if(!currentDrag){ return }
         e.stopPropagation()
         e.currentTarget.classList.remove('bg-green-500')
-        const da = currentDrag
-        if(da){
-          inserter(da,{index:ind+1})
-        }
+        inserter(currentDrag,{index:ind+1})
       }} ondragenter={preventAll}></div>
     {/each}
     <div class="flex flex-col items-center gap-2 px-2">

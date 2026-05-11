@@ -41,7 +41,7 @@ jobs:
       - name: install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: latest-10
       - name: install dependencies (ubuntu only)
         if: matrix.settings.platform == 'ubuntu-latest'
         run: |

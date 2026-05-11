@@ -365,7 +365,7 @@
                         ></textarea>
                         <button
                             onclick={send}
-                            class="flex justify-center border-y border-r rounded-r-md border-darkborderc items-center text-gray-100 p-2 peer-focus:border-textcolor hover:bg-blue-500 transition-colors"
+                            class="flex justify-center border-y border-r rounded-r-md border-darkborderc items-center text-textcolor p-2 peer-focus:border-textcolor hover:bg-blue-500 hover:text-white transition-colors"
                         >
                             <Send />
                         </button>

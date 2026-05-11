@@ -107,6 +107,9 @@
                 <OptionInput value="10">GoogleCloud</OptionInput>
                 <OptionInput value="11">Cohere</OptionInput>
                 <OptionInput value="13">DeepSeek</OptionInput>
+                <OptionInput value="14">DeepSeek V4</OptionInput>
+                <OptionInput value="15">GLM4</OptionInput>
+                <OptionInput value="16">GLM5</OptionInput>
             </SelectInput>
             <span class="text-textcolor">{language.format}</span>
             <SelectInput size={"sm"} value={DBState.db.customModels[index].format.toString()} onchange={(e) => {
@@ -157,6 +160,10 @@
                 {@render CustomFlagButton(index,'deepSeekPrefix', 17)}
                 {@render CustomFlagButton(index,'deepSeekThinkingInput', 18)}
                 {@render CustomFlagButton(index,'deepSeekThinkingOutput', 19)}
+                {@render CustomFlagButton(index,'noCivilIntegrity', 20)}
+                {@render CustomFlagButton(index,'claudeThinking', 21)}
+                {@render CustomFlagButton(index,'claudeAdaptiveThinking', 22)}
+                {@render CustomFlagButton(index,'deepSeekThinkingToggle', 24)}
             </Accordion>
                 </div>
             {/if}

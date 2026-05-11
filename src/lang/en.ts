@@ -303,6 +303,7 @@ export const languageEnglish = {
             "Higher values use more chat context to determine similarity.",
         hypaV3SummaryChunkSeparator:
             "Separator used to split summaries into chunks for similarity search.",
+        coldstorage: "Coldstorage is a feature that automatically moves old chats and character data to a seperate storage to reduce the size of the main storage and improve performance. This will reduce the transfer time, transfer traffic and improve the performance when loading chats."
     },
     setup: {
         chooseProvider: "Choose AI Provider",
@@ -1675,6 +1676,9 @@ export const languageEnglish = {
     nanoGPTSelectFromList: "Select from List",
     nanoGPTManualInput: "Manual Input",
     nanoGPTManualModelSelect: "Manual Model Select",
+    coldStorage: "Cold Storage",
+    cleanColdStorage: "Clean Unused Cold Storage",
+    customSidebarConfig: "Custom Sidebar Configuration",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

@@ -203,12 +203,6 @@ export async function loadData() {
                     characterURLImport()
                 }
             }
-            LoadingStatusState.text = "Checking Unnecessary Files..."
-            try {
-                await cleanChunks()
-            } catch (error) {
-                console.error(error)
-            }
             LoadingStatusState.text = "Loading Plugins..."
             try {
                 await loadPlugins()
@@ -252,11 +246,11 @@ export async function loadData() {
                 initMobileGesture()
                 MobileGUI.set(true)
             }
+            await makeColdData()
             loadedStore.set(true)
             selectedCharID.set(-1)
             startObserveDom()
             assignIds()
-            makeColdData()
             registerModelDynamic()
             saveDb()
             moduleUpdate()

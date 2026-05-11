@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore, irisStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore, irisStore, customSideBarConfigDialogStore } from './ts/stores.svelte';
     import Sidebar from './lib/SideBars/Sidebar.svelte';
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
@@ -34,6 +34,8 @@
     import PopupEditor from './lib/Others/PopupEditor.svelte';
     import LoadoutModal from './lib/Others/LoadoutModal.svelte';
     import IrisModal from './lib/Others/IrisModal.svelte';
+    import Legal from './lib/Others/Legal.svelte';
+    import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
 
 
   
@@ -98,7 +100,9 @@
     }
 
 }}>
-    {#if aprilFools}
+    {#if !import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
+        <Legal />
+    {:else if aprilFools}
 
         <div class="bg-[#212121] w-full h-screen min-h-screen text-black flex relative">
             <div class="w-full max-w-3xl mx-auto py-8 px-4 flex justify-center items-center">
@@ -249,5 +253,8 @@
     {/if}
     {#if irisStore.open}
         <IrisModal />
+    {/if}
+    {#if customSideBarConfigDialogStore.open}
+        <CustomSidebarConfig />
     {/if}
 </main>

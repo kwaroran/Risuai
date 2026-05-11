@@ -219,7 +219,7 @@ export const languageEnglish = {
         systemContentReplacement: "The prompt format that replaces system prompt if the model doesn't support system prompt.",
         systemRoleReplacement: "The role that replaces system role if the model doesn't support system role.",
         summarizationPrompt:
-            "The prompt that is used for summarization. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt that is used for summarization. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the chat data.",
         translatorPrompt:
             "The prompt that is used for translation. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the dest language, {{slot::content}} for the content, and {{slot::tnote}} for the translator note.",
         translateBeforeHTMLFormatting:
@@ -265,7 +265,7 @@ export const languageEnglish = {
             "Keeps the tab active and prevents the session from expiring due to inactivity in browsers. This may require refresh to take effect.\n\n" +
             "- **Via Sound**: Plays a silent audio at regular intervals to keep the session alive. This method is known as most compatible and effective in most browsers.\n",
         reSummarizationPrompt:
-            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used.",
         hypaV3MemoryTokensRatio:
             "The fraction of the max context size allocated to the long-term memory block {{slot}} in the prompt.",
         hypaV3ExtraSummarizationRatio:
@@ -301,6 +301,8 @@ export const languageEnglish = {
         hypaV3QueryChatCount:
             "The number of recent chat messages used as the query for similarity search. " +
             "Higher values use more chat context to determine similarity.",
+        hypaV3SummaryChunkSeparator:
+            "Separator used to split summaries into chunks for similarity search.",
         coldstorage: "Coldstorage is a feature that automatically moves old chats and character data to a seperate storage to reduce the size of the main storage and improve performance. This will reduce the transfer time, transfer traffic and improve the performance when loading chats."
     },
     setup: {
@@ -1352,6 +1354,7 @@ export const languageEnglish = {
         extraSummarizationRatioLabel: "Extra Summarization Ratio",
         maxChatsPerSummaryLabel: "Max Messages Per Summary",
         queryChatCountLabel: "Query Chat Count",
+        summaryChunkSeparatorLabel: "Chunk Separator Regex",
         recentMemoryRatioLabel: "Recent Memory Ratio",
         similarMemoryRatioLabel: "Similar Memory Ratio",
         randomMemoryRatioLabel: "Random Memory Ratio",

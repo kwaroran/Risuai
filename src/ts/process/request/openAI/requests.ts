@@ -1095,8 +1095,8 @@ async function buildResponseInputItems(arg:RequestDataArgumentExtended):Promise<
                     item.content.push({ type: 'input_text', text })
                 }
 
-                content.multimodals ??= []
-                for(const multimodal of content.multimodals){
+                const multimodals = content.multimodals ?? []
+                for(const multimodal of multimodals){
                     if(multimodal.type === 'image'){
                         item.content.push({
                             type: 'input_image',
@@ -1254,8 +1254,9 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
     const texts:string[] = []
     const refusals:string[] = []
     const thoughts:string[] = []
+    const hasTopLevelOutputText = typeof data?.output_text === 'string'
 
-    if(typeof data?.output_text === 'string'){
+    if(hasTopLevelOutputText){
         texts.push(data.output_text)
     }
 
@@ -1273,7 +1274,7 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
             continue
         }
         for(const content of item.content ?? []){
-            if(content?.type === 'output_text' && content.text){
+            if(!hasTopLevelOutputText && content?.type === 'output_text' && content.text){
                 texts.push(content.text)
             }
             if(content?.type === 'refusal' && content.refusal){
@@ -1375,6 +1376,11 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     if(data?.status === 'failed' || data?.error){
         return { type: 'fail', result: JSON.stringify(data.error ?? data) }
     }
+    if(data?.status === 'incomplete'){
+        const result = extractResponsesText(data, arg)
+        const reason = data?.incomplete_details?.reason ? `Incomplete response: ${data.incomplete_details.reason}` : 'Incomplete response'
+        return { type: 'fail', result: result ? `${reason}\n${result}` : reason }
+    }
 
     const calls = extractResponsesFunctionCalls(data)
     if(calls.length > 0){
@@ -1475,33 +1481,55 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
         }
     }
 
+    const processBufferedEvents = (controller:TransformStreamDefaultController<StreamResponseChunk>, final = false) => {
+        const events = buffer.split(/\r?\n\r?\n/)
+        buffer = events.pop() ?? ''
+        if(final && buffer.trim()){
+            events.push(buffer)
+            buffer = ''
+        }
+
+        let emitted = false
+        for(const rawEvent of events){
+            const dataLines = rawEvent.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.replace(/^data:\s?/, ''))
+            if(dataLines.length === 0){
+                continue
+            }
+            const data = dataLines.join('\n')
+            if(data === '[DONE]'){
+                emit(controller)
+                emitted = true
+                continue
+            }
+            try{
+                applyEvent(JSON.parse(data))
+            }
+            catch{}
+            emit(controller)
+            emitted = true
+        }
+        return emitted
+    }
+
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, controller) {
             buffer += decoder.decode(chunk, { stream: true })
-            const events = buffer.split('\n\n')
-            buffer = events.pop() ?? ''
-
-            for(const rawEvent of events){
-                const dataLines = rawEvent.split('\n').filter((line) => line.startsWith('data:')).map((line) => line.replace(/^data:\s?/, ''))
-                if(dataLines.length === 0){
-                    continue
-                }
-                const data = dataLines.join('\n')
-                if(data === '[DONE]'){
-                    emit(controller)
-                    continue
-                }
-                try{
-                    applyEvent(JSON.parse(data))
-                }
-                catch{}
-                emit(controller)
-            }
+            processBufferedEvents(controller)
         },
         flush(controller) {
-            emit(controller)
+            buffer += decoder.decode()
+            if(!processBufferedEvents(controller, true)){
+                emit(controller)
+            }
         }
     })
+}
+
+export const __testResponsesAPI = {
+    buildResponsesBody,
+    extractResponsesText,
+    extractResponsesFunctionCalls,
+    getResponsesTranStream
 }
 
 function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, body:any, headers:Record<string,string>, requestURL:string, arg:RequestDataArgumentExtended, networkOptions:LocalNetworkRequestOptions):ReadableStream<StreamResponseChunk>{

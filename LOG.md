@@ -1,5 +1,26 @@
 # LOG
 
+## 2026-05-12 - OpenAI Responses API hardening pass 2
+
+- Fixed Responses request construction to tolerate an omitted `arg.aiModel` without crashing in custom/preview paths, falling back to a deterministic OpenAI Responses model id when no internal id is available.
+- Wired NanoGPT Responses requests to NanoGPT's Responses endpoint, selected NanoGPT request model, NanoGPT API key, and non-subscription provider header instead of falling through to OpenAI URL/key/model defaults.
+- Hardened Responses request sending, streaming continuation fetches, previews, and fetch logs to strip internal `__lastOutput` continuation state before external exposure.
+- Added deterministic coverage for optional `aiModel`, NanoGPT Responses endpoint/auth/model/provider wiring, reverse-proxy Responses endpoint autofill with additional params, and internal continuation-state stripping.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 9 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
+Remaining live-smoke-test requirements:
+
+- Run a real non-streaming OpenAI Responses request with text-only history and structured output enabled.
+- Run a real streaming OpenAI Responses request and verify UI stream rendering remains incremental with chunks shaped as `{ "0": text }`.
+- Run a live MCP tool call through Responses, including `rememberToolUsage` and `simplifiedToolUse` toggles.
+- Run a live NanoGPT Responses request for both standard and subscription endpoints if NanoGPT exposes compatible `/responses` behavior in the target account.
+- Run a live built-in web search tool request on a model/provider that supports `web_search_preview`.
+- Run a reverse-proxy/custom-provider smoke test to confirm provider-specific Responses event names and additional headers/body params are accepted.
+
 ## 2026-05-12 - OpenAI Responses API validation
 
 - Validated Responses API request-body construction for plain text history, system-to-developer role conversion, assistant history/prefill preservation, image and file inputs, `store: false`, `max_output_tokens`, `temperature`, `top_p`, `reasoning.effort`, `text.verbosity`, structured output under `text.format`, MCP function tools, and built-in web search tools.

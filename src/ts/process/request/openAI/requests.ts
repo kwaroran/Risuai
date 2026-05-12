@@ -1126,7 +1126,9 @@ async function buildResponseInputItems(arg:RequestDataArgumentExtended):Promise<
 function getResponsesRequestURL(arg:RequestDataArgumentExtended):{requestURL:string, risuIdentify:boolean}{
     const db = getDatabase()
     const aiModel = arg.aiModel
-    let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
+    let requestURL = aiModel === 'nanogpt'
+        ? (db.nanogptUseSubscriptionEndpoint ? 'https://nano-gpt.com/api/subscription/v1/responses' : 'https://nano-gpt.com/api/v1/responses')
+        : (arg.customURL ?? "https://api.openai.com/v1/responses")
     if(arg.modelInfo?.endpoint){
         requestURL = arg.modelInfo.endpoint
     }
@@ -1189,7 +1191,7 @@ function buildResponsesHeaders(arg:RequestDataArgumentExtended, risuIdentify:boo
     const db = getDatabase()
     const aiModel = arg.aiModel
     const headers = {
-        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'reverse_proxy' ? db.proxyKey : db.openAIKey)),
+        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ? db.proxyKey : db.openAIKey)),
         "Content-Type": "application/json"
     }
 
@@ -1199,8 +1201,24 @@ function buildResponsesHeaders(arg:RequestDataArgumentExtended, risuIdentify:boo
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
+    if(aiModel === 'nanogpt' && db.nanogptProvider && !db.nanogptUseSubscriptionEndpoint){
+        headers["X-Provider"] = db.nanogptProvider
+    }
 
     return headers
+}
+
+function getResponsesRequestModel(arg:RequestDataArgumentExtended):string{
+    const db = getDatabase()
+    if(arg.aiModel === 'nanogpt'){
+        return db.nanogptRequestModel || arg.modelInfo.internalID || arg.aiModel
+    }
+    return arg.modelInfo.internalID || arg.aiModel || 'gpt-4.1'
+}
+
+function toExternalResponsesBody(body:Record<string, any>):Record<string, any>{
+    const { __lastOutput: _internalLastOutput, ...externalBody } = body
+    return externalBody
 }
 
 async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Record<string, any>>{
@@ -1220,7 +1238,7 @@ async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Recor
     }
 
     let body = applyParameters({
-        model: arg.modelInfo.internalID ?? arg.aiModel,
+        model: getResponsesRequestModel(arg),
         input: await buildResponseInputItems(arg),
         max_output_tokens: arg.maxTokens,
         tools: tools,
@@ -1356,7 +1374,7 @@ async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCall[]
 async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended, networkOptions:LocalNetworkRequestOptions):Promise<requestDataResponse>{
     const db = getDatabase()
     const response = await globalFetch(requestURL, {
-        body: body,
+        body: toExternalResponsesBody(body),
         headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
@@ -1527,9 +1545,12 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
 
 export const __testResponsesAPI = {
     buildResponsesBody,
+    buildResponsesHeaders,
     extractResponsesText,
     extractResponsesFunctionCalls,
-    getResponsesTranStream
+    getResponsesRequestURL,
+    getResponsesTranStream,
+    toExternalResponsesBody
 }
 
 function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, body:any, headers:Record<string,string>, requestURL:string, arg:RequestDataArgumentExtended, networkOptions:LocalNetworkRequestOptions):ReadableStream<StreamResponseChunk>{
@@ -1574,7 +1595,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 do{
                     attempt++
                     resRec = await fetchNative(requestURL, {
-                        body: JSON.stringify(body),
+                        body: JSON.stringify(toExternalResponsesBody(body)),
                         method: "POST",
                         headers: headers,
                         signal: arg.abortSignal,
@@ -1593,7 +1614,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 }
 
                 addFetchLog({
-                    body: body,
+                    body: toExternalResponsesBody(body),
                     response: "Streaming",
                     success: true,
                     url: requestURL,
@@ -1616,7 +1637,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     const { requestURL, risuIdentify } = getResponsesRequestURL(arg)
     const headers = buildResponsesHeaders(arg, risuIdentify)
 
-    if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
+    if(aiModel === 'reverse_proxy' || aiModel?.startsWith('xcustom:::')){
         body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
     }
     if(!arg.useStreaming){
@@ -1631,7 +1652,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
             type: 'success',
             result: JSON.stringify({
                 url: requestURL,
-                body: body,
+                body: toExternalResponsesBody(body),
                 headers: headers
             })
         }
@@ -1640,7 +1661,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     if(arg.useStreaming){
         body.stream = true
         const response = await fetchNative(requestURL, {
-            body: JSON.stringify(body),
+            body: JSON.stringify(toExternalResponsesBody(body)),
             method: "POST",
             headers: headers,
             signal: arg.abortSignal,
@@ -1658,7 +1679,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
 
         addFetchLog({
-            body: body,
+            body: toExternalResponsesBody(body),
             response: "Streaming",
             success: true,
             url: requestURL,

@@ -8,12 +8,17 @@ const mocks = vi.hoisted(() => ({
         OaiCompAPIKeys: {},
         additionalParams: [],
         autofillRequestUrl: false,
+        customModels: [],
         gptVisionQuality: 'high',
         jsonSchema: '{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}',
         jsonSchemaEnabled: false,
         localNetworkMode: false,
         modelTools: [] as string[],
         newOAIHandle: true,
+        nanogptKey: 'nanogpt-key',
+        nanogptProvider: '',
+        nanogptRequestModel: 'nanogpt-model',
+        nanogptUseSubscriptionEndpoint: false,
         openAIKey: 'openai-key',
         proxyKey: 'proxy-key',
         requestRetrys: 0,
@@ -164,7 +169,11 @@ describe('OpenAI Responses API helpers', () => {
         mocks.db.additionalParams = []
         mocks.db.jsonSchemaEnabled = false
         mocks.db.modelTools = []
+        mocks.db.nanogptProvider = ''
+        mocks.db.nanogptRequestModel = 'nanogpt-model'
+        mocks.db.nanogptUseSubscriptionEndpoint = false
         mocks.db.simplifiedToolUse = false
+        mocks.db.autofillRequestUrl = false
     })
 
     it('builds a Responses request body for text, developer role, multimodal input, tools, and model parameters', async () => {
@@ -246,6 +255,73 @@ describe('OpenAI Responses API helpers', () => {
         const result = await requestOpenAIResponseAPI(baseArg())
 
         expect(result).toEqual({ type: 'fail', result: 'Incomplete response: max_output_tokens\npartial' })
+    })
+
+    it('handles an omitted aiModel in the Responses path without crashing', async () => {
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: undefined,
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                internalID: undefined,
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.url).toBe('https://api.openai.com/v1/responses')
+        expect(preview.body.model).toBe('gpt-4.1')
+    })
+
+    it('wires NanoGPT Responses endpoint, model, auth, and provider header', async () => {
+        mocks.db.nanogptProvider = 'provider-a'
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: 'nanogpt',
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                internalID: 'nanogpt',
+                format: LLMFormat.NanoGPTResponses,
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.url).toBe('https://nano-gpt.com/api/v1/responses')
+        expect(preview.body.model).toBe('nanogpt-model')
+        expect(preview.headers.Authorization).toBe('Bearer nanogpt-key')
+        expect(preview.headers['X-Provider']).toBe('provider-a')
+    })
+
+    it('applies reverse proxy Responses endpoint autofill and additional params', async () => {
+        mocks.db.autofillRequestUrl = true
+        mocks.db.additionalParams = [
+            ['header::X-Test', 'ok'],
+            ['metadata.source', 'risu'],
+        ]
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: 'reverse_proxy',
+            customURL: 'https://proxy.example/api',
+            previewBody: true,
+            key: undefined,
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.url).toBe('https://proxy.example/api/v1/responses')
+        expect(preview.headers.Authorization).toBe('Bearer proxy-key')
+        expect(preview.headers['X-Test']).toBe('ok')
+        expect(preview.body.metadata.source).toBe('risu')
+    })
+
+    it('strips internal Responses continuation state from external request bodies', () => {
+        expect(__testResponsesAPI.toExternalResponsesBody({
+            model: 'gpt-5',
+            input: [],
+            __lastOutput: [{ type: 'function_call', call_id: 'call_1' }],
+        })).toEqual({ model: 'gpt-5', input: [] })
     })
 
     it('parses split CRLF SSE chunks, final unterminated events, text deltas, and function call deltas', async () => {

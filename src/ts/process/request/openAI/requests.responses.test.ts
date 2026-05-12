@@ -166,9 +166,11 @@ async function collectStream(stream: ReadableStream<Record<string, string>>) {
 describe('OpenAI Responses API helpers', () => {
     beforeEach(() => {
         mocks.globalFetch.mockReset()
+        mocks.db.OaiCompAPIKeys = {}
         mocks.db.additionalParams = []
         mocks.db.jsonSchemaEnabled = false
         mocks.db.modelTools = []
+        mocks.db.customModels = []
         mocks.db.nanogptProvider = ''
         mocks.db.nanogptRequestModel = 'nanogpt-model'
         mocks.db.nanogptUseSubscriptionEndpoint = false
@@ -178,8 +180,10 @@ describe('OpenAI Responses API helpers', () => {
 
     it('builds a Responses request body for text, developer role, multimodal input, tools, and model parameters', async () => {
         mocks.db.modelTools = ['search']
+        const sourceMessages = baseArg().formated
 
         const body = await __testResponsesAPI.buildResponsesBody(baseArg({
+            formated: sourceMessages,
             schema: '{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}',
             tools: [{ name: 'lookup', description: 'Lookup data', inputSchema: { type: 'object', properties: { query: { type: 'string' } } } }],
         }))
@@ -218,6 +222,63 @@ describe('OpenAI Responses API helpers', () => {
             { type: 'function', name: 'lookup', description: 'Lookup data', parameters: { type: 'object', properties: { query: { type: 'string' } } } },
             { type: 'web_search_preview' },
         ])
+        expect(sourceMessages[1]).toMatchObject({ role: 'user', content: 'Describe this.', multimodals: [{ type: 'image', base64: 'data:image/png;base64,abc' }] })
+    })
+
+    it('uses OpenAI defaults and an externally clean non-streaming body', async () => {
+        mocks.globalFetch.mockResolvedValueOnce({
+            ok: true,
+            data: { output_text: 'ok' },
+        })
+
+        const result = await requestOpenAIResponseAPI(baseArg())
+
+        expect(result).toEqual({ type: 'success', result: 'ok' })
+        expect(mocks.globalFetch).toHaveBeenCalledWith('https://api.openai.com/v1/responses', expect.objectContaining({
+            body: expect.objectContaining({
+                model: 'gpt-5',
+                stream: false,
+            }),
+            headers: expect.objectContaining({ Authorization: 'Bearer openai-key' }),
+        }))
+        expect(mocks.globalFetch.mock.calls[0][1].body).not.toHaveProperty('__lastOutput')
+    })
+
+    it('leaves system messages as system without the developer-role flag', async () => {
+        const body = await __testResponsesAPI.buildResponsesBody(baseArg({
+            modelInfo: {
+                ...baseArg().modelInfo,
+                flags: [],
+            },
+        }))
+
+        expect(body.input[0]).toMatchObject({ role: 'system', content: [{ type: 'input_text', text: 'Follow policy.' }] })
+    })
+
+    it('applies custom model Responses endpoint, key, and additional params', async () => {
+        mocks.db.OaiCompAPIKeys = { customKey: 'custom-key' }
+        mocks.db.customModels = [{
+            id: 'xcustom:::responses',
+            params: 'header::X-Custom=yes\nmetadata.tier=gold\nextra=json::{"enabled":true}',
+        }]
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: 'xcustom:::responses',
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                endpoint: 'https://custom.example/v1/responses',
+                keyIdentifier: 'customKey',
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.url).toBe('https://custom.example/v1/responses')
+        expect(preview.headers.Authorization).toBe('Bearer custom-key')
+        expect(preview.headers['X-Custom']).toBe('yes')
+        expect(preview.body.metadata.tier).toBe('gold')
+        expect(preview.body.extra).toEqual({ enabled: true })
     })
 
     it('does not duplicate top-level output_text when message output blocks are also present', () => {
@@ -255,6 +316,20 @@ describe('OpenAI Responses API helpers', () => {
         const result = await requestOpenAIResponseAPI(baseArg())
 
         expect(result).toEqual({ type: 'fail', result: 'Incomplete response: max_output_tokens\npartial' })
+    })
+
+    it('treats failed non-streaming Responses results as useful failures', async () => {
+        mocks.globalFetch.mockResolvedValueOnce({
+            ok: true,
+            data: {
+                status: 'failed',
+                error: { message: 'bad request' },
+            },
+        })
+
+        const result = await requestOpenAIResponseAPI(baseArg())
+
+        expect(result).toEqual({ type: 'fail', result: '{"message":"bad request"}' })
     })
 
     it('handles an omitted aiModel in the Responses path without crashing', async () => {
@@ -343,5 +418,32 @@ describe('OpenAI Responses API helpers', () => {
                 call_1: { type: 'function_call', call_id: 'call_1', name: 'lookup', arguments: '{"q":"x"}', status: 'completed' },
             }),
         })
+    })
+
+    it('does not duplicate text from a completed streaming event', async () => {
+        const stream = __testResponsesAPI.getResponsesTranStream(baseArg())
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+
+        await writer.write(encoder.encode('data: {"type":"response.output_text.delta","delta":"Hello"}\n\n'))
+        await writer.write(encoder.encode('data: {"type":"response.completed","response":{"output_text":"Hello","output":[{"type":"message","content":[{"type":"output_text","text":"Hello"}]}]}}\n\n'))
+        await writer.close()
+
+        const chunks = await chunksPromise
+        expect(chunks.at(-1)?.['0']).toBe('Hello')
+    })
+
+    it('emits useful text for streaming error events', async () => {
+        const stream = __testResponsesAPI.getResponsesTranStream(baseArg())
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+
+        await writer.write(encoder.encode('data: {"type":"response.failed","error":{"message":"stream failed"}}\n\n'))
+        await writer.close()
+
+        const chunks = await chunksPromise
+        expect(chunks.at(-1)?.['0']).toContain('stream failed')
     })
 })

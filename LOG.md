@@ -1,5 +1,25 @@
 # LOG
 
+## 2026-05-12 - OpenAI Responses API final deterministic validation
+
+- Re-validated the Responses API suite against the final non-live checklist for endpoint/key/model selection, reverse proxy and custom additional parameters, NanoGPT Responses wiring, optional `aiModel`, external body cleanliness, body compatibility, parsing, streaming, and deterministic test coverage.
+- Found no production-code defects during final deterministic validation.
+- Added focused deterministic tests for OpenAI default endpoint/key/model and non-streaming `stream: false`, externally clean fetch bodies, custom model endpoint/key/additional params and headers, system role behavior without the developer-role flag, source multimodal immutability, failed non-streaming responses, completed streaming events without duplicated text, and streaming error chunk usefulness.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 15 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
+Remaining live-smoke-test checklist:
+
+- Run a real non-streaming OpenAI Responses request with text-only history and structured output enabled.
+- Run a real streaming OpenAI Responses request and verify UI stream rendering remains incremental with chunks shaped as `{ "0": text }`.
+- Run a live MCP tool call through Responses, including `rememberToolUsage` and `simplifiedToolUse` toggles.
+- Run a live NanoGPT Responses request for both standard and subscription endpoints if NanoGPT exposes compatible `/responses` behavior in the target account.
+- Run a live built-in web search tool request on a model/provider that supports `web_search_preview`.
+- Run a reverse-proxy/custom-provider smoke test to confirm provider-specific Responses event names and additional headers/body params are accepted.
+
 ## 2026-05-12 - OpenAI Responses API hardening pass 2
 
 - Fixed Responses request construction to tolerate an omitted `arg.aiModel` without crashing in custom/preview paths, falling back to a deterministic OpenAI Responses model id when no internal id is available.

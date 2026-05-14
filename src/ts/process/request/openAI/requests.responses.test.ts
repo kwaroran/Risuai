@@ -408,14 +408,27 @@ describe('OpenAI Responses API helpers', () => {
     })
 
     it('strips internal Responses continuation state from external request bodies', () => {
-        expect(__testResponsesAPI.toExternalResponsesBody({
+        const body:any = {
             model: 'gpt-5',
-            input: [],
+            store: false,
+            input: [
+                { id: 'rs_reasoning_bad', type: 'reasoning', summary: [] },
+                { id: 'fc_bad', type: 'function_call', call_id: 'call_1', name: 'lookup', arguments: '{}', status: 'completed' },
+            ],
             __lastOutput: [{ type: 'function_call', call_id: 'call_1' }],
-        })).toEqual({ model: 'gpt-5', input: [] })
+        }
+        const external = __testResponsesAPI.toExternalResponsesBody(body)
+
+        body.input.push({ id: 'later_mutation', type: 'message', role: 'assistant', content: [] })
+
+        expect(external).toEqual({
+            model: 'gpt-5',
+            store: false,
+            input: [{ type: 'function_call', call_id: 'call_1', name: 'lookup', arguments: '{}', status: 'completed' }],
+        })
     })
 
-    it('sanitizes non-streaming Responses tool continuation input for store false', async () => {
+    it('sanitizes non-streaming Responses tool continuation input with reasoning before a function call for store false', async () => {
         vi.mocked(callTool).mockResolvedValueOnce([{ type: 'text', text: 'tool result' }] as any)
         mocks.globalFetch
             .mockResolvedValueOnce({
@@ -423,18 +436,16 @@ describe('OpenAI Responses API helpers', () => {
                 data: {
                     output: [
                         {
-                            id: 'msg_ignored',
-                            type: 'message',
-                            role: 'assistant',
-                            status: 'complete',
-                            content: [{ type: 'output_text', text: 'I will call a tool.', annotations: [] }],
+                            id: 'rs_reasoning_bad',
+                            type: 'reasoning',
+                            summary: [],
                         },
                         {
-                            id: 'rs_0307d663a96a6051016a053c62a578819f8403f95730ff9efa',
+                            id: 'fc_allowed_server_id',
                             type: 'function_call',
                             call_id: 'call_lookup_1',
                             name: 'lookup',
-                            arguments: '{"query":"x"}',
+                            arguments: '{"count":100,"offset":0}',
                             status: 'completed',
                         },
                     ],
@@ -446,28 +457,29 @@ describe('OpenAI Responses API helpers', () => {
             })
 
         const result = await requestOpenAIResponseAPI(baseArg({
-            tools: [{ name: 'lookup', description: 'Lookup data', inputSchema: { type: 'object', properties: { query: { type: 'string' } } } }],
+            tools: [{ name: 'lookup', description: 'Lookup data', inputSchema: { type: 'object', properties: { count: { type: 'number' }, offset: { type: 'number' } } } }],
         }))
 
-        expect(result).toEqual({ type: 'success', result: 'I will call a tool.\n\nfinal answer' })
+        expect(result).toEqual({ type: 'success', result: 'final answer' })
         expect(mocks.globalFetch).toHaveBeenCalledTimes(2)
         const followupBody = mocks.globalFetch.mock.calls[1][1].body
-        expect(JSON.stringify(followupBody.input)).not.toContain('rs_0307d663a96a6051016a053c62a578819f8403f95730ff9efa')
+        const followupInputJSON = JSON.stringify(followupBody.input)
+        expect(followupInputJSON).not.toContain('rs_reasoning_bad')
+        expect(followupInputJSON).not.toContain('fc_allowed_server_id')
         expect(followupBody.input).toEqual(expect.arrayContaining([
-            expect.objectContaining({
+            {
                 type: 'function_call',
                 call_id: 'call_lookup_1',
                 name: 'lookup',
-                arguments: '{"query":"x"}',
+                arguments: '{"count":100,"offset":0}',
                 status: 'completed',
-            }),
-            expect.objectContaining({
+            },
+            {
                 type: 'function_call_output',
                 call_id: 'call_lookup_1',
                 output: 'tool result',
-            }),
+            },
         ]))
-        expect(followupBody.input.find((item:any) => item.type === 'function_call')).not.toHaveProperty('id')
     })
 
     it('sanitizes streaming Responses tool continuation input for store false', async () => {

@@ -1,5 +1,17 @@
 # LOG
 
+## 2026-05-14 - OpenAI Responses API final outbound continuation sanitization
+
+- Followed up on the persisted `rs_...` reasoning item report where a Responses tool call output contained a reasoning item before the `function_call`, and the next stateless request still failed with `Item with id 'rs_...' not found`.
+- Fixed the remaining leak by sanitizing a cloned outbound Responses body at the final request/log/preview boundary when `store: false`, dropping accidental reasoning items and stripping server-only `id` fields from `function_call` and message items before serialization.
+- Updated function-call extraction to return sanitized function-call items, avoiding raw `fc_...` server ids in continuation input.
+- Added regression coverage for the exact reasoning-before-function-call output shape and for external body snapshots staying clean after later internal mutations.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 17 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
 ## 2026-05-14 - OpenAI Responses API stateless tool continuation fix
 
 - Fixed non-streaming Responses API tool continuation with `store: false` sending raw server output items back in `input`, including persisted/reference-style `id: rs_...` values that OpenAI cannot resolve when items are not stored.

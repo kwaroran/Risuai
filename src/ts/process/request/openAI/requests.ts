@@ -1216,11 +1216,6 @@ function getResponsesRequestModel(arg:RequestDataArgumentExtended):string{
     return arg.modelInfo.internalID || arg.aiModel || 'gpt-4.1'
 }
 
-function toExternalResponsesBody(body:Record<string, any>):Record<string, any>{
-    const { __lastOutput: _internalLastOutput, ...externalBody } = body
-    return externalBody
-}
-
 function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
     if(item?.type === 'function_call' && item.call_id && item.name){
         return {
@@ -1252,6 +1247,35 @@ function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
     }
 
     return null
+}
+
+function cloneResponsesBodyForRequest<T>(value:T):T{
+    if(typeof structuredClone === 'function'){
+        return structuredClone(value)
+    }
+    return JSON.parse(JSON.stringify(value))
+}
+
+function toExternalResponsesBody(body:Record<string, any>):Record<string, any>{
+    const { __lastOutput: _internalLastOutput, ...externalBody } = body
+    const requestBody = cloneResponsesBodyForRequest(externalBody)
+    if(requestBody.store === false && Array.isArray(requestBody.input)){
+        requestBody.input = requestBody.input.flatMap((item:any) => {
+            const sanitized = sanitizeResponsesContinuationItem(item)
+            if(sanitized){
+                return [sanitized]
+            }
+            if(item?.type === 'reasoning'){
+                return []
+            }
+            if(item && typeof item === 'object'){
+                const { id: _serverItemId, ...clientItem } = item
+                return [clientItem]
+            }
+            return [item]
+        })
+    }
+    return requestBody
 }
 
 async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Record<string, any>>{
@@ -1350,7 +1374,10 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
 }
 
 function extractResponsesFunctionCalls(data:any):ResponseFunctionCall[]{
-    return (data?.output ?? []).filter((item:any) => item?.type === 'function_call' && item.name && item.call_id)
+    return (data?.output ?? [])
+        .filter((item:any) => item?.type === 'function_call' && item.name && item.call_id)
+        .map((item:any) => sanitizeResponsesContinuationItem(item))
+        .filter(Boolean) as ResponseFunctionCall[]
 }
 
 async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCall[], arg:RequestDataArgumentExtended, assistantText:string):Promise<string>{

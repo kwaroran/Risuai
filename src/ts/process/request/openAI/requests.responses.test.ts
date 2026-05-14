@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer } from 'src/ts/model/types'
+import { fetchNative } from 'src/ts/globalApi.svelte'
+import { callTool } from '../../mcp/mcp'
 import { __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
 
 const mocks = vi.hoisted(() => ({
@@ -30,6 +32,7 @@ const mocks = vi.hoisted(() => ({
         top_p: 0.9,
         verbosity: 0,
     },
+    fetchNative: vi.fn(),
     globalFetch: vi.fn(),
 }))
 
@@ -39,7 +42,7 @@ vi.mock('src/ts/storage/database.svelte', () => ({
 
 vi.mock('src/ts/globalApi.svelte', () => ({
     addFetchLog: vi.fn(),
-    fetchNative: vi.fn(),
+    fetchNative: mocks.fetchNative,
     globalFetch: mocks.globalFetch,
     textifyReadableStream: vi.fn(),
 }))
@@ -163,8 +166,21 @@ async function collectStream(stream: ReadableStream<Record<string, string>>) {
     }
 }
 
+function sseStream(events: string[]) {
+    const encoder = new TextEncoder()
+    return new ReadableStream<Uint8Array>({
+        start(controller) {
+            for(const event of events){
+                controller.enqueue(encoder.encode(event))
+            }
+            controller.close()
+        }
+    })
+}
+
 describe('OpenAI Responses API helpers', () => {
     beforeEach(() => {
+        mocks.fetchNative.mockReset()
         mocks.globalFetch.mockReset()
         mocks.db.OaiCompAPIKeys = {}
         mocks.db.additionalParams = []
@@ -397,6 +413,106 @@ describe('OpenAI Responses API helpers', () => {
             input: [],
             __lastOutput: [{ type: 'function_call', call_id: 'call_1' }],
         })).toEqual({ model: 'gpt-5', input: [] })
+    })
+
+    it('sanitizes non-streaming Responses tool continuation input for store false', async () => {
+        vi.mocked(callTool).mockResolvedValueOnce([{ type: 'text', text: 'tool result' }] as any)
+        mocks.globalFetch
+            .mockResolvedValueOnce({
+                ok: true,
+                data: {
+                    output: [
+                        {
+                            id: 'msg_ignored',
+                            type: 'message',
+                            role: 'assistant',
+                            status: 'complete',
+                            content: [{ type: 'output_text', text: 'I will call a tool.', annotations: [] }],
+                        },
+                        {
+                            id: 'rs_0307d663a96a6051016a053c62a578819f8403f95730ff9efa',
+                            type: 'function_call',
+                            call_id: 'call_lookup_1',
+                            name: 'lookup',
+                            arguments: '{"query":"x"}',
+                            status: 'completed',
+                        },
+                    ],
+                },
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                data: { output_text: 'final answer' },
+            })
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            tools: [{ name: 'lookup', description: 'Lookup data', inputSchema: { type: 'object', properties: { query: { type: 'string' } } } }],
+        }))
+
+        expect(result).toEqual({ type: 'success', result: 'I will call a tool.\n\nfinal answer' })
+        expect(mocks.globalFetch).toHaveBeenCalledTimes(2)
+        const followupBody = mocks.globalFetch.mock.calls[1][1].body
+        expect(JSON.stringify(followupBody.input)).not.toContain('rs_0307d663a96a6051016a053c62a578819f8403f95730ff9efa')
+        expect(followupBody.input).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                type: 'function_call',
+                call_id: 'call_lookup_1',
+                name: 'lookup',
+                arguments: '{"query":"x"}',
+                status: 'completed',
+            }),
+            expect.objectContaining({
+                type: 'function_call_output',
+                call_id: 'call_lookup_1',
+                output: 'tool result',
+            }),
+        ]))
+        expect(followupBody.input.find((item:any) => item.type === 'function_call')).not.toHaveProperty('id')
+    })
+
+    it('sanitizes streaming Responses tool continuation input for store false', async () => {
+        vi.mocked(callTool).mockResolvedValueOnce([{ type: 'text', text: 'stream tool result' }] as any)
+        vi.mocked(fetchNative)
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: { get: () => 'text/event-stream' },
+                body: sseStream([
+                    'data: {"type":"response.completed","response":{"output_text":"Need a lookup","output":[{"id":"rs_stream_ignored","type":"function_call","call_id":"call_stream_1","name":"lookup","arguments":"{\\"query\\":\\"x\\"}","status":"completed"}]}}\n\n',
+                ]),
+            } as any)
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: { get: () => 'text/event-stream' },
+                body: sseStream([
+                    'data: {"type":"response.completed","response":{"output_text":"stream final","output":[{"type":"message","content":[{"type":"output_text","text":"stream final"}]}]}}\n\n',
+                ]),
+            } as any)
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            useStreaming: true,
+            tools: [{ name: 'lookup', description: 'Lookup data', inputSchema: { type: 'object', properties: { query: { type: 'string' } } } }],
+        }))
+
+        expect(result.type).toBe('streaming')
+        await collectStream(result.result as ReadableStream<Record<string, string>>)
+        expect(vi.mocked(fetchNative)).toHaveBeenCalledTimes(2)
+        const followupBody = JSON.parse(vi.mocked(fetchNative).mock.calls[1][1].body as string)
+        expect(JSON.stringify(followupBody.input)).not.toContain('rs_stream_ignored')
+        expect(followupBody.input).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                type: 'function_call',
+                call_id: 'call_stream_1',
+                name: 'lookup',
+                arguments: '{"query":"x"}',
+                status: 'completed',
+            }),
+            expect.objectContaining({
+                type: 'function_call_output',
+                call_id: 'call_stream_1',
+                output: 'stream tool result',
+            }),
+        ]))
+        expect(followupBody.input.find((item:any) => item.type === 'function_call')).not.toHaveProperty('id')
     })
 
     it('parses split CRLF SSE chunks, final unterminated events, text deltas, and function call deltas', async () => {

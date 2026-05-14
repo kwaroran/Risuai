@@ -1221,6 +1221,39 @@ function toExternalResponsesBody(body:Record<string, any>):Record<string, any>{
     return externalBody
 }
 
+function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
+    if(item?.type === 'function_call' && item.call_id && item.name){
+        return {
+            type: 'function_call',
+            call_id: item.call_id,
+            name: item.name,
+            arguments: item.arguments ?? '',
+            status: item.status ?? 'completed'
+        } as any
+    }
+
+    if(item?.type === 'message'){
+        const content = (item.content ?? []).flatMap((contentItem:any) => {
+            if(contentItem?.type === 'output_text'){
+                return [{ type: 'output_text', text: contentItem.text ?? '', annotations: contentItem.annotations ?? [] }]
+            }
+            if(contentItem?.type === 'refusal'){
+                return [{ type: 'refusal', refusal: contentItem.refusal ?? '' }]
+            }
+            return []
+        })
+
+        return {
+            type: 'message',
+            role: item.role ?? 'assistant',
+            status: item.status ?? 'complete',
+            content
+        } as any
+    }
+
+    return null
+}
+
 async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Record<string, any>>{
     const db = getDatabase()
     const tools:any[] = []
@@ -1324,11 +1357,15 @@ async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCall[]
     const db = getDatabase()
     const input = body.input as any[]
     for(const item of body.__lastOutput ?? []){
+        const sanitized = sanitizeResponsesContinuationItem(item)
+        if(!sanitized){
+            continue
+        }
         if(db.simplifiedToolUse && item?.type === 'message'){
-            input.push({ ...item, content: [] })
+            input.push({ ...sanitized, content: [] })
         }
         else{
-            input.push(item)
+            input.push(sanitized)
         }
     }
 
@@ -1368,7 +1405,7 @@ async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCall[]
         })
     }
 
-    return (assistantText && !db.simplifiedToolUse ? assistantText + '\n\n' : '') + callCodes.join('\n\n')
+    return [assistantText && !db.simplifiedToolUse ? assistantText : '', callCodes.join('\n\n')].filter(Boolean).join('\n\n')
 }
 
 async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended, networkOptions:LocalNetworkRequestOptions):Promise<requestDataResponse>{
@@ -1550,6 +1587,7 @@ export const __testResponsesAPI = {
     extractResponsesFunctionCalls,
     getResponsesRequestURL,
     getResponsesTranStream,
+    sanitizeResponsesContinuationItem,
     toExternalResponsesBody
 }
 

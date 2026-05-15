@@ -1403,7 +1403,7 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
 
     let result = texts.join('\n')
     if(thoughts.length > 0 && !result.startsWith('<Thoughts>')){
-        result = `<Thoughts>\n${thoughts.join('\n')}\n</Thoughts>\n${result}`
+        result = `<Thoughts>\n\n${thoughts.join('\n\n')}\n\n</Thoughts>\n\n${result}`
     }
     if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
         return extractJSON(result, arg.extractJson)

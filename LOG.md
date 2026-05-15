@@ -1,5 +1,26 @@
 # LOG
 
+## 2026-05-15 - OpenAI Responses API module split
+
+- Moved the OpenAI Responses API implementation out of `src/ts/process/request/openAI/requests.ts` into `src/ts/process/request/openAI/responses.ts`, keeping `requestOpenAIResponseAPI` and `__testResponsesAPI` re-exported from `requests.ts` for existing imports.
+- Moved the local-network request option helper shared by Chat Completions and Responses into `src/ts/process/request/openAI/shared.ts` to avoid introducing a circular dependency.
+- Left `src/ts/process/request/openAI/index.ts` behavior unchanged via the existing exports from `requests.ts`.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - failed, 21 passed and 3 failed; failures were existing reasoning-output whitespace expectations receiving extra blank lines in `<Thoughts>` output.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
+Follow-up validation:
+
+- Fixed the accidental Responses reasoning wrapper whitespace regression so full-response reasoning now formats as `<Thoughts>\n${reasoning}\n</Thoughts>\n${finalText}`, matching the pre-split behavior and existing tests.
+- Confirmed the split still avoids a circular import: `responses.ts` imports the shared local-network helper from `shared.ts`, and `requests.ts` only re-exports `requestOpenAIResponseAPI` and `__testResponsesAPI` from `responses.ts` for old imports.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 24 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
 ## 2026-05-15 - Responses API reasoning summary requests
 
 - Added default `reasoning.summary: 'auto'` to OpenAI Responses API request bodies when the selected model exposes `reasoning_effort`, preserving the existing `reasoning.effort` mapping and stateless `store: false` behavior.

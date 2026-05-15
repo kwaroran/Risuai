@@ -1324,6 +1324,47 @@ async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Recor
     return body
 }
 
+function collectResponsesReasoningText(value:any):string[]{
+    if(!value){
+        return []
+    }
+    if(typeof value === 'string'){
+        return [value]
+    }
+    if(Array.isArray(value)){
+        return value.flatMap((item) => collectResponsesReasoningText(item))
+    }
+    if(typeof value !== 'object'){
+        return []
+    }
+
+    const texts:string[] = []
+    for(const key of ['text', 'summary_text', 'reasoning_text', 'reasoning', 'summary']){
+        if(typeof value[key] === 'string'){
+            texts.push(value[key])
+        }
+    }
+    return texts
+}
+
+function extractResponsesReasoningTexts(item:any):string[]{
+    if(item?.type !== 'reasoning'){
+        return []
+    }
+
+    const texts = [
+        ...collectResponsesReasoningText(item.summary),
+        ...collectResponsesReasoningText(item.content),
+    ]
+    for(const key of ['text', 'summary_text', 'reasoning_text', 'reasoning']){
+        if(typeof item[key] === 'string'){
+            texts.push(item[key])
+        }
+    }
+
+    return texts.filter((text) => text.length > 0)
+}
+
 function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
     const db = getDatabase()
     const texts:string[] = []
@@ -1337,13 +1378,7 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
 
     for(const item of data?.output ?? []){
         if(item?.type === 'reasoning'){
-            const summary = item.summary ?? item.content ?? []
-            for(const s of summary){
-                const text = s?.text ?? s?.summary_text
-                if(text){
-                    thoughts.push(text)
-                }
-            }
+            thoughts.push(...extractResponsesReasoningTexts(item))
         }
         if(item?.type !== 'message'){
             continue
@@ -1505,6 +1540,16 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
     let error = ''
     const calls:Record<string, ResponseFunctionCall> = {}
 
+    const appendReasoning = (incoming?:string) => {
+        if(!incoming){
+            return
+        }
+        if(reasoning.endsWith(incoming)){
+            return
+        }
+        reasoning += incoming
+    }
+
     const emit = (controller:TransformStreamDefaultController<StreamResponseChunk>) => {
         let result = text
         if(reasoning){
@@ -1528,8 +1573,13 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
         else if(type === 'response.output_text.done' && event.text && !text.endsWith(event.text)){
             text = event.text
         }
-        else if(type === 'response.reasoning_summary_text.delta'){
-            reasoning += event.delta ?? ''
+        else if(type === 'response.reasoning_summary_text.delta' || type === 'response.reasoning_text.delta' || type === 'response.reasoning.delta'){
+            appendReasoning(event.delta)
+        }
+        else if(type === 'response.reasoning_summary_text.done' || type === 'response.reasoning_text.done'){
+            if(event.text && !reasoning.endsWith(event.text)){
+                reasoning = event.text
+            }
         }
         else if(type === 'response.function_call_arguments.delta'){
             const key = event.call_id ?? event.item_id ?? event.output_index?.toString() ?? '0'
@@ -1555,7 +1605,9 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
             const finalText = extractResponsesText(event.response, arg)
             if(finalText){
                 text = finalText
-                reasoning = ''
+                if(finalText.startsWith('<Thoughts>')){
+                    reasoning = ''
+                }
             }
             for(const call of extractResponsesFunctionCalls(event.response)){
                 calls[call.call_id] = call

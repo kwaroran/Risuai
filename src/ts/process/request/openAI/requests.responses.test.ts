@@ -319,6 +319,35 @@ describe('OpenAI Responses API helpers', () => {
         }, baseArg())).toBe('Cannot comply.')
     })
 
+    it('extracts OpenRouter-style reasoning content reasoning_text with final output_text', () => {
+        const text = __testResponsesAPI.extractResponsesText({
+            output: [
+                {
+                    id: 'rs_tmp_15f15eqwfj4',
+                    type: 'reasoning',
+                    status: 'completed',
+                    content: [{ type: 'reasoning_text', text: 'Hmm, the user just greeted me...' }],
+                    summary: [],
+                    format: 'unknown',
+                },
+                { type: 'message', content: [{ type: 'output_text', text: 'Hello there!' }] },
+            ],
+        }, baseArg())
+
+        expect(text).toBe('<Thoughts>\nHmm, the user just greeted me...\n</Thoughts>\nHello there!')
+    })
+
+    it('does not add an empty thoughts block for OpenAI-style empty reasoning summaries', () => {
+        const text = __testResponsesAPI.extractResponsesText({
+            output: [
+                { id: 'rs_0d1786ac1d609512016a07343fdca8819ca2d651a07a09a86d', type: 'reasoning', summary: [] },
+                { type: 'message', content: [{ type: 'output_text', text: 'Only final answer.' }] },
+            ],
+        }, baseArg())
+
+        expect(text).toBe('Only final answer.')
+    })
+
     it('treats incomplete non-streaming Responses results as failures even when partial text exists', async () => {
         mocks.globalFetch.mockResolvedValueOnce({
             ok: true,
@@ -412,7 +441,7 @@ describe('OpenAI Responses API helpers', () => {
             model: 'gpt-5',
             store: false,
             input: [
-                { id: 'rs_reasoning_bad', type: 'reasoning', summary: [] },
+                { id: 'rs_reasoning_bad', type: 'reasoning', content: [{ type: 'reasoning_text', text: 'private reasoning' }], summary: [] },
                 { id: 'fc_bad', type: 'function_call', call_id: 'call_1', name: 'lookup', arguments: '{}', status: 'completed' },
             ],
             __lastOutput: [{ type: 'function_call', call_id: 'call_1' }],
@@ -426,6 +455,8 @@ describe('OpenAI Responses API helpers', () => {
             store: false,
             input: [{ type: 'function_call', call_id: 'call_1', name: 'lookup', arguments: '{}', status: 'completed' }],
         })
+        expect(JSON.stringify(external.input)).not.toContain('rs_reasoning_bad')
+        expect(JSON.stringify(external.input)).not.toContain('private reasoning')
     })
 
     it('sanitizes non-streaming Responses tool continuation input with reasoning before a function call for store false', async () => {
@@ -560,6 +591,34 @@ describe('OpenAI Responses API helpers', () => {
 
         const chunks = await chunksPromise
         expect(chunks.at(-1)?.['0']).toBe('Hello')
+    })
+
+    it('streams reasoning_text deltas as thoughts', async () => {
+        const stream = __testResponsesAPI.getResponsesTranStream(baseArg())
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+
+        await writer.write(encoder.encode('data: {"type":"response.reasoning_text.delta","delta":"Thinking"}\n\n'))
+        await writer.write(encoder.encode('data: {"type":"response.output_text.delta","delta":"Answer"}\n\n'))
+        await writer.close()
+
+        const chunks = await chunksPromise
+        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\nThinking\n</Thoughts>\nAnswer')
+    })
+
+    it('uses completed streaming reasoning content without duplicating final output text', async () => {
+        const stream = __testResponsesAPI.getResponsesTranStream(baseArg())
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+
+        await writer.write(encoder.encode('data: {"type":"response.output_text.delta","delta":"Hello"}\n\n'))
+        await writer.write(encoder.encode('data: {"type":"response.completed","response":{"output":[{"type":"reasoning","content":[{"type":"reasoning_text","text":"Reasoned once"}],"summary":[]},{"type":"message","content":[{"type":"output_text","text":"Hello"}]}]}}\n\n'))
+        await writer.close()
+
+        const chunks = await chunksPromise
+        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\nReasoned once\n</Thoughts>\nHello')
     })
 
     it('emits useful text for streaming error events', async () => {

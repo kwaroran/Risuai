@@ -1,5 +1,17 @@
 # LOG
 
+## 2026-05-15 - Responses API reasoning text parsing
+
+- Root cause: Responses reasoning items vary by provider, but the parser only handled a narrow summary shape and streaming only listened for `response.reasoning_summary_text.delta`, so OpenRouter-style `content[].type = reasoning_text` and other reasoning-text variants were missed.
+- Fixed non-streaming extraction to collect reasoning text from summary arrays, content arrays, direct reasoning text fields, and common text field names while preserving the existing no-empty-`<Thoughts>` behavior for empty summaries.
+- Fixed streaming extraction to accept reasoning text delta/done event variants, keep streamed reasoning when a completed event only contains final text, and let completed full-response parsing replace the stream state without duplicating final output.
+- Re-checked stateless continuation sanitization so reasoning items and `rs_...` ids are dropped from external follow-up input.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 21 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
 ## 2026-05-14 - OpenAI Responses API final outbound continuation sanitization
 
 - Followed up on the persisted `rs_...` reasoning item report where a Responses tool call output contained a reasoning item before the `function_call`, and the next stateless request still failed with `Item with id 'rs_...' not found`.

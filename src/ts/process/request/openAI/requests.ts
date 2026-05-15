@@ -1310,6 +1310,10 @@ async function buildResponsesBody(arg:RequestDataArgumentExtended):Promise<Recor
     if(body.tools.length === 0){
         delete body.tools
     }
+    if(arg.modelInfo.parameters.includes('reasoning_effort' as any)){
+        body.reasoning ??= {}
+        body.reasoning.summary ??= 'auto'
+    }
     if(arg.aiModel === 'ollama-cloud'){
         delete body.store
     }

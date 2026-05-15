@@ -1,5 +1,16 @@
 # LOG
 
+## 2026-05-15 - Responses API reasoning summary requests
+
+- Added default `reasoning.summary: 'auto'` to OpenAI Responses API request bodies when the selected model exposes `reasoning_effort`, preserving the existing `reasoning.effort` mapping and stateless `store: false` behavior.
+- Kept non-reasoning Responses models and Chat Completions requests unchanged, and left reverse proxy/custom additional parameters able to override `reasoning.summary` after body construction.
+- Added deterministic coverage for reasoning-model defaults, non-reasoning model omission, and reverse proxy additional-param override.
+
+Commands run:
+
+- `./node_modules/.bin/vitest run src/ts/process/request/openAI/requests.responses.test.ts` - passed, 24 tests.
+- `./node_modules/.bin/svelte-check --tsconfig ./tsconfig.json` - passed, 0 errors and 0 warnings.
+
 ## 2026-05-15 - Responses API reasoning text parsing
 
 - Root cause: Responses reasoning items vary by provider, but the parser only handled a narrow summary shape and streaming only listened for `response.reasoning_summary_text.delta`, so OpenRouter-style `content[].type = reasoning_text` and other reasoning-text variants were missed.

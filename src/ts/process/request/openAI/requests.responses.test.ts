@@ -210,7 +210,7 @@ describe('OpenAI Responses API helpers', () => {
             store: false,
             temperature: 0.7,
             top_p: 0.9,
-            reasoning: { effort: 'high' },
+            reasoning: { effort: 'high', summary: 'auto' },
             text: {
                 verbosity: 'low',
                 format: {
@@ -239,6 +239,39 @@ describe('OpenAI Responses API helpers', () => {
             { type: 'web_search_preview' },
         ])
         expect(sourceMessages[1]).toMatchObject({ role: 'user', content: 'Describe this.', multimodals: [{ type: 'image', base64: 'data:image/png;base64,abc' }] })
+    })
+
+    it('requests reasoning summaries for Responses reasoning models', async () => {
+        const body = await __testResponsesAPI.buildResponsesBody(baseArg())
+
+        expect(body.reasoning).toEqual({ effort: 'high', summary: 'auto' })
+    })
+
+    it('does not request reasoning summaries for Responses non-reasoning models', async () => {
+        const body = await __testResponsesAPI.buildResponsesBody(baseArg({
+            modelInfo: {
+                ...baseArg().modelInfo,
+                parameters: ['temperature', 'top_p', 'verbosity'],
+            },
+        }))
+
+        expect(body.reasoning?.summary).toBeUndefined()
+    })
+
+    it('lets reverse proxy additional params override Responses reasoning summaries', async () => {
+        mocks.db.additionalParams = [
+            ['reasoning.summary', 'detailed'],
+        ]
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: 'reverse_proxy',
+            customURL: 'https://proxy.example/v1/responses',
+            previewBody: true,
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body.reasoning).toEqual({ effort: 'high', summary: 'detailed' })
     })
 
     it('uses OpenAI defaults and an externally clean non-streaming body', async () => {

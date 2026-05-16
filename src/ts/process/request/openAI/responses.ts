@@ -4,23 +4,15 @@ import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags } from "src/ts/model/modellist"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { simplifySchema } from "src/ts/util"
+import { NANOGPT_RESPONSES_ENDPOINT, NANOGPT_SUBSCRIPTION_RESPONSES_ENDPOINT } from "src/ts/model/providers/nanogpt"
 
 import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
 import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
-import type { OpenAIChatExtra, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
+import type { OpenAIChatExtra, ResponseFunctionCallItem, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
 import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
-
-type ResponseFunctionCall = {
-    type: 'function_call'
-    id?: string
-    call_id: string
-    name: string
-    arguments: string
-    status?: string
-}
 
 function responseTextContentToString(content:any):string{
     if(typeof content === 'string'){
@@ -62,12 +54,12 @@ async function decodeRememberedToolCallsForResponses(text:string):Promise<Respon
                 name: decoded.call.name,
                 arguments: decoded.call.arg,
                 status: 'completed'
-            } as any)
+            })
             items.push({
                 type: 'function_call_output',
                 call_id: decoded.call.id,
                 output: decoded.response.filter((m) => m.type === 'text').map((m) => m.text).join('\n')
-            } as any)
+            })
         }
     }
 
@@ -97,7 +89,7 @@ async function buildResponseInputItems(arg:RequestDataArgumentExtended):Promise<
                     type: 'function_call_output',
                     call_id: content.tool_call_id ?? '',
                     output: responseTextContentToString(content.content)
-                } as any)
+                })
                 break
             }
             case 'assistant':{
@@ -123,7 +115,7 @@ async function buildResponseInputItems(arg:RequestDataArgumentExtended):Promise<
                             name: toolCall.function.name,
                             arguments: toolCall.function.arguments,
                             status: 'completed'
-                        } as any)
+                        })
                     }
                 }
                 break
@@ -174,7 +166,7 @@ function getResponsesRequestURL(arg:RequestDataArgumentExtended):{requestURL:str
     const db = getDatabase()
     const aiModel = arg.aiModel
     let requestURL = aiModel === 'nanogpt'
-        ? (db.nanogptUseSubscriptionEndpoint ? 'https://nano-gpt.com/api/subscription/v1/responses' : 'https://nano-gpt.com/api/v1/responses')
+        ? (db.nanogptUseSubscriptionEndpoint ? NANOGPT_SUBSCRIPTION_RESPONSES_ENDPOINT : NANOGPT_RESPONSES_ENDPOINT)
         : (arg.customURL ?? "https://api.openai.com/v1/responses")
     if(arg.modelInfo?.endpoint){
         requestURL = arg.modelInfo.endpoint
@@ -271,7 +263,7 @@ function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
             name: item.name,
             arguments: item.arguments ?? '',
             status: item.status ?? 'completed'
-        } as any
+        }
     }
 
     if(item?.type === 'message'){
@@ -290,7 +282,7 @@ function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
             role: item.role ?? 'assistant',
             status: item.status ?? 'completed',
             content
-        } as any
+        }
     }
 
     return null
@@ -459,16 +451,16 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
     return result
 }
 
-function extractResponsesFunctionCalls(data:any):ResponseFunctionCall[]{
+function extractResponsesFunctionCalls(data:any):ResponseFunctionCallItem[]{
     return (data?.output ?? [])
         .filter((item:any) => item?.type === 'function_call' && item.name && item.call_id)
         .map((item:any) => sanitizeResponsesContinuationItem(item))
-        .filter(Boolean) as ResponseFunctionCall[]
+        .filter((item:any): item is ResponseFunctionCallItem => item?.type === 'function_call')
 }
 
-async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCall[], arg:RequestDataArgumentExtended, assistantText:string):Promise<string>{
+async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCallItem[], arg:RequestDataArgumentExtended, assistantText:string):Promise<string>{
     const db = getDatabase()
-    const input = body.input as any[]
+    const input = body.input as ResponseItem[]
     for(const item of body.__lastOutput ?? []){
         const sanitized = sanitizeResponsesContinuationItem(item)
         if(!sanitized){
@@ -589,7 +581,7 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
     let text = ''
     let reasoning = ''
     let error = ''
-    const calls:Record<string, ResponseFunctionCall> = {}
+    const calls:Record<string, ResponseFunctionCallItem> = {}
 
     const appendReasoning = (incoming?:string) => {
         if(!incoming){
@@ -740,7 +732,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                     continue
                 }
 
-                const calls = Object.values(JSON.parse(lastValue?.["__tool_calls"] || '{}') || {}) as ResponseFunctionCall[]
+                const calls = Object.values(JSON.parse(lastValue?.["__tool_calls"] || '{}') || {}) as ResponseFunctionCallItem[]
                 if(calls.length === 0){
                     controller.close()
                     return

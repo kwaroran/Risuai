@@ -345,7 +345,7 @@ describe('OpenAI Responses API helpers', () => {
                 { type: 'reasoning', summary: [{ text: 'reasoned' }] },
                 { type: 'message', content: [{ type: 'output_text', text: 'answer' }] },
             ],
-        }, baseArg())).toBe('<Thoughts>\nreasoned\n</Thoughts>\nanswer')
+        }, baseArg())).toBe('<Thoughts>\n\nreasoned\n\n</Thoughts>\nanswer')
 
         expect(__testResponsesAPI.extractResponsesText({
             output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'Cannot comply.' }] }],
@@ -367,7 +367,7 @@ describe('OpenAI Responses API helpers', () => {
             ],
         }, baseArg())
 
-        expect(text).toBe('<Thoughts>\nHmm, the user just greeted me...\n</Thoughts>\nHello there!')
+        expect(text).toBe('<Thoughts>\n\nHmm, the user just greeted me...\n\n</Thoughts>\nHello there!')
     })
 
     it('does not add an empty thoughts block for OpenAI-style empty reasoning summaries', () => {
@@ -637,7 +637,7 @@ describe('OpenAI Responses API helpers', () => {
         await writer.close()
 
         const chunks = await chunksPromise
-        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\nThinking\n</Thoughts>\nAnswer')
+        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\n\nThinking\n\n</Thoughts>\nAnswer')
     })
 
     it('uses completed streaming reasoning content without duplicating final output text', async () => {
@@ -651,7 +651,7 @@ describe('OpenAI Responses API helpers', () => {
         await writer.close()
 
         const chunks = await chunksPromise
-        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\nReasoned once\n</Thoughts>\nHello')
+        expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\n\nReasoned once\n\n</Thoughts>\nHello')
     })
 
     it('emits useful text for streaming error events', async () => {

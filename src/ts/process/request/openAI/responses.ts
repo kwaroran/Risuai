@@ -48,7 +48,7 @@ async function decodeRememberedToolCallsForResponses(text:string):Promise<Respon
             items.push({
                 content: [{ type: 'output_text', text: currentContent, annotations: [] }],
                 role: 'assistant',
-                status: 'complete',
+                status: 'completed',
                 type: 'message'
             })
             currentContent = ''
@@ -75,7 +75,7 @@ async function decodeRememberedToolCallsForResponses(text:string):Promise<Respon
         items.push({
             content: [{ type: 'output_text', text: currentContent, annotations: [] }],
             role: 'assistant',
-            status: 'complete',
+            status: 'completed',
             type: 'message'
         })
     }
@@ -110,7 +110,7 @@ async function buildResponseInputItems(arg:RequestDataArgumentExtended):Promise<
                 const item:ResponseOutputItem = {
                     content: text ? [{ type: 'output_text', text: text, annotations: [] }] : [],
                     role: 'assistant',
-                    status: 'complete',
+                    status: 'completed',
                     type: 'message',
                 }
                 items.push(item)
@@ -288,7 +288,7 @@ function sanitizeResponsesContinuationItem(item:any):ResponseItem | null{
         return {
             type: 'message',
             role: item.role ?? 'assistant',
-            status: item.status ?? 'complete',
+            status: item.status ?? 'completed',
             content
         } as any
     }
@@ -450,7 +450,7 @@ function extractResponsesText(data:any, arg:RequestDataArgumentExtended):string{
 
     let result = texts.join('\n')
     if(thoughts.length > 0 && !result.startsWith('<Thoughts>')){
-        result = `<Thoughts>\n${thoughts.join('\n')}\n</Thoughts>\n${result}`
+        result = `<Thoughts>\n\n${thoughts.join('\n\n')}\n\n</Thoughts>\n${result}`
     }
     if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
         return extractJSON(result, arg.extractJson)

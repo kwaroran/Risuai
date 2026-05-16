@@ -27,7 +27,7 @@ export interface ResponseOutputItem {
         annotations: []
     }[]
     type: 'message'
-    status: 'in_progress' | 'complete' | 'incomplete'
+    status: 'in_progress' | 'completed' | 'incomplete'
     role: 'assistant'
 }
 

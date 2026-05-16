@@ -598,13 +598,16 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
         if(reasoning.endsWith(incoming)){
             return
         }
+        if(reasoning){
+            reasoning += "\n\n"
+        }
         reasoning += incoming
     }
 
     const emit = (controller:TransformStreamDefaultController<StreamResponseChunk>) => {
         let result = text
         if(reasoning){
-            result = `<Thoughts>\n${reasoning}\n</Thoughts>\n${result}`
+            result = `<Thoughts>\n\n${reasoning}\n\n</Thoughts>\n${result}`
         }
         if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
             result = extractJSON(result, arg.extractJson)

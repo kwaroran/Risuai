@@ -578,9 +578,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         body.tools = undefined
     }
 
-    if(arg.aiModel === 'reverse_proxy' || arg.aiModel?.startsWith('xcustom:::')){
-        body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
-    }
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
 
     if(arg.previewBody){
         return {

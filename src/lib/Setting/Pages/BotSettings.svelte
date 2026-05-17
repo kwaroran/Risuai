@@ -672,7 +672,6 @@
         </div>
     </Accordion>
 
-    {#if DBState.db.aiModel === 'reverse_proxy'}
     <Accordion styled name="{language.additionalParams} " help="additionalParams">
         <table class="contain w-full max-w-full tabler">
             <tbody>
@@ -687,7 +686,7 @@
                     }}><PlusIcon /></button>
                 </th>
             </tr>
-            {#if DBState.db.bias.length === 0}
+            {#if DBState.db.additionalParams.length === 0}
                 <tr class="text-textcolor2">
                     <td colspan="3">{language.noData}</td>
                 </tr>
@@ -712,7 +711,6 @@
             </tbody>
         </table>
     </Accordion>
-    {/if}
 
 
     <Accordion styled name={language.promptTemplate}>

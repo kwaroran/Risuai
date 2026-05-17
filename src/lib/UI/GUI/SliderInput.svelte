@@ -24,10 +24,16 @@
     </div>
   {/if}
   <div 
+    role="slider"
+    tabindex="0"
+    aria-valuemin={min}
+    aria-valuemax={max}
+    aria-valuenow={sliderValue}
+    aria-valuetext={displayText}
     class="relative w-full h-8 border-darkborderc border rounded-full cursor-pointer"
     class:rounded-l-none={disableable}
     style:background={
-      `linear-gradient(to right, var(--risu-theme-darkbutton) 0%, var(--risu-theme-darkbutton) ${(value - min) / (max - min) * 100}%, var(--risu-theme-darkbg) ${(value - min) / (max - min) * 100}%, var(--risu-theme-darkbg) 100%)`
+      `linear-gradient(to right, var(--risu-theme-darkbutton) 0%, var(--risu-theme-darkbutton) ${sliderPercent}%, var(--risu-theme-darkbg) ${sliderPercent}%, var(--risu-theme-darkbg) 100%)`
     }
     onpointerdown={(event) => {
       mouseDown = true;
@@ -48,6 +54,7 @@
     onpointerleave={() => {
       mouseDown = false;
     }}
+    onkeydown={handleKeydown}
     bind:this={slider}
   >
     <!-- <div 
@@ -58,7 +65,7 @@
     <span 
       class="absolute top-0 left-4 h-8 rounded-full items-center justify-center flex text-textcolor text-sm"
     >
-      {customText === undefined ? ((value === -1000 || value === undefined) ? language.disabled : (value * multiple).toFixed(fixed)) : customText}
+      {displayText}
     </span>
   </div>
 </div>
@@ -96,12 +103,43 @@
     onchange
   }: Props = $props();
 
-    function changeValue(event) {
+  let isDisabledValue = $derived(value === -1000 || value === undefined);
+  let sliderValue = $derived(isDisabledValue ? min : value);
+  let sliderPercent = $derived((sliderValue - min) / (max - min) * 100);
+  let displayText = $derived(customText === undefined ? (isDisabledValue ? language.disabled : (value * multiple).toFixed(fixed)) : customText);
+
+    function changeValue(event: PointerEvent) {
         const rect = slider.getBoundingClientRect();
         const x = event.clientX - rect.left;
         console.log(x, rect.width);
         let newValue = ((x / rect.width) * (max - min)) + min;
         newValue = Math.round(newValue / step) * step;
+        value = Math.min(Math.max(newValue, min), max);
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+        let newValue = isDisabledValue ? min : value;
+
+        switch (event.key) {
+            case 'ArrowLeft':
+            case 'ArrowDown':
+                newValue -= step;
+                break;
+            case 'ArrowRight':
+            case 'ArrowUp':
+                newValue += step;
+                break;
+            case 'Home':
+                newValue = min;
+                break;
+            case 'End':
+                newValue = max;
+                break;
+            default:
+                return;
+        }
+
+        event.preventDefault();
         value = Math.min(Math.max(newValue, min), max);
     }
 </script>

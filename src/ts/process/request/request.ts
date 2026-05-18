@@ -1171,16 +1171,19 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
             type: 'success',
             result: JSON.stringify({
                 url: isCloud ? 'https://ollama.com/api/chat' : `${db.ollamaURL}/api/chat`,
-                body: requestBody,
+                model: ollamaModel,
                 source: db.ollamaModelSource,
-                headers: customHeaders
+                stream: arg.useStreaming,
+                think: ollamaThinkMode,
+                headers: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
+                body: requestBody
             })
         }
     }
 
     const ollama = new Ollama({
         host: isCloud ? 'https://ollama.com' : db.ollamaURL,
-        headers: customHeaders,
+        headers: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
         fetch: isCloud ? ollamaCloudFetch : undefined
     })
 

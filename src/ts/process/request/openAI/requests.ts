@@ -948,7 +948,7 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
         "Authorization": "Bearer " + (arg.key ?? db.openAIKey)
     }
 
-    body = applyAdditionalParameters(body, headers, getAdditionalParameters(db.aiModel))
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
 
     const response = await globalFetch(arg.customURL ?? "https://api.openai.com/v1/completions", {
         body: body,
@@ -1120,10 +1120,6 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
 
-    if(db.modelTools.includes('search')){
-        body.tools.push('web_search_preview')
-    }
-
     body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
 
     if(arg.previewBody){
@@ -1135,6 +1131,10 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
                 headers: headers
             })
         }
+    }
+
+    if(db.modelTools.includes('search')){
+        body.tools.push('web_search_preview')
     }
 
     const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, false)

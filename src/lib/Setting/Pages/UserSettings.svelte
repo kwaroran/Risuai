@@ -91,7 +91,9 @@
 
 <Button
     onclick={async () => {
-        cleanColdStorage()
+        if(await alertConfirm(language.cleanColdStorageConfirm)){
+            cleanColdStorage()
+        }
     }} className="mt-2">
     {language.cleanColdStorage}
 </Button>

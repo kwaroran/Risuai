@@ -69,7 +69,7 @@
   let charImages: sortType[] = $state([]);
   let IconRounded = $state(false)
   let openFolders:string[] = $state([])
-  let currentDrag: DragData = $state(null)
+  let currentDrag: DragData | null = $state(null)
   interface Props {
     openGrid?: any;
     hidden?: boolean;

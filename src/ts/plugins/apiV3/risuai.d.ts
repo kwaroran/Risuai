@@ -100,6 +100,25 @@
 // ============================================================================
 
 /**
+ * Inlay asset shape returned by `risuai.readInlay`.
+ * `data` is a base64 data-URI string (e.g. `"data:image/png;base64,iVBORw0..."`).
+ */
+interface InlayAssetForPlugin {
+    /** Base64 data-URI string (`data:<mime>;base64,...`) */
+    data: string;
+    /** File extension without leading dot (e.g. `"png"`, `"webp"`, `"mp3"`) */
+    ext: string;
+    /** Original asset filename */
+    name: string;
+    /** Asset category */
+    type: 'image' | 'video' | 'audio' | 'signature';
+    /** Pixel height (for images/videos) */
+    height?: number;
+    /** Pixel width (for images/videos) */
+    width?: number;
+}
+
+/**
  * MCP tool definition
  */
 interface MCPToolDef {
@@ -1831,6 +1850,30 @@ interface RisuaiPluginAPI {
      * @returns Image data
      */
     readImage(path?: string): Promise<any>;
+
+    /**
+     * Reads an inlay asset (image / audio / video / signature) attached by the
+     * user in chat, by its UUID. The UUID can be extracted from raw message
+     * text via the `{{inlayed::<uuid>}}` placeholder
+     * (`getChatFromIndex(...).message[i].data`).
+     *
+     * Returns `null` if no asset exists for that UUID.
+     *
+     * @param id - Inlay UUID
+     * @returns Asset with `data` as a base64 data-URI string, or `null`
+     *
+     * @example
+     * ```typescript
+     * const m = rawMessageData.match(/\{\{inlayed::([a-f0-9-]+)\}\}/i);
+     * if (m) {
+     *     const inlay = await risuai.readInlay(m[1]);
+     *     // inlay.data === "data:image/png;base64,iVBORw0..."
+     *     // inlay.ext  === "png"
+     *     // inlay.type === "image"
+     * }
+     * ```
+     */
+    readInlay(id: string): Promise<InlayAssetForPlugin | null>;
 
     /**
      * Saves an asset

@@ -335,29 +335,44 @@
     }
   }
 
-  const avatarDragOver = (e:DragEv) => {
-    e.preventDefault()
-    if(currentDrag){
-      e.stopPropagation()
-      e.dataTransfer.dropEffect = 'move'
+  const clearCurrentDrag = () => {
+    currentDrag = null
+  }
+
+  const getCurrentSidebarDrag = (e:DragEvent) => {
+    if(!currentDrag || !e.dataTransfer?.types.includes('application/x-risu-internal')){
+      return null
     }
+    return currentDrag
+  }
+
+  const avatarDragOver = (e:DragEv) => {
+    if(!getCurrentSidebarDrag(e)){
+      return
+    }
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
   }
 
   const avatarDrop = (ind:DragData, e:DragEv) => {
-    e.preventDefault()
-    if(!currentDrag){
+    const drag = getCurrentSidebarDrag(e)
+    if(!drag){
       return
     }
+    e.preventDefault()
     e.stopPropagation()
     try {
-      createFolder(currentDrag,ind)
+      createFolder(drag,ind)
     } catch (error) {
       console.error('avatarDrop error:', error)
+    } finally {
+      clearCurrentDrag()
     }
   }
 
-  const preventAll = (e:Event) => {
-    if(!currentDrag){
+  const preventAll = (e:DragEvent) => {
+    if(!getCurrentSidebarDrag(e)){
       return
     }
     e.preventDefault()
@@ -511,25 +526,31 @@
   {/if}
   <div class="flex grow w-full flex-col items-center overflow-x-hidden overflow-y-auto pr-0">
     <div class="h-4 min-h-4 w-14" role="listitem" ondragover={(e) => {
+      if(!getCurrentSidebarDrag(e)){ return }
       e.preventDefault()
-      if(!currentDrag){ return }
       e.stopPropagation()
       e.dataTransfer.dropEffect = 'move'
       e.currentTarget.classList.add('bg-green-500')
     }} ondragleave={(e) => {
       e.currentTarget.classList.remove('bg-green-500')
     }} ondrop={(e) => {
+      const drag = getCurrentSidebarDrag(e)
+      if(!drag){ return }
       e.preventDefault()
-      if(!currentDrag){ return }
       e.stopPropagation()
       e.currentTarget.classList.remove('bg-green-500')
-      inserter(currentDrag,{index:0})
+      try {
+        inserter(drag,{index:0})
+      } finally {
+        clearCurrentDrag()
+      }
     }} ondragenter={preventAll}></div>
     {#each charImages as char, ind}
       <div class="group relative flex items-center px-2"
         role="listitem"
         draggable="true"
         ondragstart={(e) => {avatarDragStart({index:ind}, e)}}
+        ondragend={clearCurrentDrag}
         ondragover={avatarDragOver}
         ondrop={(e) => {avatarDrop({index:ind}, e)}}
         ondragenter={preventAll}
@@ -666,20 +687,25 @@
             'bg-darkbg/20'
           }"></div>
           <div class="h-4 min-h-4 w-14 relative z-10" role="listitem" ondragover={(e) => {
+            if(!getCurrentSidebarDrag(e)){ return }
             e.preventDefault()
-            if(!currentDrag){ return }
             e.stopPropagation()
             e.dataTransfer.dropEffect = 'move'
             e.currentTarget.classList.add('bg-green-500')
           }} ondragleave={(e) => {
             e.currentTarget.classList.remove('bg-green-500')
           }} ondrop={(e) => {
+            const drag = getCurrentSidebarDrag(e)
+            if(!drag){ return }
             e.preventDefault()
-            if(!currentDrag){ return }
             e.stopPropagation()
             e.currentTarget.classList.remove('bg-green-500')
-            if(char.type === 'folder'){
-              inserter(currentDrag,{index:0,folder:char.id})
+            try {
+              if(char.type === 'folder'){
+                inserter(drag,{index:0,folder:char.id})
+              }
+            } finally {
+              clearCurrentDrag()
             }
           }} ondragenter={preventAll}></div>
           {#each char.folder as char2, ind}
@@ -687,6 +713,7 @@
               role="listitem"
               draggable="true"
               ondragstart={(e) => {if(char.type === 'folder'){avatarDragStart({index: ind, folder:char.id}, e)}}}
+              ondragend={clearCurrentDrag}
               ondragover={avatarDragOver}
               ondrop={(e) => {if(char.type === 'folder'){avatarDrop({index: ind, folder:char.id}, e)}}}
               ondragenter={preventAll}
@@ -720,20 +747,25 @@
               </div>
             </div>
             <div class="h-4 min-h-4 w-14 relative z-20" role="listitem" ondragover={(e) => {
+              if(!getCurrentSidebarDrag(e)){ return }
               e.preventDefault()
-              if(!currentDrag){ return }
               e.stopPropagation()
               e.dataTransfer.dropEffect = 'move'
               e.currentTarget.classList.add('bg-green-500')
             }} ondragleave={(e) => {
               e.currentTarget.classList.remove('bg-green-500')
             }} ondrop={(e) => {
+              const drag = getCurrentSidebarDrag(e)
+              if(!drag){ return }
               e.preventDefault()
-              if(!currentDrag){ return }
               e.stopPropagation()
               e.currentTarget.classList.remove('bg-green-500')
-              if(char.type === 'folder'){
-                inserter(currentDrag,{index:ind+1,folder:char.id})
+              try {
+                if(char.type === 'folder'){
+                  inserter(drag,{index:ind+1,folder:char.id})
+                }
+              } finally {
+                clearCurrentDrag()
               }
             }} ondragenter={preventAll}></div>
           {/each}
@@ -741,19 +773,24 @@
         {/key}
       {/if}
       <div class="h-4 min-h-4 w-14" role="listitem" ondragover={((e) => {
+        if(!getCurrentSidebarDrag(e)){ return }
         e.preventDefault()
-        if(!currentDrag){ return }
         e.stopPropagation()
         e.dataTransfer.dropEffect = 'move'
         e.currentTarget.classList.add('bg-green-500')
       })} ondragleave={(e) => {
         e.currentTarget.classList.remove('bg-green-500')
       }} ondrop={(e) => {
+        const drag = getCurrentSidebarDrag(e)
+        if(!drag){ return }
         e.preventDefault()
-        if(!currentDrag){ return }
         e.stopPropagation()
         e.currentTarget.classList.remove('bg-green-500')
-        inserter(currentDrag,{index:ind+1})
+        try {
+          inserter(drag,{index:ind+1})
+        } finally {
+          clearCurrentDrag()
+        }
       }} ondragenter={preventAll}></div>
     {/each}
     <div class="flex flex-col items-center gap-2 px-2">

@@ -48,7 +48,7 @@
         aria-label={stateLabel}
     />
     <span 
-        class="relative inline-flex h-6 w-10 min-w-10 shrink-0 items-center rounded-full border border-darkborderc {check ? 'bg-borderc' : 'bg-darkbutton'} transition-colors duration-200 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-borderc"
+        class="relative inline-flex h-6 w-[2.625rem] min-w-[2.625rem] shrink-0 items-center rounded-full border border-darkborderc {check ? 'bg-borderc' : 'bg-darkbutton'} transition-colors duration-200 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-borderc"
         aria-hidden="true"
     >
         <span

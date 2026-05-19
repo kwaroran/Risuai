@@ -44,10 +44,18 @@
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
+    const internalDragType = 'application/x-risu-internal'
 
     const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] => {
         const types = Array.from(e.dataTransfer?.types ?? [])
+        if(types.includes(internalDragType)){
+            return 'none'
+        }
         return types.includes('Files') ? 'copy' : 'link'
+    }
+
+    const markInternalDrag = (e:DragEvent) => {
+        e.dataTransfer?.setData(internalDragType, 'true')
     }
 </script>
 
@@ -56,9 +64,9 @@
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = getMainDropEffect(e)
-}} ondrop={async (e) => {
+}} ondragstart={markInternalDrag} ondrop={async (e) => {
     e.preventDefault()
-    if (e.dataTransfer.types.includes('application/x-risu-internal')) {
+    if (e.dataTransfer.types.includes(internalDragType)) {
         return
     }
     const file = e.dataTransfer.files[0]

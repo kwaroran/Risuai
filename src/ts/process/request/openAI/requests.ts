@@ -14,7 +14,7 @@ import { applyChatTemplate } from "../../templates/chatTemplate"
 import { supportsInlayImage } from "../../files/inlays"
 import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
-import { applyParameters, setObjectValue } from '../shared'
+import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
 
@@ -214,6 +214,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(aiModel === 'reverse_proxy'){
         requestModel = db.customProxyRequestModel
     }
+    if(aiModel === 'nanogpt'){
+        requestModel = db.nanogptRequestModel
+    }
 
     if(aiModel === 'openrouter' && db.openrouterRequestModel === 'risu/free'){
         openrouterRequestModel = await getFreeOpenRouterModels()
@@ -323,7 +326,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 const msg:OpenAIChatFull = (dat.choices[0].message)
                 return {
                     type: 'success',
-                    result: msg.content
+                    result: msg.content ?? ''
                 }
             } catch (error) {                    
                 return {
@@ -352,7 +355,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     let body:{
         [key:string]:any
     } = ({
-        model: aiModel === 'openrouter' ? openrouterRequestModel :
+        model: aiModel === 'nanogpt' ? db.nanogptRequestModel :
+            aiModel === 'openrouter' ? openrouterRequestModel :
             requestModel ===  'gpt35' ? 'gpt-3.5-turbo'
             : requestModel ===  'gpt35_0613' ? 'gpt-3.5-turbo-0613'
             : requestModel ===  'gpt35_16k' ? 'gpt-3.5-turbo-16k'
@@ -457,6 +461,22 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     )
 
+    if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
+        if(db.deepseekThinkingType === 'enabled'){
+            body.thinking = {
+                type: 'enabled',
+                reasoning_effort: db.deepseekReasoningEffort ?? 'high'
+            }
+            delete body.temperature
+            delete body.top_p
+            delete body.frequency_penalty
+            delete body.presence_penalty
+        }
+        else{
+            body.thinking = { type: 'disabled' }
+        }
+    }
+
     if(arg.tools && arg.tools.length > 0){
         body.tools = arg.tools.map(tool => {
             return {
@@ -495,7 +515,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    let replacerURL = aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
+    let replacerURL = aiModel === 'nanogpt' ? (db.nanogptUseSubscriptionEndpoint ? 'https://nano-gpt.com/api/subscription/v1/chat/completions' : 'https://nano-gpt.com/api/v1/chat/completions') :
+        aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
         (arg.customURL) ?? ('https://api.openai.com/v1/chat/completions')
 
     if(arg.modelInfo?.endpoint){
@@ -526,7 +547,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     }
 
     let headers = {
-        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
+        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
         "Content-Type": "application/json"
     }
 
@@ -536,6 +557,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(aiModel === 'openrouter'){
         headers["X-Title"] = 'RisuAI'
         headers["HTTP-Referer"] = 'https://risuai.xyz'
+    }
+    if(aiModel === 'nanogpt' && db.nanogptProvider){
+        headers["X-Provider"] = db.nanogptProvider
     }
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
@@ -551,70 +575,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body.n = db.genTime
     }
     if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
-        let additionalParams = aiModel === 'reverse_proxy' ? db.additionalParams : []
-
-        if(aiModel.startsWith('xcustom:::')){
-            const found = db.customModels.find(m => m.id === aiModel)
-            const params = found?.params
-            if(params){
-                const lines = params.split('\n')
-                for(const line of lines){
-                    const split = line.split('=')
-                    if(split.length >= 2){
-                        additionalParams.push([split[0], split.slice(1).join('=')])
-                    }
-                }
-            }
-        }
-
-        for(let i=0;i<additionalParams.length;i++){
-            let key = additionalParams[i][0]
-            let value = additionalParams[i][1]
-
-            if(!key || !value){
-                continue
-            }
-
-            if(value === '{{none}}'){
-                if(key.startsWith('header::')){
-                    key = key.replace('header::', '')
-                    delete headers[key]
-                }
-                else{
-                    delete body[key]
-                }
-                continue
-            }
-
-            if(key.startsWith('header::')){
-                key = key.replace('header::', '')
-                headers[key] = value
-            }
-            else if(value.startsWith('json::')){
-                value = value.replace('json::', '')
-                try {
-                    body[key] = JSON.parse(value)                            
-                } catch (error) {}
-            }
-            else if((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))){
-                body = setObjectValue(body, key, value.slice(1, -1))
-            }
-            else if(value === 'true' || value === 'false'){
-                body = setObjectValue(body, key, value === 'true')
-            }
-            else if(value === 'null'){
-                body = setObjectValue(body, key, null)
-            }
-            else{
-                const num = Number(value)
-                if(isNaN(num)){
-                    body = setObjectValue(body, key, value)
-                }
-                else{
-                    body = setObjectValue(body, key, num)
-                }
-            }
-        }
+        body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
     }
 
     // Some aux flows are intentionally non-streaming (e.g. memory/translate).
@@ -744,23 +705,20 @@ export async function requestHTTPOpenAI(
             return extractJSON(dat.choices[0].message.content, arg.extractJson)
         }
         const msg:OpenAIChatFull = (dat.choices[0].message)
-        let result = msg.content
-        if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
-            console.log("Checking for reasoning content")
+        let result = msg.content ?? ''
+        const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
+        if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningContentField){
             let reasoningContent = ""
             result = result.replace(/(.*)\<\/think\>/gms, (m, p1) => {
                 reasoningContent = p1
                 return ""
             })
-            console.log(`Reasoning Content: ${reasoningContent}`)
             if(reasoningContent){
                 reasoningContent = reasoningContent.replace(/\<think\>/gms, '')
                 result = `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${result}`
             }
         }
-        // For deepseek Official Reasoning Model: https://api-docs.deepseek.com/guides/thinking_mode#api-example
-        const reasoningContentField = dat?.choices[0]?.reasoning_content ?? dat?.choices[0]?.message?.reasoning_content
-        if(reasoningContentField){
+        if(reasoningContentField && !result.startsWith('<Thoughts>')){
             result = `<Thoughts>\n${reasoningContentField}\n</Thoughts>\n${result}`
         }
         // For openrouter, https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request#response.body.choices.message.reasoning
@@ -897,7 +855,7 @@ export async function requestHTTPOpenAI(
                 if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
                     
                     const c = dat.choices.map((v:{message:{content:string}}) => {
-                        const extracted = extractJSON(v.message.content, arg.extractJson)
+                        const extracted = extractJSON(v.message.content ?? '', arg.extractJson)
                         return ["char", extracted]
                     })
                     
@@ -909,7 +867,7 @@ export async function requestHTTPOpenAI(
                 return {
                     type: 'multiline',
                     result: dat.choices.map((v) => {
-                        return ["char", v.message.content]
+                        return ["char", v.message.content ?? '']
                     })
                 }
             }            
@@ -1088,6 +1046,10 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         modelId: arg.modelInfo.id
     })
 
+    if(aiModel === 'ollama-cloud'){
+        delete body.store
+    }
+
     let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
     if(arg.modelInfo?.endpoint){
         requestURL = arg.modelInfo.endpoint
@@ -1204,7 +1166,18 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
 function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Array, StreamResponseChunk> {
     let dataUint:Uint8Array|Buffer = new Uint8Array([])
     let reasoningContent = ""
+    let reasoningFromStructured = false
     const db = getDatabase()
+
+    const appendStreamingFragment = (current:string, incoming?:string) => {
+        if(!incoming){
+            return current
+        }
+        if(incoming.length > current.length && incoming.startsWith(current)){
+            return incoming
+        }
+        return current + incoming
+    }
 
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
@@ -1213,6 +1186,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
             combined.set(chunk, dataUint.length);
             dataUint = Buffer.from(combined);
             let JSONreaded:{[key:string]:string} = {}
+            reasoningContent = ""
                         try {
                 const datas = dataUint.toString().split('\n')
                 let readed:{[key:string]:string} = {}
@@ -1221,16 +1195,16 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                         try {
                             const rawChunk = data.replace("data: ", "")
                             if(rawChunk === "[DONE]"){
-                                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
+                                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
                                     readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
                                         reasoningContent = p1
                                         return ""
                                     })
-                
+
                                     if(reasoningContent){
                                         reasoningContent = reasoningContent.replace(/\<think\>/gm, '')
                                     }
-                                }                
+                                }
                                 if(arg.extractJson && (db.jsonSchemaEnabled || arg.schema)){
                                     for(const key in readed){
                                         const extracted = extractJSON(readed[key], arg.extractJson)
@@ -1240,9 +1214,13 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                     control.enqueue(JSONreaded)
                                 }
                                 else if(reasoningContent){
-                                    control.enqueue({
-                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`
-                                    })
+                                    const chunk:Record<string,string> = {
+                                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
+                                    }
+                                    if(readed["__tool_calls"]){
+                                        chunk["__tool_calls"] = readed["__tool_calls"]
+                                    }
+                                    control.enqueue(chunk)
                                 }
                                 else{
                                     control.enqueue(readed)
@@ -1251,20 +1229,20 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                             }
                             const choices = JSON.parse(rawChunk).choices
                             for(const choice of choices){
-                                const chunk = choice.delta.content ?? choices.text
+                                const chunk = choice.delta.content ?? choice.text
                                 if(chunk){
                                     if(arg.multiGen){
                                         const ind = choice.index.toString()
                                         if(!readed[ind]){
                                             readed[ind] = ""
                                         }
-                                        readed[ind] += chunk
+                                        readed[ind] = appendStreamingFragment(readed[ind], chunk)
                                     }
                                     else{
                                         if(!readed["0"]){
                                             readed["0"] = ""
                                         }
-                                        readed["0"] += chunk
+                                        readed["0"] = appendStreamingFragment(readed["0"], chunk)
                                     }
                                 }
                                 // Check for tool calls in the delta
@@ -1298,21 +1276,23 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                             toolCallsData[index].function.name = toolCall.function.name
                                         }
                                         if(toolCall.function?.arguments) {
-                                            toolCallsData[index].function.arguments += toolCall.function.arguments
+                                            toolCallsData[index].function.arguments = appendStreamingFragment(toolCallsData[index].function.arguments, toolCall.function.arguments)
                                         }
                                     }
                                     
                                     readed["__tool_calls"] = JSON.stringify(toolCallsData)
                                 }
-                                if(choice?.delta?.reasoning_content){
-                                    reasoningContent += choice.delta.reasoning_content
+                                const reasoningChunk = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning
+                                if(reasoningChunk){
+                                    reasoningFromStructured = true
+                                    reasoningContent = appendStreamingFragment(reasoningContent, reasoningChunk)
                                 }
                             }
                         } catch (error) {}
                     }
                 }
                 
-                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput)){
+                if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingOutput) && !reasoningFromStructured){
                     readed["0"] = readed["0"].replace(/(.*)\<\/think\>/gms, (m, p1) => {
                         reasoningContent = p1
                         return ""
@@ -1331,9 +1311,13 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     control.enqueue(JSONreaded)
                 }
                 else if(reasoningContent){
-                    control.enqueue({
-                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"]}`
-                    })
+                    const chunk:Record<string,string> = {
+                        "0": `<Thoughts>\n${reasoningContent}\n</Thoughts>\n${readed["0"] ?? ''}`,
+                    }
+                    if(readed["__tool_calls"]){
+                        chunk["__tool_calls"] = readed["__tool_calls"]
+                    }
+                    control.enqueue(chunk)
                 }
                 else{
                     control.enqueue(readed)
@@ -1361,6 +1345,18 @@ function wrapToolStream(
             let prefix = ''
             let lastValue
 
+            const extractThoughts = (text:string) => {
+                let reasoningContent = ''
+                const content = text.replace(/<Thoughts>\n?([\s\S]*?)\n?<\/Thoughts>\n*/g, (_, p1:string) => {
+                    reasoningContent += (reasoningContent ? '\n' : '') + p1
+                    return ''
+                })
+                return {
+                    content,
+                    reasoningContent
+                }
+            }
+
             while(true){
                 let {done, value} = await reader.read()
 
@@ -1372,10 +1368,20 @@ function wrapToolStream(
                     const toolCalls = Object.values(JSON.parse(value?.['__tool_calls'] || '{}') || {}) as ToolCall[]; 
                     if(toolCalls && toolCalls.length > 0){
                         const messages = body.messages as OpenAIChatExtra[]
+                        let assistantContent = content
+                        let assistantReasoningContent = ''
+                        const shouldPassDeepSeekReasoning = arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingInput) ||
+                            (arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) && db.deepseekThinkingType === 'enabled')
 
-                        messages.push({
+                        if(shouldPassDeepSeekReasoning){
+                            const extracted = extractThoughts(content)
+                            assistantContent = extracted.content
+                            assistantReasoningContent = extracted.reasoningContent
+                        }
+
+                        const assistantMessage: OpenAIChatExtra = {
                             role: 'assistant',
-                            content: (db.simplifiedToolUse ? '' : content),
+                            content: (db.simplifiedToolUse ? '' : assistantContent),
                             tool_calls: toolCalls.map(call => ({
                                 id: call.id,
                                 type: 'function',
@@ -1384,7 +1390,12 @@ function wrapToolStream(
                                     arguments: call.function.arguments
                                 }
                             }))
-                        })
+                        }
+                        if(assistantReasoningContent){
+                            assistantMessage.reasoning_content = assistantReasoningContent
+                        }
+
+                        messages.push(assistantMessage)
 
                         const callCodes: string[] = []
                     

@@ -1041,11 +1041,10 @@ export function replaceDbResources(db: Database, replacer: { [key: string]: stri
  * Ensures that all characters are properly ordered and removes any invalid entries.
  */
 export function checkCharOrder() {
-    let db = getDatabase()
-    db.characterOrder = db.characterOrder ?? []
+    DBState.db.characterOrder = DBState.db.characterOrder ?? []
     let ordered = []
-    for (let i = 0; i < db.characterOrder.length; i++) {
-        const folder = db.characterOrder[i]
+    for (let i = 0; i < DBState.db.characterOrder.length; i++) {
+        const folder = DBState.db.characterOrder[i]
         if (typeof (folder) !== 'string' && folder) {
             for (const f of folder.data) {
                 ordered.push(f)
@@ -1058,30 +1057,30 @@ export function checkCharOrder() {
 
     let charIdList: string[] = []
 
-    for (let i = 0; i < db.characters.length; i++) {
-        const char = db.characters[i]
+    for (let i = 0; i < DBState.db.characters.length; i++) {
+        const char = DBState.db.characters[i]
         const charId = char.chaId
         if (!char.trashTime) {
             charIdList.push(charId)
         }
         if (!ordered.includes(charId)) {
             if (charId !== '§temp' && charId !== '§playground' && !char.trashTime) {
-                db.characterOrder.push(charId)
+                DBState.db.characterOrder.push(charId)
             }
         }
     }
 
 
-    for (let i = 0; i < db.characterOrder.length; i++) {
-        const data = db.characterOrder[i]
+    for (let i = 0; i < DBState.db.characterOrder.length; i++) {
+        const data = DBState.db.characterOrder[i]
         if (typeof (data) !== 'string') {
             if (!data) {
-                db.characterOrder.splice(i, 1)
+                DBState.db.characterOrder.splice(i, 1)
                 i--;
                 continue
             }
             if (data.data.length === 0) {
-                db.characterOrder.splice(i, 1)
+                DBState.db.characterOrder.splice(i, 1)
                 i--;
                 continue
             }
@@ -1092,18 +1091,15 @@ export function checkCharOrder() {
                     i2--;
                 }
             }
-            db.characterOrder[i] = data
+            DBState.db.characterOrder[i] = data
         }
         else {
             if (!charIdList.includes(data)) {
-                db.characterOrder.splice(i, 1)
+                DBState.db.characterOrder.splice(i, 1)
                 i--;
             }
         }
     }
-
-
-    setDatabase(db)
 }
 
 /**

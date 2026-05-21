@@ -1,4 +1,5 @@
 import { getDatabase } from 'src/ts/storage/database.svelte'
+import { parseAdditionalParamJsonValue } from './additionalParams'
 
 export type LLMParameter =
     | 'temperature'
@@ -28,6 +29,96 @@ export function setObjectValue<T>(obj: T, key: string, value: any): T {
 
     obj[key] = value
     return obj
+}
+
+export function getAdditionalParameters(aiModel?: string): [string, string][] {
+    const db = getDatabase()
+
+    if (!aiModel) {
+        return []
+    }
+
+    if (aiModel === 'reverse_proxy') {
+        return [...(db.additionalParams ?? [])]
+    }
+
+    if (!aiModel.startsWith('xcustom:::')) {
+        return []
+    }
+
+    const found = db.customModels.find((model) => model.id === aiModel)
+    const params = found?.params
+    if (!params) {
+        return []
+    }
+
+    const additionalParams: [string, string][] = []
+    for (const line of params.split('\n')) {
+        const split = line.split('=')
+        if (split.length >= 2) {
+            additionalParams.push([split[0], split.slice(1).join('=')])
+        }
+    }
+
+    return additionalParams
+}
+
+export function applyAdditionalParameters<T extends Record<string, any>>(
+    body: T,
+    headers: Record<string, string>,
+    additionalParams: [string, string][],
+): T {
+    for (const [rawKey, rawValue] of additionalParams) {
+        let key = rawKey
+        let value = rawValue
+
+        if (!key || !value) {
+            continue
+        }
+
+        if (value === '{{none}}') {
+            if (key.startsWith('header::')) {
+                delete headers[key.replace('header::', '')]
+            }
+            else {
+                delete body[key]
+            }
+            continue
+        }
+
+        if (key.startsWith('header::')) {
+            headers[key.replace('header::', '')] = value
+            continue
+        }
+
+        if (value.startsWith('json::')) {
+            const parsedValue = parseAdditionalParamJsonValue(value.replace('json::', ''))
+            if (parsedValue !== undefined) {
+                body = setObjectValue(body, key, parsedValue)
+            }
+            continue
+        }
+
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            body = setObjectValue(body, key, value.slice(1, -1))
+            continue
+        }
+
+        if (value === 'true' || value === 'false') {
+            body = setObjectValue(body, key, value === 'true')
+            continue
+        }
+
+        if (value === 'null') {
+            body = setObjectValue(body, key, null)
+            continue
+        }
+
+        const num = Number(value)
+        body = setObjectValue(body, key, isNaN(num) ? value : num)
+    }
+
+    return body
 }
 
 export function applyParameters(

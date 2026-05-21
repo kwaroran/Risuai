@@ -12,10 +12,12 @@ import { defaultColorScheme, type ColorScheme } from '../gui/colorscheme';
 import type { PromptItem, PromptSettings } from '../process/prompt';
 import type { OobaChatCompletionRequestParams } from '../model/ooba';
 import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../process/memory/hypav3'
+import { normalizeTranslatorPresetState, type TranslatorPreset } from '../translator/presets'
 import { isTauri, isNodeServer } from "src/ts/platform"
+import { safeStructuredClone } from '../polyfill';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.3.332" //<APP_VERSION_POINT>
+export let appVer = "2026.4.181" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 
@@ -364,6 +366,12 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.nanogptKey ??= ''
+    data.nanogptRequestModel ??= ''
+    data.nanogptRequestModelName ??= ''
+    data.nanogptProvider ??= ''
+    data.nanogptSubscriptionState ??= ''
+    data.nanogptUseSubscriptionEndpoint ??= false
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -441,6 +449,18 @@ export function setDatabase(data:Database){
     data.maxSupaChunkSize ??= 1200
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
+    data.ollamaModelSource ??= data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud' ? 'cloud' : 'local'
+    data.ollamaInputMode ??= 'manual'
+    data.ollamaRequestFormat ??= LLMFormat.Ollama
+    data.ollamaApiKey ??= ''
+    data.ollamaModelName ??= ''
+    data.ollamaCloudModel ??= ''
+    data.ollamaCloudModelName ??= ''
+    data.ollamaThinkingMode ??= 'auto'
+    if ((data.aiModel === 'ollama-cloud' || data.subModel === 'ollama-cloud') && !data.ollamaCloudModel) {
+        data.ollamaCloudModel = data.ollamaModel
+        data.ollamaCloudModelName = data.ollamaModelName
+    }
     data.autoContinueChat ??= false
     data.autoContinueMinTokens ??= 0
     data.repetition_penalty ??= 1
@@ -569,6 +589,7 @@ export function setDatabase(data:Database){
         )
     }
     data.hypaV3PresetId ??= 0
+    normalizeTranslatorPresetState(data)
     data.showDeprecatedTriggerV2 ??= false
     data.returnCSSError ??= true
     data.realmDirectOpen ??= false
@@ -576,7 +597,9 @@ export function setDatabase(data:Database){
     data.toggleConfirmRecommendedPreset ??= false
     data.useExperimentalGoogleTranslator ??= false
     data.thinkingType ??= 'budget'
+    data.deepseekThinkingType ??= 'off'
     data.adaptiveThinkingEffort ??= 'high'
+    data.deepseekReasoningEffort ??= 'high'
     if(data.antiClaudeOverload){ //migration
         data.antiClaudeOverload = false
         data.antiServerOverloads = true
@@ -625,7 +648,6 @@ export function setDatabase(data:Database){
     data.rememberToolUsage ??= true
     data.simplifiedToolUse ??= false
     data.streamGeminiThoughts ??= false
-    data.sourcemapTranslate ??= false
     data.settingsCloseButtonSize ??= 24
     data.hideAllImages ??= false
     data.ImagenModel ??= 'imagen-4.0-generate-001'
@@ -666,6 +688,7 @@ export function setDatabase(data:Database){
     data.keepSessionAlive ??= 'off'
     data.loadouts ??= []
     data.longPressToPopupEditor ??= false
+    data.customSidebarItems ??= []
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -883,6 +906,12 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    nanogptKey:string
+    nanogptRequestModel:string
+    nanogptRequestModelName:string
+    nanogptProvider:string
+    nanogptSubscriptionState:string
+    nanogptUseSubscriptionEndpoint:boolean
     openrouterFallback:boolean
     selectedPersona:number
     personas:{
@@ -934,6 +963,8 @@ export interface Database{
     allowAllExtentionFiles?:boolean
     translatorPrompt:string
     translatorMaxResponse:number
+    translatorPresets: TranslatorPreset[]
+    translatorPresetId: number
     top_p: number,
     google: {
         accessToken: string
@@ -963,6 +994,14 @@ export interface Database{
     maxSupaChunkSize:number
     ollamaURL:string
     ollamaModel:string
+    ollamaModelSource:'local'|'cloud'
+    ollamaInputMode:'list'|'manual'
+    ollamaRequestFormat:LLMFormat
+    ollamaApiKey:string
+    ollamaModelName:string
+    ollamaCloudModel:string
+    ollamaCloudModelName:string
+    ollamaThinkingMode:'auto'|'off'|'on'|'low'|'medium'|'high'
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean
@@ -1081,7 +1120,9 @@ export interface Database{
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
     thinkingType: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
+    deepseekThinkingType: 'off' | 'enabled'
+    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    deepseekReasoningEffort: 'high' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
         url: string,
@@ -1091,7 +1132,7 @@ export interface Database{
     localActivationInGlobalLorebook: boolean
     showFolderName: boolean
     automaticCachePoint: boolean
-    chatCompression: boolean
+    coldstorage: boolean
     claudeRetrivalCaching: boolean
     outputImageModal: boolean
     playMessageOnTranslateEnd:boolean
@@ -1169,7 +1210,6 @@ export interface Database{
         reference_image: string
         reference_base64image: string
     }
-    sourcemapTranslate:boolean
     settingsCloseButtonSize:number
     promptDiffPrefs:PromptDiffPrefs
     enableBookmark?: boolean
@@ -1193,6 +1233,16 @@ export interface Database{
     keepSessionAlive: 'off' | 'pip' | 'sound'
     longPressToPopupEditor?: boolean
     loadouts: Loadout[]
+    disableAprilFools?:boolean
+    customSidebarItems: CustomSideBarItem[]
+    lastLoadedLoadoutName: string
+}
+
+export interface CustomSideBarItem{
+    id: string
+    type: 'model'|'databaseKey'|'loadout'|'persona'|'preset'|'setting'
+    subType: string
+    label: string
 }
 
 export interface SeparateParameters{
@@ -1207,7 +1257,9 @@ export interface SeparateParameters{
     reasoning_effort?:number
     thinking_tokens?:number
     thinking_type?: 'off' | 'budget' | 'adaptive'
-    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
+    deepseek_thinking_type?: 'off' | 'enabled'
+    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    deepseek_reasoning_effort?: 'high' | 'max'
     outputImageModal?:boolean
     verbosity?:number
 }
@@ -1349,6 +1401,21 @@ export interface character{
     private?:boolean
     additionalText:string
     oaiVoice?:string
+    oaiTTSConfig?:{
+        /** User opted into advanced OpenAI-compatible settings. When false/absent,
+         *  tts.ts ignores the other fields and uses the legacy oaiVoice + db.openAIKey path. */
+        enabled?: boolean
+        /** Base URL, trailing slash trimmed at runtime. Falls back to 'https://api.openai.com/v1'. */
+        baseURL?: string
+        /** Per-character API key. Falls back to db.openAIKey; the Authorization header is omitted entirely when both are empty. */
+        apiKey?: string
+        /** Model ID. Falls back to 'tts-1'. */
+        model?: string
+        /** Freeform voice ID for custom endpoints. Falls back to character.oaiVoice, then to 'alloy'. */
+        voice?: string
+        /** Response format. Falls back to 'mp3'. */
+        format?: 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm'
+    }
     virtualscript?:string
     scriptstate?:{[key:string]:string|number|boolean}
     depth_prompt?: { depth: number, prompt: string }
@@ -1386,6 +1453,8 @@ export interface character{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 
@@ -1442,6 +1511,7 @@ export interface groupChat{
     ttsSpeech?:string
     naittsConfig?:any
     oaiVoice?:string
+    oaiTTSConfig?:any
     hfTTS?: any
     vits?: OnnxModelFiles
     gptSoVitsConfig?:any
@@ -1464,6 +1534,8 @@ export interface groupChat{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 export interface botPreset{
@@ -1547,7 +1619,9 @@ export interface botPreset{
     reasonEffort?:number
     thinkingTokens?:number
     thinkingType?: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
+    deepseekThinkingType?: 'off' | 'enabled'
+    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    deepseekReasoningEffort?: 'high' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean
     seperateModels?:{
@@ -1918,8 +1992,12 @@ export const defaultSdDataFunc = () =>{
 }
 
 export function saveCurrentPreset(){
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
+
+    if(db.botPresetsId === -1){
+        return
+    }
     const savedPreset:botPreset =  {
         name: pres[db.botPresetsId].name,
         apiType: db.apiType,
@@ -1988,7 +2066,9 @@ export function saveCurrentPreset(){
         reasonEffort: db.reasoningEffort ?? 0,
         thinkingTokens: db.thinkingTokens ?? null,
         thinkingType: db.thinkingType ?? 'budget',
+        deepseekThinkingType: db.deepseekThinkingType ?? 'off',
         adaptiveThinkingEffort: db.adaptiveThinkingEffort ?? 'high',
+        deepseekReasoningEffort: db.deepseekReasoningEffort ?? 'high',
         outputImageModal: db.outputImageModal ?? false,
         seperateModelsForAxModels: db.doNotChangeSeperateModels ? false : db.seperateModelsForAxModels ?? false,
         seperateModels: db.doNotChangeSeperateModels ? null : safeStructuredClone(db.seperateModels),
@@ -2010,29 +2090,26 @@ export function saveCurrentPreset(){
         pres[db.botPresetsId] = savedPreset
     }
     db.botPresets = pres
-    setDatabase(db)
 }
 
 export function copyPreset(id:number){
     saveCurrentPreset()
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = safeStructuredClone(pres[id])
     newPres.name += " Copy"
     db.botPresets.push(newPres)
-    setDatabase(db)
 }
 
 export function changeToPreset(id =0, savecurrent = true){
     if(savecurrent){
         saveCurrentPreset()
     }
-    let db = getDatabase()
+    let db = DBState.db
     let pres = db.botPresets
     const newPres = pres[id]
     db.botPresetsId = id
-    db = setPreset(db, newPres)
-    setDatabase(db)
+    setPreset(db, newPres)
 }
 
 export function setPreset(db:Database, newPres: botPreset){
@@ -2113,7 +2190,9 @@ export function setPreset(db:Database, newPres: botPreset){
     db.reasoningEffort = newPres.reasonEffort ?? 0
     db.thinkingTokens = newPres.thinkingTokens ?? null
     db.thinkingType = newPres.thinkingType ?? 'budget'
+    db.deepseekThinkingType = newPres.deepseekThinkingType ?? 'off'
     db.adaptiveThinkingEffort = newPres.adaptiveThinkingEffort ?? 'high'
+    db.deepseekReasoningEffort = newPres.deepseekReasoningEffort ?? 'high'
     db.outputImageModal = newPres.outputImageModal ?? false
     if(!db.doNotChangeSeperateModels){
         db.seperateModelsForAxModels = newPres.seperateModelsForAxModels ?? false
@@ -2242,7 +2321,7 @@ export async function importPreset(f:{
         pre = {...presetTemplate,...(JSON.parse(Buffer.from(f.data).toString('utf-8')))}
         console.log(pre)
     }
-    let db = getDatabase()
+    let db = DBState.db
     if(pre.presetVersion && pre.presetVersion >= 3){
         //NAI preset
         const pr = safeStructuredClone(prebuiltPresets.NAI)
@@ -2264,7 +2343,6 @@ export async function importPreset(f:{
         pr.NAISettings.mirostat_tau = pre.parameters.mirostat_tau
         pr.name = pre.name ?? "Imported"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
 
@@ -2370,7 +2448,6 @@ export async function importPreset(f:{
         }
         pr.name = "Imported ST Preset"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
     pre.name ??= "Imported"
@@ -2378,5 +2455,4 @@ export async function importPreset(f:{
         db.botPresets = []
     }
     db.botPresets.push(pre)
-    setDatabase(db)
 }

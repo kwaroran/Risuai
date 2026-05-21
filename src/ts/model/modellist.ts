@@ -30,7 +30,7 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
             internalID: id,
             provider: LLMProvider.DeepInfra,
             format: LLMFormat.OpenAICompatible,
-            parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p'],
+            parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
             flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekThinkingOutput, LLMFlags.hasStreaming],
             tokenizer: LLMTokenizer.DeepSeek,
             endpoint: 'https://api.deepinfra.com/v1/openai/chat/completions',
@@ -407,12 +407,25 @@ export const LLMModels: LLMModel[] = [
     // Ollama
     {
         id: 'ollama-hosted',
-        name: 'Ollama',
-        provider: LLMProvider.AsIs,
+        name: 'Local',
+        fullName: 'Ollama Local',
+        provider: LLMProvider.Ollama,
         format: LLMFormat.Ollama,
-        flags: [LLMFlags.hasFullSystemPrompt],
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
         parameters: OpenAIParameters,
-        tokenizer: LLMTokenizer.Unknown
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true
+    },
+    {
+        id: 'ollama-cloud',
+        name: 'Cloud',
+        fullName: 'Ollama Cloud',
+        provider: LLMProvider.Ollama,
+        format: LLMFormat.Ollama,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true
     },
     // WebLLM
     {
@@ -444,13 +457,25 @@ export const LLMModels: LLMModel[] = [
     },
     // DeepSeek
     {
-        id: 'deepseek-chat',
-        name: 'Deepseek Chat',
+        id: 'deepseek-v4-pro',
+        name: 'DeepSeek V4 Pro',
         provider: LLMProvider.DeepSeek,
         format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.hasStreaming],
-        parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p'],
-        tokenizer: LLMTokenizer.DeepSeek,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.deepSeekThinkingToggle, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
+        tokenizer: LLMTokenizer.DeepSeekV4,
+        endpoint: 'https://api.deepseek.com/beta/chat/completions',
+        keyIdentifier: 'deepseek',
+        recommended: true
+    },
+    {
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.deepSeekThinkingToggle, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
+        tokenizer: LLMTokenizer.DeepSeekV4,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
         keyIdentifier: 'deepseek',
         recommended: true
@@ -460,12 +485,22 @@ export const LLMModels: LLMModel[] = [
         name: 'Deepseek Reasoner',
         provider: LLMProvider.DeepSeek,
         format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.hasStreaming],
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.deepSeekThinkingOutput, LLMFlags.hasStreaming],
         parameters: [],
         tokenizer: LLMTokenizer.DeepSeek,
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
-        keyIdentifier: 'deepseek',
-        recommended: true
+        keyIdentifier: 'deepseek'
+    },
+    {
+        id: 'deepseek-chat',
+        name: 'Deepseek Chat',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty', 'temperature', 'top_p'],
+        tokenizer: LLMTokenizer.DeepSeek,
+        endpoint: 'https://api.deepseek.com/beta/chat/completions',
+        keyIdentifier: 'deepseek'
     },
     // DeepInfra
     ...makeDeepInfraModels([
@@ -497,6 +532,18 @@ export const LLMModels: LLMModel[] = [
         'google/gemma-2-27b-it',
         'google/gemma-2-9b-it'
     ]),
+    // NanoGPT — single provider entry; model list fetched on demand via getNanoGPTModels()
+    {
+        id: 'nanogpt',
+        name: 'NanoGPT',
+        fullName: 'NanoGPT',
+        provider: LLMProvider.NanoGPT,
+        format: LLMFormat.NanoGPT,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming, LLMFlags.OAICompletionTokens],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true,
+    },
     // Plugin and Custom API
     {
         id: 'custom',
@@ -655,7 +702,6 @@ export async function registerModelDynamic(){
         console.error('Error fetching Anthropic models', error)
     }
 
-
 }
 
 //testing purpose only, not used in production
@@ -779,7 +825,7 @@ export function getModelList<T extends boolean>(arg:{
     if(arg.groupedByProvider){
         let group: GetModelListGroup[] = []
         for(let model of models){
-            if(model.provider === LLMProvider.AsIs){
+            if(model.provider === LLMProvider.AsIs || model.provider === LLMProvider.NanoGPT){
                 group.push({
                     providerName: '@as-is',
                     models: [model]

@@ -19,8 +19,15 @@
     import Button from "src/lib/UI/GUI/Button.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
-    import { getOpenRouterModels } from "src/ts/model/openrouter";
-    import OpenrouterModelGrid from "src/lib/UI/OpenrouterModelGrid.svelte";
+    import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
+    import SegmentedControl from "src/lib/UI/GUI/SegmentedControl.svelte";
+    import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
+    import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
+    import { getOllamaModels } from "src/ts/model/ollama";
+    import ModelGrid from "src/lib/UI/ModelGrid.svelte";
+    import NanoGPTDashboard from "src/lib/UI/NanoGPTDashboard.svelte";
+    import NanoGPTProviderPicker from "src/lib/UI/NanoGPTProviderPicker.svelte";
+    import type { ModelGridPinnedItem } from "src/ts/model/modelGrid";
     import OobaSettings from "./OobaSettings.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import OpenrouterSettings from "./OpenrouterSettings.svelte";
@@ -35,6 +42,43 @@
     import SeparateParametersSection from "./SeparateParametersSection.svelte";
     import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
     
+    const openrouterPinnedItems: ModelGridPinnedItem[] = [
+        { id: 'risu/free',       displayName: 'Free Auto',       providerName: 'Risu'       },
+        { id: 'openrouter/auto', displayName: 'OpenRouter Auto', providerName: 'OpenRouter' },
+    ]
+
+    // Reset model selection and display name when subscription mode toggles
+    let _nanogptSubModeInitialized = false
+    $effect(() => {
+        const _sub = DBState.db.nanogptUseSubscriptionEndpoint
+        if (!_nanogptSubModeInitialized) { _nanogptSubModeInitialized = true; return }
+        DBState.db.nanogptRequestModel = ''
+        DBState.db.nanogptRequestModelName = ''
+    })
+
+    // Reset provider selection to Auto when the model or subscription mode changes
+    let _nanogptProviderResetInitialized = false
+    $effect(() => {
+        const _model = DBState.db.nanogptRequestModel
+        const _sub   = DBState.db.nanogptUseSubscriptionEndpoint
+        if (!_nanogptProviderResetInitialized) { _nanogptProviderResetInitialized = true; return }
+        DBState.db.nanogptProvider = ''
+    })
+
+    // Reset subscription mode (and related state) when API key is cleared
+    let _nanogptKeyInitialized = false
+    $effect(() => {
+        const _key = DBState.db.nanogptKey
+        if (!_nanogptKeyInitialized) { _nanogptKeyInitialized = true; return }
+        if (!_key) {
+            DBState.db.nanogptUseSubscriptionEndpoint = false
+            DBState.db.nanogptSubscriptionState = ''
+            DBState.db.nanogptRequestModel = ''
+            DBState.db.nanogptRequestModelName = ''
+            DBState.db.nanogptProvider = ''
+        }
+    })
+
     let tokens = $state({
         mainPrompt: 0,
         jailbreak: 0,
@@ -69,6 +113,19 @@
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
+    let nanogptInputMode = $state<'list' | 'manual'>(DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? 'manual' : 'list')
+    // svelte-ignore state_referenced_locally
+    let prevNanogptInputMode = nanogptInputMode;
+    $effect(() => {
+        if (nanogptInputMode !== prevNanogptInputMode) {
+            DBState.db.nanogptRequestModel = '';
+            DBState.db.nanogptRequestModelName = '';
+            prevNanogptInputMode = nanogptInputMode;
+        }
+    });
+
+    let usesOllamaLocal = $derived(DBState.db.aiModel === 'ollama-hosted' || DBState.db.subModel === 'ollama-hosted')
+    let usesOllamaCloud = $derived(DBState.db.aiModel === 'ollama-cloud' || DBState.db.subModel === 'ollama-cloud')
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -161,7 +218,7 @@
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.customProxyRequestModel} placeholder="Name" />
         <span class="text-textcolor mt-4"> {language.format}</span>
         <SelectInput value={DBState.db.customAPIFormat.toString()} onchange={(e) => {
-            DBState.db.customAPIFormat = parseInt(e.currentTarget.value)
+            DBState.db.customAPIFormat = parseInt(e.currentTarget.value) as LLMFormat
         }}>
             <OptionInput value={LLMFormat.OpenAICompatible.toString()}>
                 OpenAI Compatible
@@ -187,12 +244,140 @@
         <span class="text-textcolor mt-4">Cohere {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.cohereAPIKey} />
     {/if}
-    {#if DBState.db.aiModel === 'ollama-hosted'}
+    {#if usesOllamaLocal || usesOllamaCloud}
+        {#if usesOllamaLocal}
         <span class="text-textcolor mt-4">Ollama URL</span>
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaURL} />
+        {/if}
 
+        {#if usesOllamaCloud}
+        <span class="text-textcolor mt-4">Ollama {language.model}</span>
+        <SegmentedControl
+            bind:value={DBState.db.ollamaInputMode}
+            options={[
+                { value: 'list', label: (language as any).nanoGPTSelectFromList || 'Select from List' },
+                { value: 'manual', label: (language as any).nanoGPTManualInput || 'Manual Input' }
+            ]}
+            size="md"
+        />
+
+        {#if DBState.db.ollamaInputMode === 'manual'}
+            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaCloudModel} placeholder="Model" oninput={() => DBState.db.ollamaCloudModelName = ''} />
+        {:else}
+            {#await getOllamaModels(DBState.db.ollamaURL, 'cloud', DBState.db.ollamaApiKey)}
+                <ModelGrid bind:value={DBState.db.ollamaCloudModel} loading={true} />
+            {:then cloudModels}
+                <ModelGrid
+                    bind:value={DBState.db.ollamaCloudModel}
+                    items={cloudModels ?? []}
+                    selectedLabelOverride={DBState.db.ollamaCloudModel ? `Cloud / ${DBState.db.ollamaCloudModelName || DBState.db.ollamaCloudModel}` : undefined}
+                    onselect={(_id, name) => {
+                        DBState.db.ollamaModelSource = 'cloud'
+                        DBState.db.ollamaCloudModelName = name
+                    }}
+                />
+            {/await}
+        {/if}
+
+            <span class="text-textcolor mt-4">Ollama {language.apiKey}</span>
+            <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaApiKey} />
+
+            <span class="text-textcolor mt-4">Ollama {language.format}</span>
+            <SelectInput value={DBState.db.ollamaRequestFormat.toString()} onchange={(e) => {
+                DBState.db.ollamaRequestFormat = parseInt(e.currentTarget.value) as LLMFormat
+            }}>
+                <OptionInput value={LLMFormat.Ollama.toString()}>
+                    Ollama SDK
+                </OptionInput>
+                <OptionInput value={LLMFormat.OpenAICompatible.toString()}>
+                    OpenAI Compatible
+                </OptionInput>
+                <OptionInput value={LLMFormat.OpenAIResponseAPI.toString()}>
+                    OpenAI Response API
+                </OptionInput>
+                <OptionInput value={LLMFormat.Anthropic.toString()}>
+                    Anthropic Claude
+                </OptionInput>
+            </SelectInput>
+
+            <div class="mt-2">
+                <CheckInput bind:check={DBState.db.useStreaming} name={`Response ${language.streaming}`} />
+            </div>
+        {/if}
+
+        {#if usesOllamaLocal}
         <span class="text-textcolor mt-4">Ollama Model</span>
-        <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} />
+        <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} placeholder="Model" oninput={() => { DBState.db.ollamaModelSource = 'local'; DBState.db.ollamaModelName = '' }} />
+        {/if}
+
+        {#if usesOllamaLocal || (usesOllamaCloud && DBState.db.ollamaRequestFormat === LLMFormat.Ollama)}
+        <span class="text-textcolor mt-4">Ollama Thinking</span>
+        <SelectInput bind:value={DBState.db.ollamaThinkingMode}>
+            <OptionInput value="auto">
+                Auto
+            </OptionInput>
+            <OptionInput value="off">
+                Off
+            </OptionInput>
+            <OptionInput value="on">
+                On
+            </OptionInput>
+            <OptionInput value="low">
+                Low
+            </OptionInput>
+            <OptionInput value="medium">
+                Medium
+            </OptionInput>
+            <OptionInput value="high">
+                High
+            </OptionInput>
+        </SelectInput>
+        {/if}
+    {/if}
+    {#if DBState.db.aiModel === 'nanogpt' || DBState.db.subModel === 'nanogpt'}
+        <span class="text-textcolor mt-4">NanoGPT {language.apiKey}</span>
+        <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptKey} />
+
+        <NanoGPTDashboard apiKey={DBState.db.nanogptKey} />
+
+        {#if DBState.db.nanogptSubscriptionState === 'active' || DBState.db.nanogptSubscriptionState === 'grace'}
+            <div class="flex items-center mt-3">
+                <CheckInput bind:check={DBState.db.nanogptUseSubscriptionEndpoint} name={language.nanoGPTUseSubscriptionEndpoint} />
+            </div>
+        {/if}
+
+        <span class="text-textcolor mt-4">NanoGPT {language.model}</span>
+        <SegmentedControl
+            bind:value={nanogptInputMode}
+            options={[
+                { value: 'list', label: (language as any).nanoGPTSelectFromList || 'Select from List' },
+                { value: 'manual', label: (language as any).nanoGPTManualInput || 'Manual Input' }
+            ]}
+            size="md"
+        />
+
+        {#if nanogptInputMode === 'manual'}
+            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.nanogptRequestModel} placeholder={(language as any).nanoGPTManualModelSelect || "Manual Model Select"} oninput={() => DBState.db.nanogptRequestModelName = ''}/>
+        {:else}
+            {#await Promise.all([getNanoGPTModels(), getNanoGPTSubscriptionModels(DBState.db.nanogptKey)])}
+                <ModelGrid bind:value={DBState.db.nanogptRequestModel} loading={true} />
+            {:then [regular, sub]}
+                <ModelGrid
+                    bind:value={DBState.db.nanogptRequestModel}
+                    items={DBState.db.nanogptUseSubscriptionEndpoint ? (sub ?? []).map(ngToGridItem) : (regular ?? []).map(ngToGridItem)}
+                    showSubBadge={DBState.db.nanogptUseSubscriptionEndpoint}
+                    selectedLabelOverride={DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? DBState.db.nanogptRequestModel : undefined}
+                    onselect={(_id, name) => { DBState.db.nanogptRequestModelName = name }}
+                />
+                {#if !DBState.db.nanogptUseSubscriptionEndpoint}
+                    <NanoGPTProviderPicker
+                        apiKey={DBState.db.nanogptKey}
+                        modelId={DBState.db.nanogptRequestModel}
+                        bind:value={DBState.db.nanogptProvider}
+                    />
+                {/if}
+            {/await}
+        {/if}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter'}
         <span class="text-textcolor mt-4">OpenRouter {language.apiKey}</span>
@@ -200,9 +385,9 @@
 
         <span class="text-textcolor mt-4">OpenRouter {language.model}</span>
         {#await getOpenRouterModels()}
-            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} loading={true} />
+            <ModelGrid bind:value={DBState.db.openrouterRequestModel} pinnedItems={openrouterPinnedItems} loading={true} />
         {:then m}
-            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} models={m ?? []} />
+            <ModelGrid bind:value={DBState.db.openrouterRequestModel} items={(m ?? []).map(orToGridItem)} pinnedItems={openrouterPinnedItems} />
         {/await}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy'}
@@ -229,7 +414,7 @@
     {/if}
 
     <div class="py-2 flex flex-col gap-2 mb-4">
-        {#if modelInfo.flags.includes(LLMFlags.hasStreaming) || subModelInfo.flags.includes(LLMFlags.hasStreaming)}
+        {#if !usesOllamaCloud && (modelInfo.flags.includes(LLMFlags.hasStreaming) || subModelInfo.flags.includes(LLMFlags.hasStreaming))}
             <Check bind:check={DBState.db.useStreaming} name={`Response ${language.streaming}`}/>
             
             {#if DBState.db.useStreaming && (modelInfo.flags.includes(LLMFlags.geminiThinking) || subModelInfo.flags.includes(LLMFlags.geminiThinking))}
@@ -544,13 +729,13 @@
 
     {#snippet CustomFlagButton(name:string,flag:number)}
         <Button className="mt-2" onclick={(e) => {
-            if(DBState.db.customFlags.includes(flag)){
+            if(DBState.db.customFlags.includes(flag as LLMFlags)){
                 DBState.db.customFlags = DBState.db.customFlags.filter((f) => f !== flag)
             }
             else{
-                DBState.db.customFlags.push(flag)
+                DBState.db.customFlags.push(flag as LLMFlags)
             }
-        }} styled={DBState.db.customFlags.includes(flag) ? 'primary' : 'outlined'}>
+        }} styled={DBState.db.customFlags.includes(flag as LLMFlags) ? 'primary' : 'outlined'}>
             {name}
         </Button>
     {/snippet}
@@ -579,6 +764,10 @@
             {@render CustomFlagButton('deepSeekPrefix', 17)}
             {@render CustomFlagButton('deepSeekThinkingInput', 18)}
             {@render CustomFlagButton('deepSeekThinkingOutput', 19)}
+            {@render CustomFlagButton('noCivilIntegrity', 20)}
+            {@render CustomFlagButton('claudeThinking', 21)}
+            {@render CustomFlagButton('claudeAdaptiveThinking', 22)}
+            {@render CustomFlagButton('deepSeekThinkingToggle', 24)}
 
         {/if}
     </Accordion>

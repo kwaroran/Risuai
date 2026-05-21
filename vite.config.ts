@@ -38,7 +38,7 @@ export default defineConfig(({command, mode}) => {
     build: {
       target:'baseline-widely-available',
       // don't minify for debug builds
-      minify: process.env.TAURI_ENV_DEBUG === 'true' ? false : 'esbuild',
+      minify: process.env.TAURI_ENV_DEBUG === 'true' ? false : 'oxc',
       // produce sourcemaps for debug builds
       sourcemap: process.env.TAURI_ENV_DEBUG === 'true',
       chunkSizeWarningLimit: 2000,

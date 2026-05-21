@@ -473,6 +473,23 @@ const oldKeys = risuai._getOldKeys()
 
 **Note:** Methods prefixed with `_` are internal and subject to change without notice.
 
+#### TTS Hooks (v3.0)
+
+Plugins can intercept Text-to-Speech both before synthesis (transform the text) and before playback (transform or swap the audio):
+
+```javascript
+await risuai.addTTSPreprocessor(async (ctx) => {
+  return { text: ctx.text + ' (via plugin)' }
+})
+
+await risuai.addTTSPostprocessor(async (ctx) => {
+  // ctx.audio is the raw encoded bytes; decode to PCM if needed.
+  // Return { audio, mimeType } to swap, { skip: true } to suppress playback.
+})
+```
+
+Sequential pipeline with error isolation, no enforced timeout (same trust model as `addRisuScriptHandler`), no permission prompt, auto-unregister on plugin unload. See `plugins.md` (Advanced Features → TTS Hooks) for the full reference.
+
 ### Security Model
 
 API v3.0 implements multiple security layers:

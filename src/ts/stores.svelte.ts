@@ -150,10 +150,19 @@ export const popupStore = $state({
 export const popUpEditorStore = $state({
     open: false,
     value: '',
-    mode: 'default' as 'default'
+    mode: 'default' as 'default',
+    language: 'markdown' as string
 })
 
 export const loadoutModalStore = $state({
+    open: false
+})
+
+export const irisStore = $state({
+    open: false
+})
+
+export const customSideBarConfigDialogStore = $state({
     open: false
 })
 

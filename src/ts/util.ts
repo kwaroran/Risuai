@@ -1,7 +1,7 @@
 import { get, writable, type Writable } from "svelte/store"
 import type { Database, Message } from "./storage/database.svelte"
 import { getDatabase } from "./storage/database.svelte"
-import { selectedCharID } from "./stores.svelte"
+import { DBState, selectedCharID } from "./stores.svelte"
 import {open} from '@tauri-apps/plugin-dialog'
 import { readFile } from "@tauri-apps/plugin-fs"
 import { basename } from "@tauri-apps/api/path"
@@ -107,9 +107,9 @@ export const replacePlaceholders = (msg:string, name:string) => {
                 .replace(/(\{\{((set)|(get))var::.+?\}\})/gu,'')
 }
 
-function checkPersonaBinded(){
+export function checkPersonaBinded(){
     try {
-        let db = getDatabase()
+        let db = DBState.db
         const selectedChar = get(selectedCharID)
         const character = db.characters[selectedChar]
         const chat = character.chats[character.chatPage]

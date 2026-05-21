@@ -4,7 +4,7 @@ import { hasher, type simpleCharacterArgument, risuChatParser } from "../parser/
 import { LuaEngine, LuaFactory } from "wasmoon";
 import { getCurrentCharacter, getCurrentChat, getDatabase, setDatabase, type Chat, type character, type groupChat, type triggerscript } from "../storage/database.svelte";
 import { get } from "svelte/store";
-import { ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
+import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage } from "./stableDiff";
@@ -630,22 +630,19 @@ export async function runScripted(code:string, arg:{
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
                 if(typeof name !== 'string'){
                     throw('Invalid data type')
                 }
-                db.characters[selectedChar].name = name
-                setDatabase(db)
+                DBState.db.characters[selectedChar].name = name
             })
 
             declareAPI('getDescription', (id:string) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char = db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 if(char.type === 'group'){
                     throw('Character is a group')
                 }
@@ -656,9 +653,8 @@ export async function runScripted(code:string, arg:{
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char =db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 if(typeof data !== 'string'){
                     throw('Invalid data type')
                 }
@@ -666,14 +662,12 @@ export async function runScripted(code:string, arg:{
                     throw('Character is a group')
                 }
                 char.desc = desc
-                db.characters[selectedChar] = char
-                setDatabase(db)
+                DBState.db.characters[selectedChar] = char
             })
 
             declareAPI('getCharacterFirstMessage', (id:string) => {
-                const db = getDatabase()
                 const selectedChar = get(selectedCharID)
-                const char = db.characters[selectedChar]
+                const char = DBState.db.characters[selectedChar]
                 return char.firstMessage
             })
 
@@ -688,8 +682,7 @@ export async function runScripted(code:string, arg:{
                     return false
                 }
                 char.firstMessage = data
-                db.characters[selectedChar] = char
-                setDatabase(db)
+                DBState.db.characters[selectedChar] = char
                 return true
             })
 
@@ -728,8 +721,7 @@ export async function runScripted(code:string, arg:{
                 if(typeof data !== 'string'){
                     return false
                 }
-                db.characters[selectedChar].backgroundHTML = data
-                setDatabase(db)
+                DBState.db.characters[selectedChar].backgroundHTML = data
                 return true
             })
 

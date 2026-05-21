@@ -951,6 +951,56 @@ await Risuai.setCustomTextTheme({
 });
 ```
 
+### TTS Hooks
+
+Risuai's plugin API lets you intercept Text-to-Speech just before synthesis and just before playback.
+
+#### `Risuai.addTTSPreprocessor(func)`
+
+Runs before TTS synthesis for every message, across every provider (including `webspeech`). The hook receives the text that is about to be spoken along with the active provider's name and the character id, and may return a replacement text or abort playback.
+
+```javascript
+//@name simple-tts-prefix
+//@api 3.0
+
+(async () => {
+  await Risuai.addTTSPreprocessor(async (ctx) => {
+    return { text: '[narrator] ' + ctx.text };
+  });
+})();
+```
+
+#### `Risuai.addTTSPostprocessor(func)`
+
+Runs after the provider returns its audio, just before it is decoded and played. The hook receives the raw encoded bytes (mp3, wav, etc.) plus the MIME type. Return a replacement `{ audio, mimeType }` to swap the audio, `{ skip: true }` to suppress playback, or `undefined` / `void` to pass through unchanged.
+
+Does **not** run for the `webspeech` provider (the browser synthesizes and plays internally, so there is no audio buffer to intercept) or the `vits` provider (uses its own playback path).
+
+```javascript
+//@name volume-normalize-tts
+//@api 3.0
+
+(async () => {
+  await Risuai.addTTSPostprocessor(async (ctx) => {
+    // Decode to PCM inside the plugin iframe.
+    const audioCtx = new AudioContext();
+    const decoded = await audioCtx.decodeAudioData(ctx.audio);
+    // ... analyse peak amplitude, produce a normalised Float32Array,
+    //     re-encode to wav bytes as `newBytes` ...
+    return { audio: newBytes, mimeType: 'audio/wav' };
+  });
+})();
+```
+
+#### Pipeline semantics
+
+- **Sequential.** Hooks run in registration order; each receives the previous hook's output.
+- **Error isolation.** If a hook throws, its result is discarded and the next hook runs. TTS playback itself is not interrupted.
+- **No enforced timeout.** Matches the trust model of `addRisuScriptHandler` and `addRisuReplacer`. A hook that hangs will stall TTS playback for that message. Plugins that call slow services (auxiliary LLMs, remote audio processors) should implement their own `AbortController` + timer for cancellation.
+- **Short-circuit.** A hook that returns `{ skip: true }` stops the pipeline and aborts the TTS for that message. Later hooks are not called.
+- **No permission prompt.** These hooks are in the same trust category as `addRisuScriptHandler`. They transform text or audio that the plugin could already transmit via `nativeFetch`.
+- **Auto-cleanup.** Hooks registered by a plugin are removed automatically when the plugin unloads.
+
 ### Custom AI Provider
 
 Register a plugin as a custom AI provider that Risuai can use for generation:

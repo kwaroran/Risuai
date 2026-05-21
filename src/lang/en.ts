@@ -219,7 +219,7 @@ export const languageEnglish = {
         systemContentReplacement: "The prompt format that replaces system prompt if the model doesn't support system prompt.",
         systemRoleReplacement: "The role that replaces system role if the model doesn't support system role.",
         summarizationPrompt:
-            "The prompt that is used for summarization. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the chat data. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt that is used for summarization. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the chat data.",
         translatorPrompt:
             "The prompt that is used for translation. If it is blank, it will use the default prompt. You can also use ChatML formating with {{slot}} for the dest language, {{slot::content}} for the content, and {{slot::tnote}} for the translator note.",
         translateBeforeHTMLFormatting:
@@ -243,8 +243,6 @@ export const languageEnglish = {
         settingsCloseButtonSize: "Adjusts the size of the close (X) button in the top right corner of the settings window. Default is 24.",
         showTypingEffect: "When enabled, it will show a typing indicator while the assistant is generating a response.",
         dynamicOutputPrompt: "When enabled, the schema information will be included in the request.",
-        sourcemapTranslate:
-            "If enabled, stack traces from errors will be automatically translated to show the original source code location, using sourcemaps. This is useful for debugging.",
         realmDirectOpen: "If enabled, clicking a character in RisuRealm preview will directly open the character description.",
         openRouterProviderOrder:
             "The order of providers to use, the first provider will be used first, if the provider is not available, it will use the next provider. See datail on https://openrouter.ai/docs/guides/routing/provider-selection#ordering-specific-providers",
@@ -267,7 +265,7 @@ export const languageEnglish = {
             "Keeps the tab active and prevents the session from expiring due to inactivity in browsers. This may require refresh to take effect.\n\n" +
             "- **Via Sound**: Plays a silent audio at regular intervals to keep the session alive. This method is known as most compatible and effective in most browsers.\n",
         reSummarizationPrompt:
-            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used. The summary output is split by double newlines (\\n\\n) into chunks for similarity search.",
+            "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used.",
         hypaV3MemoryTokensRatio:
             "The fraction of the max context size allocated to the long-term memory block {{slot}} in the prompt.",
         hypaV3ExtraSummarizationRatio:
@@ -303,6 +301,9 @@ export const languageEnglish = {
         hypaV3QueryChatCount:
             "The number of recent chat messages used as the query for similarity search. " +
             "Higher values use more chat context to determine similarity.",
+        hypaV3SummaryChunkSeparator:
+            "Separator used to split summaries into chunks for similarity search.",
+        coldstorage: "Coldstorage is a feature that automatically moves old chats and character data to a seperate storage to reduce the size of the main storage and improve performance. This will reduce the transfer time, transfer traffic and improve the performance when loading chats."
     },
     setup: {
         chooseProvider: "Choose AI Provider",
@@ -1353,6 +1354,7 @@ export const languageEnglish = {
         extraSummarizationRatioLabel: "Extra Summarization Ratio",
         maxChatsPerSummaryLabel: "Max Messages Per Summary",
         queryChatCountLabel: "Query Chat Count",
+        summaryChunkSeparatorLabel: "Chunk Separator Regex",
         recentMemoryRatioLabel: "Recent Memory Ratio",
         similarMemoryRatioLabel: "Similar Memory Ratio",
         randomMemoryRatioLabel: "Random Memory Ratio",
@@ -1522,11 +1524,9 @@ export const languageEnglish = {
     showTypingEffect: "Show Typing Effect",
     dynamicRequest: "Dynamic Request",
     dynamicOutputPrompt: "Dynamic Output Prompt",
-    sourcemapTranslate: "Translate stack traces using sourcemaps",
     settingsCloseButtonSize: "Settings Close Button Size",
     translating: "Translating...",
-    showOriginal: "Show Original Code Address",
-    translateCode: "Translate Code Address",
+    stackTraceTranslationFailed: "Stack trace translation failed. Showing original obfuscated stack trace below.",
     apply: "Apply",
     add: "Add",
     nightlyWarning:
@@ -1629,9 +1629,57 @@ export const languageEnglish = {
     keepSessionAlive: "Keep Session Alive",
     keepSessionAlivePip: "Via PIP",
     keepSessionAliveSound: "Via Sound",
+    // NanoGPT Dashboard
+    nanoGPTLoadingAccountInfo: "Loading account info…",
+    nanoGPTCreditBalance: "Credit Balance:",
+    nanoGPTSubscription: "Subscription",
+    nanoGPTGraceUntil: (date: string) => `until ${date}`,
+    nanoGPTNoActiveSubscription: "No active subscription.",
+    nanoGPTCancelsAtPeriodEnd: (date: string) => `Cancels at period end (${date})`,
+    nanoGPTWeeklyTokens: (pct: string) => `Weekly Included Input Tokens — ${pct} used`,
+    nanoGPTDailyTokens: (pct: string) => `Daily Included Input Tokens — ${pct} used`,
+    nanoGPTDailyImages: (pct: string) => `Daily Included Images — ${pct} used`,
+    nanoGPTResets: (date: string) => `Resets ${date}`,
+    nanoGPTUsed: (n: string) => `${n} used`,
+    nanoGPTRemaining: (n: string) => `${n} remaining`,
+    nanoGPTRenews: (date: string) => `Renews: ${date}`,
+    nanoGPTCouldNotLoadAccountInfo: "Could not load account info.",
+    nanoGPTWeeklyTokensLabel: "Weekly Included Input Tokens",
+    nanoGPTDailyTokensLabel: "Daily Included Input Tokens",
+    nanoGPTDailyImagesLabel: "Daily Included Images",
+    nanoGPTUsedLabel: "used",
+    nanoGPTRemainingLabel: "remaining",
+    nanoGPTResetsLabel: "Resets",
+    nanoGPTRenewsLabel: "Renews:",
+    // NanoGPT Provider Picker
+    nanoGPTProvider: "Provider",
+    nanoGPTProviderPayAsYouGoOnly: "(only available in pay-as-you-go mode)",
+    nanoGPTProviderAuto: "Auto",
+    nanoGPTProviderFree: "Free",
+    nanoGPTProviderInput: "Input",
+    nanoGPTProviderOutput: "Output",
+    nanoGPTProviderQuantization: "Quantization",
+    nanoGPTProviderUndisclosed: "Undisclosed",
+    nanoGPTProviderCache: "Cache",
+    nanoGPTProviderCacheSupported: "Supported",
+    nanoGPTProviderCacheNotSupported: "Not supported",
+    nanoGPTProviderCacheRead: "Cache read",
+    // NanoGPT Settings
+    nanoGPTUseSubscriptionEndpoint: "Use subscription endpoint & models",
+    // Model Grid
+    modelGridCouldNotLoad: "Could not load model list. Check your API key.",
+    modelGridNoModelsMatch: (q: string) => `No models match "${q}"`,
+    modelGridContext: (n: string) => `Context: ${n}`,
     loadouts: "Loadouts",
     loadout: "Loadout",
-    longPressToPopupEditor: "Long press to open popup editor",
+
+    nanoGPTSelectFromList: "Select from List",
+    nanoGPTManualInput: "Manual Input",
+    nanoGPTManualModelSelect: "Manual Model Select",
+    coldStorage: "Cold Storage",
+    cleanColdStorage: "Clean Unused Cold Storage",
+    customSidebarConfig: "Custom Sidebar Configuration",
+    cleanColdStorageConfirm: "This will permanently delete all unused cold storage data. This may contain data that isn't currently used but may be useful in the future. Do you want to continue?",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

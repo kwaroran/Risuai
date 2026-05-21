@@ -284,6 +284,7 @@ await (async function() {
             const fn = callbackRegistry.get(data.id);
             const response = { type: 'CALLBACK_RETURN', reqId: data.reqId };
             const usedAbortIds = [];
+            let transferables = [];
 
             try {
                 if (!fn) throw new Error("Callback not found or released");
@@ -299,17 +300,28 @@ await (async function() {
                 });
                 const result = await fn(...deserializedArgs);
                 response.result = result;
+                const { result: streamResult, ports: streamPorts } = replaceStreamsWithPorts(response.result);
+                response.result = streamResult;
+                transferables = collectTransferables(response, streamPorts);
             } catch (e) {
-                response.error = e.message || "Guest callback error";
+                delete response.result;
+                response.error = (e && e.message) || String(e || "Guest callback error");
             }
             // Clean up abort controllers after callback completes
             for (const id of usedAbortIds) {
                 abortControllers.delete(id);
             }
-            const { result: streamResult, ports: streamPorts } = replaceStreamsWithPorts(response.result);
-            response.result = streamResult;
-            const transferables = collectTransferables(response, streamPorts);
-            send(response, transferables);
+            try {
+                send(response, transferables);
+            } catch (e) {
+                try {
+                    send({
+                        type: 'CALLBACK_RETURN',
+                        reqId: data.reqId,
+                        error: 'Failed to post message to parent: ' + ((e && e.message) || String(e || "Unknown error"))
+                    });
+                } catch(_) {}
+            }
         }
     });
 
@@ -714,6 +726,7 @@ export class SandboxHost {
             if (data.type === 'CALL_ROOT' || data.type === 'CALL_INSTANCE') {
                 const response: RpcMessage = { type: 'RESPONSE', reqId: data.reqId };
                 const usedAbortIds: string[] = [];
+                let transferables: Transferable[] = [];
 
                 try {
 
@@ -734,26 +747,29 @@ export class SandboxHost {
 
 
                     response.result = this.serialize(result);
+                    const { result: streamResult, ports: streamPorts } = this.replaceStreamsWithPorts(response.result);
+                    response.result = streamResult;
+                    transferables = this.collectTransferables(response, streamPorts);
 
                 } catch (err: any) {
-                    response.error = err.message || "Host execution error";
+                    delete response.result;
+                    response.error = err?.message || String(err || "Host execution error");
                 } finally {
                     for (const id of usedAbortIds) this.abortControllers.delete(id);
                 }
 
-                const { result: streamResult, ports: streamPorts } = this.replaceStreamsWithPorts(response.result);
-                response.result = streamResult;
-                const transferables = this.collectTransferables(response, streamPorts);
                 console.log("Original request:", data);
                 console.log('Original response:', response, transferables);
                 try {
                     this.iframe.contentWindow?.postMessage(response, '*', transferables);                    
                 } catch (error) {
-                    this.iframe.contentWindow?.postMessage({
-                        type: 'RESPONSE',
-                        reqId: data.reqId,
-                        error: 'Failed to post message to iframe: ' + (error as Error).message
-                    }, '*');
+                    try {
+                        this.iframe.contentWindow?.postMessage({
+                            type: 'RESPONSE',
+                            reqId: data.reqId,
+                            error: 'Failed to post message to iframe: ' + ((error as any)?.message || String(error || "Unknown error"))
+                        }, '*');
+                    } catch(_) {}
                     console.error('Failed to post message to iframe:', error);
                 }
             }

@@ -308,8 +308,7 @@ await (async function() {
             }
             const { result: streamResult, ports: streamPorts } = replaceStreamsWithPorts(response.result);
             response.result = streamResult;
-            const transferables = collectTransferables(response);
-            transferables.push(...streamPorts);
+            const transferables = collectTransferables(response, streamPorts);
             send(response, transferables);
         }
     });
@@ -744,8 +743,7 @@ export class SandboxHost {
 
                 const { result: streamResult, ports: streamPorts } = this.replaceStreamsWithPorts(response.result);
                 response.result = streamResult;
-                const transferables = this.collectTransferables(response);
-                transferables.push(...streamPorts);
+                const transferables = this.collectTransferables(response, streamPorts);
                 console.log("Original request:", data);
                 console.log('Original response:', response, transferables);
                 try {

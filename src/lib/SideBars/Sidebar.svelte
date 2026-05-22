@@ -51,6 +51,7 @@
   import DevTool from "./DevTool.svelte";
     import QuickSettingsGui from "../Others/QuickSettingsGUI.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
+    import { RISU_SIDEBAR_DRAG_TYPE } from "src/ts/dragTypes";
   let sideBarMode = $state(0);
   let editMode = $state(false);
   let menuMode = $state(0);
@@ -327,7 +328,7 @@
   }
   const avatarDragStart = (ind:DragData, e:DragEv) => {
     e.dataTransfer.setData('text/plain', '');
-    e.dataTransfer.setData('application/x-risu-internal', 'true');
+    e.dataTransfer.setData(RISU_SIDEBAR_DRAG_TYPE, 'true');
     currentDrag = ind
     const avatar = e.currentTarget.querySelector('.avatar')
     if(avatar){
@@ -339,8 +340,22 @@
     currentDrag = null
   }
 
+  $effect(() => {
+    if (typeof window === 'undefined') return
+
+    window.addEventListener('dragend', clearCurrentDrag)
+    window.addEventListener('drop', clearCurrentDrag)
+    window.addEventListener('blur', clearCurrentDrag)
+
+    return () => {
+      window.removeEventListener('dragend', clearCurrentDrag)
+      window.removeEventListener('drop', clearCurrentDrag)
+      window.removeEventListener('blur', clearCurrentDrag)
+    }
+  })
+
   const getCurrentSidebarDrag = (e:DragEvent) => {
-    if(!currentDrag || !e.dataTransfer?.types.includes('application/x-risu-internal')){
+    if(!currentDrag || !e.dataTransfer?.types.includes(RISU_SIDEBAR_DRAG_TYPE)){
       return null
     }
     return currentDrag

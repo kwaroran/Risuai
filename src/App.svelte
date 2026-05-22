@@ -36,6 +36,7 @@
     import IrisModal from './lib/Others/IrisModal.svelte';
     import Legal from './lib/Others/Legal.svelte';
     import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
+    import { RISU_SIDEBAR_DRAG_TYPE } from './ts/dragTypes';
 
 
   
@@ -44,11 +45,10 @@
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
-    const internalDragType = 'application/x-risu-internal'
 
     const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] => {
         const types = Array.from(e.dataTransfer?.types ?? [])
-        if(types.includes(internalDragType)){
+        if(types.includes(RISU_SIDEBAR_DRAG_TYPE)){
             return 'none'
         }
         return types.includes('Files') ? 'copy' : 'link'
@@ -63,7 +63,7 @@
     e.dataTransfer.dropEffect = getMainDropEffect(e)
 }} ondrop={async (e) => {
     e.preventDefault()
-    if (e.dataTransfer.types.includes(internalDragType)) {
+    if (e.dataTransfer.types.includes(RISU_SIDEBAR_DRAG_TYPE)) {
         return
     }
     const file = e.dataTransfer.files[0]

@@ -54,9 +54,6 @@
         return types.includes('Files') ? 'copy' : 'link'
     }
 
-    const markInternalDrag = (e:DragEvent) => {
-        e.dataTransfer?.setData(internalDragType, 'true')
-    }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -64,7 +61,7 @@
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = getMainDropEffect(e)
-}} ondragstart={markInternalDrag} ondrop={async (e) => {
+}} ondrop={async (e) => {
     e.preventDefault()
     if (e.dataTransfer.types.includes(internalDragType)) {
         return

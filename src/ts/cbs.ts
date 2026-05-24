@@ -846,7 +846,8 @@ export function registerCBS(arg:CBSRegisterArg) {
                 return ''
             }
             if(matcherArg.runVar){
-                if(!getChatVar(args[0])){
+                const currentValue = getChatVar(args[0])
+                if(!currentValue || currentValue === 'null'){
                     setChatVar(args[0], args[1])
                 }
                 return ''

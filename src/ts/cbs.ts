@@ -2121,7 +2121,7 @@ export function registerCBS(arg:CBSRegisterArg) {
     registerFunction({
         name: 'reverse',
         callback: (str, matcherArg, args, vars) => {
-            return [...str].reverse().join('')
+            return [...(args[0] ?? '')].reverse().join('')
         },
         alias: [],
         description: 'Reverses the input string.\n\nUsage:: {{reverse::some_value}}',

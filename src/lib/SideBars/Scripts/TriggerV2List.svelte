@@ -12,6 +12,7 @@
     import { type triggerEffectV2, type triggerEffect, type triggerscript, displayAllowList, requestAllowList, type triggerV2IfAdvanced } from "src/ts/process/triggers";
     import { onDestroy, onMount } from "svelte";
     import { DBState } from "src/ts/stores.svelte";
+    import { RISU_EFFECT_DRAG_TYPE, RISU_TRIGGER_DRAG_TYPE } from "src/ts/dragTypes";
 
     interface Props {
         value?: triggerscript[];
@@ -1784,14 +1785,25 @@
         value = triggers;
     }
 
-    const handleTriggerDrop = (targetIndex: number, e) => {
+    const isTriggerDrag = (e: DragEvent) => {
+        return e.dataTransfer?.types.includes(RISU_TRIGGER_DRAG_TYPE) ?? false;
+    }
+
+    const markTriggerDrag = (e: DragEvent, index: number) => {
+        if (!e.dataTransfer) return;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'trigger');
+        e.dataTransfer.setData(RISU_TRIGGER_DRAG_TYPE, index.toString());
+    }
+
+    const handleTriggerDrop = (targetIndex: number, e: DragEvent) => {
+        if (!isTriggerDrag(e)) {
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
-        const data = e.dataTransfer?.getData('text');
-        if (data === 'trigger') {
-            const sourceIndex = parseInt(e.dataTransfer?.getData('triggerIndex') || '0');
-            moveTrigger(sourceIndex, targetIndex);
-        }
+        const sourceIndex = parseInt(e.dataTransfer?.getData(RISU_TRIGGER_DRAG_TYPE) || '0');
+        moveTrigger(sourceIndex, targetIndex);
     }
 
     const getBlockRange = (startIndex: number): { start: number, end: number } => {
@@ -1965,14 +1977,25 @@
         updateGuideLines();
     }
 
-    const handleEffectDrop = (targetIndex: number, e) => {
+    const isEffectDrag = (e: DragEvent) => {
+        return e.dataTransfer?.types.includes(RISU_EFFECT_DRAG_TYPE) ?? false;
+    }
+
+    const markEffectDrag = (e: DragEvent, index: number) => {
+        if (!e.dataTransfer) return;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'effect');
+        e.dataTransfer.setData(RISU_EFFECT_DRAG_TYPE, index.toString());
+    }
+
+    const handleEffectDrop = (targetIndex: number, e: DragEvent) => {
+        if (!isEffectDrag(e)) {
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
-        const data = e.dataTransfer?.getData('text');
-        if (data === 'effect') {
-            const sourceIndex = parseInt(e.dataTransfer?.getData('effectIndex') || '0');
-            moveEffect(sourceIndex, targetIndex);
-        }
+        const sourceIndex = parseInt(e.dataTransfer?.getData(RISU_EFFECT_DRAG_TYPE) || '0');
+        moveEffect(sourceIndex, targetIndex);
     }
 
     const handleKeydown = (e:KeyboardEvent) => {
@@ -2422,8 +2445,10 @@
                             class:shadow-lg={isDragging && dragOverIndex === i}
                             role="listitem"
                             ondragover={(e) => {
-                                if (!isMobileScreen) {
+                                if (!isMobileScreen && isTriggerDrag(e)) {
                                     e.preventDefault()
+                                    e.stopPropagation()
+                                    e.dataTransfer.dropEffect = 'move'
                                 }
                             }} 
                             ondrop={(e) => {
@@ -2451,8 +2476,7 @@
                                             return
                                         }
                                         isDragging = true
-                                        e.dataTransfer?.setData('text', 'trigger')
-                                        e.dataTransfer?.setData('triggerIndex', i.toString())
+                                        markTriggerDrag(e, i)
                                         
                                         const dragElement = document.createElement('div')
                                         if (isMultipleSelected() && isTriggerSelected(i)) {
@@ -2474,8 +2498,10 @@
                                         scrollManager.stopAutoScroll()
                                     }}
                                     ondragover={(e) => {
-                                        if (!isMobileScreen) {
+                                        if (!isMobileScreen && isTriggerDrag(e)) {
                                             e.preventDefault()
+                                            e.stopPropagation()
+                                            e.dataTransfer.dropEffect = 'move'
                                             const rect = e.currentTarget.getBoundingClientRect()
                                             const mouseY = e.clientY
                                             const elementCenter = rect.top + rect.height / 2
@@ -2526,8 +2552,10 @@
                             class:shadow-lg={isDragging && dragOverIndex === value.length}
                             role="listitem"
                             ondragover={(e) => {
-                                if (!isMobileScreen) {
+                                if (!isMobileScreen && isTriggerDrag(e)) {
                                     e.preventDefault()
+                                    e.stopPropagation()
+                                    e.dataTransfer.dropEffect = 'move'
                                     dragOverIndex = value.length
                                 }
                             }} 
@@ -2699,8 +2727,10 @@
                                 class:shadow-lg={isEffectDragging && effectDragOverIndex === i}
                                 role="listitem"
                                 ondragover={(e) => {
-                                    if (!isMobileScreen && isEffectDragging) {
+                                    if (!isMobileScreen && isEffectDragging && isEffectDrag(e)) {
                                         e.preventDefault()
+                                        e.stopPropagation()
+                                        e.dataTransfer.dropEffect = 'move'
                                     }
                                 }} 
                                 ondrop={(e) => {
@@ -2715,8 +2745,10 @@
                                 class:hover:bg-selected={selectedEffectIndex !== i}
                                 class:bg-selected={selectedEffectIndex === i}
                                 ondragover={(e) => {
-                                    if (!isMobileScreen && isEffectDragging) {
+                                    if (!isMobileScreen && isEffectDragging && isEffectDrag(e)) {
                                         e.preventDefault()
+                                        e.stopPropagation()
+                                        e.dataTransfer.dropEffect = 'move'
                                         const rect = e.currentTarget.getBoundingClientRect()
                                         const mouseY = e.clientY
                                         const elementCenter = rect.top + rect.height / 2
@@ -2786,8 +2818,7 @@
                                                  return
                                              }
                                              isEffectDragging = true
-                                             e.dataTransfer?.setData('text', 'effect')
-                                             e.dataTransfer?.setData('effectIndex', i.toString())
+                                             markEffectDrag(e, i)
                                              
                                              const dragElement = document.createElement('div')
                                              dragElement.textContent = formatEffectDisplay(effect).replace(/<[^>]*>/g, '') || 'Effect'
@@ -2822,8 +2853,10 @@
                             class:shadow-lg={isEffectDragging && effectDragOverIndex === (value && value[selectedIndex] && value[selectedIndex].effect ? value[selectedIndex].effect.length : 0)}
                             role="listitem"
                             ondragover={(e) => {
-                                if (!isMobileScreen && isEffectDragging) {
+                                if (!isMobileScreen && isEffectDragging && isEffectDrag(e)) {
                                     e.preventDefault()
+                                    e.stopPropagation()
+                                    e.dataTransfer.dropEffect = 'move'
                                 }
                             }} 
                             ondrop={(e) => {

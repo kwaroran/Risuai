@@ -46,15 +46,15 @@
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
 
-    const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] | null => {
+    const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] => {
         const types = Array.from(e.dataTransfer?.types ?? [])
         if(types.includes(RISU_SIDEBAR_DRAG_TYPE)){
             return 'none'
         }
         if(types.includes(RISU_APP_INTERNAL_DRAG_TYPE)){
-            return null
+            return 'none'
         }
-        return types.includes('Files') ? 'copy' : null
+        return types.includes('Files') ? 'copy' : 'none'
     }
 
     const markAppInternalDrag = (e:DragEvent) => {
@@ -67,9 +67,6 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
     const dropEffect = getMainDropEffect(e)
-    if(!dropEffect){
-        return
-    }
     e.preventDefault()
     e.dataTransfer.dropEffect = dropEffect
 }} ondragstart={markAppInternalDrag} ondrop={async (e) => {
@@ -80,6 +77,7 @@
     }
     const file = e.dataTransfer.files[0]
     if (!file) {
+        e.preventDefault()
         return
     }
     e.preventDefault()

@@ -42,6 +42,12 @@
         modelInfo.parameters.includes('reasoning_effort_none') ||
         modelInfo.parameters.includes('reasoning_effort_xhigh')
     )
+    let hasVerbosity = $derived(modelInfo.parameters.includes('verbosity'))
+    const verbosityOptions = [
+        { value: 0, label: 'Low' },
+        { value: 1, label: 'Medium' },
+        { value: 2, label: 'High' },
+    ]
     let reasoningEffortOptions = $derived([
         ...(!modelInfo.parameters.includes('reasoning_effort_min_medium') ? [{
             value: -1,
@@ -54,6 +60,12 @@
     ])
 
     $effect(() => {
+        if (hasVerbosity && value.verbosity === undefined) {
+            value.verbosity = 1
+        }
+        if (hasReasoningEffort && value.reasoning_effort === undefined) {
+            value.reasoning_effort = modelInfo.parameters.includes('reasoning_effort_min_medium') ? 1 : 0
+        }
         if (!modelInfo.parameters.includes('reasoning_effort_xhigh') && value.reasoning_effort === 3) {
             value.reasoning_effort = 2
         }
@@ -86,8 +98,10 @@
 <span class="text-textcolor">Reasoning Effort</span>
 <SegmentedControl bind:value={value.reasoning_effort} options={reasoningEffortOptions} />
 {/if}
+{#if hasVerbosity}
 <span class="text-textcolor">{'Verbosity'}</span>
-<SliderInput min={0} max={2} marginBottom step={1} fixed={0} bind:value={value.verbosity} disableable/>
+<SegmentedControl bind:value={value.verbosity} options={verbosityOptions} />
+{/if}
 
 {#if withImportExport}
     <div class="flex">

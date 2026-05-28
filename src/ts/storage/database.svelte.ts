@@ -574,6 +574,7 @@ export function setDatabase(data:Database){
     data.showPromptComparison ??= false
     data.OaiCompAPIKeys ??= {}
     data.reasoningEffort ??= 0
+    data.verbosity ??= 1
     data.hypaV3Presets ??= [
         createHypaV3Preset("Default", {
             summarizationPrompt: data.supaMemoryPrompt ? data.supaMemoryPrompt : "",

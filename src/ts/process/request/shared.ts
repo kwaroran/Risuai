@@ -19,6 +19,16 @@ export type LLMParameter =
 
 export type ModelModeExtended = 'model' | 'submodel' | 'memory' | 'emotion' | 'otherAx' | 'translate'
 
+const reasoningCapabilityParameters: LLMParameter[] = [
+    'reasoning_effort_min_medium',
+    'reasoning_effort_none',
+    'reasoning_effort_xhigh',
+]
+
+function isReasoningCapabilityParameter(parameter: LLMParameter): boolean {
+    return reasoningCapabilityParameters.includes(parameter)
+}
+
 export function setObjectValue<T>(obj: T, key: string, value: any): T {
     const splitKey = key.split('.')
     if (splitKey.length > 1) {
@@ -135,6 +145,9 @@ export function applyParameters(
     },
 ): Record<string, any> {
     const db = getDatabase()
+    const reasoningDisabledEffort = parameters.includes('reasoning_effort_none') ? 'none' : 'minimal'
+    const reasoningMinEffort = parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+    const supportsXHighReasoning = parameters.includes('reasoning_effort_xhigh')
 
     function getEffort(effort: number, disabledEffort: 'minimal' | 'none' = 'minimal', supportsXHigh = false, minEffort: 'low' | 'medium' = 'low') {
         switch (effort) {
@@ -160,20 +173,7 @@ export function applyParameters(
     }
 
     function getVerbosity(verbosity: number) {
-        switch (verbosity) {
-            case 0: {
-                return 'low'
-            }
-            case 1: {
-                return 'medium'
-            }
-            case 2: {
-                return 'high'
-            }
-            default: {
-                return 'medium'
-            }
-        }
+        return ['low', 'medium', 'high'][verbosity] ?? 'medium'
     }
 
     if (db.seperateParametersEnabled && (modelMode !== 'model' || db.seperateParametersByModel)) {
@@ -191,6 +191,9 @@ export function applyParameters(
 
         for (const parameter of parameters) {
             let value: number | string = 0
+            if (isReasoningCapabilityParameter(parameter)) {
+                continue
+            }
             if (parameter === 'top_k' && arg.ignoreTopKIfZero && sepParams[parameter] === 0) {
                 continue
             }
@@ -244,16 +247,12 @@ export function applyParameters(
                 case 'reasoning_effort': {
                     value = getEffort(
                         sepParams.reasoning_effort,
-                        parameters.includes('reasoning_effort_none') ? 'none' : 'minimal',
-                        parameters.includes('reasoning_effort_xhigh'),
-                        parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+                        reasoningDisabledEffort,
+                        supportsXHighReasoning,
+                        reasoningMinEffort
                     )
                     break
                 }
-                case 'reasoning_effort_none':
-                case 'reasoning_effort_min_medium':
-                case 'reasoning_effort_xhigh':
-                    continue
                 case 'verbosity': {
                     value = getVerbosity(sepParams.verbosity)
                     break
@@ -276,6 +275,9 @@ export function applyParameters(
 
     for (const parameter of parameters) {
         let value: number | string = 0
+        if (isReasoningCapabilityParameter(parameter)) {
+            continue
+        }
         if (parameter === 'top_k' && arg.ignoreTopKIfZero && db.top_k === 0) {
             continue
         }
@@ -307,16 +309,12 @@ export function applyParameters(
             case 'reasoning_effort': {
                 value = getEffort(
                     db.reasoningEffort,
-                    parameters.includes('reasoning_effort_none') ? 'none' : 'minimal',
-                    parameters.includes('reasoning_effort_xhigh'),
-                    parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+                    reasoningDisabledEffort,
+                    supportsXHighReasoning,
+                    reasoningMinEffort
                 )
                 break
             }
-            case 'reasoning_effort_none':
-            case 'reasoning_effort_min_medium':
-            case 'reasoning_effort_xhigh':
-                continue
             case 'verbosity': {
                 value = getVerbosity(db.verbosity)
                 break

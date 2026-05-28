@@ -25,7 +25,8 @@ export const LLMFlags = {
     claudeThinking: 21,
     claudeAdaptiveThinking: 22,
     claudeXHighEffort: 23,
-    deepSeekThinkingToggle: 24
+    deepSeekThinkingToggle: 24,
+    noStructuredOutput: 25
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 
@@ -137,4 +138,6 @@ export const ProviderNames = new Map<LLMProvider, string>([
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']
 export const GPT5Parameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort','verbosity']
+export const GPT5NoneParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort_none','verbosity']
+export const GPT5XHighParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort_none_xhigh','verbosity']
 export const ClaudeParameters:LLMParameter[] = ['temperature', 'top_k', 'top_p']

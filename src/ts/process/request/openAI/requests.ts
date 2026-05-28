@@ -408,7 +408,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body.seed = db.generationSeed
     }
 
-    if(db.jsonSchemaEnabled || arg.schema){
+    if((db.jsonSchemaEnabled || arg.schema) && !arg.modelInfo.flags.includes(LLMFlags.noStructuredOutput)){
         body.response_format = {
             "type": "json_schema",
             "json_schema": getOpenAIJSONSchema(arg.schema)

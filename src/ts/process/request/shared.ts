@@ -11,6 +11,8 @@ export type LLMParameter =
     | 'frequency_penalty'
     | 'presence_penalty'
     | 'reasoning_effort'
+    | 'reasoning_effort_none'
+    | 'reasoning_effort_none_xhigh'
     | 'thinking_tokens'
     | 'verbosity'
 
@@ -133,10 +135,10 @@ export function applyParameters(
 ): Record<string, any> {
     const db = getDatabase()
 
-    function getEffort(effort: number) {
+    function getEffort(effort: number, disabledEffort: 'minimal' | 'none' = 'minimal') {
         switch (effort) {
             case -1: {
-                return 'minimal'
+                return disabledEffort
             }
             case 0: {
                 return 'low'
@@ -146,6 +148,9 @@ export function applyParameters(
             }
             case 2: {
                 return 'high'
+            }
+            case 3: {
+                return 'xhigh'
             }
             default: {
                 return 'medium'
@@ -239,6 +244,11 @@ export function applyParameters(
                     value = getEffort(sepParams.reasoning_effort)
                     break
                 }
+                case 'reasoning_effort_none':
+                case 'reasoning_effort_none_xhigh': {
+                    value = getEffort(sepParams.reasoning_effort, 'none')
+                    break
+                }
                 case 'verbosity': {
                     value = getVerbosity(sepParams.verbosity)
                     break
@@ -254,7 +264,11 @@ export function applyParameters(
                 continue
             }
 
-            data = setObjectValue(data, rename[parameter] ?? parameter, value)
+            const targetParameter = 
+                (parameter === 'reasoning_effort_none' || parameter === 'reasoning_effort_none_xhigh')
+                ? 'reasoning_effort'
+                : parameter
+            data = setObjectValue(data, rename[parameter] ?? targetParameter, value)
         }
         return data
     }
@@ -293,6 +307,11 @@ export function applyParameters(
                 value = getEffort(db.reasoningEffort)
                 break
             }
+            case 'reasoning_effort_none':
+            case 'reasoning_effort_none_xhigh': {
+                value = getEffort(db.reasoningEffort, 'none')
+                break
+            }
             case 'verbosity': {
                 value = getVerbosity(db.verbosity)
                 break
@@ -315,7 +334,11 @@ export function applyParameters(
             continue
         }
 
-        data = setObjectValue(data, rename[parameter] ?? parameter, value)
+        const targetParameter = 
+            (parameter === 'reasoning_effort_none' || parameter === 'reasoning_effort_none_xhigh')
+            ? 'reasoning_effort'
+            : parameter
+        data = setObjectValue(data, rename[parameter] ?? targetParameter, value)
     }
     return data
 }

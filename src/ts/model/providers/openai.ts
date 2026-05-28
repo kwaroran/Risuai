@@ -1,6 +1,40 @@
-import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, OpenAIParameters, GPT5Parameters, type LLMModel } from '../types'
+import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, OpenAIParameters, GPT5Parameters, GPT5NoneParameters, GPT5XHighParameters, type LLMModel } from '../types'
 
 export const OpenAIModels: LLMModel[] = [
+    // GPT-5.5 (April 2026)
+    {
+        id: 'gpt-5.5',
+        internalID: 'gpt-5.5',
+        name: 'GPT 5.5',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5XHighParameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base,
+        recommended: true
+    },
+    {
+        id: 'gpt-5.5-2026-04-23',
+        internalID: 'gpt-5.5-2026-04-23',
+        name: 'GPT 5.5 (2026-04-23)',
+        provider: LLMProvider.OpenAI,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasImageInput,
+            LLMFlags.DeveloperRole
+        ],
+        parameters: GPT5XHighParameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base
+    },
     // GPT-5.4 (March 2026)
     {
         id: 'gpt-5.4',
@@ -15,7 +49,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.DeveloperRole
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5XHighParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base,
         recommended: true
     },
@@ -32,7 +66,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.DeveloperRole
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5XHighParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base
     },
     {
@@ -46,9 +80,10 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.OAICompletionTokens,
             LLMFlags.hasFullSystemPrompt,
             LLMFlags.hasImageInput,
-            LLMFlags.DeveloperRole
+            LLMFlags.DeveloperRole,
+            LLMFlags.noStructuredOutput
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5XHighParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base
     },
     {
@@ -62,9 +97,10 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.OAICompletionTokens,
             LLMFlags.hasFullSystemPrompt,
             LLMFlags.hasImageInput,
-            LLMFlags.DeveloperRole
+            LLMFlags.DeveloperRole,
+            LLMFlags.noStructuredOutput
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5XHighParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base
     },
     // GPT-5.2 (December 2025)
@@ -81,7 +117,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.DeveloperRole
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5XHighParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base,
         recommended: true
     },
@@ -117,7 +153,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.DeveloperRole
         ],
-        parameters: GPT5Parameters,
+        parameters: GPT5NoneParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base,
         recommended: true
     },

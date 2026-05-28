@@ -270,7 +270,9 @@ export const modelSpecificParameterItems: SettingItem[] = [
         type: 'slider',
         fallbackLabel: 'Reasoning Effort',
         bindKey: 'reasoningEffort',
-        condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort'),
+        condition: (ctx) =>
+            ctx.modelInfo.parameters.includes('reasoning_effort') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_none'),
         options: {
             min: -1,
             max: 2,
@@ -279,6 +281,21 @@ export const modelSpecificParameterItems: SettingItem[] = [
             disableable: true,
         },
         keywords: ['reasoning', 'effort'],
+    },
+    {
+        id: 'params.reasoningEffortXHigh',
+        type: 'slider',
+        fallbackLabel: 'Reasoning Effort',
+        bindKey: 'reasoningEffort',
+        condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none_xhigh'),
+        options: {
+            min: -1,
+            max: 3,
+            step: 1,
+            fixed: 0,
+            disableable: true,
+        },
+        keywords: ['reasoning', 'effort', 'xhigh'],
     },
     {
         id: 'params.verbosity',
@@ -318,6 +335,7 @@ export const allBasicParameterItems: SettingItem[] = [
     modelSpecificParameterItems.find(i => i.id === 'params.topA')!,
     modelSpecificParameterItems.find(i => i.id === 'params.repetitionPenalty')!,
     modelSpecificParameterItems.find(i => i.id === 'params.reasoningEffort')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.reasoningEffortXHigh')!,
     modelSpecificParameterItems.find(i => i.id === 'params.verbosity')!,
     penaltyParameterItems.find(i => i.id === 'params.topP')!,
     penaltyParameterItems.find(i => i.id === 'params.frequencyPenalty')!,

@@ -138,6 +138,7 @@ export const ProviderNames = new Map<LLMProvider, string>([
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']
 export const GPT5Parameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort','verbosity']
-export const GPT5NoneParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort_none','verbosity']
-export const GPT5XHighParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort_none_xhigh','verbosity']
+export const GPT5NoneParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort', 'reasoning_effort_none','verbosity']
+export const GPT5XHighParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort', 'reasoning_effort_none', 'reasoning_effort_xhigh','verbosity']
+export const GPT5ProParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort', 'reasoning_effort_min_medium', 'reasoning_effort_xhigh','verbosity']
 export const ClaudeParameters:LLMParameter[] = ['temperature', 'top_k', 'top_p']

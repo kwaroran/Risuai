@@ -267,33 +267,23 @@ export const modelSpecificParameterItems: SettingItem[] = [
     },
     {
         id: 'params.reasoningEffort',
-        type: 'slider',
+        type: 'segmented',
         fallbackLabel: 'Reasoning Effort',
         bindKey: 'reasoningEffort',
         condition: (ctx) =>
             ctx.modelInfo.parameters.includes('reasoning_effort') ||
-            ctx.modelInfo.parameters.includes('reasoning_effort_none'),
+            ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_none') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_xhigh'),
         options: {
-            min: -1,
-            max: 2,
-            step: 1,
-            fixed: 0,
-            disableable: true,
-        },
-        keywords: ['reasoning', 'effort'],
-    },
-    {
-        id: 'params.reasoningEffortXHigh',
-        type: 'slider',
-        fallbackLabel: 'Reasoning Effort',
-        bindKey: 'reasoningEffort',
-        condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none_xhigh'),
-        options: {
-            min: -1,
-            max: 3,
-            step: 1,
-            fixed: 0,
-            disableable: true,
+            segmentOptions: [
+                { value: -1, label: 'Minimal', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_none') && !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
+                { value: -1, label: 'None', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none') },
+                { value: 0, label: 'Low', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
+                { value: 1, label: 'Medium' },
+                { value: 2, label: 'High' },
+                { value: 3, label: 'XHigh', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_xhigh') },
+            ]
         },
         keywords: ['reasoning', 'effort', 'xhigh'],
     },
@@ -335,7 +325,6 @@ export const allBasicParameterItems: SettingItem[] = [
     modelSpecificParameterItems.find(i => i.id === 'params.topA')!,
     modelSpecificParameterItems.find(i => i.id === 'params.repetitionPenalty')!,
     modelSpecificParameterItems.find(i => i.id === 'params.reasoningEffort')!,
-    modelSpecificParameterItems.find(i => i.id === 'params.reasoningEffortXHigh')!,
     modelSpecificParameterItems.find(i => i.id === 'params.verbosity')!,
     penaltyParameterItems.find(i => i.id === 'params.topP')!,
     penaltyParameterItems.find(i => i.id === 'params.frequencyPenalty')!,

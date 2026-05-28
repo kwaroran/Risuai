@@ -11,8 +11,9 @@ export type LLMParameter =
     | 'frequency_penalty'
     | 'presence_penalty'
     | 'reasoning_effort'
+    | 'reasoning_effort_min_medium'
     | 'reasoning_effort_none'
-    | 'reasoning_effort_none_xhigh'
+    | 'reasoning_effort_xhigh'
     | 'thinking_tokens'
     | 'verbosity'
 
@@ -135,13 +136,13 @@ export function applyParameters(
 ): Record<string, any> {
     const db = getDatabase()
 
-    function getEffort(effort: number, disabledEffort: 'minimal' | 'none' = 'minimal') {
+    function getEffort(effort: number, disabledEffort: 'minimal' | 'none' = 'minimal', supportsXHigh = false, minEffort: 'low' | 'medium' = 'low') {
         switch (effort) {
             case -1: {
                 return disabledEffort
             }
             case 0: {
-                return 'low'
+                return minEffort
             }
             case 1: {
                 return 'medium'
@@ -150,7 +151,7 @@ export function applyParameters(
                 return 'high'
             }
             case 3: {
-                return 'xhigh'
+                return supportsXHigh ? 'xhigh' : 'high'
             }
             default: {
                 return 'medium'
@@ -241,14 +242,18 @@ export function applyParameters(
                     break
                 }
                 case 'reasoning_effort': {
-                    value = getEffort(sepParams.reasoning_effort)
+                    value = getEffort(
+                        sepParams.reasoning_effort,
+                        parameters.includes('reasoning_effort_none') ? 'none' : 'minimal',
+                        parameters.includes('reasoning_effort_xhigh'),
+                        parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+                    )
                     break
                 }
                 case 'reasoning_effort_none':
-                case 'reasoning_effort_none_xhigh': {
-                    value = getEffort(sepParams.reasoning_effort, 'none')
-                    break
-                }
+                case 'reasoning_effort_min_medium':
+                case 'reasoning_effort_xhigh':
+                    continue
                 case 'verbosity': {
                     value = getVerbosity(sepParams.verbosity)
                     break
@@ -264,11 +269,7 @@ export function applyParameters(
                 continue
             }
 
-            const targetParameter = 
-                (parameter === 'reasoning_effort_none' || parameter === 'reasoning_effort_none_xhigh')
-                ? 'reasoning_effort'
-                : parameter
-            data = setObjectValue(data, rename[parameter] ?? targetParameter, value)
+            data = setObjectValue(data, rename[parameter] ?? parameter, value)
         }
         return data
     }
@@ -304,14 +305,18 @@ export function applyParameters(
                 break
             }
             case 'reasoning_effort': {
-                value = getEffort(db.reasoningEffort)
+                value = getEffort(
+                    db.reasoningEffort,
+                    parameters.includes('reasoning_effort_none') ? 'none' : 'minimal',
+                    parameters.includes('reasoning_effort_xhigh'),
+                    parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+                )
                 break
             }
             case 'reasoning_effort_none':
-            case 'reasoning_effort_none_xhigh': {
-                value = getEffort(db.reasoningEffort, 'none')
-                break
-            }
+            case 'reasoning_effort_min_medium':
+            case 'reasoning_effort_xhigh':
+                continue
             case 'verbosity': {
                 value = getVerbosity(db.verbosity)
                 break
@@ -334,11 +339,7 @@ export function applyParameters(
             continue
         }
 
-        const targetParameter = 
-            (parameter === 'reasoning_effort_none' || parameter === 'reasoning_effort_none_xhigh')
-            ? 'reasoning_effort'
-            : parameter
-        data = setObjectValue(data, rename[parameter] ?? targetParameter, value)
+        data = setObjectValue(data, rename[parameter] ?? parameter, value)
     }
     return data
 }

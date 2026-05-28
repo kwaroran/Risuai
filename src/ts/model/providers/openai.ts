@@ -1,4 +1,4 @@
-import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, OpenAIParameters, GPT5Parameters, GPT5NoneParameters, GPT5XHighParameters, type LLMModel } from '../types'
+import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, OpenAIParameters, GPT5Parameters, GPT5NoneParameters, GPT5XHighParameters, GPT5ProParameters, type LLMModel } from '../types'
 
 export const OpenAIModels: LLMModel[] = [
     // GPT-5.5 (April 2026)
@@ -83,7 +83,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.DeveloperRole,
             LLMFlags.noStructuredOutput
         ],
-        parameters: GPT5XHighParameters,
+        parameters: GPT5ProParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base
     },
     {
@@ -100,7 +100,7 @@ export const OpenAIModels: LLMModel[] = [
             LLMFlags.DeveloperRole,
             LLMFlags.noStructuredOutput
         ],
-        parameters: GPT5XHighParameters,
+        parameters: GPT5ProParameters,
         tokenizer: LLMTokenizer.tiktokenO200Base
     },
     // GPT-5.2 (December 2025)

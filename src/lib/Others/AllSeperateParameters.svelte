@@ -60,12 +60,6 @@
     ])
 
     $effect(() => {
-        if (hasVerbosity && value.verbosity === undefined) {
-            value.verbosity = 1
-        }
-        if (hasReasoningEffort && value.reasoning_effort === undefined) {
-            value.reasoning_effort = modelInfo.parameters.includes('reasoning_effort_min_medium') ? 1 : 0
-        }
         if (!modelInfo.parameters.includes('reasoning_effort_xhigh') && value.reasoning_effort === 3) {
             value.reasoning_effort = 2
         }

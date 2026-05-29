@@ -9,7 +9,7 @@ COPY package.json .
 COPY pnpm-lock.yaml .
 
 RUN corepack enable
-RUN corepack install --global pnpm@latest-10
+RUN corepack install --global pnpm@10.34.1
 
 # ------------------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 import { language } from "src/lang"
 import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
-import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
@@ -460,6 +460,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             modelId: arg.modelInfo.id
         }
     )
+
+    if(db.openAIFlexProcessing && arg.modelInfo.provider === LLMProvider.OpenAI){
+        body.service_tier = 'flex'
+    }
 
     if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
         if(db.deepseekThinkingType === 'enabled'){

@@ -645,6 +645,7 @@ export function setDatabase(data:Database){
     }
     data.customModels ??= []
     data.authRefreshes ??= []
+    data.openAIFlexProcessing ??= false
     data.rememberToolUsage ??= true
     data.simplifiedToolUse ??= false
     data.streamGeminiThoughts ??= false
@@ -1178,6 +1179,7 @@ export interface Database{
     }[]
     promptInfoInsideChat:boolean
     promptTextInfoInsideChat:boolean
+    openAIFlexProcessing:boolean
     claudeBatching:boolean
     claude1HourCaching:boolean
     rememberToolUsage:boolean

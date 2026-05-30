@@ -46,6 +46,11 @@ function isOfficialOpenAIURL(url: string): boolean {
     }
 }
 
+function shouldUseOpenAIFlexProcessing(aiModel: string, url: string, provider: LLMProvider): boolean {
+    const isCustomEndpoint = aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')
+    return provider === LLMProvider.OpenAI || (isCustomEndpoint && isOfficialOpenAIURL(url))
+}
+
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     let formatedChat:OpenAIChatExtra[] = []
     const formated = arg.formated
@@ -554,7 +559,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    if(db.openAIFlexProcessing && (arg.modelInfo.provider === LLMProvider.OpenAI || isOfficialOpenAIURL(replacerURL))){
+    if(db.openAIFlexProcessing && shouldUseOpenAIFlexProcessing(aiModel, replacerURL, arg.modelInfo.provider)){
         body.service_tier = 'flex'
     }
 

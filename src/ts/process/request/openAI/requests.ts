@@ -38,6 +38,14 @@ function getLocalNetworkRequestOptions(url: string, db = getDatabase(), useStrea
     }
 }
 
+function isOfficialOpenAIURL(url: string): boolean {
+    try {
+        return new URL(url).hostname === 'api.openai.com'
+    } catch {
+        return false
+    }
+}
+
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     let formatedChat:OpenAIChatExtra[] = []
     const formated = arg.formated
@@ -461,10 +469,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     )
 
-    if(db.openAIFlexProcessing && arg.modelInfo.provider === LLMProvider.OpenAI){
-        body.service_tier = 'flex'
-    }
-
     if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
         if(db.deepseekThinkingType === 'enabled'){
             body.thinking = {
@@ -548,6 +552,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 replacerURL += '/v1/chat/completions'
             }
         }
+    }
+
+    if(db.openAIFlexProcessing && (arg.modelInfo.provider === LLMProvider.OpenAI || isOfficialOpenAIURL(replacerURL))){
+        body.service_tier = 'flex'
     }
 
     let headers = {

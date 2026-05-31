@@ -778,7 +778,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                             resText += "<Thoughts>\n"
                                             thinking = true
                                         }
-                                        resText += '\nThis thinking segment below has been censored by the API provider:\n`' + content.data
+                                        resText += '\n{{redacted_thinking}}\n'
                                     }
                                 }
 

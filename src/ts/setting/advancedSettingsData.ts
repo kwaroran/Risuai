@@ -94,6 +94,16 @@ export const advancedSettingsItems: SettingItem[] = [
         }
     },
 
+    // Chat Loading
+    {
+        id: 'adv.chatLoadInitial', type: 'number', labelKey: 'chatLoadInitialPages', bindKey: 'chatLoadInitialPages',
+        helpKey: 'chatLoadInitialPages', classes: 'mt-4', options: { min: 1 }
+    },
+    {
+        id: 'adv.chatLoadAdditional', type: 'number', labelKey: 'chatLoadAdditionalPages', bindKey: 'chatLoadAdditionalPages',
+        helpKey: 'chatLoadAdditionalPages', options: { min: 1 }
+    },
+
     // Request Location (Non-Node/Tauri)
     {
         id: 'adv.reqLoc', type: 'segmented', labelKey: 'requestLocation', bindKey: 'requestLocation',

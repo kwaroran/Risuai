@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { CheckIcon } from '@lucide/svelte';
 
     interface Props {
         check?: boolean;
@@ -52,9 +53,13 @@
         aria-hidden="true"
     >
         <span
-            class="absolute left-0.5 h-5 w-5 rounded-full shadow-sm transition-all duration-200 {check ? 'translate-x-4 bg-bgcolor' : 'translate-x-0 bg-textcolor'}"
+            class="absolute left-0.5 flex h-5 w-5 items-center justify-center rounded-full shadow-sm transition-all duration-200 {check ? 'translate-x-4 bg-bgcolor text-textcolor' : 'translate-x-0 bg-textcolor text-bgcolor'}"
             aria-hidden="true"
-        ></span>
+        >
+            {#if check}
+                <CheckIcon size={14} strokeWidth={4} />
+            {/if}
+        </span>
     </span>
     {#if !hiddenName && !reverse}
         <span class="min-w-0">{name} {@render children?.()}</span>

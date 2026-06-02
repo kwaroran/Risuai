@@ -941,8 +941,7 @@
 
 {#if submenu === 1 || submenu === -1}
 <Accordion name="TTS" styled disabled={submenu !== -1}>
-    <span class="text-textcolor mt-2">Auto Speech</span>
-    <CheckInput bind:check={DBState.db.ttsAutoSpeech}/>
+    <CheckInput bind:check={DBState.db.ttsAutoSpeech} name="Auto Speech" className="mt-2"/>
 
     <span class="text-textcolor mt-2">ElevenLabs API key</span>
     <TextInput size="sm" marginBottom bind:value={DBState.db.elevenLabKey}/>

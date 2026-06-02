@@ -24,7 +24,7 @@
         children
     }: Props = $props();
 
-    let stateLabel = $derived(`${name} ${check ? 'abled' : 'disabled'}`);
+    let stateLabel = $derived(name ? `${name} ${check ? 'enabled' : 'disabled'}` : check ? 'enabled' : 'disabled');
 </script>
 
 <label 
@@ -48,11 +48,11 @@
         aria-label={stateLabel}
     />
     <span 
-        class="relative inline-flex h-6 w-[2.625rem] min-w-[2.625rem] shrink-0 items-center rounded-full border border-darkborderc {check ? 'bg-borderc' : 'bg-darkbutton'} transition-colors duration-200 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-borderc"
+        class="relative inline-flex h-6 w-[2.625rem] min-w-[2.625rem] shrink-0 items-center rounded-full border {check ? 'border-textcolor bg-textcolor' : 'border-darkborderc bg-darkbutton'} transition-colors duration-200 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-borderc"
         aria-hidden="true"
     >
         <span
-            class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 {check ? 'translate-x-4' : 'translate-x-0'}"
+            class="absolute left-0.5 h-5 w-5 rounded-full shadow-sm transition-all duration-200 {check ? 'translate-x-4 bg-bgcolor' : 'translate-x-0 bg-textcolor'}"
             aria-hidden="true"
         ></span>
     </span>

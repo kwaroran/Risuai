@@ -1,5 +1,8 @@
 const express = require('express');
 const app = express();
+if (process.env.TRUST_PROXY) {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+}
 const http = require('http');
 const path = require('path');
 const net = require('net');
@@ -32,6 +35,12 @@ if(existsSync(passwordPath)){
     password = readFileSync(passwordPath, 'utf-8')
 }
 
+const knownPublicKeysPath = path.join(process.cwd(), 'save', '__known_public_key_hashes.json')
+if(existsSync(knownPublicKeysPath)){
+    const knownPublicKeysRaw = readFileSync(knownPublicKeysPath, 'utf-8');
+    knownPublicKeysHashes = JSON.parse(knownPublicKeysRaw);
+}
+
 const authCodePath = path.join(process.cwd(), 'save', '__authcode')
 const hexRegex = /^[0-9a-fA-F]+$/;
 const PROXY_STREAM_DEFAULT_TIMEOUT_MS = 600000;
@@ -48,14 +57,14 @@ const PROXY_STREAM_MAX_BODY_BASE64_BYTES = 8 * 1024 * 1024;
 const proxyStreamJobs = new Map();
 const authenticatedRouteLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 90,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests. Please retry shortly.' }
 });
 const authRouteLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 90,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests. Please retry shortly.' }
@@ -1141,6 +1150,7 @@ app.post('/api/login', loginRouteLimiter, async (req, res) => {
     }
     if(req.body.password && req.body.password.trim() === password.trim()){
         knownPublicKeysHashes.push(await hashJSON(req.body.publicKey))
+        writeFileSync(knownPublicKeysPath, JSON.stringify(knownPublicKeysHashes), 'utf-8')
         res.send({status:'success'})
     }
     else{
@@ -1170,7 +1180,7 @@ app.post('/api/set_password', async (req, res) => {
     }
 })
 
-app.get('/api/read', authRouteLimiter, async (req, res, next) => {
+app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1202,35 +1212,39 @@ app.get('/api/read', authRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.get('/api/remove', authRouteLimiter, async (req, res, next) => {
+app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
-    const filePath = req.headers['file-path'];
-    if (!filePath) {
-        res.status(400).send({
-            error:'File path required'
-        });
-        return;
-    }
-    if(!isHex(filePath)){
-        res.status(400).send({
-            error:'Invaild Path'
-        });
-        return;
-    }
+    const filePaths = req.headers['file-path']?.split('$$') || []
 
-    try {
-        await fs.rm(path.join(savePath, filePath));
-        res.send({
-            success: true,
-        });
-    } catch (error) {
-        next(error);
+    for(const filePath of filePaths){
+        if (!filePath) {
+            res.status(400).send({
+                error:'File path required'
+            });
+            return;
+        }
+        if(!isHex(filePath)){
+            res.status(400).send({
+                error:'Invaild Path'
+            });
+            return;
+        }
+
+        try {
+            await fs.rm(path.join(savePath, filePath));
+            res.send({
+                success: true,
+            });
+        } catch (error) {
+            next(error);
+        }
     }
+    
 });
 
-app.get('/api/list', authRouteLimiter, async (req, res, next) => {
+app.get('/api/list', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1247,7 +1261,7 @@ app.get('/api/list', authRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.post('/api/write', authRouteLimiter, async (req, res, next) => {
+app.post('/api/write', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1377,7 +1391,7 @@ app.get('/api/oauth_callback', async (req, res) => {
         },
     )
 
-    fs.writeFileSync(authCodePath, tokens.access_token, 'utf-8')
+    writeFileSync(authCodePath, tokens.access_token, 'utf-8')
 
     res.send(tokens)
             

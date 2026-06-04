@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { characterFormatUpdate, getCharImage, removeChar } from "../../ts/characters";
+    import { changeChar, getCharImage, removeChar } from "../../ts/characters";
     import { type Database } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import BarIcon from "../SideBars/BarIcon.svelte";
@@ -10,7 +10,7 @@
     import { language } from "src/lang";
     import { parseMultilangString } from "src/ts/util";
     import { checkCharOrder } from "src/ts/globalApi.svelte";
-  import MobileCharacters from "../Mobile/MobileCharacters.svelte";
+    import MobileCharacters from "../Mobile/MobileCharacters.svelte";
     interface Props {
         endGrid?: any;
     }
@@ -18,12 +18,6 @@
     let { endGrid = () => {} }: Props = $props();
     let search = $state('')
     let selected = $state(3)
-
-    function changeChar(index = -1){
-        characterFormatUpdate(index)
-        selectedCharID.set(index)
-        endGrid()
-    }
 
     function formatChars(search:string, db:Database, trash = false){
         let charas:{
@@ -157,7 +151,7 @@
                 </div>
             {/each}
         {:else if selected === 3}
-            <MobileCharacters gridMode endGrid={endGrid} />
+            <MobileCharacters endGrid={endGrid} search={search} hideTrash={true} />
         {/if}
     </div>
 </div>

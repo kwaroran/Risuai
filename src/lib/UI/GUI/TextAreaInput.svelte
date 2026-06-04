@@ -75,6 +75,7 @@
                     e.preventDefault()
                     popUpEditorStore.value = value
                     popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
                     popUpEditorStore.open = true
 
                     //lazy wait
@@ -84,6 +85,25 @@
 
                     value = popUpEditorStore.value
                     onInput()
+                }
+            }}
+
+            oncontextmenu={(e) => {
+                if(DBState.db.longPressToPopupEditor){
+                    e.preventDefault()
+                    popUpEditorStore.value = value
+                    popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
+                    popUpEditorStore.open = true
+
+                    //lazy wait
+                    const checkInterval = setInterval(() => {
+                        if(!popUpEditorStore.open){
+                            value = popUpEditorStore.value
+                            onInput()
+                            clearInterval(checkInterval)
+                        }
+                    }, 100)
                 }
             }}
 ></textarea>
@@ -139,6 +159,7 @@
         optimaizedInput?: boolean;
         highlight?: boolean;
         onchange?: () => void;
+        popupLanguage?: string;
     }
 
     let {
@@ -155,7 +176,8 @@
         className = '',
         optimaizedInput = true,
         highlight = false,
-        onchange = () => {}
+        onchange = () => {},
+        popupLanguage = 'markdown'
     }: Props = $props();
     let selectingAutoComplete = $state(0)
     // TODO: Review if highlight prop can change dynamically - if so, this needs to be reactive

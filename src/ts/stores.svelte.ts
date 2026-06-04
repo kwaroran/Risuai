@@ -130,10 +130,18 @@ export type MenuDef = {
     id: string,
 }
 
+export type ChatPanelDef = {
+    id: string,
+    pluginName: string,
+    html: string,
+    className?: string,
+}
+
 export const additionalSettingsMenu = $state([] as MenuDef[])
 export const additionalFloatingActionButtons = $state([] as MenuDef[])
 export const additionalHamburgerMenu = $state([] as MenuDef[])
 export const additionalChatMenu = $state([] as MenuDef[])
+export const chatPanelStore = $state([] as ChatPanelDef[])
 export const bodyIntercepterStore = $state([] as {
     id: string,
     callback: (body: any, type: string) => Promise<any>
@@ -145,12 +153,25 @@ export const popupStore = $state({
     children: null as null | import("svelte").Snippet,
     mouseX: 0,
     mouseY: 0,
-openId: 0,
+    openId: 0,
 })
 export const popUpEditorStore = $state({
     open: false,
     value: '',
-    mode: 'default' as 'default'
+    mode: 'default' as 'default',
+    language: 'markdown' as string
+})
+
+export const loadoutModalStore = $state({
+    open: false
+})
+
+export const irisStore = $state({
+    open: false
+})
+
+export const customSideBarConfigDialogStore = $state({
+    open: false
 })
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now

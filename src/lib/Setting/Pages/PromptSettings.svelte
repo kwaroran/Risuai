@@ -308,7 +308,7 @@
     {#if !DBState.db.auxModelUnderModelSettings}
         <AuxModelSelectors />
     {/if}
-
+    
     {#snippet fallbackModelList(arg:'model'|'memory'|'translate'|'emotion'|'otherAx')}
         {#each DBState.db.fallbackModels[arg] as model, i}
             <span class="text-textcolor mt-4">
@@ -317,7 +317,7 @@
             <ModelList bind:value={DBState.db.fallbackModels[arg][i]} blankable />
         {/each}
         <div class="flex gap-2">
-            <button class="bg-selected text-white p-2 rounded-md" onclick={() => {
+            <button class="bg-selected text-textcolor p-2 rounded-md" onclick={() => {
                 let value = DBState.db.fallbackModels[arg] ?? []
                 value.push('')
                 DBState.db.fallbackModels[arg] = value

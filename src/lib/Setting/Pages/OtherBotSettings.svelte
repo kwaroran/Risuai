@@ -941,8 +941,7 @@
 
 {#if submenu === 1 || submenu === -1}
 <Accordion name="TTS" styled disabled={submenu !== -1}>
-    <span class="text-textcolor mt-2">Auto Speech</span>
-    <CheckInput bind:check={DBState.db.ttsAutoSpeech}/>
+    <CheckInput bind:check={DBState.db.ttsAutoSpeech} name="Auto Speech" className="mt-2"/>
 
     <span class="text-textcolor mt-2">ElevenLabs API key</span>
     <TextInput size="sm" marginBottom bind:value={DBState.db.elevenLabKey}/>
@@ -1207,6 +1206,8 @@
                 <NumberInput marginBottom size="sm" min={1} bind:value={settings.maxChatsPerSummary} />
                 <span class="text-textcolor">{language.hypaV3Settings.queryChatCountLabel} <Help key="hypaV3QueryChatCount"/></span>
                 <NumberInput marginBottom size="sm" min={1} max={20} bind:value={settings.queryChatCount} />
+                <span class="text-textcolor">{language.hypaV3Settings.summaryChunkSeparatorLabel} <Help key="hypaV3SummaryChunkSeparator"/></span>
+                <TextInput marginBottom size="sm" bind:value={settings.summaryChunkSeparator} />
                 <span class="text-textcolor">{language.hypaV3Settings.recentMemoryRatioLabel} <Help key="hypaV3RecentMemoryRatio"/></span>
                 <SliderInput marginBottom min={0} max={1} step={0.01} fixed={2} bind:value={settings.recentMemoryRatio} />
                 <span class="text-textcolor">{language.hypaV3Settings.similarMemoryRatioLabel} <Help key="hypaV3SimilarMemoryRatio"/></span>

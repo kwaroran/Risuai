@@ -6,6 +6,7 @@ import { language } from "src/lang"
 import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
 import { v4 } from "uuid"
+import { DBState } from "./stores.svelte"
 
 export async function selectUserImg() {
     const selected = await selectSingleFile(['png'])
@@ -13,41 +14,35 @@ export async function selectUserImg() {
         return
     }
     const img = selected.data
-    let db = getDatabase()
     const imgp = await saveImage(img)
-    db.userIcon = imgp
-    db.personas[db.selectedPersona] = {
-        ...db.personas[db.selectedPersona],
-        name: db.username,
-        icon: db.userIcon,
-        personaPrompt: db.personaPrompt,
-        note: db.userNote,
+    DBState.db.userIcon = imgp
+    DBState.db.personas[DBState.db.selectedPersona] = {
+        ...DBState.db.personas[DBState.db.selectedPersona],
+        name: DBState.db.username,
+        icon: DBState.db.userIcon,
+        personaPrompt: DBState.db.personaPrompt,
+        note: DBState.db.userNote,
         id: v4()
     }
-    setDatabase(db)
 }
 
 export function saveUserPersona() {
-    let db = getDatabase()
-    db.personas[db.selectedPersona].name = db.username
-    db.personas[db.selectedPersona].icon = db.userIcon
-    db.personas[db.selectedPersona].personaPrompt = db.personaPrompt
-    db.personas[db.selectedPersona].note = db.userNote
-    setDatabase(db)
+    DBState.db.personas[DBState.db.selectedPersona].name = DBState.db.username
+    DBState.db.personas[DBState.db.selectedPersona].icon = DBState.db.userIcon
+    DBState.db.personas[DBState.db.selectedPersona].personaPrompt = DBState.db.personaPrompt
+    DBState.db.personas[DBState.db.selectedPersona].note = DBState.db.userNote
 }
 
 export function changeUserPersona(id: number, save: 'save' | 'noSave' = 'save') {
     if (save === 'save') {
         saveUserPersona()
     }
-    let db = getDatabase()
-    const pr = db.personas[id]
-    db.personaPrompt = pr.personaPrompt
-    db.username = pr.name
-    db.userIcon = pr.icon
-    db.userNote = pr.note
-    db.selectedPersona = id
-    setDatabase(db)
+    const pr = DBState.db.personas[id]
+    DBState.db.personaPrompt = pr.personaPrompt
+    DBState.db.username = pr.name
+    DBState.db.userIcon = pr.icon
+    DBState.db.userNote = pr.note
+    DBState.db.selectedPersona = id
 }
 
 interface PersonaCard {
@@ -128,15 +123,13 @@ export async function importUserPersona() {
         }
         const data: PersonaCard = JSON.parse(Buffer.from(decoded, 'base64').toString('utf-8'))
         if (data.name && data.personaPrompt) {
-            let db = getDatabase()
-            db.personas.push({
+            DBState.db.personas.push({
                 name: data.name,
                 icon: await saveImage(await reencodeImage(v.data)),
                 personaPrompt: data.personaPrompt,
                 note: data.note,
                 id: v4()
             })
-            setDatabase(db)
             alertNormal(language.successImport)
         } else {
             alertError(language.errors.noData)

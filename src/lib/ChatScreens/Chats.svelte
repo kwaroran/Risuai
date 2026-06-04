@@ -56,6 +56,10 @@
     }
 
     const updateChatBody = () => {
+        if(!chatBody){
+            return
+        }
+
         let nextHash = 0;
         let currentHashes: Set<number> = new Set();
         const charImage = getCharImage(currentCharacter.image, 'css')
@@ -105,7 +109,7 @@
 
                 })
                 mountInstances.set(currentHash, inst);
-                const nextElement = document.querySelector(`[x-hashed="${nextHash}"]`);
+                const nextElement = nextHash === 0 ? null : chatBody.querySelector(`[x-hashed="${nextHash}"]`);
                 if(nextElement){
                     chatBody.insertBefore(b, nextElement?.nextSibling);
                 }

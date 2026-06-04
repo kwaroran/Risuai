@@ -138,4 +138,9 @@ export const defaultHotkeys: Hotkey[] = [
         ctrl: true,
         action: 'popupEditor'
     },
+    {
+        key: 'o',
+        ctrl: true,
+        action: 'loadout'
+    }
 ]

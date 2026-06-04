@@ -3,7 +3,7 @@
 
     let {
         ico,
-        className = 'w-5 h-5'
+        className
     }: {
         ico: {
             iconType:'html'|'img'|'none',
@@ -12,6 +12,7 @@
         className?:string
     } = $props()
 
+    
     const iconPurify = (icon:string) => {
         
         return DOMPurify.sanitize(icon, {
@@ -38,7 +39,10 @@
 
 </script>
 
-<div class={className}>
+<div class={{
+    "w-5 h-5": !className,
+    [className]: className,
+}}>
     {#if ico.iconType === 'html'}
         {@html iconPurify(ico.icon)}
     {:else if ico.iconType === 'img'}

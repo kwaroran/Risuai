@@ -252,7 +252,7 @@ export const prebuiltPresets = {
     "forceReplaceUrl2": "",
     "promptPreprocess": false,
     "bias": [],
-    "koboldURL": "http://localho.st:5001/api/v1",
+    "koboldURL": "http://localhost:5001/api/v1",
     "proxyKey": "",
     "ooba": {
       "max_new_tokens": 180,

@@ -1,7 +1,7 @@
 import { get } from "svelte/store"
 import { alertMd, alertSelect, alertToast, alertWait, doingAlert, alertRequestLogs } from "./alert"
 import { changeToPreset as changeToPreset2, getDatabase  } from "./storage/database.svelte"
-import { alertStore, DBState, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
+import { alertStore, DBState, loadoutModalStore, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { language } from "src/lang"
 import { updateTextThemeAndCSS } from "./gui/colorscheme"
 import { defaultHotkeys } from "./defaulthotkeys"
@@ -157,6 +157,10 @@ export function initHotkey(){
                     }
                     break
                 }
+                case 'loadout':{
+                    loadoutModalStore.open = !loadoutModalStore.open
+                    break
+                }
                 default:{
                     hotKeyRanThisTime = false
                 }
@@ -303,6 +307,7 @@ async function quickMenu(){
     const selStr = await alertSelect([
         language.presets,
         language.persona,
+        language.hotkeyDesc.loadout,
         language.cancel
     ])
     const sel = parseInt(selStr)
@@ -311,6 +316,9 @@ async function quickMenu(){
     }
     if(sel === 1){
         openPersonaList.set(!get(openPersonaList))
+    }
+    if(sel === 2){
+        loadoutModalStore.open = !(loadoutModalStore.open)
     }
 }
 

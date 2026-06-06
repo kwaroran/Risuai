@@ -128,6 +128,7 @@ export type InlaySignature = {
     signatures: {
         type: 'function'|'text'
         content: string
+        thoughtSignature?: string
     }[],
     sourceFormat: LLMFormat,
     source: string

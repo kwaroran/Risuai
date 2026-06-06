@@ -7,6 +7,7 @@
 
 import type { SettingItem } from './types';
 import { LLMFlags } from '../model/types';
+import { getGeminiThinkingLevelConfig, repairGeminiThinkingLevel } from '../model/providers/google';
 
 /**
  * Basic parameter settings that are always visible
@@ -156,13 +157,42 @@ export const modelSpecificParameterItems: SettingItem[] = [
         keywords: ['thinking', 'type', 'mode', 'deepseek', 'reasoning'],
     },
     {
+        id: 'params.geminiThinkingLevel',
+        type: 'segmented',
+        fallbackLabel: 'Gemini Thinking Level',
+        bindKey: 'geminiThinkingLevel',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.geminiThinkingLevel),
+        getValue: (db, ctx) => {
+            const modelId = ctx?.modelInfo.internalID || ctx?.modelInfo.id
+            const repaired = repairGeminiThinkingLevel(modelId, db.geminiThinkingLevel)
+            if(db.geminiThinkingLevel !== repaired){
+                db.geminiThinkingLevel = repaired
+            }
+            return repaired
+        },
+        options: {
+            segmentOptions: [
+                { value: 'minimal', label: 'Minimal', condition: (ctx) => getGeminiThinkingLevelConfig(ctx.modelInfo.internalID || ctx.modelInfo.id).levels.includes('minimal') },
+                { value: 'low', label: 'Low', condition: (ctx) => getGeminiThinkingLevelConfig(ctx.modelInfo.internalID || ctx.modelInfo.id).levels.includes('low') },
+                { value: 'medium', label: 'Medium', condition: (ctx) => getGeminiThinkingLevelConfig(ctx.modelInfo.internalID || ctx.modelInfo.id).levels.includes('medium') },
+                { value: 'high', label: 'High', condition: (ctx) => getGeminiThinkingLevelConfig(ctx.modelInfo.internalID || ctx.modelInfo.id).levels.includes('high') },
+            ]
+        },
+        keywords: ['gemini', 'thinking', 'level'],
+    },
+    {
         id: 'params.thinkingTokens',
         type: 'slider',
         labelKey: 'thinkingTokens',
         bindKey: 'thinkingTokens',
         condition: (ctx) =>
             ctx.modelInfo.parameters.includes('thinking_tokens') &&
-            ctx.db.thinkingType === 'budget',
+            ctx.db.thinkingType === 'budget' &&
+            (
+                !ctx.modelInfo.flags.includes(LLMFlags.geminiThinking) ||
+                ctx.modelInfo.flags.includes(LLMFlags.geminiThinkingBudget)
+            ),
         options: {
             min: -1,
             max: 64000,
@@ -316,6 +346,7 @@ export const allBasicParameterItems: SettingItem[] = [
     // Model-specific sampling parameters (in user-specified order)
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingType')!,
     modelSpecificParameterItems.find(i => i.id === 'params.deepseekThinkingType')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.geminiThinkingLevel')!,
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingTokens')!,
     modelSpecificParameterItems.find(i => i.id === 'params.adaptiveThinkingEffort')!,
     modelSpecificParameterItems.find(i => i.id === 'params.deepseekReasoningEffort')!,

@@ -11,11 +11,13 @@ import { addFetchLog } from "src/ts/globalApi.svelte"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters, type LLMParameter } from './shared'
 import { bodyIntercepterStore } from "src/ts/stores.svelte"
+import { repairGeminiThinkingLevel } from "src/ts/model/providers/google"
 
 type GeminiFunctionCall = {
     id?: string;
     name: string;
     args: any
+    thoughtSignature?: string
 }
 
 type GeminiFunctionResponse = {
@@ -37,8 +39,44 @@ interface GeminiPart{
 }
 
 interface GeminiChat {
-    role: "user"|"model"|"function"
+    role: "user"|"model"
     parts:|GeminiPart[]
+}
+
+type GeminiStreamState = {
+    content: string
+    thoughts: string
+    lastThought: string
+    toolCalls: GeminiFunctionCall[]
+    modelParts: GeminiPart[]
+    usageMetadata?: any
+    modelStatus?: any
+    promptFeedback?: any
+}
+
+function toFunctionCallPart(call: GeminiFunctionCall): GeminiPart {
+    return {
+        functionCall: {
+            ...(call.id ? { id: call.id } : {}),
+            name: call.name,
+            args: call.args,
+        },
+        ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}),
+    }
+}
+
+function toFunctionResponsePart(call: GeminiFunctionCall, response: any): GeminiPart {
+    return {
+        functionResponse: {
+            ...(call.id ? { id: call.id } : {}),
+            name: call.name,
+            response,
+        },
+    }
+}
+
+function getGeminiModelId(modelInfo: LLMModel): string | undefined {
+    return modelInfo.internalID || modelInfo.id
 }
 
 export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):Promise<requestDataResponse> {
@@ -92,10 +130,14 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                 if(modal.type === 'signature' && db.saveSignatures){
                     const sig:InlaySignature = JSON.parse(Buffer.from(modal.base64, 'base64').toString('utf-8'))
                     if(sig.source === arg.modelInfo.internalID || sig.source === arg.modelInfo.id){
-                        geminiParts.push({
-                            thought: true,
-                            thoughtSignature: sig.signatures[0].content
-                        })
+                        for (const signature of sig.signatures) {
+                            if (signature.thoughtSignature) {
+                                geminiParts.push({
+                                    thought: true,
+                                    thoughtSignature: signature.thoughtSignature
+                                })
+                            }
+                        }
                     }
                 }
             }
@@ -209,37 +251,32 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                                 insertIndex++
                             }
                         } else if (segment.type === 'functionCall') {
+                            const geminiCall: GeminiFunctionCall = {
+                                id: segment.call.call.id,
+                                name: segment.call.call.name,
+                                args: segment.call.call.arg,
+                            }
                             // Insert functionCall
                             reformatedChat.splice(insertIndex, 0, {
                                 role: 'model',
-                                parts: [{
-                                    functionCall: {
-                                        name: segment.call.call.name,
-                                        args: segment.call.call.arg
-                                    }
-                                }]
+                                parts: [toFunctionCallPart(geminiCall)]
                             })
                             insertIndex++
 
                             // Insert functionResponse
                             reformatedChat.splice(insertIndex, 0, {
-                                role: 'function',
-                                parts: [{
-                                    functionResponse: {
-                                        name: segment.call.call.name,
-                                        response: {
-                                            data: (() => {
-                                                const res: string[] = []
-                                                for (const r of segment.call.response) {
-                                                    if (r.type === 'text') {
-                                                        res.push(r.text)
-                                                    }
-                                                }
-                                                return res
-                                            })()
+                                role: 'user',
+                                parts: [toFunctionResponsePart(geminiCall, {
+                                    data: (() => {
+                                        const res: string[] = []
+                                        for (const r of segment.call.response) {
+                                            if (r.type === 'text') {
+                                                res.push(r.text)
+                                            }
                                         }
-                                    }
-                                }]
+                                        return res
+                                    })()
+                                })]
                             })
                             insertIndex++
                         }
@@ -317,7 +354,14 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
 
     let para:LLMParameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
 
-    if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
+    const hasGeminiThinkingLevelFlag = arg.modelInfo.flags.includes(LLMFlags.geminiThinkingLevel)
+    const hasGeminiThinkingBudgetFlag = arg.modelInfo.flags.includes(LLMFlags.geminiThinkingBudget)
+    const hasExplicitGeminiThinkingMode = hasGeminiThinkingLevelFlag || hasGeminiThinkingBudgetFlag
+    const modelId = getGeminiModelId(arg.modelInfo)
+    const useGeminiThinkingLevel = hasGeminiThinkingLevelFlag || (!hasExplicitGeminiThinkingMode && arg.modelInfo.flags.includes(LLMFlags.geminiThinking) && /^gemini-3(?:\.\d+)?-/.test(modelId ?? ''))
+    const useGeminiThinkingBudget = hasGeminiThinkingBudgetFlag || (!hasExplicitGeminiThinkingMode && arg.modelInfo.flags.includes(LLMFlags.geminiThinking) && !useGeminiThinkingLevel)
+
+    if(useGeminiThinkingBudget){
         para.push('thinking_tokens')
     }
 
@@ -347,51 +391,33 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                 }
             ]
         },
-        tools: {
-            functionDeclarations: arg?.tools?.map((tool, i) => {
-                console.log(tool.name, i)
+        tools: [{
+            functionDeclarations: arg?.tools?.map((tool) => {
                 return {
                     name: tool.name,
                     description: tool.description,
                     parameters: simplifySchema(tool.inputSchema)
                 }
             }) ?? []
-        }
+        }]
     }
 
-    if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
-        const internalId = arg.modelInfo.internalID
-        const thinkingBudget = body.generation_config.thinkingBudget
-
-        // Gemini 3 models use `thinking_level` (via thinkingConfig.thinkingLevel) instead of `thinking_budget`.
-        // Keep UI/param name 'thinking_tokens' but translate it here for compatibility.
-        if (internalId && /^gemini-3-/.test(internalId)) {
-            const budgetNum = typeof thinkingBudget === 'number' ? thinkingBudget : Number(thinkingBudget)
-
-            // Conservative mapping: keep levels coarse to avoid model-specific strict validation.
-            // - gemini-3-flash-preview: LOW/MEDIUM/HIGH
-            // - gemini-3-pro* (incl. image): LOW/HIGH
-            let thinkingLevel: 'LOW' | 'MEDIUM' | 'HIGH' = 'HIGH'
-            if (internalId === 'gemini-3-flash-preview') {
-                if (!Number.isFinite(budgetNum) || budgetNum >= 16384) thinkingLevel = 'HIGH'
-                else if (budgetNum >= 4096) thinkingLevel = 'MEDIUM'
-                else thinkingLevel = 'LOW'
-            } else {
-                if (!Number.isFinite(budgetNum) || budgetNum >= 8192) thinkingLevel = 'HIGH'
-                else thinkingLevel = 'LOW'
-            }
-
-            body.generation_config.thinkingConfig = {
-                "thinkingLevel": thinkingLevel,
-                "includeThoughts": true,
-            }
-        } else {
-            body.generation_config.thinkingConfig = {
-                "thinkingBudget": thinkingBudget,
-                "includeThoughts": true,
-            }
+    if(useGeminiThinkingLevel){
+        const thinkingLevel = repairGeminiThinkingLevel(modelId, db.geminiThinkingLevel)
+        db.geminiThinkingLevel = thinkingLevel
+        body.generation_config.thinkingConfig = {
+            "thinkingLevel": thinkingLevel.toUpperCase(),
+            "includeThoughts": true,
         }
+        delete body.generation_config.thinkingBudget
+    }
 
+    else if(useGeminiThinkingBudget){
+        const thinkingBudget = body.generation_config.thinkingBudget ?? -1
+        body.generation_config.thinkingConfig = {
+            "thinkingBudget": thinkingBudget,
+            "includeThoughts": true,
+        }
         delete body.generation_config.thinkingBudget
     }
 
@@ -426,7 +452,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
 
     const isVertexGlobalOnlyModel = (modelId: string) => {
         // As of 2025-12, Gemini 3 preview models are only available on the global endpoint.
-        return /^gemini-3-.*-preview$/.test(modelId)
+        return /^gemini-3(?:\.\d+)?-.*-preview$/.test(modelId)
     }
 
     async function generateToken(email:string,key:string){
@@ -574,8 +600,8 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         url = `https://generativelanguage.googleapis.com/v1beta/models/${arg.modelInfo.internalID}:generateContent?key=${apiKey}`
     }
     // will return error if functionDeclarations is empty
-    if(body.tools?.functionDeclarations?.length === 0){
-        body.tools = undefined
+    if(body.tools?.[0]?.functionDeclarations?.length === 0){
+        delete body.tools
     }
 
     if(arg.aiModel === 'reverse_proxy' || arg.aiModel?.startsWith('xcustom:::')){
@@ -733,7 +759,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                     })
                 }
 
-                if(part.thoughtSignature && arg.saveSignatures){
+                if(part.text && part.thoughtSignature && arg.saveSignatures){
                     const sigId = v4()
                     await saveInlayedSignature(sigId, {
                         source: arg.modelInfo.internalID || arg.modelInfo.id,
@@ -741,6 +767,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                         signatures: [{
                             type: 'text',
                             content: part.text,
+                            thoughtSignature: part.thoughtSignature,
                         }]
                     })
                     rDatas[rDatas.length - 1].text = `{{inlayeddata::${sigId}}}\n\n` + rDatas[rDatas.length - 1].text
@@ -812,7 +839,10 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     const calls: GeminiFunctionCall[] = []
     for (const p of parts) {
         if (p?.functionCall) {
-            calls.push(p.functionCall as GeminiFunctionCall)
+            calls.push({
+                ...p.functionCall,
+                ...(p.thoughtSignature ? { thoughtSignature: p.thoughtSignature } : {})
+            } as GeminiFunctionCall)
         }
     }
 
@@ -820,27 +850,11 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     if(calls.length > 0){
         const chat = body.contents as GeminiChat[]
 
-        // Add the model response part to the request content (only function calls if simplifiedToolUse is enabled)
-        if(db.simplifiedToolUse){
-            chat.push({
-                role: 'model',
-                parts: calls.map((call) => {
-                    return {
-                        functionCall: {
-                            name: call.name,
-                            args: call.args
-                        }
-                    } as GeminiPart
-                })
-            })
-        }
-        // Add the model response part to the request content (text response and function calls)
-        else{
-            chat.push({
-                role: 'model',
-                parts: parts.filter((p) => !p.thought)
-            })
-        }
+        // Always preserve the model-returned parts for Gemini protocol state.
+        chat.push({
+            role: 'model',
+            parts: parts
+        })
         // If the last part is a model response, merge it with the previous model response
         if(chat[chat.length - 2]?.role === 'model') {
             chat[chat.length - 2].parts = chat[chat.length - 2].parts.concat(chat[chat.length - 1].parts)
@@ -862,12 +876,7 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                     return r.type === 'text'
                 })
                 if(result.length === 0){
-                    functionParts.push({
-                        functionResponse: {
-                            name: call.name,
-                            response: 'No response from tool.'
-                        }
-                    })
+                    functionParts.push(toFunctionResponsePart(call, { data: 'No response from tool.' }))
                 }
                 
                 // Store the encoded tool call history for later use
@@ -894,27 +903,17 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                             data: response
                         }
                     }
-                    functionParts.push({
-                        functionResponse: {
-                            name: call.name,
-                            response
-                        }
-                    })
+                    functionParts.push(toFunctionResponsePart(call, response))
                 }
             }
             else{
-                functionParts.push({
-                    functionResponse: {
-                        name: call.name,
-                        response: `Tool ${call.name} not found.`
-                    }
-                })
+                functionParts.push(toFunctionResponsePart(call, { data: `Tool ${call.name} not found.` }))
             }
         }
         
         // Add the user response part to the request content (function responses)
         chat.push({
-            role: 'function',
+            role: 'user',
             parts: functionParts
         })
 
@@ -977,6 +976,8 @@ function initStreamState(state?: {[key:string]:string}): {[key:string]:string} {
             "__last_thought": "", 
             "__thoughts": "", 
             "__tool_calls": "[]", 
+            "__modelParts": "[]",
+            "__promptFeedback": "",
             "0": ""
         };
     }
@@ -985,8 +986,39 @@ function initStreamState(state?: {[key:string]:string}): {[key:string]:string} {
     state["__last_thought"] = state["__last_thought"] || "";
     state["__thoughts"] = state["__thoughts"] || "";
     state["__tool_calls"] = state["__tool_calls"] || "[]";
+    state["__modelParts"] = state["__modelParts"] || "[]";
+    state["__promptFeedback"] = state["__promptFeedback"] || "";
     state["0"] = state["0"] || "";
     return state;
+}
+
+function streamStateToChunk(state: GeminiStreamState): StreamResponseChunk {
+    let signText = ''
+    let signFunction = ''
+    for(let i = state.modelParts.length - 1; i >= 0; i--){
+        const part = state.modelParts[i]
+        if(!signText && part.text && part.thoughtSignature){
+            signText = part.thoughtSignature
+        }
+        if(!signFunction && part.functionCall && part.thoughtSignature){
+            signFunction = part.thoughtSignature
+        }
+        if(signText && signFunction){
+            break
+        }
+    }
+    return initStreamState({
+        "__sign_text": signText,
+        "__sign_function": signFunction,
+        "__last_thought": state.lastThought,
+        "__thoughts": state.thoughts,
+        "__tool_calls": JSON.stringify(state.toolCalls),
+        "__modelParts": JSON.stringify(state.modelParts),
+        "__usageMetadata": state.usageMetadata ? JSON.stringify(state.usageMetadata) : "",
+        "__modelStatus": state.modelStatus ? JSON.stringify(state.modelStatus) : "",
+        "__promptFeedback": state.promptFeedback ? JSON.stringify(state.promptFeedback) : "",
+        "0": state.content,
+    })
 }
 
 function getTranStream(args:{
@@ -994,87 +1026,115 @@ function getTranStream(args:{
     saveSignature:boolean
 }):TransformStream<Uint8Array, StreamResponseChunk> {
     let buffer = '';
+    const decoder = new TextDecoder()
+    const state: GeminiStreamState = {
+        content: '',
+        thoughts: '',
+        lastThought: '',
+        toolCalls: [],
+        modelParts: [],
+    }
     const { modelInfo, saveSignature } = args
+
+    function processData(jsonData: any) {
+        if (jsonData.candidates?.[0]?.content?.parts) {
+            const parts = jsonData.candidates[0].content.parts as GeminiPart[];
+            for (const part of parts) {
+                state.modelParts.push(part)
+                if (part.text) {
+                    if (part.thought){
+                        state.lastThought += part.text;
+                    }
+                    else {
+                        if (state.lastThought) {
+                            state.thoughts += state.lastThought;
+                            state.lastThought = "";
+                        }
+                        state.content += part.text;
+                    }
+                    if (part.thoughtSignature && saveSignature) {
+                        const sigId = v4()
+                        saveInlayedSignature(sigId, {
+                            source: modelInfo.internalID || modelInfo.id,
+                            sourceFormat: modelInfo.format,
+                            signatures: [{
+                                type: 'text',
+                                content: part.text,
+                                thoughtSignature: part.thoughtSignature,
+                            }]
+                        })
+                        state.content += `{{inlayeddata::${sigId}}}`;
+                    }
+                }
+                if (part.functionCall) {
+                    state.toolCalls.push({
+                        ...part.functionCall,
+                        ...(part.thoughtSignature ? { thoughtSignature: part.thoughtSignature } : {})
+                    });
+                    if(part.thoughtSignature && saveSignature){
+                        const sigId = v4()
+                        saveInlayedSignature(sigId, {
+                            source: modelInfo.internalID || modelInfo.id,
+                            sourceFormat: modelInfo.format,
+                            signatures: [{
+                                type: 'function',
+                                content: `${part.functionCall.name}(${JSON.stringify(part.functionCall.args)})`,
+                                thoughtSignature: part.thoughtSignature,
+                            }]
+                        })
+                        state.content += `{{inlayeddata::${sigId}}}`;
+                    }
+                }
+            }
+        }
+
+        if(jsonData.usageMetadata){
+            state.usageMetadata = jsonData.usageMetadata
+        }
+        if(jsonData.modelStatus){
+            state.modelStatus = jsonData.modelStatus
+        }
+        if(jsonData.promptFeedback){
+            state.promptFeedback = jsonData.promptFeedback
+        }
+    }
+
+    function processEvent(eventText: string, control: TransformStreamDefaultController<StreamResponseChunk>) {
+        const dataStr = eventText
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trimStart())
+            .join('\n')
+            .trim()
+
+        if(!dataStr || dataStr === '[DONE]'){
+            return
+        }
+
+        try {
+            processData(JSON.parse(dataStr))
+            control.enqueue(streamStateToChunk(state))
+        } catch (error) {
+            console.error('Failed to parse Gemini stream event', { error, data: dataStr.slice(0, 500) })
+            throw error
+        }
+    }
+
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
-            buffer += new TextDecoder().decode(chunk);
-            const lines = buffer.split('\n');
-
-            let readed = initStreamState();
-
-            try {
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') return;
-                    
-                        const jsonData = JSON.parse(dataStr);
-                        
-                        if (jsonData.candidates?.[0]?.content?.parts) {
-                            const parts = jsonData.candidates[0].content.parts;
-                            for (const part of parts) {
-                                if (part.text) {
-                                    readed["__thoughts"] += readed["__last_thought"];
-                                    readed["__last_thought"] = "";
-                                    if (part.thought){
-                                        readed["__last_thought"] = part.text;
-                                    }
-                                    else {
-                                        readed["0"] += part.text;
-                                    }
-                                    if (part.thoughtSignature) {
-                                        readed["__sign_text"] = part.thoughtSignature;
-                                        if(saveSignature){
-                                            //Its a promise, but we don't need to await it here
-                                            const sigId = v4()
-                                            saveInlayedSignature(sigId, {
-                                                source: modelInfo.internalID || modelInfo.id,
-                                                sourceFormat: modelInfo.format,
-                                                signatures: [{
-                                                    type: 'text',
-                                                    content: part.text,
-                                                }]
-                                            })
-                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
-                                        }
-                                    }
-                                }
-                                if (part.functionCall) {
-                                    const toolCallsData = JSON.parse(readed["__tool_calls"]);
-                                    toolCallsData.push(part.functionCall);
-                                    readed["__tool_calls"] = JSON.stringify(toolCallsData);
-                                    if(part.thoughtSignature){
-                                        readed["__sign_function"] = part.thoughtSignature;
-                                        const sigId = v4()
-
-                                        if(saveSignature){
-                                            //Its a promise, but we don't need to await it here
-                                            saveInlayedSignature(sigId, {
-                                                source: modelInfo.internalID || modelInfo.id,
-                                                sourceFormat: modelInfo.format,
-                                                signatures: [{
-                                                    type: 'function',
-                                                    content: `${part.functionCall.name}(${JSON.stringify(part.functionCall.args)})`,
-                                                }]
-                                            })
-                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if(jsonData.usageMetadata){
-                            readed['__usageMetadata'] = JSON.stringify(jsonData.usageMetadata)
-                        }
-                        if(jsonData.modelStatus){
-                            readed['__modelStatus'] = JSON.stringify(jsonData.modelStatus)
-                        }
-                    } 
-                }
-                control.enqueue(readed)
-            } catch (error) { 
-
+            buffer += decoder.decode(chunk, { stream: true });
+            let separator = /\r?\n\r?\n/.exec(buffer)
+            while(separator){
+                const eventText = buffer.slice(0, separator.index)
+                buffer = buffer.slice(separator.index + separator[0].length)
+                processEvent(eventText, control)
+                separator = /\r?\n\r?\n/.exec(buffer)
+            }
+        },
+        flush(control) {
+            buffer += decoder.decode()
+            if(buffer.trim()){
+                processEvent(buffer, control)
             }
         }
     });
@@ -1107,9 +1167,6 @@ function wrapToolStream(
                 let content = value["0"]
                 let thoughts = value["__thoughts"]
                 let lastThought = value["__last_thought"]
-                let signText = value["__sign_text"]
-                let signFunction = value["__sign_function"]
-
                 if(done){
                     value = initStreamState(lastValue)
 
@@ -1117,47 +1174,16 @@ function wrapToolStream(
                     thoughts = value["__thoughts"]
                     lastThought = value["__last_thought"]
 
-                    // thoughtSignatures 
-                    signText = value["__sign_text"]
-                    signFunction = value["__sign_function"]
-
                     const calls = JSON.parse(value["__tool_calls"]) as GeminiFunctionCall[]
                     if(calls && calls.length > 0){
                         const chat = body.contents as GeminiChat[]
+                        const modelParts = JSON.parse(value["__modelParts"] || "[]") as GeminiPart[]
 
-                        // Add the model response part to the request content (only function calls if simplifiedToolUse is enabled)
-                        if(db.simplifiedToolUse){
-                            chat.push({
-                                role: 'model',
-                                parts: calls.map((call) => {
-                                    return {
-                                        functionCall: {
-                                            name: call.name,
-                                            args: call.args
-                                        }
-                                    } as GeminiPart
-                                })
-                            })
-                        }
-                        // Add the model response part to the request content (text response and function calls)
-                        else{
-                            chat.push({
-                                role: 'model',
-                                parts: [{
-                                    text: content,
-                                    ...(signText ? { thoughtSignature: signText } : {})
-                                } as GeminiPart]
-                                .concat(
-                                    calls.map((call, index) => ({
-                                        functionCall: {
-                                            name: call.name,
-                                            args: call.args
-                                        },
-                                        ...(index === 0 && signFunction ? { thoughtSignature: signFunction } : {})
-                                    } as GeminiPart))
-                                )
-                            })
-                        }
+                        // Always preserve the model-returned parts for Gemini protocol state.
+                        chat.push({
+                            role: 'model',
+                            parts: modelParts.length > 0 ? modelParts : calls.map(toFunctionCallPart)
+                        })
                         // If the last part is a model response, merge it with the previous model response
                         if(chat[chat.length - 2]?.role === 'model') {
                             chat[chat.length - 2].parts = chat[chat.length - 2].parts.concat(chat[chat.length - 1].parts)
@@ -1176,12 +1202,7 @@ function wrapToolStream(
                                     return r.type === 'text'
                                 })
                                 if(result.length === 0){
-                                    parts.push({
-                                        functionResponse: {
-                                            name: call.name,
-                                            response: 'No response from tool.'
-                                        }
-                                    })
+                                    parts.push(toFunctionResponsePart(call, { data: 'No response from tool.' }))
                                 }
                                 // Store the encoded tool call history for later use
                                 if(arg.rememberToolUsage){
@@ -1206,26 +1227,16 @@ function wrapToolStream(
                                             data: response
                                         }
                                     }
-                                    parts.push({
-                                        functionResponse: {
-                                            name: call.name,
-                                            response
-                                        }
-                                    })
+                                    parts.push(toFunctionResponsePart(call, response))
                                 }
                             }
                             else{
-                                parts.push({
-                                    functionResponse: {
-                                        name: call.name,
-                                        response: `Tool ${call.name} not found.`
-                                    }
-                                })
+                                parts.push(toFunctionResponsePart(call, { data: `Tool ${call.name} not found.` }))
                             }
                         }
                         // Add the user response part to the request content (function responses)
                         chat.push({
-                            role: 'function',
+                            role: 'user',
                             parts: parts
                         })
 

@@ -21,6 +21,7 @@ import { sendChat as processSendChat, doingChat } from "src/ts/process/index.sve
 import { getModelInfo } from "src/ts/model/modellist";
 import type { ModelModeExtended } from "src/ts/process/request/shared";
 import { requestChatDataMain } from "src/ts/process/request/request";
+import { getModuleLorebooks } from "src/ts/process/modules";
 import {
     registerTTSPreprocessor,
     unregisterTTSPreprocessor,
@@ -872,6 +873,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             const db = DBState.db
             const charId = get(selectedCharID)
             return db.characters[charId].chatPage
+        },
+        getCurrentLorebookEntries: () => {
+            const charId = get(selectedCharID)
+            const char = DBState.db.characters[charId]
+            if(!char){
+                return []
+            }
+            const page = char.chatPage
+            const characterLore = char.globalLore ?? []
+            const chatLore = char.chats?.[page]?.localLore ?? []
+            const moduleLore = getModuleLorebooks()
+            return $state.snapshot(characterLore.concat(chatLore).concat(moduleLore))
         },
         //New names for character APIs, to match API naming conventions
         getCharacter: oldApis.getChar,

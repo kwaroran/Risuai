@@ -24,6 +24,10 @@ function getColdStorageBackupKey(name: string): string | null {
 }
 
 function isColdStorageBackupData(data: unknown): boolean {
+    if (Array.isArray(data)) {
+        return true
+    }
+
     return !!data
         && typeof data === 'object'
         && ('character' in data || 'message' in data)

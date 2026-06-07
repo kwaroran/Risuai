@@ -591,9 +591,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         body.n = db.genTime
     }
-    if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
-        body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
-    }
+    
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
 
     // Some aux flows are intentionally non-streaming (e.g. memory/translate).
     // If custom Additional Parameters contains stream=true, force non-stream mode back.
@@ -950,21 +949,27 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
         }
     }
 
+    let body:any = {
+        model: "gpt-3.5-turbo-instruct",
+        prompt: prompt,
+        max_tokens: maxTokens,
+        temperature: temperature,
+        top_p: 1,
+        stop:["User:"," User:", "user:", " user:"],
+        presence_penalty: arg.PresensePenalty || (db.PresensePenalty / 100),
+        frequency_penalty: arg.frequencyPenalty || (db.frequencyPenalty / 100),
+    }
+
+    let headers:any = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (arg.key ?? db.openAIKey)
+    }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
+
     const response = await globalFetch(arg.customURL ?? "https://api.openai.com/v1/completions", {
-        body: {
-            model: "gpt-3.5-turbo-instruct",
-            prompt: prompt,
-            max_tokens: maxTokens,
-            temperature: temperature,
-            top_p: 1,
-            stop:["User:"," User:", "user:", " user:"],
-            presence_penalty: arg.PresensePenalty || (db.PresensePenalty / 100),
-            frequency_penalty: arg.frequencyPenalty || (db.frequencyPenalty / 100),
-        },
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + (arg.key ?? db.openAIKey)
-        },
+        body: body,
+        headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal
     });
@@ -1053,7 +1058,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         (items[items.length-1] as ResponseOutputItem).status = 'incomplete'
     }
     
-    const body = applyParameters({
+    let body = applyParameters({
         model: arg.modelInfo.internalID ?? aiModel,
         input: items,
         max_output_tokens: maxTokens,
@@ -1123,7 +1128,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    const headers = {
+    let headers: Record<string, string> = {
         "Authorization": "Bearer " + (arg.key ?? db.openAIKey),
         "Content-Type": "application/json"
     }
@@ -1131,6 +1136,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
 
     if(arg.previewBody){
         return {

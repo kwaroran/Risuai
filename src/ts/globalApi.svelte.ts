@@ -13,6 +13,7 @@ import { v4 as uuidv4, v4 } from 'uuid';
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { open } from '@tauri-apps/plugin-shell'
+import streamSaver from 'streamsaver';
 import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
@@ -1222,7 +1223,6 @@ export class LocalWriter {
             this.writer = new TauriWriter(filePath)
             return true
         }
-        const streamSaver = await import('streamsaver')
         const writableStream = streamSaver.createWriteStream(name + '.' + ext[0])
         this.writer = writableStream.getWriter()
         return true

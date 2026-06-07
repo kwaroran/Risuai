@@ -2,7 +2,7 @@
 
     import Suggestion from './Suggestion.svelte';
     import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon } from "@lucide/svelte";
-    import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore } from "../../ts/stores.svelte";
+    import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore, chatPanelStore } from "../../ts/stores.svelte";
     import { tick } from 'svelte';
     import Chat from "./Chat.svelte";
     import { type Message } from "../../ts/storage/database.svelte";
@@ -31,6 +31,7 @@
     import Chats from './Chats.svelte';
     import Button from '../UI/GUI/Button.svelte';
     import PluginDefinedIcon from '../Others/PluginDefinedIcon.svelte';
+    import { getAdditionalChatLoadPages, getInitialChatLoadPages } from 'src/ts/chatLoadPages';
 
     const loadPlaygroundMenu = () => import('../Playground/PlaygroundMenu.svelte').then(m => m.default);
     
@@ -43,7 +44,7 @@
     let messageInput:string = $state('')
     let messageInputTranslate:string = $state('')
     let openMenu = $state(false)
-    let loadPages = $state(30)
+    let loadPages = $state(getInitialChatLoadPages(DBState.db))
     let autoMode = $state(false)
     let rerolls:Message[][] = []
     let rerollid = -1
@@ -494,7 +495,7 @@
                 mergedCanvas.remove();
             }
             alertNormal(language.screenshotSaved)
-            loadPages = 10
+            loadPages = getInitialChatLoadPages(DBState.db)
         } catch (error) {
             console.error(error)
             alertError("Error while taking screenshot")
@@ -572,7 +573,7 @@
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
             if(scrolled < 100 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length > loadPages){
-                loadPages += 15
+                loadPages += getAdditionalChatLoadPages(DBState.db)
             }
             const chatTarget = e.target as HTMLElement;
             const chatsContainer = (DBState.db.fixedChatTextarea && chatTarget.children[1]) ? chatTarget.children[1] : chatTarget.children[0];
@@ -782,6 +783,16 @@
                     ? msg.replace(/ +\(.+?\) *$| - [^"'*]*?$/, '')
                     : msg
                 )} {send}/>
+            {/if}
+
+            {#if chatPanelStore.length > 0}
+                <div class="mx-4 my-2 flex flex-col gap-2">
+                    {#each chatPanelStore as panel (panel.id)}
+                        <section class={`rounded-md border border-darkborderc bg-darkbg/80 p-3 text-textcolor ${panel.className ?? ''}`} data-plugin-chat-panel={panel.id}>
+                            {@html panel.html}
+                        </section>
+                    {/each}
+                </div>
             {/if}
 
             {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message?.[0]?.data?.startsWith(coldStorageHeader)  }

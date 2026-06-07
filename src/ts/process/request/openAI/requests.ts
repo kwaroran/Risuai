@@ -7,7 +7,6 @@ import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { isNodeServer, isTauri } from "src/ts/platform"
 import { simplifySchema } from "src/ts/util"
-import { isLocalNetworkUrl } from "src/ts/network/localNetwork"
 
 import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
 import { applyChatTemplate } from "../../templates/chatTemplate"
@@ -16,28 +15,10 @@ import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
-import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
+import type { Contents, OpenAIChatExtra, OpenAIChatFull, ToolCall } from './types'
 
-interface LocalNetworkRequestOptions {
-    networkRoute?: 'auto' | 'local_network'
-    requestTimeoutMs?: number
-}
-
-function getLocalNetworkRequestOptions(url: string, db = getDatabase(), useStreaming = false): LocalNetworkRequestOptions {
-    if (!db.localNetworkMode || !isLocalNetworkUrl(url)) {
-        return {}
-    }
-
-    const timeoutSec = Number.isFinite(db.localNetworkTimeoutSec) && db.localNetworkTimeoutSec > 0
-        ? db.localNetworkTimeoutSec
-        : 600
-
-    return {
-        networkRoute: 'local_network',
-        requestTimeoutMs: useStreaming ? Math.max(1, Math.floor(timeoutSec * 1000)) : undefined
-    }
-}
-
+import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+export { requestOpenAIResponseAPI, __testResponsesAPI } from './responses'
 function isOfficialOpenAIURL(url: string): boolean {
     try {
         return new URL(url).hostname === 'api.openai.com'

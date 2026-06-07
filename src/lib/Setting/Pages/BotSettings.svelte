@@ -767,6 +767,7 @@
             {@render CustomFlagButton('noCivilIntegrity', 20)}
             {@render CustomFlagButton('claudeThinking', 21)}
             {@render CustomFlagButton('claudeAdaptiveThinking', 22)}
+            {@render CustomFlagButton('claudeXHighEffort', 23)}
             {@render CustomFlagButton('deepSeekThinkingToggle', 24)}
 
         {/if}

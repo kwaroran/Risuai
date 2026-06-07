@@ -2,6 +2,25 @@ import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, ClaudeParameters, type 
 
 export const AnthropicModels: LLMModel[] = [
 
+    // Claude 4.8 (No Date)
+    {
+        name: "Claude 4.8 Opus",
+        id: 'claude-opus-4-8',
+        shortName: "4.8 Opus",
+        provider: LLMProvider.Anthropic,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeXHighEffort
+        ],
+        parameters: [],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
+
     // Claude 4.7 (No Date)
     {
         name: "Claude 4.7 Opus",

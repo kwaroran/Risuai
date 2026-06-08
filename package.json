@@ -2,6 +2,7 @@
   "name": "risuai",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "pnpm@10.34.1",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

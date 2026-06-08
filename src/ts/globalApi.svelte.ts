@@ -1484,7 +1484,7 @@ async function fetchViaProxyJobWs(url: string, arg: {
     signal?: AbortSignal,
     requestTimeoutMs?: number,
     chatId?: string,
-    fetchLogIndex: number
+    fetchLogIndex?: number | null
 }): Promise<Response> {
     const auth = await getNodeServerProxyAuth();
 
@@ -1547,7 +1547,7 @@ async function fetchViaProxyJobWs(url: string, arg: {
             }
         }
     });
-    const pipedReadable = pipeFetchLog(arg.fetchLogIndex, readable);
+    const pipedReadable = arg.fetchLogIndex != null ? pipeFetchLog(arg.fetchLogIndex, readable) : readable;
 
     const ensureHeadersReady = () => {
         if (!headersReady) {
@@ -1683,6 +1683,7 @@ export async function fetchNative(url: string, arg: {
     useRisuTk?: boolean,
     chatId?: string
     interceptor?: string
+    logFetch?: boolean
     requestTimeoutMs?: number
     networkRoute?: 'auto' | 'local_network'
 }): Promise<Response> {
@@ -1741,15 +1742,19 @@ export async function fetchNative(url: string, arg: {
     }
     const timeoutSignal = buildTimeoutSignal(arg.signal, arg.requestTimeoutMs)
     const requestSignal = timeoutSignal.signal
-    let fetchLogIndex = addFetchLog({
-        body: new TextDecoder().decode(realBody),
-        headers: arg.headers,
-        response: 'Streamed Fetch',
-        success: true,
-        url: url,
-        resType: 'stream',
-        chatId: arg.chatId,
-    })
+    const shouldLogFetch = arg.logFetch ?? true
+    let fetchLogIndex: number | null = null
+    if (shouldLogFetch) {
+        fetchLogIndex = addFetchLog({
+            body: new TextDecoder().decode(realBody),
+            headers: arg.headers,
+            response: 'Streamed Fetch',
+            success: true,
+            url: url,
+            resType: 'stream',
+            chatId: arg.chatId,
+        })
+    }
     try {
         if (window.userScriptFetch && !throughProxy) {
             return await window.userScriptFetch(url, {
@@ -1813,7 +1818,7 @@ export async function fetchNative(url: string, arg: {
         let resHeaders: { [key: string]: string } = null
         let status = 400
 
-        let readableStream = pipeFetchLog(fetchLogIndex, new ReadableStream<Uint8Array>({
+        const tauriReadableStream = new ReadableStream<Uint8Array>({
             async start(controller) {
                 while (!resolved || nativeFetchData[fetchId].length > 0) {
                     if (nativeFetchData[fetchId].length > 0) {
@@ -1834,7 +1839,12 @@ export async function fetchNative(url: string, arg: {
                 }
                 controller.close()
             }
-        }))
+        })
+
+        let readableStream = tauriReadableStream
+        if (shouldLogFetch && fetchLogIndex !== null) {
+            readableStream = pipeFetchLog(fetchLogIndex, tauriReadableStream)
+        }
 
         while (resHeaders === null && !resolved) {
             await sleep(10)

@@ -21,6 +21,31 @@ export function convertModuleToCharacter(m: RisuModule): character {
     char.additionalAssets = m.assets || []
     char.customModuleToggle = m.customModuleToggle || ""
 
+    for(let i = 0; i < char.globalLore.length; i++){
+        const lore = char.globalLore[i]
+        if(lore.content.startsWith('@@indicator phi')){
+            char.postHistoryInstructions = lore.content.replace('@@indicator phi', '').trim()
+            char.globalLore.splice(i, 1)
+            i--
+        }
+        if(lore.content.startsWith('@@indicator character_desc')){
+            char.desc = lore.content.replace('@@indicator character_desc', '').trim()
+            char.globalLore.splice(i, 1)
+            i--
+        }
+        if(lore.content.startsWith('@@indicator character_first_message')){
+            const firstMsgContent = lore.content.replace('@@indicator character_first_message', '').trim()
+            const fmMatch = firstMsgContent.match(/<FM>([\s\S]*?)<\/FM>/)
+            if(fmMatch){
+                char.firstMessage = fmMatch[1].trim()
+            }
+            const altFmMatches = [...firstMsgContent.matchAll(/<FM_alt>([\s\S]*?)<\/FM_alt>/g)]
+            char.alternateGreetings = altFmMatches.map(m => m[1].trim())
+            char.globalLore.splice(i, 1)
+            i--
+        }
+    }
+
     return safeStructuredClone(char)
 }
 
@@ -37,6 +62,50 @@ export function convertCharacterToModule(c: character): RisuModule {
         assets: c.additionalAssets,
         customModuleToggle: c.customModuleToggle,
         id: v4()
+    }
+    mod.lorebook = mod.lorebook || []
+
+
+    mod.lorebook.push({
+        key: "",
+        secondkey: "",
+        insertorder: 0,
+        comment: "From Character Description",
+        content: `@@indicator character_desc\n\n${c.desc}`,
+        mode: 'constant',
+        alwaysActive: true,
+        selective: false
+    })
+
+
+    let firstMessages = `<FM>\n${c.firstMessage}\n</FM>`
+    c.alternateGreetings ??= []
+    for(let i = 0; i < c.alternateGreetings.length; i++){
+        firstMessages += `\n<FM_alt>\n${c.alternateGreetings[i]}\n</FM_alt>`
+    }
+
+    mod.lorebook.push({
+        key: "",
+        secondkey: "",
+        insertorder: 0,
+        comment: "From First Messages",
+        content: `@@indicator character_first_message\n\n${firstMessages}`,
+        mode: 'constant',
+        alwaysActive: false,
+        selective: false
+    })
+
+    if(c.postHistoryInstructions){
+        mod.lorebook.push({
+            key: "",
+            secondkey: "",
+            insertorder: 0,
+            comment: "From PHI",
+            content: `@@indicator phi\n\n${c.postHistoryInstructions}`,
+            mode: 'constant',
+            alwaysActive: true,
+            selective: false
+        })
     }
 
     return safeStructuredClone(mod)

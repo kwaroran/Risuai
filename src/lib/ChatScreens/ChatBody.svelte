@@ -1,3 +1,30 @@
+<script module lang="ts">
+    const chatBodyParseCacheLimit = 80
+    const chatBodyParseCache = new Map<string, string>()
+
+    function cacheHash(data: string){
+        let hash = 0
+        for(let i = 0; i < data.length; i++){
+            hash = (hash << 5) - hash + data.charCodeAt(i)
+            hash |= 0
+        }
+        return `${data.length}:${hash}`
+    }
+
+    function touchChatBodyParseCache(key: string, value: string){
+        if(chatBodyParseCache.has(key)){
+            chatBodyParseCache.delete(key)
+        }
+        chatBodyParseCache.set(key, value)
+        if(chatBodyParseCache.size > chatBodyParseCacheLimit){
+            const oldestKey = chatBodyParseCache.keys().next().value
+            if(oldestKey){
+                chatBodyParseCache.delete(oldestKey)
+            }
+        }
+    }
+</script>
+
 <script lang="ts">
     import isEqual from "lodash/isEqual"
     import { DBState } from 'src/ts/stores.svelte'
@@ -21,6 +48,9 @@
         retranslate: boolean
         bodyRoot?: HTMLElement|null
         modelShortName: string
+        parseCacheKeyExtra?: string | number
+        renderRawStreaming?: boolean
+        rawStreamingText?: string
     }
 
     let {
@@ -34,6 +64,9 @@
         retranslate = $bindable(false),
         bodyRoot,
         modelShortName = '',
+        parseCacheKeyExtra = '',
+        renderRawStreaming = false,
+        rawStreamingText = '',
     }: Props =  $props()
 
     // svelte-ignore non_reactive_update
@@ -56,6 +89,27 @@
             }
         }
     }
+
+    function getParseCacheKey(data: string, charArg: string | simpleCharacterArgument, chatID: number, mode: string){
+        let charKey = ''
+        try{
+            charKey = typeof charArg === 'string' ? charArg : JSON.stringify(charArg)
+        }
+        catch{
+            charKey = String(charArg)
+        }
+        return [
+            cacheHash(data ?? ''),
+            cacheHash(charKey ?? ''),
+            chatID,
+            mode,
+            firstMessage ? 'first' : 'normal',
+            role ?? '',
+            parseCacheKeyExtra
+        ].join('|')
+    }
+
+    let shouldRenderRawStreaming = $derived(renderRawStreaming && !translated && !retranslate)
 
     const markParsing = async (data: string, charArg: string | simpleCharacterArgument, chatID: number, tries?:number) => {
         // track 'translated' and 'retranslate' state
@@ -143,7 +197,21 @@
                 return transResult
             }
             else{
+                const canUseParseCache = !DBState.db.autoTranslate && !translated && !retranslate
+                const cacheKey = canUseParseCache ? getParseCacheKey(data, charArg, chatID, mode) : ''
+                if(cacheKey){
+                    const cached = chatBodyParseCache.get(cacheKey)
+                    if(cached !== undefined){
+                        touchChatBodyParseCache(cacheKey, cached)
+                        lastParsedQueue = cached
+                        lastCharArg = charArg
+                        return cached
+                    }
+                }
                 const marked = await ParseMarkdown(data, charArg, mode, chatID, getCbsCondition())
+                if(cacheKey){
+                    touchChatBodyParseCache(cacheKey, marked)
+                }
                 lastParsedQueue = marked
                 lastCharArg = charArg
                 return marked
@@ -240,17 +308,27 @@
         }
     }
 
-    let markParsingResult = $derived.by(() => markParsing(msgDisplay, character, idx))
+    let markParsingResult = $derived.by(() => {
+        parseCacheKeyExtra
+        return markParsing(msgDisplay, character, idx)
+    })
 
     $effect(() => {
+        if(shouldRenderRawStreaming){
+            return
+        }
         markParsingResult
         checkImg()
         markParsingResult.then(checkImg)
     })
 </script>
 
-{#await markParsingResult}
-    {@html addMetadataToElement(trimMarkdown(lastParsed), modelShortName)}
-{:then md}
-    {@html addMetadataToElement(trimMarkdown(md), modelShortName)}
-{/await}
+{#if shouldRenderRawStreaming}
+    <span class="whitespace-pre-wrap">{rawStreamingText}</span>
+{:else}
+    {#await markParsingResult}
+        {@html addMetadataToElement(trimMarkdown(lastParsed), modelShortName)}
+    {:then md}
+        {@html addMetadataToElement(trimMarkdown(md), modelShortName)}
+    {/await}
+{/if}

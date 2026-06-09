@@ -39,7 +39,15 @@
 
     let chatBody: HTMLDivElement;
     let hashes: Set<number> = new Set();
-    let mountInstances: Map<number, {}> = new Map();
+    type StreamingDisplayOptimizationMode = 'off'|'balanced'|'strong'
+    type ChatInstance = {
+        updateStreamingDisplay?: (state: {
+            isOptimizedStreamingMessage: boolean
+            streamingOptimizationMode: StreamingDisplayOptimizationMode
+            rawStreamingText: string
+        }) => void
+    }
+    let mountInstances: Map<number, ChatInstance> = new Map();
 
     //Non-cryptographic hash function to generate a unique hash for each message
     function hashCode(str:string):number {
@@ -67,6 +75,11 @@
         const simpleChar = createSimpleCharacter(currentCharacter);
         let loadStart = messages.length - 1
         let loadEnd = messages.length - loadPages
+        const performanceMode = DBState.db.streamingDisplayOptimizationMode ?? 'off';
+        const currentChat = currentCharacter.chats?.[currentCharacter.chatPage]
+        const activeStreamingIndex = performanceMode !== 'off' && currentChat?.isStreaming
+            ? messages.length - 1
+            : -1
 
         if(chatFoldedStateMessageIndex.index !== -1){
             loadStart = chatFoldedStateMessageIndex.index
@@ -80,7 +93,9 @@
             const message = messages[i];
             const messageLargePortrait = message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false);
             const reloadPointer = reloadPointerMap[i] ?? 0;
-            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            const activeStreamingMessage = i === activeStreamingIndex && message.role === 'char';
+            const hashMessageData = activeStreamingMessage ? '' : message.data;
+            let hashd = hashMessageData + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
             if(!hashes.has(currentHash)){
@@ -105,6 +120,9 @@
                         name: message.role === 'user' ? currentUsername : currentCharacter.name,
                         isComment: message.isComment ?? false,
                         disabled: message.disabled ?? false,
+                        isOptimizedStreamingMessage: activeStreamingMessage,
+                        streamingOptimizationMode: performanceMode,
+                        rawStreamingText: message.data,
                     },
 
                 })
@@ -116,6 +134,13 @@
                 else{
                     chatBody.prepend(b);
                 }
+            }
+            else{
+                mountInstances.get(currentHash)?.updateStreamingDisplay?.({
+                    isOptimizedStreamingMessage: activeStreamingMessage,
+                    streamingOptimizationMode: performanceMode,
+                    rawStreamingText: message.data,
+                })
             }
             nextHash = currentHash;
             

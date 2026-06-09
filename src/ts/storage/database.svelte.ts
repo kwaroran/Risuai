@@ -687,6 +687,8 @@ export function setDatabase(data:Database){
     data.newMessageButtonStyle ??= 'bottom-center'
     data.chatLoadInitialPages = normalizeChatLoadPages(data.chatLoadInitialPages, DEFAULT_CHAT_LOAD_INITIAL_PAGES)
     data.chatLoadAdditionalPages = normalizeChatLoadPages(data.chatLoadAdditionalPages, DEFAULT_CHAT_LOAD_ADDITIONAL_PAGES)
+    data.streamingDisplayOptimizationMode ??= (data as {largeChatPerformanceMode?: 'off'|'balanced'|'strong'}).largeChatPerformanceMode ?? 'off'
+    delete (data as {largeChatPerformanceMode?: unknown}).largeChatPerformanceMode
     data.echoMessage ??= "Echo Message"
     data.echoDelay ??= 0
     if(!isNodeServer && !isTauri){
@@ -707,6 +709,11 @@ export function setDatabase(data:Database){
     data.moveInsteadOfCopyOnCMPConvert ??= false
     data.skipSavingAssetsOnWebSync ??= true
     data.coldstorage ??= data?.plugins?.length === 0
+    for(const char of data.characters){
+        for(const chat of char.chats ?? []){
+            chat.isStreaming = false
+        }
+    }
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1242,6 +1249,7 @@ export interface Database{
     newMessageButtonStyle?: string
     chatLoadInitialPages?: number
     chatLoadAdditionalPages?: number
+    streamingDisplayOptimizationMode?: 'off'|'balanced'|'strong'
     pluginDevelopMode?: boolean
     echoMessage?:string
     echoDelay?:number

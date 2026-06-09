@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   typecheck:
-    name: Type Check & Tests
+    name: Linux / Test
     runs-on: ubuntu-latest
     permissions:
       contents: read

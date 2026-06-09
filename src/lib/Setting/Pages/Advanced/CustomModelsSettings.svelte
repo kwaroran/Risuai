@@ -163,6 +163,7 @@
                 {@render CustomFlagButton(index,'noCivilIntegrity', 20)}
                 {@render CustomFlagButton(index,'claudeThinking', 21)}
                 {@render CustomFlagButton(index,'claudeAdaptiveThinking', 22)}
+                {@render CustomFlagButton(index,'claudeXHighEffort', 23)}
                 {@render CustomFlagButton(index,'deepSeekThinkingToggle', 24)}
             </Accordion>
                 </div>

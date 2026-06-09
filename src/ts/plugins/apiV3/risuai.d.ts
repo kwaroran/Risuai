@@ -1321,6 +1321,16 @@ interface RisuaiPluginAPI {
      */
     getCurrentChatIndex: () => Promise<number>;
 
+    /**
+     * Gets raw lorebook entries for the current character or group, the
+     * current chat, and currently active modules.
+     *
+     * This does not apply lorebook activation or token budget filtering.
+     *
+     * @returns Raw lorebook entries from the current character/chat/module sources
+     */
+    getCurrentLorebookEntries(): Promise<any[]>;
+
     // ========== Storage APIs ==========
 
     /** Plugin-specific storage (syncs with save files) */

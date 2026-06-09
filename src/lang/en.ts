@@ -148,6 +148,8 @@ export const languageEnglish = {
         genTimes:
             "This option is used to set the number of responses to generate on support models. Other then first response will be act as cached reroll. This can reduce the cost of the model, but it can also increase the cost if you use it without reroll.",
         requestretrys: "This option is used to set the number of request retries when request fails.",
+        chatLoadInitialPages: "Number of recent chat messages to render when a chat screen opens. Higher values show more history immediately but can make long chats heavier to open.",
+        chatLoadAdditionalPages: "Number of older chat messages to render each time you scroll to the top. Higher values reduce repeated loading but can make each load heavier.",
         emotionPrompt: "This option is used to set the prompt that is used to detect emotion. If it is blank, it will use the default prompt.",
         removePunctuationHypa: "If enabled, it will remove punctuation before executing HypaMemory.",
         additionalParams:
@@ -177,6 +179,8 @@ export const languageEnglish = {
             "If enabled, it will use the old translation method, which preprocess markdown and quotes before translations instead of postprocessing after translations.",
         luaHelp:
             "You can use Lua scripts as a trigger script. You can define onInput, onOutput, onStart functions. onInput is called when user sends a message, onOutput is called when character sends a message, onStart is called when the chat starts. For more information, see the documentation.",
+        openAIFlexProcessing:
+            "OpenAI Flex responses can be slower than regular responses, but you can get them at a lower price (Batch API pricing). This toggle only applies to official OpenAI Chat Completions requests.",
         claudeCachingExperimental:
             "Caching in Claude is experimental feature that can reduce the cost of the model, but it can also increase the cost if you use it without reroll. Since this is a experimental feature, it can be unstable and behavior can be changed in the future.",
         urllora:
@@ -747,6 +751,8 @@ export const languageEnglish = {
     prompt: "Prompt",
     loreBookDepth: "Lorebook Search Depth",
     loreBookToken: "Lorebook Max Tokens",
+    chatLoadInitialPages: "Initial Chat Load Count",
+    chatLoadAdditionalPages: "Additional Chat Load Count",
     removeCharacter: "Remove Character",
     removeGroup: "Remove Group",
     exportCharacter: "Export Character",
@@ -1491,6 +1497,7 @@ export const languageEnglish = {
     promptInfoEmptyToggle: "No custom toggles are currently active.",
     promptInfoEmptyText: "No prompt text has been saved.",
     escapeOutput: "Escape Output",
+    openAIFlexProcessing: "OpenAI Flex Processing",
     claudeBatching: "Claude Batching",
     claude1HourCaching: "Claude 1 Hour Caching",
     folderNameInput: "Please input the new folder name",
@@ -1680,6 +1687,7 @@ export const languageEnglish = {
     cleanColdStorage: "Clean Unused Cold Storage",
     customSidebarConfig: "Custom Sidebar Configuration",
     cleanColdStorageConfirm: "This will permanently delete all unused cold storage data. This may contain data that isn't currently used but may be useful in the future. Do you want to continue?",
+    moveInsteadOfCopyOnCMPConvert: "Move Instead of Copy on CMP Convert",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

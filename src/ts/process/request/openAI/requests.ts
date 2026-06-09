@@ -1,13 +1,12 @@
 import { language } from "src/lang"
 import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
-import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { isNodeServer, isTauri } from "src/ts/platform"
 import { simplifySchema } from "src/ts/util"
-import { isLocalNetworkUrl } from "src/ts/network/localNetwork"
 
 import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
 import { applyChatTemplate } from "../../templates/chatTemplate"
@@ -16,26 +15,21 @@ import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
-import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
+import type { Contents, OpenAIChatExtra, OpenAIChatFull, ToolCall } from './types'
 
-interface LocalNetworkRequestOptions {
-    networkRoute?: 'auto' | 'local_network'
-    requestTimeoutMs?: number
+import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+export { requestOpenAIResponseAPI, __testResponsesAPI } from './responses'
+function isOfficialOpenAIURL(url: string): boolean {
+    try {
+        return new URL(url).hostname === 'api.openai.com'
+    } catch {
+        return false
+    }
 }
 
-function getLocalNetworkRequestOptions(url: string, db = getDatabase(), useStreaming = false): LocalNetworkRequestOptions {
-    if (!db.localNetworkMode || !isLocalNetworkUrl(url)) {
-        return {}
-    }
-
-    const timeoutSec = Number.isFinite(db.localNetworkTimeoutSec) && db.localNetworkTimeoutSec > 0
-        ? db.localNetworkTimeoutSec
-        : 600
-
-    return {
-        networkRoute: 'local_network',
-        requestTimeoutMs: useStreaming ? Math.max(1, Math.floor(timeoutSec * 1000)) : undefined
-    }
+function shouldUseOpenAIFlexProcessing(aiModel: string, url: string, provider: LLMProvider): boolean {
+    const isCustomEndpoint = aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')
+    return provider === LLMProvider.OpenAI || (isCustomEndpoint && isOfficialOpenAIURL(url))
 }
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
@@ -408,7 +402,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         body.seed = db.generationSeed
     }
 
-    if(db.jsonSchemaEnabled || arg.schema){
+    if((db.jsonSchemaEnabled || arg.schema) && !arg.modelInfo.flags.includes(LLMFlags.noStructuredOutput)){
         body.response_format = {
             "type": "json_schema",
             "json_schema": getOpenAIJSONSchema(arg.schema)
@@ -546,6 +540,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
+    if(db.openAIFlexProcessing && shouldUseOpenAIFlexProcessing(aiModel, replacerURL, arg.modelInfo.provider)){
+        body.service_tier = 'flex'
+    }
+
     let headers = {
         "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
         "Content-Type": "application/json"
@@ -574,9 +572,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
         body.n = db.genTime
     }
-    if(aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')){
-        body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
-    }
+    
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
 
     // Some aux flows are intentionally non-streaming (e.g. memory/translate).
     // If custom Additional Parameters contains stream=true, force non-stream mode back.
@@ -933,21 +930,27 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
         }
     }
 
+    let body:any = {
+        model: "gpt-3.5-turbo-instruct",
+        prompt: prompt,
+        max_tokens: maxTokens,
+        temperature: temperature,
+        top_p: 1,
+        stop:["User:"," User:", "user:", " user:"],
+        presence_penalty: arg.PresensePenalty || (db.PresensePenalty / 100),
+        frequency_penalty: arg.frequencyPenalty || (db.frequencyPenalty / 100),
+    }
+
+    let headers:any = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (arg.key ?? db.openAIKey)
+    }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
+
     const response = await globalFetch(arg.customURL ?? "https://api.openai.com/v1/completions", {
-        body: {
-            model: "gpt-3.5-turbo-instruct",
-            prompt: prompt,
-            max_tokens: maxTokens,
-            temperature: temperature,
-            top_p: 1,
-            stop:["User:"," User:", "user:", " user:"],
-            presence_penalty: arg.PresensePenalty || (db.PresensePenalty / 100),
-            frequency_penalty: arg.frequencyPenalty || (db.frequencyPenalty / 100),
-        },
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + (arg.key ?? db.openAIKey)
-        },
+        body: body,
+        headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal
     });
@@ -964,203 +967,6 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
         result: text.replace(/##\n/g, '')
     }
     
-}
-
-export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
-
-    const formated = arg.formated
-    const db = getDatabase()
-    const aiModel = arg.aiModel
-    const maxTokens = arg.maxTokens
-
-    const items:ResponseItem[] = []
-
-    for(let i=0;i<formated.length;i++){
-        const content = formated[i]
-        switch(content.role){
-            case 'function':
-                break
-            case 'assistant':{
-                const item:ResponseOutputItem = {
-                    content: [],
-                    role: content.role,
-                    status: 'complete',
-                    type: 'message',
-                }
-
-                item.content.push({
-                    type: 'output_text',
-                    text: content.content,
-                    annotations: []
-                })
-
-                items.push(item)
-                break
-            }
-            case 'user':
-            case 'system':{
-                const item:ResponseInputItem = {
-                    content: [],
-                    role: content.role
-                }
-
-                item.content.push({
-                    type: 'input_text',
-                    text: content.content
-                })
-
-                content.multimodals ??= []
-                for(const multimodal of content.multimodals){
-                    if(multimodal.type === 'image'){
-                        item.content.push({
-                            type: 'input_image',
-                            detail: 'auto',
-                            image_url: multimodal.base64
-                        })
-                    }
-                    else{
-                        item.content.push({
-                            type: 'input_file',
-                            file_data: multimodal.base64,
-                        })
-                    }
-                }
-
-                items.push(item)
-                break
-            }
-        }
-    }
-
-    if(items[items.length-1].role === 'assistant'){
-        (items[items.length-1] as ResponseOutputItem).status = 'incomplete'
-    }
-    
-    const body = applyParameters({
-        model: arg.modelInfo.internalID ?? aiModel,
-        input: items,
-        max_output_tokens: maxTokens,
-        tools: [],
-        store: false
-    }, ['temperature', 'top_p'], {}, arg.mode, {
-        modelId: arg.modelInfo.id
-    })
-
-    if(aiModel === 'ollama-cloud'){
-        delete body.store
-    }
-
-    let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
-    if(arg.modelInfo?.endpoint){
-        requestURL = arg.modelInfo.endpoint
-    }
-
-    let risuIdentify = false
-    if(requestURL.startsWith("risu::")){
-        risuIdentify = true
-        requestURL = requestURL.replace("risu::", '')
-    }
-
-    if(aiModel === 'reverse_proxy' && db.autofillRequestUrl){
-        try{
-            const url = new URL(requestURL)
-            const pathSegments = url.pathname.split('/').filter(Boolean)
-            const lastSegment = pathSegments[pathSegments.length - 1] ?? ''
-
-            if(url.searchParams.has('api-version') && url.pathname.includes('/responses')){
-                // Azure-style Responses API URL already includes the endpoint
-            }
-            else if(lastSegment === 'responses'){
-                // keep as-is
-            }
-            else if(lastSegment === 'v1'){
-                url.pathname = url.pathname.replace(/\/?$/, '/responses')
-            }
-            else{
-                url.pathname = url.pathname.replace(/\/?$/, '/v1/responses')
-            }
-
-            requestURL = url.toString()
-        }
-        catch{
-            const [baseURL, query] = requestURL.split('?', 2)
-            let nextURL = baseURL
-            const pathSegments = nextURL.split('/').filter(Boolean)
-            const lastSegment = pathSegments[pathSegments.length - 1] ?? ''
-            const hasApiVersion = query?.includes('api-version=')
-
-            if(hasApiVersion && nextURL.includes('/responses')){
-                // Azure-style Responses API URL already includes the endpoint
-            }
-            else if(lastSegment === 'responses'){
-                // keep as-is
-            }
-            else if(lastSegment === 'v1'){
-                nextURL += nextURL.endsWith('/') ? 'responses' : '/responses'
-            }
-            else{
-                nextURL += nextURL.endsWith('/') ? 'v1/responses' : '/v1/responses'
-            }
-
-            requestURL = query ? `${nextURL}?${query}` : nextURL
-        }
-    }
-
-    const headers = {
-        "Authorization": "Bearer " + (arg.key ?? db.openAIKey),
-        "Content-Type": "application/json"
-    }
-
-    if(risuIdentify){
-        headers["X-Proxy-Risu"] = 'RisuAI'
-    }
-
-    if(arg.previewBody){
-        return {
-            type: 'success',
-            result: JSON.stringify({
-                url: requestURL,
-                body: body,
-                headers: headers
-            })
-        }
-    }
-
-    if(db.modelTools.includes('search')){
-        body.tools.push('web_search_preview')
-    }
-
-    const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
-
-    const response = await globalFetch(requestURL, {
-        body: body,
-        headers: headers,
-        chatId: arg.chatId,
-        abortSignal: arg.abortSignal,
-        interceptor: 'openai_response_api',
-        networkRoute: localNetworkOptions.networkRoute,
-        requestTimeoutMs: localNetworkOptions.requestTimeoutMs
-    });
-
-    if(!response.ok){
-        return {
-            type: 'fail',
-            result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
-        }
-    }
-
-    let result: string = (response.data.output?.find((m:ResponseOutputItem) => m.type === 'message') as ResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
-
-    if(!result){
-        return {
-            type: 'fail',
-            result: JSON.stringify(response.data)
-        }
-    }
-    return {
-        type: 'success',
-        result: result
-    }
 }
 
 function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Array, StreamResponseChunk> {

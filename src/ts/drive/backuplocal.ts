@@ -18,6 +18,21 @@ function getBasename(data:string){
     return lasts
 }
 
+function getColdStorageBackupKey(name: string): string | null {
+    const match = name.match(/^(?:coldstorage[/_])?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.json$/)
+    return match?.[1] ?? null
+}
+
+function isColdStorageBackupData(data: unknown): boolean {
+    if (Array.isArray(data)) {
+        return true
+    }
+
+    return !!data
+        && typeof data === 'object'
+        && ('character' in data || 'message' in data)
+}
+
 export async function SaveLocalBackup(){
     alertWait("Saving local backup...")
     const writer = new LocalWriter()
@@ -150,9 +165,9 @@ export async function SaveLocalBackup(){
             const data = await getColdStorageItem(key)
             if(data){
                 const encoded = new TextEncoder().encode(JSON.stringify(data))
-                await writer.writeBackup(`coldstorage/${key}.json`, encoded)
+                await writer.writeBackup(`coldstorage_${key}.json`, encoded)
             } else {
-                missingAssets.push(`coldstorage/${key}.json`)
+                missingAssets.push(`coldstorage_${key}.json`)
             }
         }
     }
@@ -356,6 +371,23 @@ export async function SavePartialLocalBackup(){
         }
     }
 
+    if(!forageStorage.isAccount){
+        //save coldstorages
+        const coldKeys = await listColdDataKeys()
+        for(let i=0;i<coldKeys.length;i++){
+            const key = coldKeys[i]
+            let message = `Saving partial local Backup Cold data... (${i + 1} / ${coldKeys.length})`
+            alertWait(message)
+            const data = await getColdStorageItem(key)
+            if(data){
+                const encoded = new TextEncoder().encode(JSON.stringify(data))
+                await writer.writeBackup(`coldstorage_${key}.json`, encoded)
+            } else {
+                missingAssets.push(`coldstorage_${key}.json`)
+            }
+        }
+    }
+
     const dbWithoutAccount = { ...db, account: undefined }
     const dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
 
@@ -454,22 +486,36 @@ export function LoadLocalBackup(){
                             });
                         }
                     }
-                    else if (name.startsWith('coldstorage/')) {
-                        const key = name.replace('coldstorage/', '').replace('.json', '')
-                        const text = new TextDecoder().decode(data)
-                        if(!forageStorage.isAccount){
+                    
+                    else {
+                        const coldStorageKey = getColdStorageBackupKey(name)
+                        let handledAsColdStorage = false
+
+                        if (coldStorageKey && forageStorage.isAccount) {
+                            handledAsColdStorage = true
+                        }
+                        else if (coldStorageKey) {
                             try {
+                                const text = new TextDecoder().decode(data)
                                 const jsonData = JSON.parse(text)
-                                await setColdStorageItem(key, jsonData)
+
+                                if (isColdStorageBackupData(jsonData)) {
+                                    await setColdStorageItem(coldStorageKey, jsonData)
+                                    handledAsColdStorage = true
+                                } else {
+                                    console.warn(`Skipping invalid cold storage backup item ${name}`)
+                                }
                             } catch (e) {
-                                console.error(`Failed to parse cold storage item ${key}:`, e)
+                                console.error(`Failed to parse cold storage item ${coldStorageKey}:`, e)
                             }
                         }
-                    } else {
-                        if (isTauri) {
-                            await writeFile(`assets/` + name, data, { baseDir: BaseDirectory.AppData });
-                        } else {
-                            await forageStorage.setItem('assets/' + name, data);
+
+                        if (!handledAsColdStorage) {
+                            if (isTauri) {
+                                await writeFile(`assets/` + name, data, { baseDir: BaseDirectory.AppData });
+                            } else {
+                                await forageStorage.setItem('assets/' + name, data);
+                            }
                         }
                     }
                     await sleep(10);

@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 concurrency:
-  group: pr-check-${{ github.head_ref }}
+  group: pr-check-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -48,6 +48,9 @@ jobs:
 
       - name: Run svelte-check
         run: pnpm check
+
+      - name: Build
+        run: pnpm build
 
       - name: Run tests
         run: pnpm test

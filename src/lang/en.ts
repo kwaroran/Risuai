@@ -1687,6 +1687,7 @@ export const languageEnglish = {
     cleanColdStorage: "Clean Unused Cold Storage",
     customSidebarConfig: "Custom Sidebar Configuration",
     cleanColdStorageConfirm: "This will permanently delete all unused cold storage data. This may contain data that isn't currently used but may be useful in the future. Do you want to continue?",
+    moveInsteadOfCopyOnCMPConvert: "Move Instead of Copy on CMP Convert",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

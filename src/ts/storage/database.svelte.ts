@@ -698,6 +698,7 @@ export function setDatabase(data:Database){
     data.loadouts ??= []
     data.longPressToPopupEditor ??= false
     data.customSidebarItems ??= []
+    data.moveInsteadOfCopyOnCMPConvert ??= false
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1251,6 +1252,7 @@ export interface Database{
     disableAprilFools?:boolean
     customSidebarItems: CustomSideBarItem[]
     lastLoadedLoadoutName: string
+    moveInsteadOfCopyOnCMPConvert?:boolean
 }
 
 export interface CustomSideBarItem{

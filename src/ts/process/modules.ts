@@ -2,7 +2,7 @@ import { language } from "src/lang"
 import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore, alertWait } from "../alert"
 import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, setDatabase, type customscript, type loreBook, type triggerscript } from "../storage/database.svelte"
 import { AppendableBuffer, downloadFile, forageStorage, readImage, saveAsset } from "../globalApi.svelte"
-import { selectSingleFile, sleep } from "../util"
+import { checkPersonaBinded, selectSingleFile, sleep } from "../util"
 import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
 import { compressImage } from '../media'
@@ -313,6 +313,13 @@ function getModuleById(id:string){
             return db.modules[i]
         }
     }
+
+    if(id === '$embedded'){
+        const persona = checkPersonaBinded()
+        if(persona && persona.embeddedModule){
+            return persona.embeddedModule
+        }
+    }
     return null
 }
 
@@ -343,6 +350,7 @@ let lastModuleData:RisuModule[] = []
 export function getModules(){
     const currentChat = getCurrentChat()
     const character = getCurrentCharacter()
+    const persona = checkPersonaBinded()
     const db = getDatabase()
     let ids = db.enabledModules ?? []
     if (currentChat){
@@ -350,6 +358,9 @@ export function getModules(){
     }
     if(character && character.modules){
         ids = ids.concat(character.modules)
+    }
+    if(persona && persona.embeddedModule){
+        ids = ids.concat([persona.embeddedModule?.id])
     }
     if(db.moduleIntergration){
         const intList = db.moduleIntergration.split(',').map((s) => s.trim())

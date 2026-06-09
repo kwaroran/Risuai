@@ -111,5 +111,6 @@ export function convertModuleToPersona(m: RisuModule): RisuPersona {
         }
         return true
     })
+    basePersona.embeddedModule.id = '$embedded'
     return safeStructuredClone(basePersona)
 }

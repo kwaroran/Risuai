@@ -979,6 +979,15 @@ export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'bas
     if (db.personas) {
         db.personas.map((v) => {
             addUncleanable(v.icon);
+
+            if(v.embeddedModule){
+                const assets = v.embeddedModule.assets
+                if (assets) {
+                    for (const asset of assets) {
+                        addUncleanable(asset[1])
+                    }
+                }
+            }
         });
     }
 

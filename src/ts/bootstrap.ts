@@ -254,6 +254,7 @@ export async function loadData() {
             registerModelDynamic()
             saveDb()
             moduleUpdate()
+            cleanChunks()
             alertTOS().then((a) => {
                 if (a === false) {
                     location.reload()
@@ -510,6 +511,9 @@ async function checkNewFormat(): Promise<void> {
 async function cleanChunks() {
     const db = getDatabase()
     if (db.account?.useSync) {
+        return
+    }
+    if(db.coldstorage){
         return
     }
 

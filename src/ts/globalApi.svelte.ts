@@ -45,6 +45,7 @@ import { isTauri, isNodeServer } from "./platform";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 import { getNodeServerProxyAuth } from "./storage/nodeStorage";
+import { OpfsStorage } from "./storage/opfsStorage";
 
 export const forageStorage = new AutoStorage()
 
@@ -524,6 +525,26 @@ function openWebLocalForageDb(): Promise<IDBDatabase | null> {
     })
 }
 
+async function canUseIndexedDbBackupFastPath(): Promise<boolean> {
+    if (isNodeServer) {
+        return false
+    }
+
+    await forageStorage.Init()
+
+    if (forageStorage.isAccount) {
+        return false
+    }
+
+    if (forageStorage.realStorage instanceof OpfsStorage) {
+        return false
+    }
+
+    const driver = (forageStorage.realStorage as { driver?: () => string }).driver?.()
+
+    return driver === 'asyncStorage'
+}
+
 async function getDbBackupsFromIndexedDB(): Promise<number[] | null> {
     const db = await openWebLocalForageDb()
 
@@ -628,13 +649,14 @@ export async function getDbBackups() {
         return backups
     }
     else {
-        if (!isNodeServer) {
+        if (await canUseIndexedDbBackupFastPath()) {
             const indexedBackups = await getDbBackupsFromIndexedDB()
 
             if (indexedBackups) {
                 return indexedBackups
             }
         }
+
         const keys = await forageStorage.keys()
         const backups = keys
             .map(parseDbBackupKey)

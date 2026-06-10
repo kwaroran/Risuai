@@ -77,3 +77,11 @@ export function saveCurrentLoadout(name: string) {
     DBState.db.loadouts.push(loadout)
     return loadout
 }
+
+export function exportLoadout(loadout: Loadout) {
+    //TODO
+}
+
+export function importLoadout() {
+    //TODO
+}

@@ -68,34 +68,37 @@ export function convertCharacterToModule(c: character): RisuModule {
     mod.lorebook = mod.lorebook || []
 
 
-    mod.lorebook.push({
-        key: "",
-        secondkey: "",
-        insertorder: 0,
-        comment: "From Character Description",
-        content: `@@indicator character_desc\n\n${c.desc}`,
-        mode: 'constant',
-        alwaysActive: true,
-        selective: false
-    })
-
-
-    let firstMessages = `<FM>\n${c.firstMessage}\n</FM>`
-    c.alternateGreetings ??= []
-    for(let i = 0; i < c.alternateGreetings.length; i++){
-        firstMessages += `\n<FM_alt>\n${c.alternateGreetings[i]}\n</FM_alt>`
+    if(c.desc){
+        mod.lorebook.push({
+            key: "",
+            secondkey: "",
+            insertorder: 0,
+            comment: "From Character Description",
+            content: `@@indicator character_desc\n\n${c.desc}`,
+            mode: 'constant',
+            alwaysActive: true,
+            selective: false
+        })
     }
 
-    mod.lorebook.push({
-        key: "",
-        secondkey: "",
-        insertorder: 0,
-        comment: "From First Messages",
-        content: `@@indicator character_first_message\n\n${firstMessages}`,
-        mode: 'constant',
-        alwaysActive: false,
-        selective: false
-    })
+    if(c.firstMessage || (c.alternateGreetings && c.alternateGreetings.length > 0)){
+        let firstMessages = `<FM>\n${c.firstMessage}\n</FM>`
+        c.alternateGreetings ??= []
+        for(let i = 0; i < c.alternateGreetings.length; i++){
+            firstMessages += `\n<FM_alt>\n${c.alternateGreetings[i]}\n</FM_alt>`
+        }
+        
+        mod.lorebook.push({
+            key: "",
+            secondkey: "",
+            insertorder: 0,
+            comment: "From First Messages",
+            content: `@@indicator character_first_message\n\n${firstMessages}`,
+            mode: 'constant',
+            alwaysActive: false,
+            selective: false
+        })
+    }
 
     if(c.postHistoryInstructions){
         mod.lorebook.push({

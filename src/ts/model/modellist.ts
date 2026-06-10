@@ -591,8 +591,7 @@ for(let i=0; i<LLMModels.length; i++){
             id: `${LLMModels[i].id}-response-api`,
             name: `${LLMModels[i].name} (Response API)`,
             fullName: `${LLMModels[i].fullName ?? LLMModels[i].name} (Response API)`,
-            recommended: false
-
+            recommended: !!LLMModels[i].recommended
         })
     }
     if(LLMModels[i].provider === LLMProvider.GoogleCloud){

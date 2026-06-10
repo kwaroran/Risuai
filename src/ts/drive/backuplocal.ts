@@ -490,7 +490,6 @@ export function LoadLocalBackup(){
                             if (meta.type === 'account' && meta.time) {
                                 encryptionMeta.type = 'account'
                                 encryptionMeta.time = meta.time
-                                alertWait('Encryption metadata found, will decrypt database backup after reading it.')
                             } else {
                                 alertError('Invalid encryption metadata, will attempt to load database backup without decryption.')
                             }
@@ -507,7 +506,6 @@ export function LoadLocalBackup(){
                                 const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
                                 const decrypted = await encryptBuffer(db, key)
                                 db = new Uint8Array(decrypted)
-                                alertWait('Database backup decrypted successfully.')
                             }
                             catch (e) {
                                 console.error('Failed to decrypt database backup:', e)

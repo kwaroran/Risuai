@@ -532,6 +532,11 @@ async function cleanChunks() {
             }
         }
 
+        
+        if(!await exists('remotes', { baseDir: BaseDirectory.AppData })) {
+            await mkdir('remotes', { baseDir: BaseDirectory.AppData })
+        }
+
         const remotes = await readDir('remotes', { baseDir: BaseDirectory.AppData })
 
         const remoteUncleanables = new Set<string>(

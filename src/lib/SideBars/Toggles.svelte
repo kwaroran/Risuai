@@ -1,6 +1,6 @@
 <script lang="ts">
     import { getModuleToggles } from "src/ts/process/modules";
-    import { DBState, MobileGUI } from "src/ts/stores.svelte";
+    import { DBState, MobileGUI, selectedCharID } from "src/ts/stores.svelte";
     import { parseToggleSyntax, type sidebarToggle, type sidebarToggleGroup } from "src/ts/util";
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
@@ -55,7 +55,7 @@
         const ungrouped = parseToggleSyntax(
             DBState.db.customPromptTemplateToggle + '\n' +
             getModuleToggles() + '\n' +
-            ((getCurrentCharacter() as character)?.customModuleToggle ?? '')
+            ((DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle ?? '')
         )
 
         let groupOpen = false

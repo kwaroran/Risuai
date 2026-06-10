@@ -1012,6 +1012,7 @@ async function importCharacterCardSpec<T extends boolean = false>(card:Character
         prebuiltAssetCommand: data?.extensions?.risuai?.prebuiltAssetCommand ?? '',
         prebuiltAssetExclude: data?.extensions?.risuai?.prebuiltAssetExclude ?? [],
         prebuiltAssetStyle: data?.extensions?.risuai?.prebuiltAssetStyle ?? '',
+        customModuleToggle: data?.extensions?.risuai?.toggles ?? {},
     }
 
     if(card.spec === 'chara_card_v3'){
@@ -1648,6 +1649,7 @@ export function createBaseV3(char:character){
                     prebuiltAssetCommand: char.prebuiltAssetCommand ?? '',
                     prebuiltAssetExclude: char.prebuiltAssetExclude ?? [],
                     prebuiltAssetStyle: char.prebuiltAssetStyle ?? '',
+                    toggles: char.customModuleToggle ?? ''
                 },
                 depth_prompt: char.depth_prompt
             },

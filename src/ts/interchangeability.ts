@@ -20,6 +20,7 @@ export function convertModuleToCharacter(m: RisuModule): character {
     char.backgroundHTML = m.backgroundEmbedding || ""
     char.additionalAssets = m.assets || []
     char.customModuleToggle = m.customModuleToggle || ""
+    char.image = m.icon || ""
 
     for(let i = 0; i < char.globalLore.length; i++){
         const lore = char.globalLore[i]
@@ -61,7 +62,8 @@ export function convertCharacterToModule(c: character): RisuModule {
         backgroundEmbedding: c.backgroundHTML,
         assets: c.additionalAssets,
         customModuleToggle: c.customModuleToggle,
-        id: v4()
+        id: v4(),
+        icon: c.image
     }
     mod.lorebook = mod.lorebook || []
 

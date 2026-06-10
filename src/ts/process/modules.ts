@@ -29,6 +29,7 @@ export interface RisuModule{
     namespace?:string
     customModuleToggle?:string
     mcp?:MCPModule
+    icon?:string
 }
 
 export async function exportModule(module:RisuModule, arg:{

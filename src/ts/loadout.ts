@@ -12,6 +12,7 @@ export type Loadout = {
     globalVariables: {[key:string]:string}
     presetName: string
     personaId: string
+    icons?:string[]
 }
 
 export function makeLoadout(options:{
@@ -20,6 +21,12 @@ export function makeLoadout(options:{
     const character = getCurrentCharacter()
     const id = crypto.randomUUID()
     const preset = DBState.db.botPresets[DBState.db.botPresetsId]
+    const icons = []
+
+    if(character?.image){
+        icons.push(character.image)
+    }
+
     return safeStructuredClone({
         name: options.name,
         id: id,
@@ -29,7 +36,8 @@ export function makeLoadout(options:{
         modules: DBState.db.enabledModules,
         globalVariables: DBState.db.globalChatVariables,
         presetName: preset.name ?? '',
-        personaId: DBState.db.personas[DBState.db.selectedPersona]?.id
+        personaId: DBState.db.personas[DBState.db.selectedPersona]?.id,
+        icons: icons
     });
 }
 
@@ -68,4 +76,12 @@ export function saveCurrentLoadout(name: string) {
     const loadout = makeLoadout({name})
     DBState.db.loadouts.push(loadout)
     return loadout
+}
+
+export function exportLoadout(loadout: Loadout) {
+    //TODO
+}
+
+export function importLoadout() {
+    //TODO
 }

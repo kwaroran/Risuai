@@ -65,7 +65,7 @@ export function convertCharacterToModule(c: character): RisuModule {
         id: v4(),
         icon: c.image
     }
-    mod.lorebook = mod.lorebook || []
+    mod.lorebook = safeStructuredClone(mod.lorebook || [])
 
 
     if(c.desc){

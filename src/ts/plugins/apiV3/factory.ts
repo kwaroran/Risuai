@@ -137,7 +137,8 @@ await (async function() {
 
     function replaceStreamsWithPorts(obj) {
         const ports = [];
-        if (!obj || typeof obj !== 'object') return { result: obj, ports };
+        const cleanups = [];
+        if (!obj || typeof obj !== 'object') return { result: obj, ports, cleanups };
 
         function replace(val) {
             if (!(val instanceof ReadableStream)) return val;
@@ -155,6 +156,11 @@ await (async function() {
                 ch.port1.onmessage = null;
                 ch.port1.close();
             }
+
+            cleanups.push(() => {
+                reader.cancel().catch(() => {});
+                finish();
+            });
 
             async function pump() {
                 if (reading || finished) return;
@@ -188,14 +194,14 @@ await (async function() {
             return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
         }
 
-        if (obj instanceof ReadableStream) return { result: replace(obj), ports };
+        if (obj instanceof ReadableStream) return { result: replace(obj), ports, cleanups };
         if (obj.constructor === Object) {
             const out = {};
             for (const k of Object.keys(obj)) out[k] = replace(obj[k]);
-            return { result: out, ports };
+            return { result: out, ports, cleanups };
         }
 
-        return { result: obj, ports };
+        return { result: obj, ports, cleanups };
     }
 
     function reconstructStreamsFromPorts(obj, ports) {
@@ -308,6 +314,14 @@ await (async function() {
             const response = { type: 'CALLBACK_RETURN', reqId: data.reqId };
             const usedAbortIds = [];
             let transferables = [];
+            let streamCleanups = [];
+
+            const rollbackStreams = () => {
+                for (const cleanup of streamCleanups) {
+                    try { cleanup(); } catch(_) {}
+                }
+                streamCleanups = [];
+            };
 
             try {
                 if (!fn) throw new Error("Callback not found or released");
@@ -323,10 +337,12 @@ await (async function() {
                 });
                 const result = await fn(...deserializedArgs);
                 response.result = result;
-                const { result: streamResult, ports: streamPorts } = replaceStreamsWithPorts(response.result);
+                const { result: streamResult, ports: streamPorts, cleanups } = replaceStreamsWithPorts(response.result);
                 response.result = streamResult;
+                streamCleanups = cleanups;
                 transferables = collectTransferables(response, streamPorts);
             } catch (e) {
+                rollbackStreams();
                 delete response.result;
                 response.error = (e && e.message) || String(e || "Guest callback error");
             }
@@ -337,6 +353,7 @@ await (async function() {
             try {
                 send(response, transferables);
             } catch (e) {
+                rollbackStreams();
                 try {
                     send({
                         type: 'CALLBACK_RETURN',
@@ -610,9 +627,10 @@ export class SandboxHost {
         });
     }
 
-    private replaceStreamsWithPorts(obj: any): { result: any, ports: MessagePort[] } {
+    private replaceStreamsWithPorts(obj: any): { result: any, ports: MessagePort[], cleanups: (() => void)[] } {
         const ports: MessagePort[] = [];
-        if (!obj || typeof obj !== 'object') return { result: obj, ports };
+        const cleanups: (() => void)[] = [];
+        if (!obj || typeof obj !== 'object') return { result: obj, ports, cleanups };
 
         const replace = (val: any): any => {
             if (!(val instanceof ReadableStream)) return val;
@@ -637,6 +655,7 @@ export class SandboxHost {
                 finish();
             };
             this.activeStreamCleanups.add(cleanup);
+            cleanups.push(cleanup);
 
             const pump = async () => {
                 if (reading || finished) return;
@@ -670,14 +689,14 @@ export class SandboxHost {
             return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
         };
 
-        if (obj instanceof ReadableStream) return { result: replace(obj), ports };
+        if (obj instanceof ReadableStream) return { result: replace(obj), ports, cleanups };
         if (obj.constructor === Object) {
             const out: any = {};
             for (const k of Object.keys(obj)) out[k] = replace(obj[k]);
-            return { result: out, ports };
+            return { result: out, ports, cleanups };
         }
 
-        return { result: obj, ports };
+        return { result: obj, ports, cleanups };
     }
 
     private reconstructStreamsFromPorts(obj: any, ports: readonly MessagePort[]): any {
@@ -809,6 +828,14 @@ export class SandboxHost {
                 const response: RpcMessage = { type: 'RESPONSE', reqId: data.reqId };
                 const usedAbortIds: string[] = [];
                 let transferables: Transferable[] = [];
+                let streamCleanups: (() => void)[] = [];
+
+                const rollbackStreams = () => {
+                    for (const cleanup of streamCleanups) {
+                        try { cleanup(); } catch(_) {}
+                    }
+                    streamCleanups = [];
+                };
 
                 try {
 
@@ -829,11 +856,13 @@ export class SandboxHost {
 
 
                     response.result = this.serialize(result);
-                    const { result: streamResult, ports: streamPorts } = this.replaceStreamsWithPorts(response.result);
+                    const { result: streamResult, ports: streamPorts, cleanups } = this.replaceStreamsWithPorts(response.result);
                     response.result = streamResult;
+                    streamCleanups = cleanups;
                     transferables = this.collectTransferables(response, streamPorts);
 
                 } catch (err: any) {
+                    rollbackStreams();
                     delete response.result;
                     response.error = err?.message || String(err || "Host execution error");
                 } finally {
@@ -843,8 +872,9 @@ export class SandboxHost {
                 console.log("Original request:", data);
                 console.log('Original response:', response, transferables);
                 try {
-                    this.iframe.contentWindow?.postMessage(response, '*', transferables);                    
+                    this.iframe.contentWindow?.postMessage(response, '*', transferables);
                 } catch (error) {
+                    rollbackStreams();
                     try {
                         this.iframe.contentWindow?.postMessage({
                             type: 'RESPONSE',

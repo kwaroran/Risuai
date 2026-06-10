@@ -14,6 +14,25 @@ import { applyAdditionalParameters, applyParameters, getAdditionalParameters } f
 import type { OpenAIChatExtra, ResponseFunctionCallItem, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
 import { getLocalNetworkRequestOptions, shouldUseOpenAIFlexProcessing, type LocalNetworkRequestOptions } from './shared'
 
+function responseAPIErrorToString(data:any):string{
+    if(typeof data === 'string'){
+        return data
+    }
+    if(typeof data?.response?.error?.message === 'string'){
+        return data.response.error.message
+    }
+    if(typeof data?.error?.message === 'string'){
+        return data.error.message
+    }
+    if(typeof data?.error === 'string'){
+        return data.error
+    }
+    if(typeof data?.message === 'string'){
+        return data.message
+    }
+    return JSON.stringify(data) ?? String(data)
+}
+
 function responseTextContentToString(content:any):string{
     if(typeof content === 'string'){
         return content
@@ -528,13 +547,13 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     if(!response.ok){
         return {
             type: 'fail',
-            result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
+            result: (language.errors.httpError + responseAPIErrorToString(response.data))
         }
     }
 
     const data = response.data as any
-    if(data?.status === 'failed' || data?.error){
-        return { type: 'fail', result: JSON.stringify(data.error ?? data) }
+    if(data?.status === 'failed' || data?.error || data?.response?.status === 'failed' || data?.response?.error){
+        return { type: 'fail', result: responseAPIErrorToString(data.error ?? data) }
     }
     if(data?.status === 'incomplete'){
         const result = extractResponsesText(data, arg)
@@ -645,7 +664,7 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
             }
         }
         else if(type === 'response.failed' || type === 'response.error' || type === 'error'){
-            error = JSON.stringify(event.error ?? event)
+            error = responseAPIErrorToString(event.response?.error ?? event.error ?? event)
         }
         else if(type === 'response.completed'){
             const finalText = extractResponsesText(event.response, arg)
@@ -685,6 +704,10 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
                 applyEvent(JSON.parse(data))
             }
             catch{}
+            if(error){
+                controller.error(new Error(error))
+                return true
+            }
             emit(controller)
             emitted = true
         }

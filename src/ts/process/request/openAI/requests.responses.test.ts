@@ -424,7 +424,24 @@ describe('OpenAI Responses API helpers', () => {
 
         const result = await requestOpenAIResponseAPI(baseArg())
 
-        expect(result).toEqual({ type: 'fail', result: '{"message":"bad request"}' })
+        expect(result).toEqual({ type: 'fail', result: 'bad request' })
+    })
+
+    it('treats wrapped failed Responses results as useful failures', async () => {
+        mocks.globalFetch.mockResolvedValueOnce({
+            ok: true,
+            data: {
+                type: 'response.failed',
+                response: {
+                    status: 'failed',
+                    error: { message: 'wrapped bad request' },
+                },
+            },
+        })
+
+        const result = await requestOpenAIResponseAPI(baseArg())
+
+        expect(result).toEqual({ type: 'fail', result: 'wrapped bad request' })
     })
 
     it('handles an omitted aiModel in the Responses path without crashing', async () => {
@@ -671,16 +688,14 @@ describe('OpenAI Responses API helpers', () => {
         expect(chunks.at(-1)?.['0']).toBe('<Thoughts>\n\nReasoned once\n\n</Thoughts>\nHello')
     })
 
-    it('emits useful text for streaming error events', async () => {
+    it('errors the stream for failed streaming Responses events', async () => {
         const stream = __testResponsesAPI.getResponsesTranStream(baseArg())
         const chunksPromise = collectStream(stream.readable)
         const writer = stream.writable.getWriter()
         const encoder = new TextEncoder()
+        const errorPromise = expect(chunksPromise).rejects.toThrow('Flex is not available for this model.')
 
-        await writer.write(encoder.encode('data: {"type":"response.failed","error":{"message":"stream failed"}}\n\n'))
-        await writer.close()
-
-        const chunks = await chunksPromise
-        expect(chunks.at(-1)?.['0']).toContain('stream failed')
+        await writer.write(encoder.encode('data: {"type":"response.failed","response":{"status":"failed","error":{"message":"Flex is not available for this model."}}}\n\n'))
+        await errorPromise
     })
 })

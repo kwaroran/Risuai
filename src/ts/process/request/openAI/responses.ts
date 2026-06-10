@@ -12,7 +12,7 @@ import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseCh
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
 import type { OpenAIChatExtra, ResponseFunctionCallItem, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
-import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+import { getLocalNetworkRequestOptions, shouldUseOpenAIFlexProcessing, type LocalNetworkRequestOptions } from './shared'
 
 function responseTextContentToString(content:any):string{
     if(typeof content === 'string'){
@@ -802,6 +802,9 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
 
     if(aiModel === 'reverse_proxy' || aiModel?.startsWith('xcustom:::')){
         body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
+    }
+    if(db.openAIFlexProcessing && shouldUseOpenAIFlexProcessing(aiModel, requestURL, arg.modelInfo.provider)){
+        body.service_tier = 'flex'
     }
     if(!arg.useStreaming){
         body.stream = false

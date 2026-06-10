@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
         nanogptProvider: '',
         nanogptRequestModel: 'nanogpt-model',
         nanogptUseSubscriptionEndpoint: false,
+        openAIFlexProcessing: false,
         openAIKey: 'openai-key',
         proxyKey: 'proxy-key',
         requestRetrys: 0,
@@ -190,6 +191,7 @@ describe('OpenAI Responses API helpers', () => {
         mocks.db.nanogptProvider = ''
         mocks.db.nanogptRequestModel = 'nanogpt-model'
         mocks.db.nanogptUseSubscriptionEndpoint = false
+        mocks.db.openAIFlexProcessing = false
         mocks.db.simplifiedToolUse = false
         mocks.db.autofillRequestUrl = false
     })
@@ -291,6 +293,21 @@ describe('OpenAI Responses API helpers', () => {
             headers: expect.objectContaining({ Authorization: 'Bearer openai-key' }),
         }))
         expect(mocks.globalFetch.mock.calls[0][1].body).not.toHaveProperty('__lastOutput')
+    })
+
+    it('applies OpenAI Flex Processing to official Responses API requests', async () => {
+        mocks.db.openAIFlexProcessing = true
+        mocks.globalFetch.mockResolvedValueOnce({
+            ok: true,
+            data: { output_text: 'ok' },
+        })
+
+        const result = await requestOpenAIResponseAPI(baseArg())
+
+        expect(result).toEqual({ type: 'success', result: 'ok' })
+        expect(mocks.globalFetch.mock.calls[0][1].body).toMatchObject({
+            service_tier: 'flex',
+        })
     })
 
     it('leaves system messages as system without the developer-role flag', async () => {

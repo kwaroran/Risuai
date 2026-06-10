@@ -1,7 +1,7 @@
 import { language } from "src/lang"
 import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
-import { LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
@@ -17,20 +17,8 @@ import { applyAdditionalParameters, applyParameters, getAdditionalParameters } f
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ToolCall } from './types'
 
-import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+import { getLocalNetworkRequestOptions, shouldUseOpenAIFlexProcessing, type LocalNetworkRequestOptions } from './shared'
 export { requestOpenAIResponseAPI, __testResponsesAPI } from './responses'
-function isOfficialOpenAIURL(url: string): boolean {
-    try {
-        return new URL(url).hostname === 'api.openai.com'
-    } catch {
-        return false
-    }
-}
-
-function shouldUseOpenAIFlexProcessing(aiModel: string, url: string, provider: LLMProvider): boolean {
-    const isCustomEndpoint = aiModel === 'reverse_proxy' || aiModel.startsWith('xcustom:::')
-    return provider === LLMProvider.OpenAI || (isCustomEndpoint && isOfficialOpenAIURL(url))
-}
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
     let formatedChat:OpenAIChatExtra[] = []

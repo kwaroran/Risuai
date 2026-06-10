@@ -1,4 +1,5 @@
 import { getDatabase } from "src/ts/storage/database.svelte"
+import { LLMProvider } from "src/ts/model/types"
 import { isLocalNetworkUrl } from "src/ts/network/localNetwork"
 
 export interface LocalNetworkRequestOptions {
@@ -19,4 +20,17 @@ export function getLocalNetworkRequestOptions(url: string, db = getDatabase(), u
         networkRoute: 'local_network',
         requestTimeoutMs: useStreaming ? Math.max(1, Math.floor(timeoutSec * 1000)) : undefined
     }
+}
+
+function isOfficialOpenAIURL(url: string): boolean {
+    try {
+        return new URL(url).hostname === 'api.openai.com'
+    } catch {
+        return false
+    }
+}
+
+export function shouldUseOpenAIFlexProcessing(aiModel: string | undefined, url: string, provider: LLMProvider): boolean {
+    const isCustomEndpoint = aiModel === 'reverse_proxy' || !!aiModel?.startsWith('xcustom:::')
+    return provider === LLMProvider.OpenAI || (isCustomEndpoint && isOfficialOpenAIURL(url))
 }

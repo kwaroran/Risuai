@@ -180,7 +180,7 @@ export const languageEnglish = {
         luaHelp:
             "You can use Lua scripts as a trigger script. You can define onInput, onOutput, onStart functions. onInput is called when user sends a message, onOutput is called when character sends a message, onStart is called when the chat starts. For more information, see the documentation.",
         openAIFlexProcessing:
-            "OpenAI Flex responses can be slower than regular responses, but you can get them at a lower price (Batch API pricing). This toggle only applies to official OpenAI Chat Completions requests.",
+            "OpenAI Flex responses can be slower than regular responses, but you can get them at a lower price (Batch API pricing). This toggle only applies to official OpenAI Chat Completions and Responses API requests.",
         claudeCachingExperimental:
             "Caching in Claude is experimental feature that can reduce the cost of the model, but it can also increase the cost if you use it without reroll. Since this is a experimental feature, it can be unstable and behavior can be changed in the future.",
         urllora:

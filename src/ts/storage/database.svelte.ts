@@ -22,7 +22,7 @@ import {
 } from '../chatLoadPages';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.6.101" //<APP_VERSION_POINT>
+export let appVer = "2026.6.102" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 

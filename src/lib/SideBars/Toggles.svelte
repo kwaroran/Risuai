@@ -51,11 +51,19 @@
         return templateUsesJailbreakToggle(template)
     })
 
+    let charToggle = $state((DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle)
+    $effect(() => {
+        const charToggleTemp = (DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle
+        if(charToggleTemp !== charToggle) {
+            charToggle = charToggleTemp
+        }
+    })
+
     let groupedToggles = $derived.by(() => {
         const ungrouped = parseToggleSyntax(
             DBState.db.customPromptTemplateToggle + '\n' +
             getModuleToggles() + '\n' +
-            ((DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle ?? '')
+            charToggle
         )
 
         let groupOpen = false

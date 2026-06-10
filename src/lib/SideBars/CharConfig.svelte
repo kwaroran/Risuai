@@ -1135,6 +1135,9 @@
         <span class="text-textcolor mt-2">{language.translatorNote} <Help key="translatorNote" /></span>
         <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].translatorNote}></TextAreaInput>
 
+        <span class="text-textcolor mt-2">{language.customPromptTemplateToggle} <Help key="customPromptTemplateToggle" /></span>
+        <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].customModuleToggle}></TextAreaInput>
+
         <span class="text-textcolor">{language.creator}</span>
         <TextInput size="sm" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
 

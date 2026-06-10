@@ -557,8 +557,11 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     }
     if(data?.status === 'incomplete'){
         const result = extractResponsesText(data, arg)
+        if(result){
+            return { type: 'success', result }
+        }
         const reason = data?.incomplete_details?.reason ? `Incomplete response: ${data.incomplete_details.reason}` : 'Incomplete response'
-        return { type: 'fail', result: result ? `${reason}\n${result}` : reason }
+        return { type: 'fail', result: reason }
     }
 
     const calls = extractResponsesFunctionCalls(data)

@@ -398,7 +398,7 @@ describe('OpenAI Responses API helpers', () => {
         expect(text).toBe('Only final answer.')
     })
 
-    it('treats incomplete non-streaming Responses results as failures even when partial text exists', async () => {
+    it('returns incomplete non-streaming Responses output as success when text exists', async () => {
         mocks.globalFetch.mockResolvedValueOnce({
             ok: true,
             data: {
@@ -410,7 +410,7 @@ describe('OpenAI Responses API helpers', () => {
 
         const result = await requestOpenAIResponseAPI(baseArg())
 
-        expect(result).toEqual({ type: 'fail', result: 'Incomplete response: max_output_tokens\npartial' })
+        expect(result).toEqual({ type: 'success', result: 'partial' })
     })
 
     it('treats failed non-streaming Responses results as useful failures', async () => {

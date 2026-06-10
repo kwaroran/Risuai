@@ -23,7 +23,7 @@ export function convertModuleToCharacter(m: RisuModule): character {
     char.image = m.icon || ""
 
     for(let i = 0; i < char.globalLore.length; i++){
-        const lore = char.globalLore[i]
+        const lore = safeStructuredClone(char.globalLore[i])
         if(lore.content.startsWith('@@indicator phi')){
             char.postHistoryInstructions = lore.content.replace('@@indicator phi', '').trim()
             char.globalLore.splice(i, 1)

@@ -146,24 +146,44 @@ await (async function() {
             ports.push(ch.port2);
 
             const reader = val.getReader();
-            ch.port1.onmessage = (e) => {
-                if (e.data?.cancel) reader.cancel();
-            };
+            let credits = 0;
+            let reading = false;
+            let finished = false;
 
-            (async () => {
+            function finish() {
+                finished = true;
+                ch.port1.onmessage = null;
+                ch.port1.close();
+            }
+
+            async function pump() {
+                if (reading || finished) return;
+                reading = true;
                 try {
-                    while (true) {
+                    while (credits > 0 && !finished) {
+                        credits--;
                         const { done, value } = await reader.read();
-                        if (done) { ch.port1.postMessage({ done: true }); break; }
-                        else ch.port1.postMessage({ done: false, value });
+                        if (finished) return;
+                        if (done) { ch.port1.postMessage({ done: true }); finish(); return; }
+                        ch.port1.postMessage({ done: false, value });
                     }
                 } catch (e) {
                     try { ch.port1.postMessage({ done: true, error: e.message }); } catch(_) {}
+                    finish();
                 } finally {
-                    ch.port1.onmessage = null;
-                    ch.port1.close();
+                    reading = false;
                 }
-            })();
+            }
+
+            ch.port1.onmessage = (e) => {
+                if (e.data?.cancel) {
+                    reader.cancel();
+                    finish();
+                } else if (e.data?.pull) {
+                    credits++;
+                    pump();
+                }
+            };
 
             return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
         }
@@ -199,6 +219,9 @@ await (async function() {
                             controller.enqueue(e.data.value);
                         }
                     };
+                },
+                pull() {
+                    port.postMessage({ pull: true });
                 },
                 cancel() {
                     port.postMessage({ cancel: true });
@@ -593,24 +616,44 @@ export class SandboxHost {
             ports.push(ch.port2);
 
             const reader = val.getReader();
-            ch.port1.onmessage = (e: MessageEvent) => {
-                if (e.data?.cancel) reader.cancel();
+            let credits = 0;
+            let reading = false;
+            let finished = false;
+
+            const finish = () => {
+                finished = true;
+                ch.port1.onmessage = null;
+                ch.port1.close();
             };
 
-            (async () => {
+            const pump = async () => {
+                if (reading || finished) return;
+                reading = true;
                 try {
-                    while (true) {
+                    while (credits > 0 && !finished) {
+                        credits--;
                         const { done, value } = await reader.read();
-                        if (done) { ch.port1.postMessage({ done: true }); break; }
-                        else ch.port1.postMessage({ done: false, value });
+                        if (finished) return;
+                        if (done) { ch.port1.postMessage({ done: true }); finish(); return; }
+                        ch.port1.postMessage({ done: false, value });
                     }
                 } catch (e: any) {
                     try { ch.port1.postMessage({ done: true, error: e.message }); } catch(_) {}
+                    finish();
                 } finally {
-                    ch.port1.onmessage = null;
-                    ch.port1.close();
+                    reading = false;
                 }
-            })();
+            };
+
+            ch.port1.onmessage = (e: MessageEvent) => {
+                if (e.data?.cancel) {
+                    reader.cancel();
+                    finish();
+                } else if (e.data?.pull) {
+                    credits++;
+                    pump();
+                }
+            };
 
             return { __type: 'STREAM_PORT', portIndex: ports.length - 1 };
         };
@@ -646,6 +689,9 @@ export class SandboxHost {
                             controller.enqueue(e.data.value);
                         }
                     };
+                },
+                pull() {
+                    port.postMessage({ pull: true });
                 },
                 cancel() {
                     port.postMessage({ cancel: true });

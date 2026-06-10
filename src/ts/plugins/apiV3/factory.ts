@@ -426,6 +426,11 @@ export class SandboxHost {
 
     private pendingCallbacks = new Map<string, { resolve: Function, reject: Function }>();
 
+    // Teardown hooks for streams bridged over MessagePort. MessagePort has no
+    // 'close' event in stable browsers, so without these the other side of an
+    // active stream would wait forever once the iframe is gone.
+    private activeStreamCleanups = new Set<() => void>();
+
     constructor(apiFactory: any) {
         this.apiFactory = apiFactory;
     }
@@ -624,7 +629,14 @@ export class SandboxHost {
                 finished = true;
                 ch.port1.onmessage = null;
                 ch.port1.close();
+                this.activeStreamCleanups.delete(cleanup);
             };
+
+            const cleanup = () => {
+                reader.cancel().catch(() => {});
+                finish();
+            };
+            this.activeStreamCleanups.add(cleanup);
 
             const pump = async () => {
                 if (reading || finished) return;
@@ -677,6 +689,15 @@ export class SandboxHost {
             const port = ports[val.portIndex];
             if (!port) throw new Error(`Stream port at index ${val.portIndex} not received`);
 
+            const cleanups = this.activeStreamCleanups;
+            let cleanup: (() => void) | null = null;
+            const unregister = () => {
+                if (cleanup) {
+                    cleanups.delete(cleanup);
+                    cleanup = null;
+                }
+            };
+
             return new ReadableStream({
                 start(controller) {
                     port.onmessage = (e: MessageEvent) => {
@@ -685,10 +706,17 @@ export class SandboxHost {
                             else controller.close();
                             port.onmessage = null;
                             port.close();
+                            unregister();
                         } else {
                             controller.enqueue(e.data.value);
                         }
                     };
+                    cleanup = () => {
+                        controller.error(new Error('Sandbox terminated'));
+                        port.onmessage = null;
+                        port.close();
+                    };
+                    cleanups.add(cleanup);
                 },
                 pull() {
                     port.postMessage({ pull: true });
@@ -697,6 +725,7 @@ export class SandboxHost {
                     port.postMessage({ cancel: true });
                     port.onmessage = null;
                     port.close();
+                    unregister();
                 }
             });
         };
@@ -709,6 +738,13 @@ export class SandboxHost {
         }
 
         return obj;
+    }
+
+    private closeActiveStreams() {
+        for (const cleanup of [...this.activeStreamCleanups]) {
+            try { cleanup(); } catch(_) {}
+        }
+        this.activeStreamCleanups.clear();
     }
 
     public run(container: HTMLElement|HTMLIFrameElement, userCode: string) {
@@ -856,6 +892,7 @@ export class SandboxHost {
         return () => {
             window.removeEventListener('message', messageHandler);
             this.iframe.remove();
+            this.closeActiveStreams();
             this.instanceRegistry.clear();
             this.pendingCallbacks.clear();
             this.abortControllers.clear();
@@ -867,6 +904,7 @@ export class SandboxHost {
         if (this.iframe) {
             this.iframe.remove();
         }
+        this.closeActiveStreams();
         this.instanceRegistry.clear();
         this.pendingCallbacks.clear();
         this.abortControllers.clear();

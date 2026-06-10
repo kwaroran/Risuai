@@ -1690,6 +1690,7 @@ export const languageEnglish = {
     moveInsteadOfCopyOnCMPConvert: "Move Instead of Copy on CMP Convert",
     successfullyConverted: "Successfully converted.",
     convertToModule: "Convert to Module",
+    skipSavingAssetsOnWebSync: "Skip Saving Assets on Web Sync",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

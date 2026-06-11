@@ -680,9 +680,7 @@
                 <th class="font-medium">{language.value}</th>
                 <th>
                     <button class="font-medium cursor-pointer hover:text-green-500 w-full flex justify-center items-center" onclick={() => {
-                        let additionalParams = DBState.db.additionalParams
-                        additionalParams.push(['', ''])
-                        DBState.db.additionalParams = additionalParams
+                        DBState.db.additionalParams.push(['', ''])
                     }}><PlusIcon /></button>
                 </th>
             </tr>

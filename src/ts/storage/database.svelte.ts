@@ -1003,6 +1003,7 @@ export interface Database{
     sideMenuRerollButton?:boolean
     requestInfoInsideChat?:boolean
     additionalParams:[string, string][]
+    additionalParamsForAll:[string, string][]
     heightMode:string
     noWaitForTranslate:boolean
     antiClaudeOverload:boolean

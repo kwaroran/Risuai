@@ -508,16 +508,19 @@ async function checkNewFormat(): Promise<void> {
 /**
  * Purges chunks of data that are not needed.
  */
-async function cleanChunks() {
+async function cleanChunks(options:{
+    cleanColdStorage?: boolean
+} = {}) {
+    const cleanColdStorage = options.cleanColdStorage ?? false
     const db = getDatabase()
     if (db.account?.useSync) {
         return
     }
-    if(db.coldstorage){
+    if(db.coldstorage && !cleanColdStorage){
         return
     }
 
-    const uncleanable = new Set(getUncleanables(db))
+    const uncleanable = new Set(await getUncleanables(db))
     if (isTauri) {
         const assets = await readDir('assets', { baseDir: BaseDirectory.AppData })
         console.log(assets)

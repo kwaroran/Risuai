@@ -14,7 +14,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { open } from '@tauri-apps/plugin-shell'
 import streamSaver from 'streamsaver';
-import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter } from "./storage/database.svelte";
+import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
@@ -40,7 +40,7 @@ import { initMobileGesture } from "./hotkey";
 import { fetch as TauriHTTPFetch } from '@tauri-apps/plugin-http';
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
-import { makeColdData } from "./process/coldstorage.svelte";
+import { getColdStorageItem, makeColdData } from "./process/coldstorage.svelte";
 import { isTauri, isNodeServer } from "./platform";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
@@ -906,14 +906,33 @@ export function getBasename(data: string) {
     return lasts;
 }
 
+export async function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
+    let chars: (character|groupChat)[] = []
+    if (db.characters) {
+        for(let cha of db.characters){
+            if(cha?.coldstorage){
+                const coldData = await getColdStorageItem(cha.coldstorage!)
+                if(coldData.character && coldData.character.chaId === cha.chaId){
+                    cha = coldData.character
+                }
+            }
+            chars.push(cha)
+        }
+    }
+
+    return getUncleanablesSync(db, uptype, { chars });
+}
+
 /**
  * Retrieves uncleanable resources from the database.
  * 
  * @param {Database} db - The database to retrieve uncleanable resources from.
  * @param {'basename'|'pure'} [uptype='basename'] - The type of uncleanable resources to retrieve.
- * @returns {string[]} - An array of uncleanable resources.
+ * @returns {Promise<string[]>} - An array of uncleanable resources.
  */
-export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
+export function getUncleanablesSync(db: Database, uptype: 'basename' | 'pure' = 'basename', options?:{
+    chars: (character|groupChat)[],
+}) {
     const uncleanable = new Set<string>();
 
     /**
@@ -934,8 +953,9 @@ export function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'bas
 
     addUncleanable(db.customBackground);
     addUncleanable(db.userIcon);
+    const chars = options?.chars ?? db.characters
 
-    for (const cha of db.characters) {
+    for (let cha of chars) {
         if (cha.image) {
             addUncleanable(cha.image);
         }

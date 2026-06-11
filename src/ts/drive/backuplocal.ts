@@ -6,10 +6,11 @@ import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { sleep } from "../util";
+import { encryptBuffer, sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
 import { getColdStorageItem, listColdDataKeys, setColdStorageItem } from "../process/coldstorage.svelte";
+import { DBState } from "../stores.svelte";
 
 function getBasename(data:string){
     const baseNameRegex = /\\/g
@@ -133,6 +134,10 @@ export async function SaveLocalBackup(){
             let data: Uint8Array | undefined;
             let isCached = false;
             if(forageStorage.isAccount && key.startsWith('assets/')){
+                if(DBState.db.skipSavingAssetsOnWebSync){
+                    continue
+                }
+
                 const cached = await localforage.getItem(key) as ArrayBuffer;
                 if(cached) {
                     isCached = true;
@@ -173,7 +178,15 @@ export async function SaveLocalBackup(){
     }
 
     const dbWithoutAccount = { ...db, account: undefined }
-    const dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
+    let dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
+
+    if(forageStorage.isAccount && location.origin.endsWith('risuai.xyz')){
+        const time = Date.now()
+        const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${time}`)).json()).key
+        const encrypted = await encryptBuffer(dbData, key)
+        await writer.writeBackup('encryption.risudat', new TextEncoder().encode(JSON.stringify({ time, type: 'account' })))
+        dbData = new Uint8Array(encrypted)
+    }
 
     alertWait(`Saving local Backup... (Saving database)`) 
 
@@ -415,6 +428,12 @@ export async function SavePartialLocalBackup(){
 export function LoadLocalBackup(){
     try {
         const input = document.createElement('input');
+        const encryptionMeta:{
+            type: 'none' | 'account';
+            time?: number;
+        } = {
+            type: 'none'
+        }
         input.type = 'file';
         input.accept = '.bin';
         input.onchange = async () => {
@@ -465,8 +484,34 @@ export function LoadLocalBackup(){
                     }
                     const data = remainingBuffer.slice(offset + 4 + nameLength + 4, offset + 4 + nameLength + 4 + dataLength);
 
-                    if (name === 'database.risudat') {
-                        const db = new Uint8Array(data);
+                    if( name === 'encryption.risudat') {
+                        try {
+                            const meta = JSON.parse(new TextDecoder().decode(data)) as typeof encryptionMeta
+                            if (meta.type === 'account' && meta.time) {
+                                encryptionMeta.type = 'account'
+                                encryptionMeta.time = meta.time
+                            } else {
+                                alertError('Invalid encryption metadata, will attempt to load database backup without decryption.')
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse encryption metadata:', e)
+                            alertError('Failed to parse encryption metadata, will attempt to load database backup without decryption.')
+                        }
+                    }
+
+                    else if (name === 'database.risudat') {
+                        let db = new Uint8Array(data);
+                        if(encryptionMeta.type === 'account' && encryptionMeta.time){
+                            try {
+                                const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
+                                const decrypted = await encryptBuffer(db, key)
+                                db = new Uint8Array(decrypted)
+                            }
+                            catch (e) {
+                                console.error('Failed to decrypt database backup:', e)
+                                alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
+                            }
+                        }
                         const dbData = await decodeRisuSave(db);
                         setDatabaseLite(dbData);
                         requiresFullEncoderReload.state = true;

@@ -22,7 +22,7 @@ import {
 } from '../chatLoadPages';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
-export let appVer = "2026.6.101" //<APP_VERSION_POINT>
+export let appVer = "2026.6.111" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
 
@@ -699,6 +699,8 @@ export function setDatabase(data:Database){
     data.longPressToPopupEditor ??= false
     data.customSidebarItems ??= []
     data.moveInsteadOfCopyOnCMPConvert ??= false
+    data.skipSavingAssetsOnWebSync ??= true
+    data.coldstorage ??= data?.plugins?.length === 0
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1253,6 +1255,7 @@ export interface Database{
     customSidebarItems: CustomSideBarItem[]
     lastLoadedLoadoutName: string
     moveInsteadOfCopyOnCMPConvert?:boolean
+    skipSavingAssetsOnWebSync?:boolean
 }
 
 export interface CustomSideBarItem{

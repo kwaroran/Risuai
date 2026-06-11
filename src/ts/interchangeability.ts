@@ -23,7 +23,7 @@ export function convertModuleToCharacter(m: RisuModule): character {
     char.image = m.icon || ""
 
     for(let i = 0; i < char.globalLore.length; i++){
-        const lore = char.globalLore[i]
+        const lore = safeStructuredClone(char.globalLore[i])
         if(lore.content.startsWith('@@indicator phi')){
             char.postHistoryInstructions = lore.content.replace('@@indicator phi', '').trim()
             char.globalLore.splice(i, 1)
@@ -65,7 +65,7 @@ export function convertCharacterToModule(c: character): RisuModule {
         id: v4(),
         icon: c.image
     }
-    mod.lorebook = mod.lorebook || []
+    mod.lorebook = safeStructuredClone(mod.lorebook || [])
 
 
     if(c.desc){

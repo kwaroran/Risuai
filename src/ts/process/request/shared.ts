@@ -56,7 +56,7 @@ export function getAdditionalParameters(aiModel?: string): [string, string][] {
     }
 
     if (!aiModel.startsWith('xcustom:::')) {
-        return [...(db.additionalParamsForAll ?? [])]
+        return db.applyAdditionalParamsToAll ? [...(db.additionalParams ?? [])] : []
     }
 
     const found = db.customModels.find((model) => model.id === aiModel)

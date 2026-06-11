@@ -700,6 +700,7 @@ export function setDatabase(data:Database){
     data.customSidebarItems ??= []
     data.moveInsteadOfCopyOnCMPConvert ??= false
     data.skipSavingAssetsOnWebSync ??= true
+    data.coldstorage ??= true
     changeLanguage(data.language)
     setDatabaseLite(data)
 }

@@ -66,7 +66,7 @@
     }
 
     function onSelect(loadout: Loadout) {
-        const apply = (Object.keys(loadOptions) as LoadoutApplyOption[]).filter(k => loadOptions[k]);
+        const apply = (Object.keys(loadOptions) as LoadoutApplyOption[]).filter(k => loadOptions[k] && (k !== 'hypaV3Preset' || DBState.db.hypaV3));
         applyLoadout(loadout, apply);
         close();
     }
@@ -115,7 +115,7 @@
                         ></span
                     >
                 {/if}
-                {#if loadout.hypaV3PresetName}
+                {#if DBState.db.hypaV3 && loadout.hypaV3PresetName}
                     <span
                         >HypaV3: <span class="text-textcolor/60"
                             >{loadout.hypaV3PresetName}</span
@@ -180,14 +180,16 @@
             <span class="text-xs text-textcolor/40 uppercase tracking-wider font-medium mr-1">Load:</span>
             {#each Object.keys(loadOptions) as key}
                 {@const k = key as LoadoutApplyOption}
-                <button
-                    class="px-2.5 py-1 rounded text-xs font-medium transition-colors {loadOptions[k]
-                        ? 'bg-textcolor/15 text-textcolor/90'
-                        : 'bg-textcolor/5 text-textcolor/30 hover:bg-textcolor/10 hover:text-textcolor/50'}"
-                    onclick={() => loadOptions[k] = !loadOptions[k]}
-                >
-                    {loadOptionLabels[k]}
-                </button>
+                {#if k !== 'hypaV3Preset' || DBState.db.hypaV3}
+                    <button
+                        class="px-2.5 py-1 rounded text-xs font-medium transition-colors {loadOptions[k]
+                            ? 'bg-textcolor/15 text-textcolor/90'
+                            : 'bg-textcolor/5 text-textcolor/30 hover:bg-textcolor/10 hover:text-textcolor/50'}"
+                        onclick={() => loadOptions[k] = !loadOptions[k]}
+                    >
+                        {loadOptionLabels[k]}
+                    </button>
+                {/if}
             {/each}
         </div>
 

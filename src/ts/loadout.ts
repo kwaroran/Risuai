@@ -39,7 +39,7 @@ export function makeLoadout(options:{
         presetName: preset.name ?? '',
         personaId: DBState.db.personas[DBState.db.selectedPersona]?.id,
         icons: icons,
-        hypaV3PresetName: DBState.db.hypaV3Presets?.[DBState.db.hypaV3PresetId]?.name ?? ''
+        hypaV3PresetName: DBState.db.hypaV3 ? DBState.db.hypaV3Presets?.[DBState.db.hypaV3PresetId]?.name ?? '' : ''
     });
 }
 
@@ -72,7 +72,7 @@ export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
     if(apply.includes('globalVariables')) {
         DBState.db.globalChatVariables = loadout.globalVariables
     }
-    if(apply.includes('hypaV3Preset')) {
+    if(DBState.db.hypaV3 && apply.includes('hypaV3Preset')) {
         let presetIndex = DBState.db.hypaV3Presets?.findIndex(p => p.name === loadout.hypaV3PresetName)
         if(presetIndex >= 0){
             DBState.db.hypaV3PresetId = presetIndex

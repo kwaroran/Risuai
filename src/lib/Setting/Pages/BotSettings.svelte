@@ -672,7 +672,6 @@
         </div>
     </Accordion>
 
-    {#if DBState.db.aiModel === 'reverse_proxy'}
     <Accordion styled name="{language.additionalParams} " help="additionalParams">
         <table class="contain w-full max-w-full tabler">
             <tbody>
@@ -681,13 +680,11 @@
                 <th class="font-medium">{language.value}</th>
                 <th>
                     <button class="font-medium cursor-pointer hover:text-green-500 w-full flex justify-center items-center" onclick={() => {
-                        let additionalParams = DBState.db.additionalParams
-                        additionalParams.push(['', ''])
-                        DBState.db.additionalParams = additionalParams
+                        DBState.db.additionalParams.push(['', ''])
                     }}><PlusIcon /></button>
                 </th>
             </tr>
-            {#if DBState.db.bias.length === 0}
+            {#if DBState.db.additionalParams.length === 0}
                 <tr class="text-textcolor2">
                     <td colspan="3">{language.noData}</td>
                 </tr>
@@ -712,7 +709,6 @@
             </tbody>
         </table>
     </Accordion>
-    {/if}
 
 
     <Accordion styled name={language.promptTemplate}>
@@ -767,6 +763,7 @@
             {@render CustomFlagButton('noCivilIntegrity', 20)}
             {@render CustomFlagButton('claudeThinking', 21)}
             {@render CustomFlagButton('claudeAdaptiveThinking', 22)}
+            {@render CustomFlagButton('claudeXHighEffort', 23)}
             {@render CustomFlagButton('deepSeekThinkingToggle', 24)}
 
         {/if}

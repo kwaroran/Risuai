@@ -20,18 +20,52 @@ export interface ResponseInputItem {
     role: 'user' | 'system' | 'developer'
 }
 
-export interface ResponseOutputItem {
-    content: {
+export type ResponseOutputContent =
+    | {
         type: 'output_text'
         text: string
-        annotations: []
-    }[]
+        annotations: unknown[]
+    }
+    | {
+        type: 'refusal'
+        refusal: string
+    }
+
+export interface ResponseOutputItem {
+    content: ResponseOutputContent[]
     type: 'message'
-    status: 'in_progress' | 'complete' | 'incomplete'
+    status: 'in_progress' | 'completed' | 'incomplete'
     role: 'assistant'
 }
 
-export type ResponseItem = ResponseInputItem | ResponseOutputItem
+export interface ResponseFunctionCallItem {
+    type: 'function_call'
+    id?: string
+    call_id: string
+    name: string
+    arguments: string
+    status?: string
+}
+
+export interface ResponseFunctionCallOutputItem {
+    type: 'function_call_output'
+    call_id: string
+    output: string
+}
+
+export interface ResponseReasoningItem {
+    type: 'reasoning'
+    id?: string
+    status?: string
+    summary?: unknown
+    content?: unknown
+    text?: string
+    summary_text?: string
+    reasoning_text?: string
+    reasoning?: string
+}
+
+export type ResponseItem = ResponseInputItem | ResponseOutputItem | ResponseFunctionCallItem | ResponseFunctionCallOutputItem | ResponseReasoningItem
 
 interface TextContents {
     type: 'text'

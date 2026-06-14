@@ -4,14 +4,16 @@
     import { DBState } from 'src/ts/stores.svelte';
     import Button from "src/lib/UI/GUI/Button.svelte";
     import ModuleMenu from "src/lib/Setting/Pages/Module/ModuleMenu.svelte";
-    import { exportModule, importModule, refreshModules, type RisuModule } from "src/ts/process/modules";
-    import { SquarePen, TrashIcon, Globe, Share2Icon, PlusIcon, HardDriveUpload, Waypoints } from "@lucide/svelte";
+    import { exportModule, exportModuleLegacy, importModule, refreshModules, type RisuModule } from "src/ts/process/modules";
+    import { SquarePen, TrashIcon, Globe, Share2Icon, PlusIcon, HardDriveUpload, Waypoints, UserIcon } from "@lucide/svelte";
     import { v4 } from "uuid";
     import { tooltip } from "src/ts/gui/tooltip";
-    import { alertConfirm } from "src/ts/alert";
+    import { alertConfirm, alertNormal, alertSelect } from "src/ts/alert";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import { onDestroy } from "svelte";
     import { importMCPModule } from "src/ts/process/mcp/mcp";
+    import { convertModuleToCharacter } from "src/ts/interchangeability";
+    import { checkCharOrder } from "src/ts/globalApi.svelte";
     let tempModule:RisuModule = $state({
         name: '',
         description: '',
@@ -20,6 +22,7 @@
     let mode = $state(0)
     let editModuleIndex = $state(-1)
     let moduleSearch = $state('')
+    let charConversionMode = $state(false)
 
     function sortModules(modules:RisuModule[], search:string){
         return modules.filter((v) => {
@@ -56,63 +59,85 @@
                     {/if}
                     <span class="text-lg">{rmodule.name}</span>
                     <div class="grow flex justify-end">
-                        <button class={(DBState.db.enabledModules.includes(rmodule.id)) ?
-                                "mr-2 cursor-pointer text-blue-500" :
-                                rmodule.namespace && 
-                                DBState.db.moduleIntergration?.split(',').map((s) => s.trim()).includes(rmodule.namespace) ?
-                                "text-amber-500 hover:text-green-500 mr-2 cursor-pointer" :
-                                "text-textcolor2 hover:text-green-500 mr-2 cursor-pointer"
-                            } use:tooltip={language.enableGlobal} onclick={async (e) => {
-                            e.stopPropagation()
-                            if(DBState.db.enabledModules.includes(rmodule.id)){
-                                DBState.db.enabledModules.splice(DBState.db.enabledModules.indexOf(rmodule.id), 1)
-                            }
-                            else{
-                                DBState.db.enabledModules.push(rmodule.id)
-                            }
-                            DBState.db.enabledModules = DBState.db.enabledModules
-                        }}>
-                            <Globe size={18}/>
-                        </button>
-                        {#if !rmodule.mcp}
-                            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.download} onclick={async (e) => {
+                        {#if charConversionMode}
+                            <button class="cursor-pointer text-violet-500 mr-2" onclick={async (e) => {
                                 e.stopPropagation()
-                                exportModule(rmodule)
+                                const module = DBState.db.modules.find((v) => v.id === rmodule.id)
+                                const char = convertModuleToCharacter(module)
+                                DBState.db.characters.push(char)
+                                alertNormal(language.successfullyConverted)
+                                checkCharOrder()
                             }}>
-                                <Share2Icon size={18}/>
-                            </button>
-                            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.edit} onclick={async (e) => {
-                                e.stopPropagation()
-                                const index = DBState.db.modules.findIndex((v) => v.id === rmodule.id)
-                                tempModule = rmodule
-                                editModuleIndex = index
-                                mode = 2
-                            }}>
-                                <SquarePen size={18}/>
+                                <UserIcon size={18}/>
+                                
                             </button>
                         {:else}
-                            <button class="text-textcolor2 mr-2 cursor-not-allowed">
-                                <Share2Icon size={18}/>
-                            </button>
-                            <button class="text-textcolor2 mr-2 cursor-not-allowed">
-                                <SquarePen size={18}/>
-                            </button>
-                        {/if}
-                        <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.remove} onclick={async (e) => {
-                            e.stopPropagation()
-                            const d = await alertConfirm(`${language.removeConfirm}` + rmodule.name)
-                            if(d){
+                            <button class={(DBState.db.enabledModules.includes(rmodule.id)) ?
+                                    "mr-2 cursor-pointer text-blue-500" :
+                                    rmodule.namespace && 
+                                    DBState.db.moduleIntergration?.split(',').map((s) => s.trim()).includes(rmodule.namespace) ?
+                                    "text-amber-500 hover:text-green-500 mr-2 cursor-pointer" :
+                                    "text-textcolor2 hover:text-green-500 mr-2 cursor-pointer"
+                                } use:tooltip={language.enableGlobal} onclick={async (e) => {
+                                e.stopPropagation()
                                 if(DBState.db.enabledModules.includes(rmodule.id)){
                                     DBState.db.enabledModules.splice(DBState.db.enabledModules.indexOf(rmodule.id), 1)
-                                    DBState.db.enabledModules = DBState.db.enabledModules
                                 }
-                                const index = DBState.db.modules.findIndex((v) => v.id === rmodule.id)
-                                DBState.db.modules.splice(index, 1)
-                                DBState.db.modules = DBState.db.modules
-                            }
-                        }}>
-                            <TrashIcon size={18}/>
-                        </button>
+                                else{
+                                    DBState.db.enabledModules.push(rmodule.id)
+                                }
+                                DBState.db.enabledModules = DBState.db.enabledModules
+                                charConversionMode = false
+                            }}>
+                                <Globe size={18}/>
+                            </button>
+                            {#if !rmodule.mcp}
+                                <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.download} onclick={async (e) => {
+                                    e.stopPropagation()
+                                    const sel = parseInt(await alertSelect([`CharX (${language.recommended})`, `RisuM (Legacy)`]))
+                                    if(sel === 0){
+                                        exportModule(rmodule)
+                                    }
+                                    else{
+                                        exportModuleLegacy(rmodule)
+                                    }
+                                }}>
+                                    <Share2Icon size={18}/>
+                                </button>
+                                <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.edit} onclick={async (e) => {
+                                    e.stopPropagation()
+                                    const index = DBState.db.modules.findIndex((v) => v.id === rmodule.id)
+                                    tempModule = rmodule
+                                    editModuleIndex = index
+                                    mode = 2
+                                }}>
+                                    <SquarePen size={18}/>
+                                </button>
+                            {:else}
+                                <button class="text-textcolor2 mr-2 cursor-not-allowed">
+                                    <Share2Icon size={18}/>
+                                </button>
+                                <button class="text-textcolor2 mr-2 cursor-not-allowed">
+                                    <SquarePen size={18}/>
+                                </button>
+                            {/if}
+                            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.remove} onclick={async (e) => {
+                                e.stopPropagation()
+                                const d = await alertConfirm(`${language.removeConfirm}` + rmodule.name)
+                                if(d){
+                                    if(DBState.db.enabledModules.includes(rmodule.id)){
+                                        DBState.db.enabledModules.splice(DBState.db.enabledModules.indexOf(rmodule.id), 1)
+                                        DBState.db.enabledModules = DBState.db.enabledModules
+                                    }
+                                    const index = DBState.db.modules.findIndex((v) => v.id === rmodule.id)
+                                    DBState.db.modules.splice(index, 1)
+                                    DBState.db.modules = DBState.db.modules
+                                }
+                            }}>
+                                <TrashIcon size={18}/>
+                            </button>
+                        {/if}
+
                     </div>
                 </div>
                 <div class="mt-1 mb-3 pl-3">
@@ -133,6 +158,11 @@
             mode = 1
         }}>
             <PlusIcon />
+        </button>
+        <button class="text-textcolor2 hover:text-blue-500 mr-2 cursor-pointer" onclick={async () => {
+            charConversionMode = !charConversionMode
+        }}>
+            <UserIcon />
         </button>
         <button class="text-textcolor2 hover:text-blue-500 mr-2 cursor-pointer" onclick={async () => {
             importMCPModule()

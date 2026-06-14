@@ -2,7 +2,7 @@ import { writable } from "svelte/store"
 import { getDatabase } from "./database.svelte"
 import localforage from "localforage"
 import { alertLogin, alertNormalWait, alertStore } from "../alert"
-import { forageStorage, getUncleanables } from "../globalApi.svelte"
+import { forageStorage, getUncleanables, getUncleanablesSync } from "../globalApi.svelte"
 import { encodeRisuSaveLegacy } from "./risuSave"
 import { v4 } from "uuid"
 import { language } from "src/lang"
@@ -10,7 +10,7 @@ import { sleep } from "../util"
 import { fetchProtectedResource } from "../sionyw"
 
 export const AccountWarning = writable('')
-const risuSession = Date.now().toFixed(0)
+let risuSession = ''
 const cachedForage = localforage.createInstance({name: "risuaiAccountCached"})
 
 let seenWarnings:string[] = []
@@ -35,6 +35,15 @@ export class AccountStorage{
         while((!da) || da.status === 403){
 
             const saveDate = Date.now().toFixed(0)
+
+            if(risuSession === ''){
+                da = await fetchProtectedResource('/api/account/getsessionnumber', {
+                    method: "GET"
+                })
+
+                const json = await da.json()
+                risuSession = `${json.sessionNumber}`
+            }
 
             da = await fetchProtectedResource('/api/account/write', {
                 method: "POST",
@@ -159,7 +168,7 @@ export class AccountStorage{
     }
     keys():string[]{
         let db = getDatabase()
-        return getUncleanables(db, 'pure')
+        return getUncleanablesSync(db, 'pure')
     }
     removeItem(key:string){
         throw "Error: You cannot remove data in account. report this to dev if you found this."

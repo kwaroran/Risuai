@@ -1,14 +1,16 @@
 import { language } from "src/lang"
 import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore, alertWait } from "../alert"
 import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, setDatabase, type customscript, type loreBook, type triggerscript } from "../storage/database.svelte"
-import { AppendableBuffer, downloadFile, forageStorage, readImage, saveAsset } from "../globalApi.svelte"
-import { selectSingleFile, sleep } from "../util"
+import { AppendableBuffer, downloadFile, forageStorage, LocalWriter, readImage, saveAsset, VirtualWriter } from "../globalApi.svelte"
+import { checkPersonaBinded, selectSingleFile, sleep } from "../util"
 import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
 import { compressImage } from '../media'
 import { decodeRPack, encodeRPack } from "../rpack/rpack_js"
 import { DBState, HideIconStore, moduleBackgroundEmbedding, ReloadGUIPointer } from "../stores.svelte"
 import {get} from "svelte/store"
+import { convertCharacterToModule, convertModuleToCharacter } from "../interchangeability"
+import { exportCharacterCard, importCharacterProcess } from "../characterCards"
 
 export interface MCPModule{
     url: string
@@ -29,9 +31,34 @@ export interface RisuModule{
     namespace?:string
     customModuleToggle?:string
     mcp?:MCPModule
+    icon?:string
 }
 
 export async function exportModule(module:RisuModule, arg:{
+    alertEnd?:boolean
+} = {}){
+    const alertEnd = arg.alertEnd ?? true
+
+    const char = convertModuleToCharacter(module)
+    if(!char.image){
+        const res = await fetch('/none.webp')
+        const data = new Uint8Array(await res.arrayBuffer())
+        char.image = await saveAsset(data)
+        char.extentions ??= {}
+        char.extentions['moduleNoneImage'] = true
+    }
+    const writer = new LocalWriter()
+    await writer.init(module.name + '.module', ['charx'])
+    await exportCharacterCard(char, 'charx', {
+        spec: 'v3',
+        writer
+    })
+    if(alertEnd){
+        alertNormal(language.successExport)
+    }
+}
+
+export async function exportModuleLegacy(module:RisuModule, arg:{
     alertEnd?:boolean
     saveData?:boolean
 } = {}){
@@ -227,11 +254,32 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
 }
 
 export async function importModule(){
-    const f = await selectSingleFile(['json', 'lorebook', 'risum'])
+    const f = await selectSingleFile(['json', 'lorebook', 'risum', 'charx'])
     if(!f){
         return
     }
     let fileData = f.data
+    if(f.name.endsWith('.charx')){
+        try {
+            const buf = Buffer.from(fileData)
+            const char = await importCharacterProcess({
+                name: f.name,
+                data: buf,
+                returnCharacter: true
+            })
+            if(!char || typeof char === 'number'){
+                alertError(language.errors.noData)
+                return
+            }
+            const module = convertCharacterToModule(char)
+            DBState.db.modules.push(module)
+        } catch (error) {
+            console.error(error)
+            alertError(language.errors.noData)
+        }
+        alertNormal(language.successImport)
+        return
+    }
     if(f.name.endsWith('.risum')){
         try {
             const buf = Buffer.from(fileData)
@@ -313,6 +361,13 @@ function getModuleById(id:string){
             return db.modules[i]
         }
     }
+
+    if(id === '$embedded'){
+        const persona = checkPersonaBinded()
+        if(persona && persona.embeddedModule){
+            return persona.embeddedModule
+        }
+    }
     return null
 }
 
@@ -343,6 +398,7 @@ let lastModuleData:RisuModule[] = []
 export function getModules(){
     const currentChat = getCurrentChat()
     const character = getCurrentCharacter()
+    const persona = checkPersonaBinded()
     const db = getDatabase()
     let ids = db.enabledModules ?? []
     if (currentChat){
@@ -350,6 +406,9 @@ export function getModules(){
     }
     if(character && character.modules){
         ids = ids.concat(character.modules)
+    }
+    if(persona && persona.embeddedModule){
+        ids = ids.concat([persona.embeddedModule?.id])
     }
     if(db.moduleIntergration){
         const intList = db.moduleIntergration.split(',').map((s) => s.trim())

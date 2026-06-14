@@ -503,6 +503,27 @@ export const allowedDbKeys = [
     'characterOrder'
 ]
 
+export const dbArrayIdField = (key: string) => key === 'characters' ? 'chaId' : 'id';
+
+const mergePartialDbValue = (key: string, incoming: any, live: any) => {
+    if (!Array.isArray(incoming) || !Array.isArray(live)) {
+        if (incoming && live && typeof incoming === 'object' && typeof live === 'object' && !Array.isArray(incoming)) {
+            return { ...live, ...incoming };
+        }
+        return incoming;
+    }
+    const idField = dbArrayIdField(key);
+    const liveById = new Map<any, any>();
+    for (const item of live) {
+        if (item && typeof item === 'object' && item[idField] != null) liveById.set(item[idField], item);
+    }
+    return incoming.map((item: any) => {
+        if (!item || typeof item !== 'object') return item;
+        const liveItem = item[idField] != null ? liveById.get(item[idField]) : undefined;
+        return liveItem ? { ...liveItem, ...item } : item;
+    });
+};
+
 export const getV2PluginAPIs = () => {
     return {
         risuFetch: globalFetch,
@@ -746,11 +767,15 @@ export const getV2PluginAPIs = () => {
         setDatabaseLite: (newDb: any, options?: {include?: string[], exclude?: string[]}) => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
+            const partialKeys: string[] = newDb.__partialKeys ?? [];
             for (const key of Object.keys(newDb)) {
+                if (key === '__partialKeys') continue;
                 if (options?.include && !options.include.includes(key)) continue;
                 if (options?.exclude?.includes(key)) continue;
                 if (allowedDbKeys.includes(key)) {
-                    (db as any)[key] = newDb[key];
+                    (db as any)[key] = partialKeys.includes(key)
+                        ? mergePartialDbValue(key, newDb[key], (db as any)[key])
+                        : newDb[key];
                 }
                 else{
                     db.pluginCustomStorage[key] = newDb[key];
@@ -761,7 +786,9 @@ export const getV2PluginAPIs = () => {
         setDatabase: async (newDb: any, options?: {include?: string[], exclude?: string[]}) => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
+            const partialKeys: string[] = newDb.__partialKeys ?? [];
             for (const key of Object.keys(newDb)) {
+                if (key === '__partialKeys') continue;
                 if (options?.include && !options.include.includes(key)) continue;
                 if (options?.exclude?.includes(key)) continue;
                 if (key === 'plugins') {
@@ -770,7 +797,9 @@ export const getV2PluginAPIs = () => {
                 }
 
                 if (allowedDbKeys.includes(key)) {
-                    (db as any)[key] = newDb[key];
+                    (db as any)[key] = partialKeys.includes(key)
+                        ? mergePartialDbValue(key, newDb[key], (db as any)[key])
+                        : newDb[key];
                 }
                 else{
                     db.pluginCustomStorage[key] = newDb[key];

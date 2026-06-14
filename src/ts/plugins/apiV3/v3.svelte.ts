@@ -1,4 +1,4 @@
-import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
+import { allowedDbKeys, customProviderStore, dbArrayIdField, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
@@ -729,6 +729,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             const db = DBState.db
             let liteDB:any = {}
+            const partialKeys:string[] = []
             for(const key of allowedDbKeys){
                 if(includeOnly !== 'all' && !includeOnly.includes(key)){
                     continue;
@@ -741,6 +742,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 if((hasInclude || hasExclude) && value && typeof value === 'object'){
                     let filtered:any;
                     if(Array.isArray(value)){
+                        // always retain the merge id so a filtered result stays safely writable back
+                        const idField = dbArrayIdField(key);
                         filtered = value.map((item:any) => {
                             if(!item || typeof item !== 'object') return $state.snapshot(item);
                             const obj:any = {};
@@ -755,6 +758,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                                     }
                                 }
                             }
+                            if(idField in item && !(idField in obj)) obj[idField] = $state.snapshot(item[idField]);
                             return obj;
                         });
                     } else {
@@ -772,10 +776,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                         }
                     }
                     liteDB[key] = filtered;
+                    partialKeys.push(key);
                 } else {
                     liteDB[key] = $state.snapshot((db as any)[key]);
                 }
             }
+            // tag partially-read keys so setDatabase can refuse a lossy whole-key write-back
+            if(partialKeys.length){ liteDB.__partialKeys = partialKeys; }
             return liteDB;
         },
 

@@ -1411,6 +1411,11 @@ interface RisuaiPluginAPI {
      * Use includeOnly to limit which keys to retrieve for better performance.
      * Use options.exclude to skip heavy nested fields (e.g. chats, lorebook) from being deep-copied.
      *
+     * Note: keys returned with field filtering are partial projections, tagged internally.
+     * When written back via setDatabase/setDatabaseLite they are merged into the live data
+     * (array elements matched by id) so the omitted fields (e.g. chats) are preserved instead
+     * of overwritten. This makes cheap partial updates safe.
+     *
      * @example
      * ```typescript
      * // Basic usage
@@ -1448,6 +1453,12 @@ interface RisuaiPluginAPI {
      * // Write back everything except specific keys
      * await risuai.setDatabaseLite(db, { exclude: ['characters', 'modules'] });
      * ```
+     * Keys that were read with field filtering (partial projections) are merged into the
+     * live data instead of replacing it: omitted fields (e.g. chats) are preserved and array
+     * elements are matched by their id (chaId for characters, id otherwise). This makes
+     * read-light → edit → write-light partial updates safe and cheap. Note: a field omitted
+     * at read time cannot be deleted through this path — re-fetch the key in full to remove
+     * nested fields.
      */
     setDatabaseLite(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
 
@@ -1455,6 +1466,8 @@ interface RisuaiPluginAPI {
      * Sets the database (full save with sync)
      * @param db - DatabaseSubset object to save
      * @param options - Options to control which top-level keys to write back
+     *
+     * Field-filtered (partial) keys are merged into the live data — see setDatabaseLite.
      */
     setDatabase(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
 

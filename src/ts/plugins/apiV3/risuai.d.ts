@@ -1468,7 +1468,9 @@ interface RisuaiPluginAPI {
      * elements are matched by their id (chaId for characters, id otherwise). This makes
      * read-light → edit → write-light partial updates safe and cheap. Note: a field omitted
      * at read time cannot be deleted through this path — re-fetch the key in full to remove
-     * nested fields.
+     * nested fields. The partial tag lives on the object getDatabase returned, so pass that
+     * object back (optionally with include/exclude options); a wrapper rebuilt from scratch
+     * loses the tag and is replaced wholesale.
      */
     setDatabaseLite(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
 

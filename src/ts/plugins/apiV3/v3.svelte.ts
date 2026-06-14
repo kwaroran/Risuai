@@ -782,7 +782,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     liteDB[key] = $state.snapshot((db as any)[key]);
                 }
             }
-            // tag partially-read keys so setDatabase can refuse a lossy whole-key write-back
+            // tag partially-read keys so setDatabase merges them back instead of replacing (which would drop omitted fields)
             if(partialKeys.length){ liteDB.__partialKeys = partialKeys; }
             return liteDB;
         },

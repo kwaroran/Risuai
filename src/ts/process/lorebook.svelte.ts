@@ -4,6 +4,7 @@ import {selectedCharID} from '../stores.svelte'
 import { type Message, type loreBook } from "../storage/database.svelte";
 import { DBState } from '../stores.svelte';
 import { tokenize } from "../tokenizer";
+import { risuChatParser } from "../parser/parser.svelte";
 import { findCharacterbyId, pickHashRand, selectSingleFile } from "../util";
 import { alertError, alertNormal } from "../alert";
 import { language } from "../../lang";
@@ -568,7 +569,11 @@ export async function loadLoreBookV3Prompt(){
                     prompt: content,
                     role: role,
                     order: order,
-                    tokens: await tokenize(content),
+                    // Count tokens against the CBS-evaluated text (e.g. {{#if}}, {{getglobalvar}})
+                    // so cutoff reflects what actually reaches the context, not the unevaluated source.
+                    // runVar is left false (matching the output path in index.svelte.ts), so this
+                    // evaluation has no side effects like setvar.
+                    tokens: await tokenize(risuChatParser(content, {chara: char})),
                     priority: priority,
                     source: fullLore[i].comment || `lorebook ${i}`,
                     inject: inject ?? null

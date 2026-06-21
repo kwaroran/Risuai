@@ -834,7 +834,7 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
         addFetchLogInGlobalFetch(data, ok, url, arg, response.status);
         return { ok, data, headers: Object.fromEntries(response.headers), status: response.status };
     } catch (error) {
-
+        return { ok: false, data: `${error}`, headers: {}, status: 400 };
     }
 }
 

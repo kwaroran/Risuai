@@ -6,7 +6,7 @@ import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { encryptBuffer, sleep } from "../util";
+import { decryptBuffer, encryptBuffer, sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
 import { getColdStorageItem, listColdDataKeys, setColdStorageItem } from "../process/coldstorage.svelte";
@@ -504,7 +504,7 @@ export function LoadLocalBackup(){
                         if(encryptionMeta.type === 'account' && encryptionMeta.time){
                             try {
                                 const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
-                                const decrypted = await encryptBuffer(db, key)
+                                const decrypted = await decryptBuffer(db, key)
                                 db = new Uint8Array(decrypted)
                             }
                             catch (e) {

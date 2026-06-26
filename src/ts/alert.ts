@@ -4,12 +4,11 @@ import { language } from "../lang"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { getDatabase, type MessageGenerationInfo } from "./storage/database.svelte"
 import { alertStore as alertStoreImported } from "./stores.svelte"
+import type { AlertSeverity, LegacyAlertType, ToastOptions } from "./alertModel"
+import { enqueueToast } from "./toastQueue"
 
 export interface alertData{
-    type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
-            |'input'|'toast'|'wait2'|'markdown'|'select'|'login'
-            |'tos'|'cardexport'|'requestdata'|'addchar'|'hypaV2'|'selectModule'
-            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
+    type: LegacyAlertType,
     msg: string,
     submsg?: string
     datalist?: [string, string][],
@@ -155,14 +154,11 @@ export function alertMd(msg:string){
 }
 
 export function doingAlert(){
-    return get(alertStoreImported).type !== 'none' && get(alertStoreImported).type !== 'toast' && get(alertStoreImported).type !== 'wait'
+    return get(alertStoreImported).type !== 'none' && get(alertStoreImported).type !== 'wait'
 }
 
-export function alertToast(msg:string){
-    alertStoreImported.set({
-        'type': 'toast',
-        'msg': msg
-    })
+export function alertToast(msg:string, severity: AlertSeverity = 'info', options?: ToastOptions){
+    enqueueToast(msg, severity, options)
 }
 
 export function alertWait(msg:string){

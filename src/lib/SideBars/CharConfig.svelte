@@ -9,7 +9,7 @@
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, makeGroupImage, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
-    import { alertNormal, alertTOS, showHypaV2Alert } from "../../ts/alert";
+    import { alertToast, alertTOS, showHypaV2Alert } from "../../ts/alert";
     import BarIcon from "./BarIcon.svelte";
     import { findCharacterbyId, getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
@@ -1268,7 +1268,10 @@
                 }
                 const m = convertCharacterToModule(char)
                 DBState.db.modules.push(m)
-                alertNormal(language.successfullyConverted)
+                alertToast(language.successfullyConverted, 'success', {
+                    kind: 'settings',
+                    source: 'character-config'
+                })
             }}
             className="mt-4"
         >

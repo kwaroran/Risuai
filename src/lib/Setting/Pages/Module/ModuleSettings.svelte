@@ -8,7 +8,7 @@
     import { SquarePen, TrashIcon, Globe, Share2Icon, PlusIcon, HardDriveUpload, Waypoints, UserIcon } from "@lucide/svelte";
     import { v4 } from "uuid";
     import { tooltip } from "src/ts/gui/tooltip";
-    import { alertConfirm, alertNormal, alertSelect } from "src/ts/alert";
+    import { alertConfirm, alertToast, alertSelect } from "src/ts/alert";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import { onDestroy } from "svelte";
     import { importMCPModule } from "src/ts/process/mcp/mcp";
@@ -65,7 +65,10 @@
                                 const module = DBState.db.modules.find((v) => v.id === rmodule.id)
                                 const char = convertModuleToCharacter(module)
                                 DBState.db.characters.push(char)
-                                alertNormal(language.successfullyConverted)
+                                alertToast(language.successfullyConverted, 'success', {
+                                    kind: 'settings',
+                                    source: 'module-settings'
+                                })
                                 checkCharOrder()
                             }}>
                                 <UserIcon size={18}/>

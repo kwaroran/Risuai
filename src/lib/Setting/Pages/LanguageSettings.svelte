@@ -1,6 +1,11 @@
 <script lang="ts">
-    import { languageSettingsItems } from "src/ts/setting/languageSettingsData.svelte";
+    import { onDestroy } from "svelte";
+    import { langState, languageSettingsItems } from "src/ts/setting/languageSettingsData.svelte";
     import SettingRenderer from "../SettingRenderer.svelte";
+
+    onDestroy(() => {
+        langState.changed = false;
+    });
 </script>
 
 <SettingRenderer items={languageSettingsItems} />

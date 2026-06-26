@@ -8,6 +8,7 @@
 import type { Database } from '../storage/database.svelte';
 import type { CustomComponentId, CustomComponentProps } from './customComponents';
 import type { LLMModel } from '../model/types';
+import type { AlertSeverity } from '../alertModel';
 
 /**
  * Context passed to condition functions for visibility checks
@@ -31,6 +32,7 @@ export type SettingType =
     | 'segmented'  // Sliding segmented control (SegmentedControl)
     | 'color'      // Color picker (ColorInput)
     | 'header'     // Section header (h2, span, warning)
+    | 'alert'      // Inline informational callout
     | 'button'     // Action button (Button)
     | 'accordion'  // Collapsible section (Accordion)
     | 'custom';    // Custom component from registry
@@ -90,6 +92,11 @@ export interface SettingOptions {
     
     // header
     level?: 'h2' | 'span' | 'warning';
+
+    // alert
+    severity?: AlertSeverity;
+    title?: string;
+    titleKey?: string;
     
     // accordion
     styled?: boolean;        // Use styled accordion

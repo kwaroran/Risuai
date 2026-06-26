@@ -179,67 +179,22 @@ export function initHotkey(){
         }
 
 
-        if(ev.ctrlKey){
-            switch (ev.key){
-                case "1":{
-                    changeToPreset(0)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "2":{
-                    changeToPreset(1)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "3":{
-                    changeToPreset(2)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "4":{
-                    changeToPreset(3)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "5":{
-                    changeToPreset(4)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "6":{
-                    changeToPreset(5)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "7":{
-                    changeToPreset(6)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "8":{
-                    changeToPreset(7)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-                case "9":{
-                    changeToPreset(8)
-                    ev.preventDefault()
-                    ev.stopPropagation()
-                    break
-                }
-            }
+        const quickPresetIndex = getQuickPresetIndex(ev)
+        if(quickPresetIndex !== -1){
+            changeToPreset(quickPresetIndex)
+            ev.preventDefault()
+            ev.stopPropagation()
         }
         if(ev.key === 'Escape'){
             if(doingAlert()){
-                alertToast('Alert Closed')
+                alertStore.set({
+                    type: 'none',
+                    msg: ''
+                })
+                alertToast('Alert Closed', 'success', {
+                    kind: 'ui',
+                    aggregate: false
+                })
             }
             if(get(settingsOpen)){
                 settingsOpen.set(false)
@@ -255,6 +210,8 @@ export function initHotkey(){
                 })
             }
         }
+    }, {
+        capture: true
     })
 
 
@@ -341,6 +298,24 @@ export function hotkeyMatches(hotkey: typeof DBState.db.hotkeys[number], ev: Key
     return true
 }
 
+function getQuickPresetIndex(ev: KeyboardEvent){
+    if(!ev.ctrlKey || ev.altKey || ev.shiftKey){
+        return -1
+    }
+
+    const keyNum = Number(ev.key)
+    if(Number.isInteger(keyNum) && keyNum >= 1 && keyNum <= 9){
+        return keyNum - 1
+    }
+
+    const codeMatch = ev.code.match(/^(?:Digit|Numpad)([1-9])$/)
+    if(codeMatch){
+        return Number(codeMatch[1]) - 1
+    }
+
+    return -1
+}
+
 function clickQuery(query:string){
     let ele = document.querySelector(query) as HTMLElement
     console.log(ele)
@@ -414,7 +389,10 @@ function changeToPreset(num:number){
         let db = getDatabase()
         let pres = db.botPresets
         if(pres.length > num){
-            alertToast(`Changed to Preset: ${pres[num].name}`)
+            alertToast(`Changed to Preset: ${pres[num].name}`, 'success', {
+                kind: 'preset',
+                aggregate: false
+            })
             changeToPreset2(num)
         }
     }

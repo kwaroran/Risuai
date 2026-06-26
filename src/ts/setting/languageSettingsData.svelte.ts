@@ -2,7 +2,7 @@
  * Language Settings Data
  * 
  * Data-driven definition for LanguageSettings page.
- * Uses `.svelte.ts` extension to support reactive `langState` via Svelte 5 runes.
+ * Uses `.svelte.ts` extension to support reactive language change notice state via Svelte 5 runes.
  */
 
 import type { SettingItem } from './types';
@@ -10,7 +10,7 @@ import { isTauri } from '../platform';
 import { changeLanguage, language } from 'src/lang';
 import { languageEnglish } from 'src/lang/en';
 import { sleep } from '../util';
-import { alertNormal, alertSelect, alertConfirm, alertError, alertWait } from '../alert';
+import { alertClear, alertNormal, alertSelect, alertConfirm, alertError, alertWait, alertToast } from '../alert';
 import { downloadFile } from '../globalApi.svelte';
 import { selectFileByDom } from '../util';
 import { exportLLMCacheAsJSON, importLLMCacheFromJSON, clearLLMCache } from '../translator/translator';
@@ -81,9 +81,10 @@ export const languageSettingsItems: SettingItem[] = [
     },
 
     {
-        id: 'lang.restartWarn',
+        id: 'lang.applyNotice',
         type: 'header',
-        fallbackLabel: 'Close the settings to take effect',
+        labelKey: 'languageSettingsApplyNotice',
+        fallbackLabel: 'Move to another page or close settings to apply.',
         options: { level: 'span' },
         classes: 'bg-red-500 text-sm',
         condition: () => langState.changed,
@@ -137,9 +138,9 @@ export const languageSettingsItems: SettingItem[] = [
     // Translator Specific Configurations
     {
         id: 'lang.deeplWebWarn',
-        type: 'header',
+        type: 'alert',
         labelKey: 'webdeeplwarn',
-        options: { level: 'warning' },
+        options: { severity: 'warning', titleKey: 'warning' },
         condition: (ctx) => !!ctx.db.translator && ctx.db.translatorType === 'deepl' && !isTauri,
     },
 
@@ -286,7 +287,11 @@ export const languageSettingsItems: SettingItem[] = [
                     }
                     const json = JSON.stringify(cache, null, 2);
                     await downloadFile('translation_cache.json', new TextEncoder().encode(json));
-                    alertNormal(language.exportTranslationCacheSuccess);
+                    alertClear();
+                    alertToast(language.exportTranslationCacheSuccess, 'success', {
+                        kind: 'export',
+                        source: 'translation-cache'
+                    });
                 } catch (e: any) {
                     alertError(e.message);
                 }
@@ -358,7 +363,11 @@ export const languageSettingsItems: SettingItem[] = [
                     if (!confirmed) return;
                     alertWait(language.loading);
                     await clearLLMCache();
-                    alertNormal(language.clearTranslationCacheSuccess);
+                    alertClear();
+                    alertToast(language.clearTranslationCacheSuccess, 'success', {
+                        kind: 'settings',
+                        source: 'translation-cache'
+                    });
                 } catch (e: any) {
                     alertError(e.message);
                 }

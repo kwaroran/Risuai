@@ -13,6 +13,7 @@
     import { importPreset, getDatabase, setDatabase } from './ts/storage/database.svelte';
     import { readModule } from './ts/process/modules';
     import { alertNormal } from './ts/alert';
+    import { toastQueueStore } from './ts/toastQueue';
     import { language } from './lang';
     import RealmFrame from './lib/UI/Realm/RealmFrame.svelte';
     import SavePopupIconComp from './lib/Others/SavePopupIcon.svelte';
@@ -213,7 +214,7 @@
             <ChatScreen />
         {/if}
     {/if}
-    {#if $alertStore.type !== 'none'}
+    {#if $alertStore.type !== 'none' || $toastQueueStore.active !== null}
         <AlertComp />
     {/if}
     {#if $showRealmInfoStore}

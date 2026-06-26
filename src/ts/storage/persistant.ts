@@ -1,5 +1,5 @@
 import { getDatabase } from "./database.svelte";
-import { alertNormal } from "../alert";
+import { alertNormal, alertToast } from "../alert";
 import { language } from "src/lang";
 import { isTauri, isNodeServer, isFirefox } from "src/ts/platform"
 
@@ -50,7 +50,10 @@ export async function persistantStorageRecommended() {
 export async function requestPersistantStorage() {
     const status = await requestPersistantStorageMain();
     if(status) {
-        alertNormal(language.persistentStorageSuccess)
+        alertToast(language.persistentStorageSuccess, 'success', {
+            kind: 'storage',
+            source: 'persistent-storage'
+        })
     } else {
         alertNormal(language.persistentStorageFail)
     }

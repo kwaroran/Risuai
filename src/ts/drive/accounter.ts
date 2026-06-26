@@ -1,6 +1,6 @@
 import { hubURL } from "../characterCards"
 import { getDatabase, setDatabase } from "../storage/database.svelte"
-import { alertConfirm, alertError, alertMd, alertNormal, alertSelect, alertWait } from "../alert"
+import { alertConfirm, alertError, alertMd, alertToast, alertSelect, alertWait } from "../alert"
 import { AppendableBuffer } from "../globalApi.svelte"
 import { decodeRisuSave } from "../storage/risuSave"
 import { language } from "src/lang"
@@ -135,7 +135,10 @@ export async function loadRisuAccountBackup() {
             await decodeRisuSave(buf.buffer)
         )
     
-        alertNormal('Loaded backup')
+        alertToast('Loaded backup', 'success', {
+            kind: 'backup',
+            source: 'account'
+        })
     }
 
 }

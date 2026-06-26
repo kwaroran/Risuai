@@ -93,7 +93,7 @@
             const silentAudio = new Audio(sendSound);
             silentAudio.loop = true;
             silentAudio.volume = 0.000001;
-            silentAudio.play();
+            silentAudio.play().catch(() => {});
             keepingSessionAlive = true;
             break
         }

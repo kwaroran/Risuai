@@ -30,6 +30,29 @@
     let mode = $state('llm')
     let sourceLang:string|null = $state(null)    
 
+    function streamErrorToString(error: unknown) {
+        return error instanceof Error ? error.message : String(error)
+    }
+
+    async function getVideoDuration(src: string) {
+        const video = document.createElement('video')
+        try {
+            await new Promise<void>((resolve, reject) => {
+                video.preload = 'metadata'
+                video.muted = true
+                video.onloadedmetadata = () => resolve()
+                video.onerror = () => reject(new Error('Failed to load video metadata'))
+                video.src = src
+                video.load()
+            })
+            return video.duration
+        } finally {
+            video.removeAttribute('src')
+            video.load()
+            video.remove()
+        }
+    }
+
     async function runLLMMode() {
         outputText = 'Loading...\n\n'
 
@@ -61,20 +84,13 @@
         let time = ''
 
         if(prompt.includes('{{slot::time}}')){
-            const video = document.createElement('video')
-            video.src = fileB64
-            video.preload = 'metadata'
-            video.muted = true
-            await video.play()
-            const d = video.duration
+            const d = await getVideoDuration(fileB64)
             console.log(d)
             if(isNaN(d)){
                 time = 'unknown'
             }else{
                 time = `${Math.floor(d / 60)}:${Math.floor(d % 60)}`
             }
-            video.pause()
-            video.remove()
         }
 
         const v =await requestChatData({
@@ -89,24 +105,34 @@
 
         if(v.type === 'multiline'){
             alertError(v.result[0][1])
+            outputText = ''
             return
         }
 
         if(v.type !== 'streaming'){
             alertError(v.result)
+            outputText = ''
             return
         }
 
         const reader = v.result.getReader()
 
-        while(true){
-            const { done, value } = await reader.read()
-            if(done){
-                break
-            }
-            const firstKey = Object.keys(value)[0]
+        try {
+            while(true){
+                const { done, value } = await reader.read()
+                if(done){
+                    break
+                }
+                const firstKey = Object.keys(value)[0]
 
-            outputText = value[firstKey]
+                outputText = value[firstKey]
+            }
+        } catch (error) {
+            alertError(streamErrorToString(error))
+            outputText = ''
+            return
+        } finally {
+            reader.releaseLock()
         }
 
         const extracted = outputText.matchAll(/```(web)?(vtt)?\n(.*?)\n```/gs)
@@ -152,18 +178,17 @@
             //check duration
             let duration = 0
             {
-                const video = document.createElement('video')
-                video.src = URL.createObjectURL(file)
-                video.preload = 'metadata'
-                video.muted = true
-                await video.play()
-                const d = video.duration
+                const videoURL = URL.createObjectURL(file)
+                let d = NaN
+                try {
+                    d = await getVideoDuration(videoURL)
+                } finally {
+                    URL.revokeObjectURL(videoURL)
+                }
                 if(isNaN(d)){
                     alertError('This video does not have a duration')
                     return
                 }
-                video.pause()
-                video.remove()
                 duration = d
             }
 
@@ -308,11 +333,13 @@
 
         if(v.type === 'multiline'){
             alertError(v.result[0][1])
+            outputText = ''
             return
         }
 
         if(v.type !== 'streaming'){
             alertError(v.result)
+            outputText = ''
             return
         }
 
@@ -320,14 +347,22 @@
 
         const reader = v.result.getReader()
 
-        while(true){
-            const { done, value } = await reader.read()
-            if(done){
-                break
-            }
-            const firstKey = Object.keys(value)[0]
+        try {
+            while(true){
+                const { done, value } = await reader.read()
+                if(done){
+                    break
+                }
+                const firstKey = Object.keys(value)[0]
 
-            outputText = value[firstKey]
+                outputText = value[firstKey]
+            }
+        } catch (error) {
+            alertError(streamErrorToString(error))
+            outputText = ''
+            return
+        } finally {
+            reader.releaseLock()
         }
         if(!outputText.trim().endsWith('```')){
             outputText = outputText.trim() + '\n```'

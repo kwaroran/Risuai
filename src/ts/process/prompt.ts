@@ -1,6 +1,6 @@
 import { tokenizeAccurate } from "../tokenizer";
 import { getDatabase, presetTemplate, setDatabase } from "../storage/database.svelte";
-import { alertError, alertNormal } from "../alert";
+import { alertError, alertToast } from "../alert";
 import type { OobaChatCompletionRequestParams } from "../model/ooba";
 import { DBState } from "../stores.svelte";
 
@@ -404,7 +404,10 @@ export function promptConvertion(files:{ name: string, content: string, type:str
         preset.subModel = 'openrouter'
         DBState.db.botPresets.push(preset)
     
-        alertNormal('Preset converted successfully. You can find it in bot setting presets')
+        alertToast('Preset converted successfully. You can find it in bot setting presets', 'success', {
+            kind: 'preset',
+            source: 'prompt-converter'
+        })
         return
     }
 
@@ -480,5 +483,8 @@ export function promptConvertion(files:{ name: string, content: string, type:str
 
     DBState.db.botPresets.push(preset)
 
-    alertNormal('Preset converted successfully. You can find it in bot setting presets')
+    alertToast('Preset converted successfully. You can find it in bot setting presets', 'success', {
+        kind: 'preset',
+        source: 'prompt-converter'
+    })
 }

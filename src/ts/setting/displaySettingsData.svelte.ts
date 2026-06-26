@@ -279,7 +279,22 @@ export const displayOtherSettingsItems: SettingItem[] = [
     { id: 'display.textBorder', type: 'check', labelKey: 'textBorder', bindKey: 'textBorder', keywords: ['text', 'border'] },
     { id: 'display.textScreenRounded', type: 'check', labelKey: 'textScreenRound', bindKey: 'textScreenRounded', keywords: ['text', 'round'] },
     { id: 'display.showSavingIcon', type: 'check', labelKey: 'showSavingIcon', bindKey: 'showSavingIcon', keywords: ['saving', 'icon'] },
+    {
+        id: 'display.toastPosition',
+        type: 'select',
+        labelKey: 'toastPosition',
+        bindKey: 'toastPosition',
+        classes: 'mt-4',
+        options: {
+            selectOptions: [
+                { value: 'topCenter', labelKey: 'toastPositionTopCenter' },
+                { value: 'topRight', labelKey: 'toastPositionTopRight' },
+            ],
+        },
+        keywords: ['toast', 'notification', 'position'],
+    },
     { id: 'display.showPromptComparison', type: 'check', labelKey: 'showPromptComparison', bindKey: 'showPromptComparison', keywords: ['prompt', 'comparison'] },
+    { id: 'display.showResponseTokenCounter', type: 'check', labelKey: 'showResponseTokenCounter', bindKey: 'showResponseTokenCounter', keywords: ['response', 'streaming', 'token', 'counter'] },
     {
         id: 'display.textScreenBorder',
         type: 'custom',

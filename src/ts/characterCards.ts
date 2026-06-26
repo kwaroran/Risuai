@@ -1,5 +1,5 @@
 import { writable, type Writable } from "svelte/store"
-import { alertCardExport, alertConfirm, alertError, alertInput, alertMd, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
+import { alertCardExport, alertClear, alertConfirm, alertError, alertInput, alertMd, alertToast, alertStore, alertTOS, alertWait } from "./alert"
 import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, type groupChat, setCurrentCharacter, getCurrentCharacter, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
 import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
 import { language } from "src/lang"
@@ -28,6 +28,22 @@ export const hubURL = isNodeServer
     : (window.location.hostname === 'nightly.risuai.xyz' || localStorage.getItem('hub') === 'nightly')
     ? NIGHTLY_HUB_URL 
     : EXTERNAL_HUB_URL;
+
+function alertCharacterExportSuccess() {
+    alertClear()
+    alertToast(language.successExport, 'success', {
+        kind: 'export',
+        source: 'character-card'
+    })
+}
+
+function alertCharacterImportSuccess(message = language.importedCharacter) {
+    alertClear()
+    alertToast(message, 'success', {
+        kind: 'import',
+        source: 'character-card'
+    })
+}
 
 export async function importCharacter() {
     try {
@@ -67,7 +83,10 @@ export async function importCharacterProcess<T extends boolean = false>(f:{
         }
         if((da.char_name || da.name) && (da.char_persona || da.description) && (da.char_greeting || da.first_mes)){
             DBState.db.characters.push(convertOffSpecCards(da))
-            alertNormal(language.importedCharacter)
+            alertToast(language.importedCharacter, 'success', {
+                kind: 'import',
+                source: 'character-card'
+            })
             return
         }
         else{
@@ -379,7 +398,7 @@ export async function importCharacterProcess<T extends boolean = false>(f:{
         const charaData:OldTavernChar = JSON.parse(Buffer.from(readedChara, 'base64').toString('utf-8'))
         const imgp = await saveAsset(img)
         DBState.db.characters.push(convertOffSpecCards(charaData, imgp))
-        alertNormal(language.importedCharacter)
+        alertCharacterImportSuccess()
         return DBState.db.characters.length - 1
     }
     await importCharacterCardSpec(parsed, img, "normal", assets)
@@ -471,7 +490,10 @@ export async function characterURLImport() {
             }
         }
         DBState.db.modules.push(importData)
-        alertNormal(language.successImport)
+        alertToast(language.successImport, 'success', {
+            kind: 'import',
+            source: 'character-card'
+        })
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
         return
@@ -507,7 +529,10 @@ export async function characterURLImport() {
         const md = await readModule(Buffer.from(module))
         md.id = v4()
         DBState.db.modules.push(md)
-        alertNormal(language.successImport)
+        alertToast(language.successImport, 'success', {
+            kind: 'import',
+            source: 'character-card'
+        })
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
     }
@@ -582,14 +607,20 @@ export async function characterURLImport() {
             })
             SettingsMenuIndex.set(1)
             settingsOpen.set(true)
-            alertNormal(language.successImport)
+            alertToast(language.successImport, 'success', {
+                kind: 'import',
+                source: 'character-card'
+            })
             return
         }
         if(name.endsWith('risum')){
             const md = await readModule(Buffer.from(data))
             md.id = v4()
             DBState.db.modules.push(md)
-            alertNormal(language.successImport)
+            alertToast(language.successImport, 'success', {
+                kind: 'import',
+                source: 'character-card'
+            })
             SettingsMenuIndex.set(14)
             settingsOpen.set(true)
             return
@@ -1024,11 +1055,12 @@ async function importCharacterCardSpec<T extends boolean = false>(card:Character
     }
 
     if(returnValue){
+        alertClear()
         return char as any
     }
 
     db.characters.push(char)
-    alertNormal(language.importedCharacter)
+    alertCharacterImportSuccess()
     return true as any
 
 }
@@ -1320,7 +1352,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
             }
             if(type === 'json'){
                 await downloadFile(`${char.name.replace(/[<>:"/\\|?*\.\,]/g, "")}_export.json`, Buffer.from(JSON.stringify(card, null, 4), 'utf-8'))
-                alertNormal(language.successExport)
+                alertCharacterExportSuccess()
                 return
             }
     
@@ -1476,7 +1508,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
             }
             if(type === 'json'){
                 await downloadFile(`${char.name.replace(/[<>:"/\\|?*\.\,]/g, "")}_export.json`, Buffer.from(JSON.stringify(card, null, 4), 'utf-8'))
-                alertNormal(language.successExport)
+                alertCharacterExportSuccess()
                 return
             }
 
@@ -1512,7 +1544,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
         await sleep(10)
 
         if(!arg.writer){
-            alertNormal(language.successExport)
+            alertCharacterExportSuccess()
         }
 
     }

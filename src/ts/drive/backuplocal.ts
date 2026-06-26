@@ -1,6 +1,6 @@
 import { BaseDirectory, readFile, readDir, writeFile } from "@tauri-apps/plugin-fs";
 import localforage from "localforage";
-import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
+import { alertClear, alertError, alertToast, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
@@ -205,7 +205,11 @@ export async function SaveLocalBackup(){
         }
         alertMd(message)
     } else {
-        alertNormal('Success')
+        alertClear()
+        alertToast('Success', 'success', {
+            kind: 'backup',
+            source: 'local'
+        })
     }
 }
 
@@ -421,7 +425,11 @@ export async function SavePartialLocalBackup(){
         }
         alertMd(message)
     } else {
-        alertNormal('Success')
+        alertClear()
+        alertToast('Success', 'success', {
+            kind: 'backup',
+            source: 'local'
+        })
     }
 }
 
@@ -573,7 +581,11 @@ export function LoadLocalBackup(){
                 remainingBuffer = remainingBuffer.slice(offset);
             }
 
-            alertNormal('Success');
+            alertClear()
+            alertToast('Success', 'success', {
+                kind: 'backup',
+                source: 'local'
+            });
         };
 
         input.click();

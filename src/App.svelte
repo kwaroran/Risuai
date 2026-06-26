@@ -4,6 +4,7 @@
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
     import AlertComp from './lib/Others/AlertComp.svelte';
+    import AlertPinnedStatus from './lib/UI/Alert/AlertPinnedStatus.svelte';
     import RealmPopUp from './lib/UI/Realm/RealmPopUp.svelte';
     import GridChars from './lib/Others/GridCatalog.svelte';
     import WelcomeRisu from './lib/Others/WelcomeRisu.svelte';
@@ -13,6 +14,7 @@
     import { importPreset, getDatabase, setDatabase } from './ts/storage/database.svelte';
     import { readModule } from './ts/process/modules';
     import { alertNormal } from './ts/alert';
+    import { toastQueueStore } from './ts/toastQueue';
     import { language } from './lang';
     import RealmFrame from './lib/UI/Realm/RealmFrame.svelte';
     import SavePopupIconComp from './lib/Others/SavePopupIcon.svelte';
@@ -213,9 +215,10 @@
             <ChatScreen />
         {/if}
     {/if}
-    {#if $alertStore.type !== 'none'}
+    {#if $alertStore.type !== 'none' || $toastQueueStore.active !== null}
         <AlertComp />
     {/if}
+    <AlertPinnedStatus />
     {#if $showRealmInfoStore}
         <RealmPopUp bind:openedData={$showRealmInfoStore} />
     {/if}

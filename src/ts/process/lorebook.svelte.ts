@@ -5,7 +5,7 @@ import { type Message, type loreBook } from "../storage/database.svelte";
 import { DBState } from '../stores.svelte';
 import { tokenize } from "../tokenizer";
 import { findCharacterbyId, pickHashRand, selectSingleFile } from "../util";
-import { alertError, alertNormal } from "../alert";
+import { alertError, alertToast } from "../alert";
 import { language } from "../../lang";
 import { downloadFile } from "../globalApi.svelte";
 import { getModuleLorebooks } from "./modules";
@@ -754,7 +754,10 @@ export async function exportLoreBook(mode:'global'|'local'|'sglobal'){
 
         await downloadFile(`lorebook_export.json`, stringl)
 
-        alertNormal(language.successExport)
+        alertToast(language.successExport, 'success', {
+            kind: 'export',
+            source: 'lorebook'
+        })
     } catch (error) {
         alertError(error)
     }

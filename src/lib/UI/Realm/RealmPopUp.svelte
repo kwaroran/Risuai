@@ -1,7 +1,7 @@
 <script lang="ts">
     import { BookIcon, FlagIcon, ImageIcon, PaperclipIcon, SmileIcon, TrashIcon } from "@lucide/svelte";
     import { language } from "src/lang";
-    import { alertConfirm, alertInput, alertNormal } from "src/ts/alert";
+    import { alertConfirm, alertInput, alertNormal, alertToast } from "src/ts/alert";
     import { hubURL, type hubType, downloadRisuHub, getRealmInfo } from "src/ts/characterCards";
     
     import { DBState } from 'src/ts/stores.svelte';
@@ -116,7 +116,10 @@
             <button class="text-textcolor2 hover:text-green-500" onclick={(async (e) => {
                 e.stopPropagation()
                 await navigator.clipboard.writeText(`https://realm.risuai.net/character/${openedData.id}`)
-                alertNormal(language.clipboardSuccess)
+                alertToast(language.clipboardSuccess, 'success', {
+                    kind: 'clipboard',
+                    source: 'realm'
+                })
             })}>
                 <PaperclipIcon />
             </button>

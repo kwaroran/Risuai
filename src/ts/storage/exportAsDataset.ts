@@ -1,6 +1,6 @@
 import { getDatabase } from "./database.svelte";
 import { downloadFile } from "../globalApi.svelte";
-import { alertNormal } from "../alert";
+import { alertToast } from "../alert";
 import { language } from "src/lang";
 
 export async function exportAsDataset(){
@@ -24,6 +24,9 @@ export async function exportAsDataset(){
 
     await downloadFile('dataset.json',Buffer.from(JSON.stringify(dataset, null,4), 'utf-8'))
 
-    alertNormal(language.successExport)
+    alertToast(language.successExport, 'success', {
+        kind: 'export',
+        source: 'dataset'
+    })
     
 }

@@ -1,5 +1,5 @@
 import { language } from "src/lang"
-import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore, alertWait } from "../alert"
+import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertToast, alertStore, alertWait } from "../alert"
 import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, setDatabase, type customscript, type loreBook, type triggerscript } from "../storage/database.svelte"
 import { AppendableBuffer, downloadFile, forageStorage, LocalWriter, readImage, saveAsset, VirtualWriter } from "../globalApi.svelte"
 import { checkPersonaBinded, selectSingleFile, sleep } from "../util"
@@ -54,7 +54,11 @@ export async function exportModule(module:RisuModule, arg:{
         writer
     })
     if(alertEnd){
-        alertNormal(language.successExport)
+        alertClear()
+        alertToast(language.successExport, 'success', {
+            kind: 'export',
+            source: 'module'
+        })
     }
 }
 
@@ -116,7 +120,11 @@ export async function exportModuleLegacy(module:RisuModule, arg:{
         await downloadFile(module.name + '.risum', apb.buffer)
     }
     if(alertEnd){
-        alertNormal(language.successExport)
+        alertClear()
+        alertToast(language.successExport, 'success', {
+            kind: 'export',
+            source: 'module'
+        })
     }
 
     return apb.buffer
@@ -277,7 +285,10 @@ export async function importModule(){
             console.error(error)
             alertError(language.errors.noData)
         }
-        alertNormal(language.successImport)
+        alertToast(language.successImport, 'success', {
+            kind: 'import',
+            source: 'module'
+        })
         return
     }
     if(f.name.endsWith('.risum')){
@@ -544,7 +555,10 @@ export async function applyModule() {
 
     setCurrentCharacter(currentChar)
 
-    alertNormal(language.successApplyModule)
+    alertToast(language.successApplyModule, 'success', {
+        kind: 'settings',
+        source: 'module'
+    })
 }
 
 let lastModuleIds:string = ''

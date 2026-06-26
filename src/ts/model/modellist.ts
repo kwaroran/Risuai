@@ -814,7 +814,7 @@ export function getModelList<T extends boolean>(arg:{
 } = {}): T extends true ? GetModelListGroup[] : LLMModel[]{
     let models = LLMModels
     if(arg.recommendedOnly){
-         models = models.filter(model => model.recommended)
+         models = models.filter(model => model.recommended && (DBState.db.useExperimental === true || model.format !== LLMFormat.OpenAIResponseAPI))
     }
     const pluginGroup: GetModelListGroup = {
         providerName: 'Plugins',

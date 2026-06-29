@@ -731,6 +731,12 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
     })
 }
 
+function pipeResponsesBodyToTranStream(body:ReadableStream<Uint8Array>, transtream:TransformStream<Uint8Array, StreamResponseChunk>){
+    body.pipeTo(transtream.writable).catch(() => {
+        // Stream failures are surfaced to callers through reader.read(); pipeTo rejects as well when the transform errors.
+    })
+}
+
 export const __testResponsesAPI = {
     buildResponsesBody,
     buildResponsesHeaders,
@@ -811,7 +817,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 })
 
                 const transtream = getResponsesTranStream(arg)
-                resRec.body.pipeTo(transtream.writable)
+                pipeResponsesBodyToTranStream(resRec.body, transtream)
                 reader = transtream.readable.getReader()
                 lastValue = { "0": '' }
             }
@@ -879,7 +885,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         })
 
         const transtream = getResponsesTranStream(arg)
-        response.body.pipeTo(transtream.writable)
+        pipeResponsesBodyToTranStream(response.body, transtream)
         return {
             type: 'streaming',
             result: wrapResponsesToolStream(transtream.readable, body, headers, requestURL, arg, streamingLocalNetworkOptions)

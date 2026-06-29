@@ -310,6 +310,27 @@ describe('OpenAI Responses API helpers', () => {
         })
     })
 
+    it('preserves an explicit Responses service_tier additional parameter when Flex is enabled', async () => {
+        mocks.db.openAIFlexProcessing = true
+        mocks.db.customModels = [{
+            id: 'xcustom:::responses',
+            params: 'service_tier=default',
+        }]
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            aiModel: 'xcustom:::responses',
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                endpoint: 'https://api.openai.com/v1/responses',
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body.service_tier).toBe('default')
+    })
+
     it('leaves system messages as system without the developer-role flag', async () => {
         const body = await __testResponsesAPI.buildResponsesBody(baseArg({
             modelInfo: {
@@ -398,7 +419,7 @@ describe('OpenAI Responses API helpers', () => {
         expect(text).toBe('Only final answer.')
     })
 
-    it('returns incomplete non-streaming Responses output as success when text exists', async () => {
+    it('treats incomplete non-streaming Responses results as failures even when partial text exists', async () => {
         mocks.globalFetch.mockResolvedValueOnce({
             ok: true,
             data: {
@@ -410,7 +431,7 @@ describe('OpenAI Responses API helpers', () => {
 
         const result = await requestOpenAIResponseAPI(baseArg())
 
-        expect(result).toEqual({ type: 'success', result: 'partial' })
+        expect(result).toEqual({ type: 'fail', result: 'Incomplete response: max_output_tokens\npartial' })
     })
 
     it('treats failed non-streaming Responses results as useful failures', async () => {

@@ -34,3 +34,12 @@ export function shouldUseOpenAIFlexProcessing(aiModel: string | undefined, url: 
     const isCustomEndpoint = aiModel === 'reverse_proxy' || !!aiModel?.startsWith('xcustom:::')
     return provider === LLMProvider.OpenAI || (isCustomEndpoint && isOfficialOpenAIURL(url))
 }
+
+export function applyOpenAIFlexProcessing(body: Record<string, any>, aiModel: string | undefined, url: string, provider: LLMProvider): void {
+    if(body.service_tier !== undefined){
+        return
+    }
+    if(shouldUseOpenAIFlexProcessing(aiModel, url, provider)){
+        body.service_tier = 'flex'
+    }
+}

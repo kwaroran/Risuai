@@ -17,7 +17,7 @@ import { applyAdditionalParameters, applyParameters, getAdditionalParameters } f
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ToolCall } from './types'
 
-import { getLocalNetworkRequestOptions, shouldUseOpenAIFlexProcessing, type LocalNetworkRequestOptions } from './shared'
+import { applyOpenAIFlexProcessing, getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
 export { requestOpenAIResponseAPI, __testResponsesAPI } from './responses'
 
 export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<requestDataResponse>{
@@ -528,10 +528,6 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    if(db.openAIFlexProcessing && shouldUseOpenAIFlexProcessing(aiModel, replacerURL, arg.modelInfo.provider)){
-        body.service_tier = 'flex'
-    }
-
     let headers = {
         "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
         "Content-Type": "application/json"
@@ -562,6 +558,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     }
     
     body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
+    if(db.openAIFlexProcessing){
+        applyOpenAIFlexProcessing(body, aiModel, replacerURL, arg.modelInfo.provider)
+    }
 
     // Some aux flows are intentionally non-streaming (e.g. memory/translate).
     // If custom Additional Parameters contains stream=true, force non-stream mode back.

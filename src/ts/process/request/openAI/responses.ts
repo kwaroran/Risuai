@@ -12,7 +12,7 @@ import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseCh
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
 import type { OpenAIChatExtra, ResponseFunctionCallItem, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
-import { getLocalNetworkRequestOptions, shouldUseOpenAIFlexProcessing, type LocalNetworkRequestOptions } from './shared'
+import { applyOpenAIFlexProcessing, getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
 
 function responseAPIErrorToString(data:any):string{
     if(typeof data === 'string'){
@@ -557,11 +557,8 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     }
     if(data?.status === 'incomplete'){
         const result = extractResponsesText(data, arg)
-        if(result){
-            return { type: 'success', result }
-        }
         const reason = data?.incomplete_details?.reason ? `Incomplete response: ${data.incomplete_details.reason}` : 'Incomplete response'
-        return { type: 'fail', result: reason }
+        return { type: 'fail', result: result ? `${reason}\n${result}` : reason }
     }
 
     const calls = extractResponsesFunctionCalls(data)
@@ -835,8 +832,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     if(aiModel === 'reverse_proxy' || aiModel?.startsWith('xcustom:::')){
         body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
     }
-    if(db.openAIFlexProcessing && shouldUseOpenAIFlexProcessing(aiModel, requestURL, arg.modelInfo.provider)){
-        body.service_tier = 'flex'
+    if(db.openAIFlexProcessing){
+        applyOpenAIFlexProcessing(body, aiModel, requestURL, arg.modelInfo.provider)
     }
     if(!arg.useStreaming){
         body.stream = false

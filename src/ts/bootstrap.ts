@@ -547,13 +547,17 @@ async function cleanChunks(options:{
         )
         for (const remote of remotes) {
             try {
-                const name = getBasename(remote.name).slice(0, -10) //remove .local.bin
+                const remoteFileName = getBasename(remote.name)
+                if(!remoteFileName.endsWith('.local.bin')){
+                    continue
+                }
+                const name = remoteFileName.slice(0, -'.local.bin'.length)
                 const fexists = remoteUncleanables.has(name)
                 if(!fexists){
 
                     let okayToDelete = false
+                    const metaPath = 'remotes/' + remote.name + '.meta'
                     try {
-                        const metaPath = 'remotes/' + remote.name + '.meta'
                         const metaExists = await exists(metaPath, { baseDir: BaseDirectory.AppData })
                         if (metaExists) {
                             const meta = await readFile(metaPath, { baseDir: BaseDirectory.AppData })
@@ -572,7 +576,10 @@ async function cleanChunks(options:{
                             await writeFile(metaPath, new TextEncoder().encode(JSON.stringify(metaJson)), { baseDir: BaseDirectory.AppData })
                         }
                     } catch (error) {}
-                    await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
+                    if(okayToDelete){
+                        await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
+                        await remove(metaPath, { baseDir: BaseDirectory.AppData })
+                    }
                 }
             } catch (error) {
                 console.log('error', remote.name)

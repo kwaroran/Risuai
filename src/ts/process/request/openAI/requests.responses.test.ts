@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer } from 'src/ts/model/types'
 import { fetchNative } from 'src/ts/globalApi.svelte'
 import { callTool } from '../../mcp/mcp'
-import { __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
+import { __testResponsesAPI, requestOpenAI, requestOpenAIResponseAPI } from './requests'
 
 const mocks = vi.hoisted(() => ({
     db: {
@@ -331,6 +331,41 @@ describe('OpenAI Responses API helpers', () => {
         expect(preview.body.service_tier).toBe('default')
     })
 
+    it('lets global Responses service_tier additional parameter override Flex for built-in OpenAI models', async () => {
+        mocks.db.openAIFlexProcessing = true
+        mocks.db.additionalParams = [['service_tier', 'default']]
+
+        const result = await requestOpenAIResponseAPI(baseArg({
+            previewBody: true,
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body.service_tier).toBe('default')
+    })
+
+    it('lets service_tier={{none}} remove Flex from Chat Completions requests', async () => {
+        mocks.db.openAIFlexProcessing = true
+        mocks.db.additionalParams = [['service_tier', '{{none}}']]
+
+        const result = await requestOpenAI(baseArg({
+            aiModel: 'gpt-5',
+            formated: [{ role: 'user', content: 'hello' }],
+            modelInfo: {
+                ...baseArg().modelInfo,
+                format: LLMFormat.OpenAICompatible,
+                id: 'gpt-5',
+                internalID: 'gpt-5',
+            },
+            previewBody: true,
+            useStreaming: false,
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body).not.toHaveProperty('service_tier')
+    })
+
     it('leaves system messages as system without the developer-role flag', async () => {
         const body = await __testResponsesAPI.buildResponsesBody(baseArg({
             modelInfo: {
@@ -446,6 +481,29 @@ describe('OpenAI Responses API helpers', () => {
         const result = await requestOpenAIResponseAPI(baseArg())
 
         expect(result).toEqual({ type: 'fail', result: 'bad request' })
+    })
+
+    it('keeps structured Responses error diagnostics in non-streaming failures', async () => {
+        mocks.globalFetch.mockResolvedValueOnce({
+            ok: true,
+            data: {
+                status: 'failed',
+                error: {
+                    message: 'Unsupported parameter',
+                    type: 'invalid_request_error',
+                    param: 'service_tier',
+                    code: 'unsupported_value',
+                },
+            },
+        })
+
+        const result = await requestOpenAIResponseAPI(baseArg())
+
+        expect(result.type).toBe('fail')
+        expect(result.result).toContain('Unsupported parameter')
+        expect(result.result).toContain('invalid_request_error')
+        expect(result.result).toContain('service_tier')
+        expect(result.result).toContain('unsupported_value')
     })
 
     it('treats wrapped failed Responses results as useful failures', async () => {
@@ -718,5 +776,20 @@ describe('OpenAI Responses API helpers', () => {
 
         await writer.write(encoder.encode('data: {"type":"response.failed","response":{"status":"failed","error":{"message":"Flex is not available for this model."}}}\n\n'))
         await errorPromise
+    })
+
+    it('propagates failed streaming Responses events through requestOpenAIResponseAPI streams', async () => {
+        vi.mocked(fetchNative).mockResolvedValueOnce({
+            status: 200,
+            headers: { get: () => 'text/event-stream' },
+            body: sseStream([
+                'data: {"type":"response.failed","response":{"status":"failed","error":{"message":"synthetic stream failure"}}}\n\n',
+            ]),
+        } as any)
+
+        const result = await requestOpenAIResponseAPI(baseArg({ useStreaming: true }))
+
+        expect(result.type).toBe('streaming')
+        await expect(collectStream(result.result as ReadableStream<Record<string, string>>)).rejects.toThrow('synthetic stream failure')
     })
 })

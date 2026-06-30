@@ -18,6 +18,27 @@ function responseAPIErrorToString(data:any):string{
     if(typeof data === 'string'){
         return data
     }
+    const errorObjectToString = (error:any) => {
+        if(typeof error?.message !== 'string'){
+            return undefined
+        }
+        const details = ['type', 'param', 'code']
+            .filter((key) => error[key] !== undefined && error[key] !== null)
+            .map((key) => `${key}: ${String(error[key])}`)
+        return details.length > 0 ? `${error.message}\n${details.join('\n')}` : error.message
+    }
+    const responseError = errorObjectToString(data?.response?.error)
+    if(responseError){
+        return responseError
+    }
+    const directError = errorObjectToString(data?.error)
+    if(directError){
+        return directError
+    }
+    const topLevelError = errorObjectToString(data)
+    if(topLevelError){
+        return topLevelError
+    }
     if(typeof data?.response?.error?.message === 'string'){
         return data.response.error.message
     }
@@ -829,12 +850,10 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     const { requestURL, risuIdentify } = getResponsesRequestURL(arg)
     const headers = buildResponsesHeaders(arg, risuIdentify)
 
-    if(aiModel === 'reverse_proxy' || aiModel?.startsWith('xcustom:::')){
-        body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
-    }
     if(db.openAIFlexProcessing){
         applyOpenAIFlexProcessing(body, aiModel, requestURL, arg.modelInfo.provider)
     }
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
     if(!arg.useStreaming){
         body.stream = false
     }

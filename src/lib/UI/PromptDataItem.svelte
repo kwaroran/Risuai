@@ -56,6 +56,10 @@
         return promptItem.type === 'persona' || promptItem.type === 'description' || promptItem.type === 'authornote' || promptItem.type === 'memory'
     }
 
+    const isPromptRole = (role: unknown): role is PromptRole => {
+        return role === 'user' || role === 'bot' || role === 'system'
+    }
+
     function getName(promptItem:PromptItem){
 
         if(promptItem.name){
@@ -237,6 +241,9 @@
                 promptItem.rangeStart = -1000
                 promptItem.rangeEnd = 'end'
             }
+            if(hasPromptBlockRole(promptItem) && !isPromptRole(promptItem.role)){
+                promptItem.role = 'system'
+            }
         }} >
             <OptionInput value="plain">{language.formating.plain}</OptionInput>
             <OptionInput value="jailbreak">{language.formating.jailbreak}</OptionInput>
@@ -282,7 +289,7 @@
             <SelectInput bind:value={promptItem.role}>
                 <OptionInput value="all">{language.all}</OptionInput>
                 <OptionInput value="user">{language.user}</OptionInput>
-                <OptionInput value="bot">{language.character}</OptionInput>
+                <OptionInput value="assistant">{language.character}</OptionInput>
                 <OptionInput value="system">{language.systemPrompt}</OptionInput>
             </SelectInput>
         {/if}

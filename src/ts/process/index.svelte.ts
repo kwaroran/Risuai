@@ -407,6 +407,10 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         unformated.globalNote.push(...formatPrompt(risuChatParser(currentChar.replaceGlobalNote?.replaceAll('{{original}}', DBState.db.globalNote) || DBState.db.globalNote, {chara:currentChar})))
     }
 
+    let baseDescriptionPrompt:OpenAIChat|null = null
+    let beforeDescriptionPrompts:OpenAIChat[] = []
+    let afterDescriptionPrompts:OpenAIChat[] = []
+
     if(currentChat.note){
         unformated.authorNote.push({
             role: 'system',
@@ -444,10 +448,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             description += risuChatParser("\n\nCircumstances and context of the dialogue: " + currentChar.scenario, {chara: currentChar})
         }
 
-        unformated.description.push({
+        baseDescriptionPrompt = {
             role: 'system',
             content: description
-        })
+        }
+        unformated.description.push(baseDescriptionPrompt)
 
         if(nowChatroom.type === 'group'){
             const systemMsg = `[Write the next reply only as ${currentChar.name}]`
@@ -511,9 +516,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         }
         if(lorebook.pos === 'before_desc'){
+            beforeDescriptionPrompts.unshift(c)
             unformated.description.unshift(c)
         }
         else{
+            afterDescriptionPrompts.push(c)
             unformated.description.push(c)
         }
     }
@@ -621,6 +628,18 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
     }
 
+    function getDescriptionPrompts(role?: 'user'|'bot'|'system'){
+        const pmt = [
+            ...safeStructuredClone(beforeDescriptionPrompts),
+            ...(baseDescriptionPrompt ? [safeStructuredClone(baseDescriptionPrompt)] : []),
+            ...safeStructuredClone(afterDescriptionPrompts)
+        ]
+        if(baseDescriptionPrompt){
+            applyPromptBlockRole([pmt[beforeDescriptionPrompts.length]], role)
+        }
+        return pmt
+    }
+
     if(promptTemplate){
         const template = promptTemplate
 
@@ -646,7 +665,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     break
                 }
                 case 'description':{
-                    let pmt = safeStructuredClone(unformated.description)
+                    let pmt = getDescriptionPrompts(card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -1238,7 +1257,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     break
                 }
                 case 'description':{
-                    let pmt = safeStructuredClone(unformated.description)
+                    let pmt = getDescriptionPrompts(card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)

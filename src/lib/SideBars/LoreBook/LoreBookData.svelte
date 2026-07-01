@@ -9,6 +9,8 @@
     import TextInput from "../../UI/GUI/TextInput.svelte";
     import NumberInput from "../../UI/GUI/NumberInput.svelte";
     import TextAreaInput from "../../UI/GUI/TextAreaInput.svelte";
+    import SelectInput from "../../UI/GUI/SelectInput.svelte";
+    import OptionInput from "../../UI/GUI/OptionInput.svelte";
     import { tokenizeAccurate } from "src/ts/tokenizer";
     import { DBState } from "src/ts/stores.svelte";
     import LoreBookList from "./LoreBookList.svelte";
@@ -281,6 +283,14 @@
                     <Help key="useRegexLorebook" name={language.useRegexLorebook}/>
                 </div>
             {/if}
+            <span class="text-textcolor mt-4">{language.role}</span>
+            <SelectInput size="sm" value={value.role ?? 'system'} onchange={(e) => {
+                value.role = e.currentTarget.value as 'system'|'user'|'assistant'
+            }}>
+                <OptionInput value="system">{language.systemPrompt}</OptionInput>
+                <OptionInput value="user">{language.user}</OptionInput>
+                <OptionInput value="assistant">{language.character}</OptionInput>
+            </SelectInput>
         </div>
         {/if}
     {/if}

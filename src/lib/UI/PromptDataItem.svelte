@@ -53,7 +53,7 @@
     }
 
     const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role?: PromptRole } => {
-        return promptItem.type === 'persona' || promptItem.type === 'description' || promptItem.type === 'authornote'
+        return promptItem.type === 'persona' || promptItem.type === 'description' || promptItem.type === 'authornote' || promptItem.type === 'memory'
     }
 
     function getName(promptItem:PromptItem){

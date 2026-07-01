@@ -17,11 +17,13 @@ export type PromptSettings = {
     trimStartNewChat?: boolean
 }
 
+export type PromptRole = 'user'|'bot'|'system'
+
 export interface PromptItemPlain {
     type: 'plain'|'jailbreak'|'cot';
     type2: 'normal'|'globalNote'|'main'
     text: string;
-    role: 'user'|'bot'|'system';
+    role: PromptRole;
     name?: string
 }
 
@@ -34,6 +36,7 @@ export interface PromptItemChatML {
 export interface PromptItemTyped {
     type: 'persona'|'description'|'lorebook'|'postEverything'|'memory'
     innerFormat?: string,
+    role?: PromptRole
     name?: string
 }
 
@@ -41,6 +44,7 @@ export interface PromptItemAuthorNote {
     type : 'authornote'
     innerFormat?: string
     defaultText?: string
+    role?: PromptRole
     name?: string
 }
 

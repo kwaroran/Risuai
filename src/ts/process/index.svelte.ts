@@ -606,6 +606,21 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     let hasCachePoint = false
+    const convertPromptRole = {
+        "system": "system",
+        "user": "user",
+        "bot": "assistant"
+    } as const
+
+    function applyPromptBlockRole(chats:OpenAIChat[], role?: 'user'|'bot'|'system'){
+        if(!role){
+            return
+        }
+        for(const chat of chats){
+            chat.role = convertPromptRole[role]
+        }
+    }
+
     if(promptTemplate){
         const template = promptTemplate
 
@@ -620,6 +635,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             switch(card.type){
                 case 'persona':{
                     let pmt = safeStructuredClone(unformated.personaPrompt)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -642,6 +658,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
                 case 'authornote':{
                     let pmt = safeStructuredClone(unformated.authorNote)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content || card.defaultText || '')
@@ -675,12 +692,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         continue
                     }
 
-                    const convertRole = {
-                        "system": "system",
-                        "user": "user",
-                        "bot": "assistant"
-                    } as const
-
                     const posType = card.type === 'plain' ? card.type2 : card.type
                     let content = positionParser(card.text, posType)
 
@@ -702,7 +713,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     }
 
                     const prompt:OpenAIChat ={
-                        role: convertRole[card.role],
+                        role: convertPromptRole[card.role],
                         content: content
                     }
 
@@ -1212,6 +1223,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             switch(card.type){
                 case 'persona':{
                     let pmt = safeStructuredClone(unformated.personaPrompt)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -1242,6 +1254,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
                 case 'authornote':{
                     let pmt = safeStructuredClone(unformated.authorNote)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content || card.defaultText || '')
@@ -1279,12 +1292,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         continue
                     }
 
-                    const convertRole = {
-                        "system": "system",
-                        "user": "user",
-                        "bot": "assistant"
-                    } as const
-
                     const posType = card.type === 'plain' ? card.type2 : card.type
                     let content = positionParser(card.text, posType)
 
@@ -1305,7 +1312,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     }
 
                     const prompt:OpenAIChat ={
-                        role: convertRole[card.role],
+                        role: convertPromptRole[card.role],
                         content: content
                     }
 

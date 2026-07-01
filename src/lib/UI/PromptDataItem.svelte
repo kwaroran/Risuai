@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { PromptItem, PromptItemChat } from "src/ts/process/prompt";
+    import type { PromptItem, PromptItemChat, PromptRole } from "src/ts/process/prompt";
     import OptionInput from "./GUI/OptionInput.svelte";
     import TextAreaInput from "./GUI/TextAreaInput.svelte";
     import SelectInput from "./GUI/SelectInput.svelte";
@@ -50,6 +50,10 @@
             currentprompt.rangeEnd = 'end'
         }
         promptItem = currentprompt
+    }
+
+    const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role?: PromptRole } => {
+        return promptItem.type === 'persona' || promptItem.type === 'authornote'
     }
 
     function getName(promptItem:PromptItem){
@@ -328,6 +332,18 @@
                     }
                 }} />
             {/if}
+        {/if}
+        {#if hasPromptBlockRole(promptItem)}
+            <span>{language.role}</span>
+            <SelectInput value={promptItem.role ?? 'system'} onchange={(event) => {
+                if(hasPromptBlockRole(promptItem)){
+                    promptItem.role = event.currentTarget.value as PromptRole
+                }
+            }}>
+                <OptionInput value="user">{language.user}</OptionInput>
+                <OptionInput value="bot">{language.character}</OptionInput>
+                <OptionInput value="system">{language.systemPrompt}</OptionInput>
+            </SelectInput>
         {/if}
     {/if}
 </div>

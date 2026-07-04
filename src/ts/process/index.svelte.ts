@@ -1579,7 +1579,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         DBState.db.characters[selectedChar].reloadKeys += 1
         let lastResponseChunk:{[key:string]:string} = {}
         let streamAborted:boolean = abortSignal.aborted
+        let receivedStreamingResult = false
         const performanceMode = DBState.db.streamingDisplayOptimizationMode ?? 'off'
+        const deferStreamingPostProcessing = performanceMode === 'strong'
         const coalesceStreamingDisplay = performanceMode === 'balanced' || performanceMode === 'strong'
         const streamingDisplayFlushDelay = 125
         let pendingStreamingResult: string | null = null
@@ -1609,6 +1611,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     const nextResult = pendingStreamingResult
                     pendingStreamingResult = null
                     if(nextResult === null){
+                        continue
+                    }
+                    if(deferStreamingPostProcessing){
+                        DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = reformatContent(prefix + nextResult)
+                        DBState.db.characters[selectedChar].reloadKeys += 1
                         continue
                     }
                     let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + nextResult), 'editoutput', msgIndex)
@@ -1652,6 +1659,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     throw error
                 }
                 if(readed.value){
+                    receivedStreamingResult = true
                     lastResponseChunk = readed.value
                     const firstChunkKey = Object.keys(lastResponseChunk)[0]
                     result = lastResponseChunk[firstChunkKey]
@@ -1681,6 +1689,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             abortSignal.removeEventListener('abort', abortReader)
             if(coalesceStreamingDisplay){
                 await flushStreamingDisplay()
+            }
+            if(deferStreamingPostProcessing && receivedStreamingResult && !streamAborted && !abortSignal.aborted){
+                let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
+                DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
+                emoChanged = result2.emoChanged
             }
             DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
             DBState.db.characters[selectedChar].reloadKeys += 1

@@ -148,6 +148,7 @@ export const advancedSettingsItems: SettingItem[] = [
         labelKey: 'streamingDisplayOptimizationMode',
         bindKey: 'streamingDisplayOptimizationMode',
         helpKey: 'streamingDisplayOptimizationMode',
+        condition: (ctx) => ctx.db.useExperimental,
         showExperimental: true,
         classes: 'mt-4',
         options: {

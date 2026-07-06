@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer } from 'src/ts/model/types'
 import { fetchNative } from 'src/ts/globalApi.svelte'
 import { callTool } from '../../mcp/mcp'
-import { __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
+import { __testOpenAIRequestsAPI, __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
 
 const mocks = vi.hoisted(() => ({
     db: {
@@ -177,6 +177,70 @@ function sseStream(events: string[]) {
         }
     })
 }
+
+describe('OpenAI chat completions stream parser', () => {
+    beforeEach(() => {
+        mocks.db.jsonSchemaEnabled = false
+    })
+
+    it('keeps only partial line text buffered and parses each completed SSE line once', async () => {
+        const stream = __testOpenAIRequestsAPI.getTranStream(baseArg({
+            modelInfo: {
+                ...baseArg().modelInfo,
+                flags: [],
+            },
+        }))
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+        const parseSpy = vi.spyOn(JSON, 'parse')
+
+        try{
+            await writer.write(encoder.encode('data: {"choices":[{"delta":{"content":"Hel"},"index":0}]}\n\n'))
+            await writer.write(encoder.encode('data: {"choices":[{"delta":{"content":"lo"},"index":0}]}\n\n'))
+            await writer.write(encoder.encode('data: {"choices":[{"delta":{"content":"!"},"index":0}]}\n\n'))
+            await writer.write(encoder.encode('data: [DONE]\n\n'))
+            await writer.close()
+
+            const chunks = await chunksPromise
+            expect(chunks.at(-1)?.['0']).toBe('Hello!')
+            expect(parseSpy).toHaveBeenCalledTimes(3)
+        }
+        finally{
+            parseSpy.mockRestore()
+        }
+    })
+
+    it('waits for split JSON lines and accumulates tool call deltas', async () => {
+        const stream = __testOpenAIRequestsAPI.getTranStream(baseArg({
+            modelInfo: {
+                ...baseArg().modelInfo,
+                flags: [],
+            },
+        }))
+        const chunksPromise = collectStream(stream.readable)
+        const writer = stream.writable.getWriter()
+        const encoder = new TextEncoder()
+
+        await writer.write(encoder.encode('data: {"choices":[{"delta":{"content":"Hi","tool_calls":[{"index":0,"id":"call_1","function":{"name":"lookup","arguments":"{\\"q\\":"}}]},"index":0}]'))
+        await writer.write(encoder.encode('}\n\n'))
+        await writer.write(encoder.encode('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"x\\"}"}}]},"index":0}]}\n\n'))
+        await writer.close()
+
+        const chunks = await chunksPromise
+        expect(chunks.at(-1)?.['0']).toBe('Hi')
+        expect(JSON.parse(chunks.at(-1)?.['__tool_calls'] ?? '{}')).toEqual({
+            0: {
+                id: 'call_1',
+                type: 'function',
+                function: {
+                    name: 'lookup',
+                    arguments: '{"q":"x"}',
+                },
+            },
+        })
+    })
+})
 
 describe('OpenAI Responses API helpers', () => {
     beforeEach(() => {

@@ -1690,7 +1690,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             if(coalesceStreamingDisplay){
                 await flushStreamingDisplay()
             }
-            if(deferStreamingPostProcessing && receivedStreamingResult && !streamAborted && !abortSignal.aborted){
+            if(deferStreamingPostProcessing && receivedStreamingResult){
                 let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
                 DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
                 emoChanged = result2.emoChanged

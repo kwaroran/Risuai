@@ -195,18 +195,6 @@
     let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
     let displayMessage = $derived(isOptimizedStreamingMessage ? rawStreamingText : message)
     let renderRawStreaming = $derived(isOptimizedStreamingMessage && streamingOptimizationMode === 'strong')
-    let displayParseCacheKey = $derived.by(() => [
-        DBState.db.hideAllImages ? 'hide-images' : 'show-images',
-        DBState.db.assetWidth ?? '',
-        DBState.db.legacyMediaFindings ? 'legacy-media' : 'smart-media',
-        DBState.db.assetMaxDifference ?? '',
-        DBState.db.customQuotes ? 'custom-quotes' : 'default-quotes',
-        DBState.db.customQuotesData?.join('\u001f') ?? '',
-        DBState.db.unformatQuotes ? 'unformat-quotes' : 'format-quotes',
-        DBState.db.blockquoteStyling ? 'blockquote-styled' : 'blockquote-inline',
-        DBState.db.dynamicAssets ? 'dynamic-assets' : 'static-assets',
-        DBState.db.dynamicAssetsEditDisplay ? 'dynamic-display-assets' : 'normal-display-assets',
-    ].join('|'))
 
     $effect.pre(() => {
         displaya(displayMessage)
@@ -426,7 +414,6 @@
         </div>
     {:else}
         {@const chatReloadPointer = $ReloadGUIPointer + ($ReloadChatPointer[idx] ?? 0)}
-        {@const parseCacheKeyExtra = `${chatReloadPointer}|${displayParseCacheKey}`}
         {@const totalLengthPointer = (idx > totalLength - 6) ? totalLength : 0}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -456,7 +443,6 @@
                     bind:translated={translated}
                     bind:translating={translating}
                     bind:retranslate={retranslate}
-                    {parseCacheKeyExtra}
                     {renderRawStreaming}
                     {rawStreamingText} />
             {/key}

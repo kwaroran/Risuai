@@ -502,6 +502,19 @@ export const LLMModels: LLMModel[] = [
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
         keyIdentifier: 'deepseek'
     },
+    // MiniMax
+    {
+        id: 'MiniMax-M3',
+        name: 'MiniMax M3',
+        provider: LLMProvider.MiniMax,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://api.minimax.io/v1/chat/completions',
+        keyIdentifier: 'MiniMax',
+        recommended: true
+    },
     // DeepInfra
     ...makeDeepInfraModels([
         'deepseek-ai/DeepSeek-R1',

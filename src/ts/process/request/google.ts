@@ -991,91 +991,145 @@ function getTranStream(args:{
     modelInfo:LLMModel,
     saveSignature:boolean
 }):TransformStream<Uint8Array, StreamResponseChunk> {
-    let buffer = '';
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let streamDone = false
+    const readed = initStreamState()
+    const toolCallsData: GeminiFunctionCall[] = []
     const { modelInfo, saveSignature } = args
-    return new TransformStream<Uint8Array, StreamResponseChunk>({
-        transform(chunk, control) {
-            buffer += new TextDecoder().decode(chunk);
-            const lines = buffer.split('\n');
 
-            let readed = initStreamState();
+    const buildReadableState = () => {
+        return {
+            ...readed,
+            "__tool_calls": JSON.stringify(toolCallsData)
+        }
+    }
 
-            try {
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') return;
-                    
-                        const jsonData = JSON.parse(dataStr);
-                        
-                        if (jsonData.candidates?.[0]?.content?.parts) {
-                            const parts = jsonData.candidates[0].content.parts;
-                            for (const part of parts) {
-                                if (part.text) {
-                                    readed["__thoughts"] += readed["__last_thought"];
-                                    readed["__last_thought"] = "";
-                                    if (part.thought){
-                                        readed["__last_thought"] = part.text;
-                                    }
-                                    else {
-                                        readed["0"] += part.text;
-                                    }
-                                    if (part.thoughtSignature) {
-                                        readed["__sign_text"] = part.thoughtSignature;
-                                        if(saveSignature){
-                                            //Its a promise, but we don't need to await it here
-                                            const sigId = v4()
-                                            saveInlayedSignature(sigId, {
-                                                source: modelInfo.internalID || modelInfo.id,
-                                                sourceFormat: modelInfo.format,
-                                                signatures: [{
-                                                    type: 'text',
-                                                    content: part.text,
-                                                }]
-                                            })
-                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
-                                        }
-                                    }
-                                }
-                                if (part.functionCall) {
-                                    const toolCallsData = JSON.parse(readed["__tool_calls"]);
-                                    toolCallsData.push(part.functionCall);
-                                    readed["__tool_calls"] = JSON.stringify(toolCallsData);
-                                    if(part.thoughtSignature){
-                                        readed["__sign_function"] = part.thoughtSignature;
-                                        const sigId = v4()
+    const emit = (control:TransformStreamDefaultController<StreamResponseChunk>) => {
+        control.enqueue(buildReadableState())
+    }
 
-                                        if(saveSignature){
-                                            //Its a promise, but we don't need to await it here
-                                            saveInlayedSignature(sigId, {
-                                                source: modelInfo.internalID || modelInfo.id,
-                                                sourceFormat: modelInfo.format,
-                                                signatures: [{
-                                                    type: 'function',
-                                                    content: `${part.functionCall.name}(${JSON.stringify(part.functionCall.args)})`,
-                                                }]
-                                            })
-                                            readed["0"] += `{{inlayeddata::${sigId}}}`;
-                                        }
-                                    }
-                                }
+    const applyStreamData = (dataStr:string) => {
+        if(dataStr.trim() === '[DONE]'){
+            streamDone = true
+            return true
+        }
+
+        try {
+            const jsonData = JSON.parse(dataStr);
+
+            if (jsonData.candidates?.[0]?.content?.parts) {
+                const parts = jsonData.candidates[0].content.parts;
+                for (const part of parts) {
+                    if (part.text) {
+                        readed["__thoughts"] += readed["__last_thought"];
+                        readed["__last_thought"] = "";
+                        if (part.thought){
+                            readed["__last_thought"] = part.text;
+                        }
+                        else {
+                            readed["0"] += part.text;
+                        }
+                        if (part.thoughtSignature) {
+                            readed["__sign_text"] = part.thoughtSignature;
+                            if(saveSignature){
+                                //Its a promise, but we don't need to await it here
+                                const sigId = v4()
+                                saveInlayedSignature(sigId, {
+                                    source: modelInfo.internalID || modelInfo.id,
+                                    sourceFormat: modelInfo.format,
+                                    signatures: [{
+                                        type: 'text',
+                                        content: part.text,
+                                    }]
+                                })
+                                readed["0"] += `{{inlayeddata::${sigId}}}`;
                             }
                         }
+                    }
+                    if (part.functionCall) {
+                        toolCallsData.push(part.functionCall);
+                        if(part.thoughtSignature){
+                            readed["__sign_function"] = part.thoughtSignature;
+                            const sigId = v4()
 
-                        if(jsonData.usageMetadata){
-                            readed['__usageMetadata'] = JSON.stringify(jsonData.usageMetadata)
+                            if(saveSignature){
+                                //Its a promise, but we don't need to await it here
+                                saveInlayedSignature(sigId, {
+                                    source: modelInfo.internalID || modelInfo.id,
+                                    sourceFormat: modelInfo.format,
+                                    signatures: [{
+                                        type: 'function',
+                                        content: `${part.functionCall.name}(${JSON.stringify(part.functionCall.args)})`,
+                                    }]
+                                })
+                                readed["0"] += `{{inlayeddata::${sigId}}}`;
+                            }
                         }
-                        if(jsonData.modelStatus){
-                            readed['__modelStatus'] = JSON.stringify(jsonData.modelStatus)
-                        }
-                    } 
+                    }
                 }
-                control.enqueue(readed)
-            } catch (error) { 
+            }
 
+            if(jsonData.usageMetadata){
+                readed['__usageMetadata'] = JSON.stringify(jsonData.usageMetadata)
+            }
+            if(jsonData.modelStatus){
+                readed['__modelStatus'] = JSON.stringify(jsonData.modelStatus)
+            }
+            return true
+        } catch (error) {}
+
+        return false
+    }
+
+    const processBufferedLines = (control:TransformStreamDefaultController<StreamResponseChunk>, final = false) => {
+        const lines = buffer.split(/\r?\n/)
+        buffer = lines.pop() ?? ''
+
+        if(final && buffer){
+            lines.push(buffer)
+            buffer = ''
+        }
+
+        let updated = false
+        for(const line of lines){
+            if(!line.startsWith('data:')){
+                continue
+            }
+
+            updated = applyStreamData(line.replace(/^data:\s?/, '')) || updated
+            if(streamDone){
+                emit(control)
+                return true
             }
         }
+
+        if(updated){
+            emit(control)
+        }
+        return updated
+    }
+
+    return new TransformStream<Uint8Array, StreamResponseChunk>({
+        transform(chunk, control) {
+            if(streamDone){
+                return
+            }
+            buffer += decoder.decode(chunk, { stream: true })
+            processBufferedLines(control)
+        },
+        flush(control) {
+            if(streamDone){
+                return
+            }
+            buffer += decoder.decode()
+            processBufferedLines(control, true)
+        }
     });
+}
+
+export const __testGoogleRequestsAPI = {
+    getTranStream
 }
 
 function wrapToolStream(

@@ -196,15 +196,22 @@
     let displayMessage = $derived(isOptimizedStreamingMessage ? rawStreamingText : message)
     let renderRawStreaming = $derived(isOptimizedStreamingMessage && streamingOptimizationMode === 'strong')
 
-    $effect.pre(() => {
+    function updateDisplayedMessage(){
+        if(renderRawStreaming){
+            return
+        }
         displaya(displayMessage)
+    }
+
+    $effect.pre(() => {
+        updateDisplayedMessage()
     });
 
     const unsubscribers:Unsubscriber[] = []
 
     onMount(()=>{
         unsubscribers.push(ReloadGUIPointer.subscribe((v) => {
-            displaya(displayMessage)
+            updateDisplayedMessage()
         }))
     })
 

@@ -1687,17 +1687,21 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
         finally {
             abortSignal.removeEventListener('abort', abortReader)
-            if(coalesceStreamingDisplay){
-                await flushStreamingDisplay()
+            try {
+                if(coalesceStreamingDisplay){
+                    await flushStreamingDisplay()
+                }
+                if(deferStreamingPostProcessing && receivedStreamingResult){
+                    let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
+                    DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
+                    emoChanged = result2.emoChanged
+                }
             }
-            if(deferStreamingPostProcessing && receivedStreamingResult){
-                let result2 = await processScriptFull(nowChatroom, reformatContent(prefix + result), 'editoutput', msgIndex)
-                DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = result2.data
-                emoChanged = result2.emoChanged
+            finally {
+                DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
+                DBState.db.characters[selectedChar].reloadKeys += 1
+                void reader.cancel().catch(() => {})
             }
-            DBState.db.characters[selectedChar].chats[selectedChat].isStreaming = false
-            DBState.db.characters[selectedChar].reloadKeys += 1
-            void reader.cancel().catch(() => {})
         }
 
         if(streamAborted || abortSignal.aborted){

@@ -1368,7 +1368,6 @@ export interface loreBook{
     mode: 'multiple'|'constant'|'normal'|'child'|'folder',
     alwaysActive: boolean
     selective:boolean
-    role?: 'system'|'user'|'assistant'
     extentions?:{
         risu_case_sensitive:boolean
     }

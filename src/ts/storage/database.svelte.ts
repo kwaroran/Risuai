@@ -25,6 +25,7 @@ import {
 export let appVer = "2026.6.214" //<APP_VERSION_POINT>
 export let webAppSubVer = ''
 
+export type StreamingDisplayOptimizationMode = 'off'|'balanced'|'strong'
 
 export function setDatabase(data:Database){
     if(checkNullish(data.characters)){
@@ -687,7 +688,7 @@ export function setDatabase(data:Database){
     data.newMessageButtonStyle ??= 'bottom-center'
     data.chatLoadInitialPages = normalizeChatLoadPages(data.chatLoadInitialPages, DEFAULT_CHAT_LOAD_INITIAL_PAGES)
     data.chatLoadAdditionalPages = normalizeChatLoadPages(data.chatLoadAdditionalPages, DEFAULT_CHAT_LOAD_ADDITIONAL_PAGES)
-    data.streamingDisplayOptimizationMode ??= (data as {largeChatPerformanceMode?: 'off'|'balanced'|'strong'}).largeChatPerformanceMode ?? 'off'
+    data.streamingDisplayOptimizationMode ??= (data as {largeChatPerformanceMode?: StreamingDisplayOptimizationMode}).largeChatPerformanceMode ?? 'off'
     delete (data as {largeChatPerformanceMode?: unknown}).largeChatPerformanceMode
     data.echoMessage ??= "Echo Message"
     data.echoDelay ??= 0
@@ -712,6 +713,7 @@ export function setDatabase(data:Database){
     for(const char of data.characters){
         for(const chat of char.chats ?? []){
             chat.isStreaming = false
+            chat.activeStreamingDisplayOptimizationMode = undefined
         }
     }
     changeLanguage(data.language)
@@ -1249,7 +1251,7 @@ export interface Database{
     newMessageButtonStyle?: string
     chatLoadInitialPages?: number
     chatLoadAdditionalPages?: number
-    streamingDisplayOptimizationMode?: 'off'|'balanced'|'strong'
+    streamingDisplayOptimizationMode?: StreamingDisplayOptimizationMode
     pluginDevelopMode?: boolean
     echoMessage?:string
     echoDelay?:number
@@ -1820,6 +1822,7 @@ export interface Chat{
     lastMemory?:string
     suggestMessages?:string[]
     isStreaming?:boolean
+    activeStreamingDisplayOptimizationMode?:StreamingDisplayOptimizationMode
     scriptstate?:{[key:string]:string|number|boolean}
     modules?:string[]
     id?:string

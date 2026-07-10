@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { character, groupChat, Message } from 'src/ts/storage/database.svelte';
+    import type { character, groupChat, Message, StreamingDisplayOptimizationMode } from 'src/ts/storage/database.svelte';
     import { mount, onDestroy, unmount } from 'svelte';
     import Chat from './Chat.svelte';
     import { getCharImage } from 'src/ts/characters';
@@ -39,7 +39,6 @@
 
     let chatBody: HTMLDivElement;
     let hashes: Set<number> = new Set();
-    type StreamingDisplayOptimizationMode = 'off'|'balanced'|'strong'
     type ChatInstance = {
         updateStreamingDisplay?: (state: {
             isOptimizedStreamingMessage: boolean
@@ -75,8 +74,11 @@
         const simpleChar = createSimpleCharacter(currentCharacter);
         let loadStart = messages.length - 1
         let loadEnd = messages.length - loadPages
-        const performanceMode = DBState.db.streamingDisplayOptimizationMode ?? 'off';
         const currentChat = currentCharacter.chats?.[currentCharacter.chatPage]
+        const configuredPerformanceMode = DBState.db.streamingDisplayOptimizationMode ?? 'off';
+        const performanceMode = currentChat?.isStreaming
+            ? currentChat.activeStreamingDisplayOptimizationMode ?? configuredPerformanceMode
+            : configuredPerformanceMode
         const activeStreamingIndex = performanceMode !== 'off' && currentChat?.isStreaming
             ? messages.length - 1
             : -1

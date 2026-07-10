@@ -407,6 +407,10 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         unformated.globalNote.push(...formatPrompt(risuChatParser(currentChar.replaceGlobalNote?.replaceAll('{{original}}', DBState.db.globalNote) || DBState.db.globalNote, {chara:currentChar})))
     }
 
+    let baseDescriptionPrompt:OpenAIChat|null = null
+    let beforeDescriptionPrompts:OpenAIChat[] = []
+    let afterDescriptionPrompts:OpenAIChat[] = []
+
     if(currentChat.note){
         unformated.authorNote.push({
             role: 'system',
@@ -444,10 +448,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             description += risuChatParser("\n\nCircumstances and context of the dialogue: " + currentChar.scenario, {chara: currentChar})
         }
 
-        unformated.description.push({
+        baseDescriptionPrompt = {
             role: 'system',
             content: description
-        })
+        }
+        unformated.description.push(baseDescriptionPrompt)
 
         if(nowChatroom.type === 'group'){
             const systemMsg = `[Write the next reply only as ${currentChar.name}]`
@@ -511,9 +516,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         }
         if(lorebook.pos === 'before_desc'){
+            beforeDescriptionPrompts.unshift(c)
             unformated.description.unshift(c)
         }
         else{
+            afterDescriptionPrompts.push(c)
             unformated.description.push(c)
         }
     }
@@ -606,6 +613,33 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     let hasCachePoint = false
+    const convertPromptRole = {
+        "system": "system",
+        "user": "user",
+        "bot": "assistant"
+    } as const
+
+    function applyPromptBlockRole(chats:OpenAIChat[], role?: 'user'|'bot'|'system'){
+        if(!role){
+            return
+        }
+        for(const chat of chats){
+            chat.role = convertPromptRole[role]
+        }
+    }
+
+    function getDescriptionPrompts(role?: 'user'|'bot'|'system'){
+        const pmt = [
+            ...safeStructuredClone(beforeDescriptionPrompts),
+            ...(baseDescriptionPrompt ? [safeStructuredClone(baseDescriptionPrompt)] : []),
+            ...safeStructuredClone(afterDescriptionPrompts)
+        ]
+        if(baseDescriptionPrompt){
+            applyPromptBlockRole([pmt[beforeDescriptionPrompts.length]], role)
+        }
+        return pmt
+    }
+
     if(promptTemplate){
         const template = promptTemplate
 
@@ -620,6 +654,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             switch(card.type){
                 case 'persona':{
                     let pmt = safeStructuredClone(unformated.personaPrompt)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -630,7 +665,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     break
                 }
                 case 'description':{
-                    let pmt = safeStructuredClone(unformated.description)
+                    let pmt = getDescriptionPrompts(card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -642,6 +677,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
                 case 'authornote':{
                     let pmt = safeStructuredClone(unformated.authorNote)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content || card.defaultText || '')
@@ -675,12 +711,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         continue
                     }
 
-                    const convertRole = {
-                        "system": "system",
-                        "user": "user",
-                        "bot": "assistant"
-                    } as const
-
                     const posType = card.type === 'plain' ? card.type2 : card.type
                     let content = positionParser(card.text, posType)
 
@@ -702,7 +732,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     }
 
                     const prompt:OpenAIChat ={
-                        role: convertRole[card.role],
+                        role: convertPromptRole[card.role],
                         content: content
                     }
 
@@ -1212,6 +1242,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             switch(card.type){
                 case 'persona':{
                     let pmt = safeStructuredClone(unformated.personaPrompt)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -1226,7 +1257,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     break
                 }
                 case 'description':{
-                    let pmt = safeStructuredClone(unformated.description)
+                    let pmt = getDescriptionPrompts(card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content)
@@ -1242,6 +1273,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
                 case 'authornote':{
                     let pmt = safeStructuredClone(unformated.authorNote)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(positionParser(card.innerFormat,card.type), {chara: currentChar}).replace('{{slot}}', pmt[i].content || card.defaultText || '')
@@ -1279,12 +1311,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         continue
                     }
 
-                    const convertRole = {
-                        "system": "system",
-                        "user": "user",
-                        "bot": "assistant"
-                    } as const
-
                     const posType = card.type === 'plain' ? card.type2 : card.type
                     let content = positionParser(card.text, posType)
 
@@ -1305,7 +1331,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     }
 
                     const prompt:OpenAIChat ={
-                        role: convertRole[card.role],
+                        role: convertPromptRole[card.role],
                         content: content
                     }
 
@@ -1369,6 +1395,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                 }
                 case 'memory':{
                     let pmt = safeStructuredClone(memories)
+                    applyPromptBlockRole(pmt, card.role)
                     if(card.innerFormat && pmt.length > 0){
                         for(let i=0;i<pmt.length;i++){
                             pmt[i].content = risuChatParser(card.innerFormat, {chara: currentChar}).replace('{{slot}}', pmt[i].content)

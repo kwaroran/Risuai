@@ -32,6 +32,7 @@ import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
 import type { AccountStorage } from "./storage/accountStorage";
 import { makeColdData } from "./process/coldstorage.svelte";
+import { getRemoteSaveCleanupAction, getRemoteSavePayloadName } from "./storage/remoteSaveCleanup";
 import {
     forageStorage,
     saveDb,
@@ -547,32 +548,42 @@ async function cleanChunks(options:{
         )
         for (const remote of remotes) {
             try {
-                const name = getBasename(remote.name).slice(0, -10) //remove .local.bin
-                const fexists = remoteUncleanables.has(name)
+                const remoteFileName = getBasename(remote.name)
+                const remotePayloadName = getRemoteSavePayloadName(remoteFileName)
+                if(!remotePayloadName){
+                    continue
+                }
+                const fexists = remoteUncleanables.has(remotePayloadName)
                 if(!fexists){
 
-                    let okayToDelete = false
+                    const metaPath = 'remotes/' + remote.name + '.meta'
+                    let metaExists = false
+                    let metaLastUsed:unknown
                     try {
-                        const metaPath = 'remotes/' + remote.name + '.meta'
-                        const metaExists = await exists(metaPath, { baseDir: BaseDirectory.AppData })
+                        metaExists = await exists(metaPath, { baseDir: BaseDirectory.AppData })
                         if (metaExists) {
                             const meta = await readFile(metaPath, { baseDir: BaseDirectory.AppData })
                             const metaJson = JSON.parse(new TextDecoder().decode(meta))
-                            const lastUsed = metaJson.lastUsed as number
-
-                            if(Date.now() - lastUsed > 1000 * 60 * 60 * 24 * 7) { //not used for 7 days
-                                okayToDelete = true
-                            }
-                        }
-                        else{
-                            //write meta for next time
-                            const metaJson = {
-                                lastUsed: Date.now()
-                            }
-                            await writeFile(metaPath, new TextEncoder().encode(JSON.stringify(metaJson)), { baseDir: BaseDirectory.AppData })
+                            metaLastUsed = metaJson.lastUsed
                         }
                     } catch (error) {}
-                    await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
+
+                    const cleanupAction = getRemoteSaveCleanupAction({
+                        fileName: remoteFileName,
+                        activeCharacterIds: remoteUncleanables,
+                        hasMeta: metaExists,
+                        metaLastUsed
+                    })
+                    if(cleanupAction === 'create-meta'){
+                        const metaJson = {
+                            lastUsed: Date.now()
+                        }
+                        await writeFile(metaPath, new TextEncoder().encode(JSON.stringify(metaJson)), { baseDir: BaseDirectory.AppData })
+                    }
+                    else if(cleanupAction === 'delete'){
+                        await remove('remotes/' + remote.name, { baseDir: BaseDirectory.AppData })
+                        await remove(metaPath, { baseDir: BaseDirectory.AppData })
+                    }
                 }
             } catch (error) {
                 console.log('error', remote.name)

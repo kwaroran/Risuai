@@ -52,7 +52,7 @@
         promptItem = currentprompt
     }
 
-    const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role?: PromptRole } => {
+    const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role2?: PromptRole } => {
         return promptItem.type === 'persona' || promptItem.type === 'description' || promptItem.type === 'authornote' || promptItem.type === 'memory'
     }
 
@@ -241,8 +241,8 @@
                 promptItem.rangeStart = -1000
                 promptItem.rangeEnd = 'end'
             }
-            if(hasPromptBlockRole(promptItem) && !isPromptRole(promptItem.role)){
-                promptItem.role = 'system'
+            if(hasPromptBlockRole(promptItem) && !isPromptRole(promptItem.role2)){
+                promptItem.role2 = 'system'
             }
         }} >
             <OptionInput value="plain">{language.formating.plain}</OptionInput>
@@ -342,9 +342,9 @@
         {/if}
         {#if hasPromptBlockRole(promptItem)}
             <span>{language.role}</span>
-            <SelectInput value={promptItem.role ?? 'system'} onchange={(event) => {
+            <SelectInput value={promptItem.role2 ?? 'system'} onchange={(event) => {
                 if(hasPromptBlockRole(promptItem)){
-                    promptItem.role = event.currentTarget.value as PromptRole
+                    promptItem.role2 = event.currentTarget.value as PromptRole
                 }
             }}>
                 <OptionInput value="user">{language.user}</OptionInput>

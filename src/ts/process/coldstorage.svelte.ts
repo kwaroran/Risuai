@@ -29,9 +29,11 @@ async function decompress(data:Uint8Array) {
     })
 }
 
-export async function getColdStorageItem(key:string) {
+export async function getColdStorageItem(key:string, opts:{
+    accountFallback?:boolean
+} = {}) {
 
-    if(forageStorage.isAccount){
+    if(forageStorage.isAccount && !opts.accountFallback){
         const d = await fetchProtectedResource('/hub/account/coldstorage', {
             method: 'GET',
             headers: {
@@ -44,7 +46,9 @@ export async function getColdStorageItem(key:string) {
             const text = new TextDecoder().decode(await decompress(new Uint8Array(buf)))
             return JSON.parse(text)
         }
-        return null
+        return await getColdStorageItem(key, {
+            accountFallback: true
+        })
     }
     else if(isNodeServer){
         try {

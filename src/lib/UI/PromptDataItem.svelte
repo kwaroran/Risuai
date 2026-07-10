@@ -57,7 +57,7 @@
     }
 
     const isPromptRole = (role: unknown): role is PromptRole => {
-        return role === 'user' || role === 'bot' || role === 'system'
+        return role === 'user' || role === 'bot' || role === 'system' || role === 'assistant'
     }
 
     function getName(promptItem:PromptItem){

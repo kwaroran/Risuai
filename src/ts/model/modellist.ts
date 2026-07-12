@@ -508,11 +508,23 @@ export const LLMModels: LLMModel[] = [
         name: 'MiniMax M3',
         provider: LLMProvider.MiniMax,
         format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming],
-        parameters: OpenAIParameters,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasVideoInput, LLMFlags.hasStreaming],
+        parameters: ['temperature', 'top_p'],
         tokenizer: LLMTokenizer.Unknown,
         endpoint: 'https://api.minimax.io/v1/chat/completions',
-        keyIdentifier: 'MiniMax',
+        keyIdentifier: 'minimax',
+        recommended: true
+    },
+    {
+        id: 'MiniMax-M2.7',
+        name: 'MiniMax M2.7',
+        provider: LLMProvider.MiniMax,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: ['temperature', 'top_p'],
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://api.minimax.io/v1/chat/completions',
+        keyIdentifier: 'minimax',
         recommended: true
     },
     // DeepInfra

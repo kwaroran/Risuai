@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer } from 'src/ts/model/types'
 import { fetchNative } from 'src/ts/globalApi.svelte'
 import { callTool } from '../../mcp/mcp'
-import { __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
+import { __testResponsesAPI, requestOpenAI, requestOpenAIResponseAPI } from './requests'
 
 const mocks = vi.hoisted(() => ({
     db: {
@@ -239,6 +239,44 @@ describe('OpenAI Responses API helpers', () => {
             { type: 'web_search_preview' },
         ])
         expect(sourceMessages[1]).toMatchObject({ role: 'user', content: 'Describe this.', multimodals: [{ type: 'image', base64: 'data:image/png;base64,abc' }] })
+    })
+
+    it('builds MiniMax-M3 image and video content parts for chat completions', async () => {
+        mocks.db.OaiCompAPIKeys = { minimax: 'minimax-key' }
+
+        const result = await requestOpenAI(baseArg({
+            aiModel: 'MiniMax-M3',
+            formated: [{
+                role: 'user',
+                content: 'Describe these attachments.',
+                multimodals: [
+                    { type: 'image', base64: 'data:image/png;base64,image' },
+                    { type: 'video', base64: 'data:video/mp4;base64,video' },
+                ],
+            }],
+            modelInfo: {
+                flags: [LLMFlags.hasImageInput, LLMFlags.hasVideoInput, LLMFlags.hasStreaming],
+                format: LLMFormat.OpenAICompatible,
+                id: 'MiniMax-M3',
+                name: 'MiniMax M3',
+                parameters: ['temperature', 'top_p'],
+                provider: LLMProvider.MiniMax,
+                tokenizer: LLMTokenizer.Unknown,
+                endpoint: 'https://api.minimax.io/v1/chat/completions',
+                keyIdentifier: 'minimax',
+            },
+            previewBody: true,
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.url).toBe('https://api.minimax.io/v1/chat/completions')
+        expect(preview.headers.Authorization).toBe('Bearer minimax-key')
+        expect(preview.body.messages[0].content).toEqual([
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,image', detail: 'high' } },
+            { type: 'video_url', video_url: { url: 'data:video/mp4;base64,video', detail: 'high' } },
+            { type: 'text', text: 'Describe these attachments.' },
+        ])
     })
 
     it('requests reasoning summaries for Responses reasoning models', async () => {

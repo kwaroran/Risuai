@@ -117,13 +117,25 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             let v:OpenAIChatExtra = safeStructuredClone(m)
             let contents:Contents[] = []
             for(let j=0;j<m.multimodals.length;j++){
-                contents.push({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": m.multimodals[j].base64,
-                        "detail": db.gptVisionQuality
-                    }
-                })
+                const multimodal = m.multimodals[j]
+                if(multimodal.type === 'video'){
+                    contents.push({
+                        "type": "video_url",
+                        "video_url": {
+                            "url": multimodal.base64,
+                            "detail": db.gptVisionQuality
+                        }
+                    })
+                }
+                else{
+                    contents.push({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": multimodal.base64,
+                            "detail": db.gptVisionQuality
+                        }
+                    })
+                }
             }
             contents.push({
                 "type": "text",

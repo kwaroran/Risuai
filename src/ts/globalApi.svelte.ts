@@ -14,7 +14,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { open } from '@tauri-apps/plugin-shell'
 import streamSaver from 'streamsaver';
-import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat } from "./storage/database.svelte";
+import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, onDatabaseUpdate, type character, type groupChat } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
@@ -312,7 +312,7 @@ export async function saveDb() {
         }
     }
 
-    const changeTracker: toSaveType = {
+    const createChangeTracker = (): toSaveType => ({
         character: [],
         chat: [],
         botPreset: false,
@@ -320,7 +320,8 @@ export async function saveDb() {
         loadouts: false,
         plugins: false,
         pluginCustomStorage: false
-    }
+    })
+    let changeTracker = createChangeTracker()
 
     let encoder = new RisuSaveEncoder()
     await encoder.init(getDatabase(), {
@@ -334,7 +335,7 @@ export async function saveDb() {
         const debounceTime = 500; // 500 milliseconds
         let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
-        selectedCharID.subscribe((v) => {
+        const unsubscribeSel = selectedCharID.subscribe((v) => {
             selIdState = v
         })
 
@@ -347,60 +348,129 @@ export async function saveDb() {
             }, debounceTime);
         }
 
-        $effect(() => {
-            DBState.db.botPresetsId
-            DBState.db.botPresets.length
-            changeTracker.botPreset = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.modules)
-            changeTracker.modules = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.loadouts)
-            changeTracker.loadouts = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.plugins)
-            changeTracker.plugins = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.pluginCustomStorage)
-            changeTracker.pluginCustomStorage = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            for (const key in DBState.db) {
-                if (
-                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
-                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
-                ) {
-                    $state.snapshot(DBState.db[key])
+        type TrackableChat = { id?: string }
+        type TrackableCharacter = { chaId?: string, chatPage?: number, chats?: TrackableChat[] }
+
+        function parseArrayIndex(value: unknown): number | undefined {
+            if (typeof value === 'number') {
+                return value
+            }
+            return typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : undefined
+        }
+
+        function isTrackableChat(value: unknown): value is TrackableChat & { id: string } {
+            return typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
+        }
+
+        function isCharacterForSaveTracking(value: unknown): value is TrackableCharacter & { chaId: string } {
+            return typeof value === 'object' && value !== null && 'chaId' in value && typeof value.chaId === 'string'
+        }
+
+        function getTrackableCharacters(value: unknown): TrackableCharacter[] {
+            return Array.isArray(value) ? value.filter(isCharacterForSaveTracking) : []
+        }
+
+        function getTrackableChatIds(value: unknown): string[] {
+            return Array.isArray(value) ? value.filter(isTrackableChat).map((chat) => chat.id) : []
+        }
+
+        function updateChangeTrackerForCharacter(
+            char: TrackableCharacter | null | undefined,
+            options: { affectedChatIds?: (string | undefined)[], fallbackToCurrentChat?: boolean } = {}
+        ) {
+            if (!char?.chaId) {
+                return
+            }
+            if (!changeTracker.character.includes(char.chaId)) {
+                changeTracker.character.unshift(char.chaId)
+            }
+            const affectedChatIds = options.affectedChatIds?.filter((id): id is string => Boolean(id)) ?? []
+            if (affectedChatIds.length === 0 && options.fallbackToCurrentChat !== false) {
+                const currentChatId = char.chats?.[char.chatPage ?? 0]?.id
+                if (currentChatId) {
+                    affectedChatIds.push(currentChatId)
                 }
             }
-            if (DBState?.db?.characters?.[selIdState]) {
-                for (const key in DBState.db.characters[selIdState]) {
-                    if (key !== 'chats') {
-                        $state.snapshot(DBState.db.characters[selIdState][key])
+            for (const chatId of affectedChatIds) {
+                if (!changeTracker.chat.some(([characterId, trackedChatId]) => characterId === char.chaId && trackedChatId === chatId)) {
+                    changeTracker.chat.unshift([char.chaId, chatId])
+                }
+            }
+        }
+
+        const unsubscribeDb = onDatabaseUpdate((info) => {
+            const rootKey = info.path[0]
+
+            if (rootKey === 'botPresets' || rootKey === 'botPresetsId') {
+                changeTracker.botPreset = true
+                saveTimeoutExecute()
+                return
+            }
+
+            if (rootKey === 'modules') {
+                changeTracker.modules = true
+                saveTimeoutExecute()
+                return
+            }
+
+            if (rootKey === 'loadouts' || rootKey === 'plugins' || rootKey === 'pluginCustomStorage') {
+                changeTracker[rootKey] = true
+                saveTimeoutExecute()
+                return
+            }
+
+            if (rootKey === 'characters') {
+                if (info.path.length === 1) {
+                    for (const character of [...getTrackableCharacters(info.oldValue), ...getTrackableCharacters(info.value)]) {
+                        updateChangeTrackerForCharacter(character)
                     }
+                    saveTimeoutExecute()
+                    return
                 }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
-                if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
-                    changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
+
+                const characterIndex = parseArrayIndex(info.path[1])
+                const targetChar = characterIndex === undefined ? undefined : DBState.db.characters?.[characterIndex]
+                const fallbackChar = isCharacterForSaveTracking(info.oldValue) ? info.oldValue : undefined
+                const char = targetChar ?? fallbackChar
+                const isChatPath = info.path[2] === 'chats'
+
+                if (info.path.length === 2 && fallbackChar?.chaId !== targetChar?.chaId) {
+                    updateChangeTrackerForCharacter(fallbackChar)
                 }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
+
+                if (isChatPath && info.path.length === 3) {
+                    updateChangeTrackerForCharacter(char, {
+                        affectedChatIds: [
+                            ...getTrackableChatIds(info.oldValue),
+                            ...getTrackableChatIds(info.value),
+                        ],
+                        fallbackToCurrentChat: false,
+                    })
+                    saveTimeoutExecute()
+                    return
                 }
+
+                const chatIndex = isChatPath ? parseArrayIndex(info.path[3]) : undefined
+                const oldChat = info.path.length === 4 && isTrackableChat(info.oldValue) ? info.oldValue : undefined
+                const affectedChatIds = chatIndex === undefined
+                    ? undefined
+                    : [targetChar?.chats?.[chatIndex]?.id, oldChat?.id]
+                updateChangeTrackerForCharacter(char, {
+                    affectedChatIds,
+                    fallbackToCurrentChat: !isChatPath,
+                })
+                saveTimeoutExecute()
+                return
             }
+
+            updateChangeTrackerForCharacter(DBState.db.characters?.[selIdState])
             saveTimeoutExecute()
         })
+
+        return () => {
+            unsubscribeSel()
+            unsubscribeDb()
+        }
     })
 
     let savetrys = 0
@@ -425,11 +495,8 @@ export async function saveDb() {
                 requiresFullEncoderReload.state = false
             }
 
-            let toSave = safeStructuredClone(changeTracker)
-            changeTracker.character = changeTracker.character.length === 0 ? [] : [changeTracker.character[0]]
-            changeTracker.chat = changeTracker.chat.length === 0 ? [] : [changeTracker.chat[0]]
-            changeTracker.botPreset = false
-            changeTracker.modules = false
+            const toSave = changeTracker
+            changeTracker = createChangeTracker()
             if (gotChannel) {
                 //Data is saved in other tab
                 await sleep(1000)

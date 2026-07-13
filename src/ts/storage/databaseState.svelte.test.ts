@@ -221,7 +221,7 @@ describe('database proxy layering', () => {
         unsubscribe()
     })
 
-    it('tracks an old value after it is re-accessed through the active root', () => {
+    it('tracks a retained proxy after it is attached to the active root', () => {
         setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
         const retained = DBState.db.pluginCustomStorage.retained
         setDatabaseLite(database({ pluginCustomStorage: {} }))
@@ -233,10 +233,160 @@ describe('database proxy layering', () => {
         retained.value = 1
         DBState.db.pluginCustomStorage.reattached.value = 2
 
-        expect(listener).toHaveBeenCalledOnce()
-        expect(listener).toHaveBeenCalledWith(expect.objectContaining({
-            path: ['pluginCustomStorage', 'reattached', 'value'],
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'reattached', 'value'],
+            ['pluginCustomStorage', 'reattached', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('tracks a retained child after replacing and reordering its container', () => {
+        setDatabaseLite(database({
+            pluginCustomStorage: {
+                container: { items: [{ value: 0 }, { value: 1 }] },
+            },
         }))
+        const retained = DBState.db.pluginCustomStorage.container.items[1]
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.pluginCustomStorage.container = { items: [retained, { value: 2 }] }
+        listener.mockClear()
+        retained.value = 3
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'container', 'items', 0, 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('eagerly connects retained proxies through newly attached intermediate objects', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.pluginCustomStorage = { wrapper: { nested: { retained } } }
+        listener.mockClear()
+        retained.value = 1
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'wrapper', 'nested', 'retained', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('eagerly connects retained proxies during root replacement', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+
+        setDatabaseLite(database({
+            pluginCustomStorage: { wrapper: { nested: { retained } } },
+        }))
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        retained.value = 1
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'wrapper', 'nested', 'retained', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('keeps deeply reattached proxies serializable at snapshot and save boundaries', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+
+        DBState.db.pluginCustomStorage = { wrapper: { nested: { retained } } }
+        retained.value = 1
+
+        const snapshot = structuredClone(getDatabase({ snapshot: true }))
+        const serialized = JSON.parse(JSON.stringify(getDatabase()))
+
+        expect(snapshot.pluginCustomStorage.wrapper.nested.retained.value).toBe(1)
+        expect(serialized.pluginCustomStorage.wrapper.nested.retained.value).toBe(1)
+    })
+
+    it('emits every active path for a shared retained proxy', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { first: { value: 0 } } }))
+        const shared = DBState.db.pluginCustomStorage.first
+        DBState.db.pluginCustomStorage.second = shared
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        shared.value = 1
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'first', 'value'],
+            ['pluginCustomStorage', 'second', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('removes only the replaced edge to a shared retained proxy', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { first: { value: 0 } } }))
+        const shared = DBState.db.pluginCustomStorage.first
+        DBState.db.pluginCustomStorage.second = shared
+        delete DBState.db.pluginCustomStorage.first
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        shared.value = 1
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'second', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('does not emit from a detached retained proxy', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+        delete DBState.db.pluginCustomStorage.retained
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        retained.value = 1
+
+        expect(listener).not.toHaveBeenCalled()
+        unsubscribe()
+    })
+
+    it('does not duplicate propagation after repeated container replacements', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+        DBState.db.pluginCustomStorage = { wrapper: { retained } }
+        DBState.db.pluginCustomStorage = { wrapper: { retained } }
+        DBState.db.pluginCustomStorage = { wrapper: { retained } }
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        retained.value = 1
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'wrapper', 'retained', 'value'],
+        ])
+        unsubscribe()
+    })
+
+    it('disconnects array elements removed by length shrink', () => {
+        setDatabaseLite(database({
+            pluginCustomStorage: {
+                items: [{ value: 0 }, { value: 1 }, { value: 2 }],
+            },
+        }))
+        const retained = DBState.db.pluginCustomStorage.items[2]
+        DBState.db.pluginCustomStorage.items.length = 1
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        retained.value = 3
+        DBState.db.pluginCustomStorage.items[0].value = 4
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['pluginCustomStorage', 'items', 0, 'value'],
+        ])
         unsubscribe()
     })
 

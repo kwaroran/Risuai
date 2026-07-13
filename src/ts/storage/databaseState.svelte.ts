@@ -10,8 +10,17 @@ export interface DatabaseUpdateInfo {
 }
 
 const databaseUpdateListeners = new Set<(info: DatabaseUpdateInfo) => void>()
-const dbProxyInstances = new WeakSet<object>()
 const mutableDBState = $state({ db: {} as Database })
+
+interface DatabaseProxyMetadata {
+    target: object
+    parent: DatabaseProxyMetadata | null
+    key: PropertyKey | null
+    children: Map<PropertyKey, { target: object, proxy: object }>
+}
+
+const databaseProxyMetadata = new WeakMap<object, DatabaseProxyMetadata>()
+let activeRoot: DatabaseProxyMetadata | null = null
 
 export const DBState: { readonly db: Database } = mutableDBState
 
@@ -43,28 +52,66 @@ function isProxyableDatabaseValue(value: unknown): value is object {
     return prototype === Object.prototype || prototype === null
 }
 
-function createDatabaseProxy<T>(target: T, path: DatabaseUpdatePathKey[] = []): T {
-    if (!isProxyableDatabaseValue(target) || dbProxyInstances.has(target)) {
+function unwrapDatabaseProxy<T>(value: T): T {
+    if (!value || typeof value !== 'object') {
+        return value
+    }
+    return (databaseProxyMetadata.get(value)?.target ?? value) as T
+}
+
+function resolveProxyPath(metadata: DatabaseProxyMetadata): DatabaseUpdatePathKey[] | null {
+    const chain: DatabaseProxyMetadata[] = []
+    let root = metadata
+    while (root.parent) {
+        chain.push(root)
+        root = root.parent
+    }
+    if (root !== activeRoot) {
+        return null
+    }
+
+    const path: DatabaseUpdatePathKey[] = []
+    for (const child of chain.reverse()) {
+        const parent = child.parent!
+        let key = child.key
+        if (key === null || unwrapDatabaseProxy(Reflect.get(parent.target, key)) !== child.target) {
+            key = Reflect.ownKeys(parent.target).find((candidate) =>
+                unwrapDatabaseProxy(Reflect.get(parent.target, candidate)) === child.target
+            ) ?? null
+            if (key === null) {
+                return null
+            }
+            child.key = key
+        }
+        path.push(normalizePathKey(parent.target, key))
+    }
+    return path
+}
+
+function createDatabaseProxy<T>(target: T, parent: DatabaseProxyMetadata | null = null, key: PropertyKey | null = null): T {
+    target = unwrapDatabaseProxy(target)
+    if (!isProxyableDatabaseValue(target)) {
         return target
     }
 
-    const childProxyCache = new Map<PropertyKey, { value: object, proxy: object }>()
+    const metadata: DatabaseProxyMetadata = { target, parent, key, children: new Map() }
     const proxy = new Proxy(target, {
         get(obj, prop, receiver) {
-            const value = Reflect.get(obj, prop, receiver)
+            const value = unwrapDatabaseProxy(Reflect.get(obj, prop, receiver))
             if (isProxyableDatabaseValue(value)) {
-                const cached = childProxyCache.get(prop)
-                if (cached?.value === value) {
+                const cached = metadata.children.get(prop)
+                if (cached?.target === value) {
                     return cached.proxy
                 }
-                const childProxy = createDatabaseProxy(value, [...path, normalizePathKey(obj, prop)])
-                childProxyCache.set(prop, { value, proxy: childProxy })
+                const childProxy = createDatabaseProxy(value, metadata, prop)
+                metadata.children.set(prop, { target: value, proxy: childProxy })
                 return childProxy
             }
             return value
         },
         set(obj, prop, value, receiver) {
-            const oldValue = Reflect.get(obj, prop, receiver)
+            const oldValue = unwrapDatabaseProxy(Reflect.get(obj, prop, receiver))
+            const newValue = unwrapDatabaseProxy(value)
             const truncatedEntries = Array.isArray(obj) && prop === 'length' &&
                 typeof oldValue === 'number' && typeof value === 'number' &&
                 Number.isInteger(value) && value >= 0 && value < oldValue
@@ -73,11 +120,15 @@ function createDatabaseProxy<T>(target: T, path: DatabaseUpdatePathKey[] = []): 
                     .map((key) => ({ index: Number(key), oldValue: Reflect.get(obj, key) }))
                     .sort((a, b) => b.index - a.index)
                 : []
-            const result = Reflect.set(obj, prop, value, receiver)
-            if (result && oldValue !== value) {
-                childProxyCache.delete(prop)
+            const result = Reflect.set(obj, prop, newValue, receiver)
+            if (result && !Object.is(oldValue, newValue)) {
+                metadata.children.delete(prop)
+                const path = resolveProxyPath(metadata)
+                if (path === null) {
+                    return result
+                }
                 for (const entry of truncatedEntries) {
-                    childProxyCache.delete(String(entry.index))
+                    metadata.children.delete(String(entry.index))
                     emitDatabaseUpdate({
                         path: [...path, entry.index],
                         value: undefined,
@@ -85,22 +136,26 @@ function createDatabaseProxy<T>(target: T, path: DatabaseUpdatePathKey[] = []): 
                         type: 'delete',
                     })
                 }
-                emitDatabaseUpdate({ path: [...path, normalizePathKey(obj, prop)], value, oldValue, type: 'set' })
+                emitDatabaseUpdate({ path: [...path, normalizePathKey(obj, prop)], value: newValue, oldValue, type: 'set' })
             }
             return result
         },
         deleteProperty(obj, prop) {
-            const oldValue = Reflect.get(obj, prop)
+            const existed = Object.prototype.hasOwnProperty.call(obj, prop)
+            const oldValue = unwrapDatabaseProxy(Reflect.get(obj, prop))
             const result = Reflect.deleteProperty(obj, prop)
-            if (result) {
-                childProxyCache.delete(prop)
-                emitDatabaseUpdate({ path: [...path, normalizePathKey(obj, prop)], value: undefined, oldValue, type: 'delete' })
+            if (result && existed) {
+                metadata.children.delete(prop)
+                const path = resolveProxyPath(metadata)
+                if (path !== null) {
+                    emitDatabaseUpdate({ path: [...path, normalizePathKey(obj, prop)], value: undefined, oldValue, type: 'delete' })
+                }
             }
             return result
         },
     })
 
-    dbProxyInstances.add(proxy)
+    databaseProxyMetadata.set(proxy, metadata)
     return proxy
 }
 
@@ -112,6 +167,14 @@ export function onDatabaseUpdate(listener: (info: DatabaseUpdateInfo) => void) {
 
 /** Replace the database while preserving the Svelte -> database proxy invariant. */
 export function setDatabaseLite(data: Database) {
-    mutableDBState.db = data
-    mutableDBState.db = createDatabaseProxy(mutableDBState.db)
+    if (unwrapDatabaseProxy(data) === unwrapDatabaseProxy(DBState.db)) {
+        return
+    }
+
+    const oldValue = DBState.db
+    mutableDBState.db = unwrapDatabaseProxy(data)
+    const database = createDatabaseProxy(mutableDBState.db)
+    activeRoot = databaseProxyMetadata.get(database) ?? null
+    mutableDBState.db = database
+    emitDatabaseUpdate({ path: [], value: DBState.db, oldValue, type: 'set' })
 }

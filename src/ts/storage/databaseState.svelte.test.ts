@@ -1,7 +1,7 @@
 import { flushSync } from 'svelte'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DBState } from '../stores.svelte'
-import { getDatabase, onDatabaseUpdate, setDatabaseLite, type Database } from './database.svelte'
+import { getDatabase, onDatabaseUpdate, setDatabaseLite, type character, type Chat, type Database } from './database.svelte'
 
 vi.mock('../globalApi.svelte', () => ({
     downloadFile: vi.fn(),
@@ -125,6 +125,150 @@ describe('database proxy layering', () => {
         unsubscribe()
     })
 
+    it('resolves paths through characters and chats after they move', () => {
+        const makeCharacter = (chaId: string) => ({
+            chaId,
+            name: chaId,
+            chatPage: 0,
+            chats: [
+                { id: `${chaId}-first`, message: [] },
+                { id: `${chaId}-second`, message: [] },
+            ],
+        })
+        setDatabaseLite(database({ characters: [makeCharacter('A'), makeCharacter('B')] as character[] }))
+        const movedCharacter = DBState.db.characters[1]
+        const movedMessages = movedCharacter.chats[1].message
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.characters.splice(0, 1)
+        DBState.db.characters[0].chats.splice(0, 1)
+        listener.mockClear()
+        movedCharacter.name = 'moved'
+        movedMessages.push({ role: 'user', data: 'moved' })
+        DBState.db.characters[0].name = 're-accessed'
+        DBState.db.characters[0].chats[0].message.push({ role: 'user', data: 're-accessed' })
+
+        expect(listener.mock.calls.map(([info]) => info.path)).toEqual([
+            ['characters', 0, 'name'],
+            ['characters', 0, 'chats', 0, 'message', 0],
+            ['characters', 0, 'name'],
+            ['characters', 0, 'chats', 0, 'message', 1],
+        ])
+        unsubscribe()
+    })
+
+    it('resolves retained chat paths after unshift', () => {
+        setDatabaseLite(database({
+            characters: [{
+                chaId: 'character',
+                chatPage: 0,
+                chats: [
+                    { id: 'first', message: [] },
+                    { id: 'moved', message: [] },
+                ],
+            }] as character[],
+        }))
+        const movedMessages = DBState.db.characters[0].chats[1].message
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.characters[0].chats.unshift({ id: 'inserted', message: [] } as Chat)
+        listener.mockClear()
+        movedMessages.push({ role: 'user', data: 'after unshift' })
+
+        expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+            path: ['characters', 0, 'chats', 2, 'message', 0],
+        }))
+        unsubscribe()
+    })
+
+    it('resolves moved elements in other database arrays', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { items: [{ value: 0 }, { value: 1 }] } }))
+        const movedItem = DBState.db.pluginCustomStorage.items[1]
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.pluginCustomStorage.items.splice(0, 1)
+        listener.mockClear()
+        movedItem.value = 2
+
+        expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+            path: ['pluginCustomStorage', 'items', 0, 'value'],
+        }))
+        unsubscribe()
+    })
+
+    it('does not emit from detached or inactive proxies', () => {
+        const makeCharacter = (chaId: string) => ({ chaId, name: chaId, chatPage: 0, chats: [] })
+        setDatabaseLite(database({
+            characters: [makeCharacter('A'), makeCharacter('B')] as character[],
+            pluginCustomStorage: { nested: { value: 0 } },
+        }))
+        const detachedCharacter = DBState.db.characters[1]
+        const oldRoot = DBState.db
+        const oldNested = DBState.db.pluginCustomStorage.nested
+        DBState.db.characters.splice(1, 1)
+        setDatabaseLite(database())
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        detachedCharacter.name = 'detached'
+        oldRoot.username = 'inactive'
+        oldNested.value = 1
+
+        expect(listener).not.toHaveBeenCalled()
+        unsubscribe()
+    })
+
+    it('tracks an old value after it is re-accessed through the active root', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+        setDatabaseLite(database({ pluginCustomStorage: {} }))
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        DBState.db.pluginCustomStorage.reattached = retained
+        listener.mockClear()
+        retained.value = 1
+        DBState.db.pluginCustomStorage.reattached.value = 2
+
+        expect(listener).toHaveBeenCalledOnce()
+        expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+            path: ['pluginCustomStorage', 'reattached', 'value'],
+        }))
+        unsubscribe()
+    })
+
+    it('does not emit when deleting a missing property', () => {
+        setDatabaseLite(database({ pluginCustomStorage: {} }))
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        delete DBState.db.pluginCustomStorage.missing
+
+        expect(listener).not.toHaveBeenCalled()
+        unsubscribe()
+    })
+
+    it('emits root replacement as an empty path', () => {
+        const oldValue = DBState.db
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        setDatabaseLite(DBState.db)
+        setDatabaseLite(database({ username: 'replacement' }))
+
+        expect(listener).toHaveBeenCalledTimes(1)
+        expect(listener).toHaveBeenCalledWith({
+            path: [],
+            value: DBState.db,
+            oldValue,
+            type: 'set',
+        })
+        unsubscribe()
+    })
+
     it('reports the actual non-current chat index in nested mutation paths', () => {
         setDatabaseLite(database({
             characters: [{
@@ -134,7 +278,7 @@ describe('database proxy layering', () => {
                     { id: 'current', message: [] },
                     { id: 'other', message: [] },
                 ],
-            }] as Database['characters'],
+            }] as character[],
         }))
         const listener = vi.fn()
         const unsubscribe = onDatabaseUpdate(listener)
@@ -150,7 +294,7 @@ describe('database proxy layering', () => {
     it('preserves old and new identities in character replacement and splice events', () => {
         const makeCharacter = (chaId: string) => ({ chaId, chatPage: 0, chats: [{ id: `${chaId}-chat`, message: [] }] })
         setDatabaseLite(database({
-            characters: [makeCharacter('A'), makeCharacter('B'), makeCharacter('C')] as Database['characters'],
+            characters: [makeCharacter('A'), makeCharacter('B'), makeCharacter('C')] as character[],
         }))
         const events: { path: (string | number | symbol)[], oldValue: unknown, value: unknown }[] = []
         const unsubscribe = onDatabaseUpdate((event) => events.push(event))
@@ -170,12 +314,12 @@ describe('database proxy layering', () => {
                 chaId: 'A',
                 chatPage: 0,
                 chats: [{ id: 'old-0', message: [] }, { id: 'old-1', message: [] }],
-            }] as Database['characters'],
+            }] as character[],
         }))
         const listener = vi.fn()
         const unsubscribe = onDatabaseUpdate(listener)
 
-        DBState.db.characters[0].chats = [{ id: 'new-0', message: [] }] as Database['characters'][number]['chats']
+        DBState.db.characters[0].chats = [{ id: 'new-0', message: [] }] as Chat[]
 
         expect(listener).toHaveBeenCalledWith(expect.objectContaining({
             path: ['characters', 0, 'chats'],
@@ -188,7 +332,7 @@ describe('database proxy layering', () => {
     it('reports characters removed by direct array truncation', () => {
         const makeCharacter = (chaId: string) => ({ chaId, chatPage: 0, chats: [{ id: `${chaId}-chat`, message: [] }] })
         setDatabaseLite(database({
-            characters: [makeCharacter('A'), makeCharacter('B'), makeCharacter('C')] as Database['characters'],
+            characters: [makeCharacter('A'), makeCharacter('B'), makeCharacter('C')] as character[],
         }))
         const listener = vi.fn()
         const unsubscribe = onDatabaseUpdate(listener)
@@ -213,7 +357,7 @@ describe('database proxy layering', () => {
                     { id: 'chat-1', message: [] },
                     { id: 'chat-2', message: [] },
                 ],
-            }] as Database['characters'],
+            }] as character[],
         }))
         const listener = vi.fn()
         const unsubscribe = onDatabaseUpdate(listener)
@@ -231,7 +375,7 @@ describe('database proxy layering', () => {
     it('does not duplicate deletion events from pop', () => {
         const makeCharacter = (chaId: string) => ({ chaId, chatPage: 0, chats: [{ id: `${chaId}-chat`, message: [] }] })
         setDatabaseLite(database({
-            characters: [makeCharacter('A'), makeCharacter('B')] as Database['characters'],
+            characters: [makeCharacter('A'), makeCharacter('B')] as character[],
         }))
         const listener = vi.fn()
         const unsubscribe = onDatabaseUpdate(listener)
@@ -252,6 +396,6 @@ describe('database proxy layering', () => {
             // @ts-expect-error Database replacement must use setDatabaseLite().
             DBState.db = database()
         }
-        DBState.db.characters.push({} as Database['characters'][number])
+        DBState.db.characters.push({} as character)
     })
 })

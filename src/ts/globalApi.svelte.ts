@@ -314,19 +314,32 @@ export async function saveDb() {
 
     const createChangeTracker = (): toSaveType => ({
         character: [],
-        chat: [],
         botPreset: false,
         modules: false,
         loadouts: false,
         plugins: false,
         pluginCustomStorage: false
     })
+    const cloneChangeTracker = (tracker: toSaveType): toSaveType => ({
+        ...tracker,
+        character: [...tracker.character]
+    })
+    const mergeChangeTrackers = (target: toSaveType, source: toSaveType) => {
+        for (const characterId of source.character) {
+            if (!target.character.includes(characterId)) {
+                target.character.push(characterId)
+            }
+        }
+        target.botPreset ||= source.botPreset
+        target.modules ||= source.modules
+        target.loadouts ||= source.loadouts
+        target.plugins ||= source.plugins
+        target.pluginCustomStorage ||= source.pluginCustomStorage
+    }
     let changeTracker = createChangeTracker()
+    let savetrys = 0
 
     let encoder = new RisuSaveEncoder()
-    await encoder.init(getDatabase(), {
-        compression: forageStorage.isAccount
-    })
 
     $effect.root(() => {
 
@@ -348,57 +361,14 @@ export async function saveDb() {
             }, debounceTime);
         }
 
-        type TrackableChat = { id?: string }
-        type TrackableCharacter = { chaId?: string, chatPage?: number, chats?: TrackableChat[] }
-
-        function parseArrayIndex(value: unknown): number | undefined {
-            if (typeof value === 'number') {
-                return value
-            }
-            return typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : undefined
-        }
-
-        function isTrackableChat(value: unknown): value is TrackableChat & { id: string } {
-            return typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'string'
-        }
-
-        function isCharacterForSaveTracking(value: unknown): value is TrackableCharacter & { chaId: string } {
-            return typeof value === 'object' && value !== null && 'chaId' in value && typeof value.chaId === 'string'
-        }
-
-        function getTrackableCharacters(value: unknown): TrackableCharacter[] {
-            return Array.isArray(value) ? value.filter(isCharacterForSaveTracking) : []
-        }
-
-        function getTrackableChatIds(value: unknown): string[] {
-            return Array.isArray(value) ? value.filter(isTrackableChat).map((chat) => chat.id) : []
-        }
-
-        function updateChangeTrackerForCharacter(
-            char: TrackableCharacter | null | undefined,
-            options: { affectedChatIds?: (string | undefined)[], fallbackToCurrentChat?: boolean } = {}
-        ) {
-            if (!char?.chaId) {
+        const unsubscribeDb = onDatabaseUpdate((info) => {
+            if (info.path.length === 0) {
+                requiresFullEncoderReload.state = true
+                savetrys = 0
+                saveTimeoutExecute()
                 return
             }
-            if (!changeTracker.character.includes(char.chaId)) {
-                changeTracker.character.unshift(char.chaId)
-            }
-            const affectedChatIds = options.affectedChatIds?.filter((id): id is string => Boolean(id)) ?? []
-            if (affectedChatIds.length === 0 && options.fallbackToCurrentChat !== false) {
-                const currentChatId = char.chats?.[char.chatPage ?? 0]?.id
-                if (currentChatId) {
-                    affectedChatIds.push(currentChatId)
-                }
-            }
-            for (const chatId of affectedChatIds) {
-                if (!changeTracker.chat.some(([characterId, trackedChatId]) => characterId === char.chaId && trackedChatId === chatId)) {
-                    changeTracker.chat.unshift([char.chaId, chatId])
-                }
-            }
-        }
 
-        const unsubscribeDb = onDatabaseUpdate((info) => {
             const rootKey = info.path[0]
 
             if (rootKey === 'botPresets' || rootKey === 'botPresetsId') {
@@ -420,50 +390,39 @@ export async function saveDb() {
             }
 
             if (rootKey === 'characters') {
+                const affectedCharacters: Database['characters'] = []
+
                 if (info.path.length === 1) {
-                    for (const character of [...getTrackableCharacters(info.oldValue), ...getTrackableCharacters(info.value)]) {
-                        updateChangeTrackerForCharacter(character)
+                    const oldCharacters = info.oldValue as Database['characters'] | undefined
+                    const newCharacters = info.value as Database['characters'] | undefined
+                    affectedCharacters.push(...(oldCharacters ?? []), ...(newCharacters ?? []))
+                }
+                else if (typeof info.path[1] === 'number') {
+                    if (info.path.length === 2) {
+                        const oldChar = info.oldValue as Database['characters'][number] | undefined
+                        if (oldChar) {
+                            affectedCharacters.push(oldChar)
+                        }
                     }
-                    saveTimeoutExecute()
-                    return
+                    const char = DBState.db.characters[info.path[1]]
+                    if (char) {
+                        affectedCharacters.push(char)
+                    }
                 }
 
-                const characterIndex = parseArrayIndex(info.path[1])
-                const targetChar = characterIndex === undefined ? undefined : DBState.db.characters?.[characterIndex]
-                const fallbackChar = isCharacterForSaveTracking(info.oldValue) ? info.oldValue : undefined
-                const char = targetChar ?? fallbackChar
-                const isChatPath = info.path[2] === 'chats'
-
-                if (info.path.length === 2 && fallbackChar?.chaId !== targetChar?.chaId) {
-                    updateChangeTrackerForCharacter(fallbackChar)
+                for (const char of affectedCharacters) {
+                    if (!changeTracker.character.includes(char.chaId)) {
+                        changeTracker.character.unshift(char.chaId)
+                    }
                 }
-
-                if (isChatPath && info.path.length === 3) {
-                    updateChangeTrackerForCharacter(char, {
-                        affectedChatIds: [
-                            ...getTrackableChatIds(info.oldValue),
-                            ...getTrackableChatIds(info.value),
-                        ],
-                        fallbackToCurrentChat: false,
-                    })
-                    saveTimeoutExecute()
-                    return
-                }
-
-                const chatIndex = isChatPath ? parseArrayIndex(info.path[3]) : undefined
-                const oldChat = info.path.length === 4 && isTrackableChat(info.oldValue) ? info.oldValue : undefined
-                const affectedChatIds = chatIndex === undefined
-                    ? undefined
-                    : [targetChar?.chats?.[chatIndex]?.id, oldChat?.id]
-                updateChangeTrackerForCharacter(char, {
-                    affectedChatIds,
-                    fallbackToCurrentChat: !isChatPath,
-                })
                 saveTimeoutExecute()
                 return
             }
 
-            updateChangeTrackerForCharacter(DBState.db.characters?.[selIdState])
+            const char = DBState.db.characters[selIdState]
+            if (char && !changeTracker.character.includes(char.chaId)) {
+                changeTracker.character.unshift(char.chaId)
+            }
             saveTimeoutExecute()
         })
 
@@ -473,7 +432,16 @@ export async function saveDb() {
         }
     })
 
-    let savetrys = 0
+    try {
+        await encoder.init(getDatabase(), {
+            compression: forageStorage.isAccount
+        })
+    } catch (error) {
+        requiresFullEncoderReload.state = true
+        changed = true
+        console.error(error)
+    }
+
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
     while (true) {
@@ -482,40 +450,46 @@ export async function saveDb() {
             continue
         }
 
+        if (gotChannel) {
+            // Data is saved in another tab.
+            await sleep(1000)
+            continue
+        }
+
         saving.state = true
         changed = false
+        const pendingSave = cloneChangeTracker(changeTracker)
+        changeTracker = createChangeTracker()
+        const toSave = cloneChangeTracker(pendingSave)
         try {
+            const db = getDatabase()
 
             if (requiresFullEncoderReload.state) {
-                encoder = new RisuSaveEncoder()
-                await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false
-                })
                 requiresFullEncoderReload.state = false
+                encoder = new RisuSaveEncoder()
+                try {
+                    await encoder.init(db, {
+                        compression: forageStorage.isAccount,
+                        skipRemoteSavingOnCharacters: false
+                    })
+                } catch (error) {
+                    requiresFullEncoderReload.state = true
+                    throw error
+                }
             }
 
-            const toSave = changeTracker
-            changeTracker = createChangeTracker()
-            if (gotChannel) {
-                //Data is saved in other tab
-                await sleep(1000)
-                continue
-            }
             if (channel) {
                 channel.postMessage(sessionID)
             }
-            let db = getDatabase()
+
             if (!db.characters) {
-                await sleep(1000)
-                continue
+                throw new Error('Database has no character list')
             }
 
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
-                await sleep(1000)
-                continue
+                throw new Error('Database encoding failed')
             }
             const dbData = new Uint8Array(encoded)
             if (isTauri) {
@@ -539,12 +513,15 @@ export async function saveDb() {
             await saveDbKei()
             await sleep(500)
         } catch (error) {
+            mergeChangeTrackers(changeTracker, pendingSave)
             savetrys += 1
             if (savetrys > 4) {
                 alertError(error)
             }
             else {
                 console.error(error)
+                await sleep(1000)
+                changed = true
             }
         }
 

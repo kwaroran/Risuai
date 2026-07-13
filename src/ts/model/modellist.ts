@@ -40,6 +40,66 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
     })
 }
 
+const miniMaxModelDefinitions = [
+    {
+        id: 'MiniMax-M3',
+        name: 'MiniMax M3',
+        flags: [LLMFlags.hasImageInput, LLMFlags.hasVideoInput]
+    },
+    {
+        id: 'MiniMax-M2.7',
+        name: 'MiniMax M2.7',
+        flags: []
+    }
+] satisfies { id: string, name: string, flags: LLMFlags[] }[]
+
+const miniMaxEndpoints = [
+    {
+        suffix: '',
+        label: '',
+        format: LLMFormat.OpenAICompatible,
+        endpoint: 'https://api.minimax.io/v1/chat/completions'
+    },
+    {
+        suffix: 'openai-cn',
+        label: ' (CN OpenAI)',
+        format: LLMFormat.OpenAICompatible,
+        endpoint: 'https://api.minimaxi.com/v1/chat/completions'
+    },
+    {
+        suffix: 'anthropic-global',
+        label: ' (Global Anthropic)',
+        format: LLMFormat.Anthropic,
+        endpoint: 'https://api.minimax.io/anthropic'
+    },
+    {
+        suffix: 'anthropic-cn',
+        label: ' (CN Anthropic)',
+        format: LLMFormat.Anthropic,
+        endpoint: 'https://api.minimaxi.com/anthropic'
+    }
+] as const
+
+function makeMiniMaxModels(): LLMModel[] {
+    return miniMaxEndpoints.flatMap((endpoint) => miniMaxModelDefinitions.map((model) => ({
+        id: endpoint.suffix ? `${model.id.toLowerCase()}-${endpoint.suffix}` : model.id,
+        internalID: model.id,
+        name: model.name + endpoint.label,
+        provider: LLMProvider.MiniMax,
+        format: endpoint.format,
+        flags: [
+            endpoint.format === LLMFormat.Anthropic ? LLMFlags.hasFirstSystemPrompt : LLMFlags.hasFullSystemPrompt,
+            ...model.flags,
+            LLMFlags.hasStreaming
+        ],
+        parameters: ['temperature', 'top_p'],
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: endpoint.endpoint,
+        keyIdentifier: 'minimax',
+        recommended: true
+    })))
+}
+
 export const LLMModels: LLMModel[] = [
     ...OpenAIModels,
     ...AnthropicModels,
@@ -503,30 +563,7 @@ export const LLMModels: LLMModel[] = [
         keyIdentifier: 'deepseek'
     },
     // MiniMax
-    {
-        id: 'MiniMax-M3',
-        name: 'MiniMax M3',
-        provider: LLMProvider.MiniMax,
-        format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasVideoInput, LLMFlags.hasStreaming],
-        parameters: ['temperature', 'top_p'],
-        tokenizer: LLMTokenizer.Unknown,
-        endpoint: 'https://api.minimax.io/v1/chat/completions',
-        keyIdentifier: 'minimax',
-        recommended: true
-    },
-    {
-        id: 'MiniMax-M2.7',
-        name: 'MiniMax M2.7',
-        provider: LLMProvider.MiniMax,
-        format: LLMFormat.OpenAICompatible,
-        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
-        parameters: ['temperature', 'top_p'],
-        tokenizer: LLMTokenizer.Unknown,
-        endpoint: 'https://api.minimax.io/v1/chat/completions',
-        keyIdentifier: 'minimax',
-        recommended: true
-    },
+    ...makeMiniMaxModels(),
     // DeepInfra
     ...makeDeepInfraModels([
         'deepseek-ai/DeepSeek-R1',

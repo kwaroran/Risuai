@@ -44,7 +44,7 @@ const miniMaxModelDefinitions = [
     {
         id: 'MiniMax-M3',
         name: 'MiniMax M3',
-        flags: [LLMFlags.hasImageInput, LLMFlags.hasVideoInput]
+        flags: [LLMFlags.hasImageInput, LLMFlags.hasVideoInput, LLMFlags.adaptiveThinking]
     },
     {
         id: 'MiniMax-M2.7',

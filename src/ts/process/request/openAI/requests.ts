@@ -467,6 +467,15 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     )
 
+    if(arg.modelInfo.flags.includes(LLMFlags.adaptiveThinking)){
+        if(db.thinkingType === 'off'){
+            body.thinking = { type: 'disabled' }
+        }
+        else if(db.thinkingType === 'adaptive'){
+            body.thinking = { type: 'adaptive' }
+        }
+    }
+
     if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
         if(db.deepseekThinkingType === 'enabled'){
             body.thinking = {

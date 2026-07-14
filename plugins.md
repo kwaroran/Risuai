@@ -493,6 +493,12 @@ const observer = await Risuai.createMutationObserver(async (mutations) => {
     for (const node of addedNodes) {
       console.log(`Node added: ${await node.nodeName()}`);
     }
+
+    // getRemovedNodes() returns SafeClassArray<SafeElement>
+    const removedNodes = await Risuai.unwarpSafeArray(await mutation.getRemovedNodes());
+    for (const node of removedNodes) {
+      console.log(`Node removed: ${await node.nodeName()}`);
+    }
   }
 });
 
@@ -505,6 +511,8 @@ await observer.observe(body, {
   attributes: true
 });
 ```
+
+Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only.
 
 ### SafeClassArray
 

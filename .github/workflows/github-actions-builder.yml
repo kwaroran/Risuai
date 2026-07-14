@@ -15,21 +15,31 @@ jobs:
         # platform: [ubuntu-latest,macos-latest,windows-latest]
         settings:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
+            target: 'aarch64-apple-darwin'
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
+            target: 'x86_64-apple-darwin'
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-latest' # for Tauri v1 you could replace this with ubuntu-20.04.
+            target: 'x86_64-unknown-linux-gnu'
             args: '--target x86_64-unknown-linux-gnu'
           - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
             args: '--target x86_64-pc-windows-msvc'
           
     runs-on: ${{ matrix.settings.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.34.1
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
       - id: set_var_win
         if: matrix.settings.platform == 'windows-latest'
         run: |
@@ -38,10 +48,6 @@ jobs:
         shell: bash
         run: |
           echo "VERSION_JSON=$(jq -c . < version.json)" >> $GITHUB_ENV
-      - name: install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.1
       - name: install dependencies (ubuntu only)
         if: matrix.settings.platform == 'ubuntu-latest'
         run: |
@@ -50,26 +56,14 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable # Set this to dtolnay/rust-toolchain@nightly
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.settings.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
+          targets: ${{ matrix.settings.target }}
+      - uses: Swatinem/rust-cache@v2
+        name: Setup Rust cache
         with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          workspaces: src-tauri -> target
+          key: ${{ matrix.settings.platform }}-${{ matrix.settings.target }}
       - name: install frontend dependencies
-        run: pnpm install --no-frozen-lockfile # change this to npm or pnpm depending on which one you use
-      - if: matrix.settings.platform == 'macos-latest'
-        run: rustup target add x86_64-apple-darwin
-      - if: matrix.settings.platform == 'macos-latest'
-        run: rustup target add aarch64-apple-darwin
+        run: pnpm install --frozen-lockfile
       - uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -425,6 +425,8 @@ export async function saveDb() {
             }
             saveTimeoutExecute()
         })
+        // Persist bootstrap mutations emitted before the database listener existed.
+        saveTimeoutExecute()
 
         return () => {
             unsubscribeSel()

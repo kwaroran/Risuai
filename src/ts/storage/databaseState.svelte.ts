@@ -52,11 +52,11 @@ function normalizePathKey(target: object, prop: PropertyKey): DatabaseUpdatePath
 }
 
 function isProxyableDatabaseValue(value: unknown): value is object {
+    if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
+        return false
+    }
     if (Array.isArray(value)) {
         return true
-    }
-    if (!value || typeof value !== 'object') {
-        return false
     }
     const prototype = Object.getPrototypeOf(value)
     return prototype === Object.prototype || prototype === null

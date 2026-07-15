@@ -93,13 +93,14 @@ describe('database proxy layering', () => {
         unsubscribe()
     })
 
-    it('does not proxy non-plain objects', () => {
+    it('does not proxy non-plain or frozen objects', () => {
         const date = new Date()
         const map = new Map([['key', 'value']])
         const set = new Set(['value'])
         const bytes = new Uint8Array([1, 2])
         const instance = new CustomValue()
-        setDatabaseLite(database({ pluginCustomStorage: { date, map, set, bytes, instance } }))
+        const frozen = Object.freeze({ nested: Object.freeze({ value: 1 }) })
+        setDatabaseLite(database({ pluginCustomStorage: { date, map, set, bytes, instance, frozen } }))
         const storage = DBState.db.pluginCustomStorage
 
         expect(storage.date).toBe(date)
@@ -107,6 +108,10 @@ describe('database proxy layering', () => {
         expect(storage.set).toBe(set)
         expect(storage.bytes).toBe(bytes)
         expect(storage.instance).toBe(instance)
+        expect(storage.frozen.nested.value).toBe(1)
+        expect(JSON.parse(JSON.stringify(getDatabase())).pluginCustomStorage.frozen).toEqual({
+            nested: { value: 1 },
+        })
     })
 
     it('reports the access path used for shared plain objects', () => {

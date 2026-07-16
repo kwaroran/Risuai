@@ -697,7 +697,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     if(usingPromptTemplate && DBState.db.promptSettings.postEndInnerFormat){
                         await tokenizeChatArray([{
                             role: 'system',
-                            content: DBState.db.promptSettings.postEndInnerFormat
+                            content: risuChatParser(DBState.db.promptSettings.postEndInnerFormat, {chara: currentChar})
                         }])
                     }
                     break
@@ -1297,7 +1297,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     if(usingPromptTemplate && DBState.db.promptSettings.postEndInnerFormat){
                         pushPrompts([{
                             role: 'system',
-                            content: DBState.db.promptSettings.postEndInnerFormat
+                            content: risuChatParser(DBState.db.promptSettings.postEndInnerFormat, {chara: currentChar})
                         }])
                     }
                     break

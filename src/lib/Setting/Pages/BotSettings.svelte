@@ -22,6 +22,7 @@
     import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
     import SegmentedControl from "src/lib/UI/GUI/SegmentedControl.svelte";
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
+    import { getOrcaRouterModels, toModelGridItem as orcaToGridItem } from "src/ts/model/orcarouter";
     import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
     import { getOllamaModels } from "src/ts/model/ollama";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
@@ -388,6 +389,17 @@
             <ModelGrid bind:value={DBState.db.openrouterRequestModel} pinnedItems={openrouterPinnedItems} loading={true} />
         {:then m}
             <ModelGrid bind:value={DBState.db.openrouterRequestModel} items={(m ?? []).map(orToGridItem)} pinnedItems={openrouterPinnedItems} />
+        {/await}
+    {/if}
+    {#if DBState.db.aiModel === 'orcarouter' || DBState.db.subModel === 'orcarouter'}
+        <span class="text-textcolor mt-4">OrcaRouter {language.apiKey}</span>
+        <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.orcaRouterKey} />
+
+        <span class="text-textcolor mt-4">OrcaRouter {language.model}</span>
+        {#await getOrcaRouterModels()}
+            <ModelGrid bind:value={DBState.db.orcarouterRequestModel} loading={true} />
+        {:then m}
+            <ModelGrid bind:value={DBState.db.orcarouterRequestModel} items={(m ?? []).map(orcaToGridItem)} />
         {/await}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy'}

@@ -211,6 +211,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(aiModel === 'nanogpt'){
         requestModel = db.nanogptRequestModel
     }
+    if(aiModel === 'orcarouter'){
+        requestModel = db.orcarouterRequestModel
+    }
 
     if(aiModel === 'openrouter' && db.openrouterRequestModel === 'risu/free'){
         openrouterRequestModel = await getFreeOpenRouterModels()
@@ -511,6 +514,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
     let replacerURL = aiModel === 'nanogpt' ? (db.nanogptUseSubscriptionEndpoint ? 'https://nano-gpt.com/api/subscription/v1/chat/completions' : 'https://nano-gpt.com/api/v1/chat/completions') :
         aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
+        aiModel === 'orcarouter' ? "https://api.orcarouter.ai/v1/chat/completions" :
         (arg.customURL) ?? ('https://api.openai.com/v1/chat/completions')
 
     if(arg.modelInfo?.endpoint){
@@ -545,7 +549,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     }
 
     let headers = {
-        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
+        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : (aiModel === 'orcarouter' ? db.orcaRouterKey : db.openAIKey)))),
         "Content-Type": "application/json"
     }
 

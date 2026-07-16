@@ -29,6 +29,7 @@
     import { ConnectionOpenStore } from 'src/ts/sync/multiuser';
     import { coldStorageHeader, preLoadChat } from 'src/ts/process/coldstorage.svelte';
     import Chats from './Chats.svelte';
+    import PartialEditManager from './PartialEditManager.svelte';
     import Button from '../UI/GUI/Button.svelte';
     import PluginDefinedIcon from '../Others/PluginDefinedIcon.svelte';
     import { getAdditionalChatLoadPages, getInitialChatLoadPages } from 'src/ts/chatLoadPages';
@@ -54,6 +55,7 @@
     let fileInput:string[] = $state([])
     let showNewMessageButton = $state(false)
     let chatsInstance: any = $state()
+    let chatScreenRoot: HTMLDivElement | null = $state(null)
     let isScrollingToMessage = $state(false)
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
@@ -569,7 +571,7 @@
             {/await}
         {/if}
     {:else}
-        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {
+        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" bind:this={chatScreenRoot} onscroll={(e) => {
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
             if(scrolled < 100 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length > loadPages){
@@ -816,6 +818,18 @@
                 </button>
             {/if}
             
+            {#if chatScreenRoot && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
+                <PartialEditManager
+                    screenRoot={chatScreenRoot}
+                    messages={currentChat}
+                    characterIndex={$selectedCharID}
+                    chatPage={currentCharacter.chatPage}
+                    chatId={currentCharacter.chats[currentCharacter.chatPage]?.id ?? null}
+                    blockEditEnabled={DBState.db.enableBlockPartialEdit}
+                    dragEditEnabled={DBState.db.enableDragPartialEdit}
+                />
+            {/if}
+
             <Chats
                 bind:this={chatsInstance}
                 messages={currentChat}

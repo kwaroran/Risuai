@@ -1,9 +1,10 @@
 <script lang="ts">
     import { CheckIcon, XIcon } from '@lucide/svelte';
-    import { createEventDispatcher, onDestroy } from 'svelte';
-    import { DBState } from 'src/ts/stores.svelte';
+    import { onDestroy, untrack } from 'svelte';
+    import { DBState, ReloadChatPointer } from 'src/ts/stores.svelte';
+    import type { Message } from 'src/ts/storage/database.svelte';
     import { language } from 'src/lang';
-    import { 
+    import {
         findAllOriginalRangesFromHtml,
         findAllOriginalRangesFromText,
         replaceRange,
@@ -13,35 +14,46 @@
     } from 'src/ts/parser/partialEdit';
 
     interface Props {
-        messageData: string;
-        chatIndex: number;
-        bodyRoot: HTMLElement | null;
+        screenRoot: HTMLElement | null;
+        messages: Message[];
+        characterIndex: number;
+        chatPage: number;
+        chatId?: string | null;
         blockEditEnabled?: boolean;
         dragEditEnabled?: boolean;
     }
 
+    interface PartialEditTarget {
+        characterIndex: number;
+        chatPage: number;
+        chatId: string | null;
+        messageIndex: number;
+        messageId: string | null;
+        messageData: string;
+        chatRoot: HTMLElement;
+        bodyRoot: HTMLElement;
+    }
+
     let {
-        messageData = $bindable(''),
-        chatIndex,
-        bodyRoot,
+        screenRoot,
+        messages,
+        characterIndex,
+        chatPage,
+        chatId = null,
         blockEditEnabled = false,
         dragEditEnabled = false,
     }: Props = $props();
 
-    const dispatch = createEventDispatcher<{
-        save: { newData: string };
-    }>();
-
-    // Min drag selection length
     const MIN_DRAG_SELECTION_LENGTH = 5;
+    const SELECTOR = EDITABLE_BLOCK_SELECTORS.join(', ');
 
     let isEditing = $state(false);
     let editText = $state('');
     let textareaRef: HTMLTextAreaElement | null = $state(null);
-
     let isConfirmingDelete = $state(false);
+    let showMatchFailedModal = $state(false);
+    let messageData = $state('');
 
-    // Unified matching state: tracks both edit and delete operations
     type MatchingMode = 'edit' | 'delete' | null;
     let matchingState = $state<{
         mode: MatchingMode;
@@ -57,30 +69,36 @@
         selectedRange: null,
     });
 
-    let showMatchFailedModal = $state(false);
-
-    const SELECTOR = EDITABLE_BLOCK_SELECTORS.join(', ');
-
-    // Block edit state
+    let activeTarget: PartialEditTarget | null = null;
     let blockButtonWrapper: HTMLDivElement | null = null;
     let currentHoveredBlock: HTMLElement | null = null;
-
-    // Drag edit state
     let dragButtonWrapper: HTMLDivElement | null = null;
-    let currentDragSelectedText: string = '';
+    let currentDragSelectedText = '';
+    let rafId: number | null = null;
+    let selectionTimer: ReturnType<typeof setTimeout> | null = null;
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
 
-    let isInViewport = $state(false);
-    let isBlockActive = $derived(blockEditEnabled && isInViewport);
-    let isDragActive = $derived(dragEditEnabled && isInViewport);
+    function emptyMatchingState() {
+        return {
+            mode: null as MatchingMode,
+            targetElement: null as HTMLElement | null,
+            originalHTML: '',
+            foundMatches: [] as RangeResultWithContext[],
+            selectedRange: null as RangeResult | null,
+        };
+    }
 
-    // Check if element has text content (excluding buttons)
+    function hasOpenInteraction() {
+        return isEditing || isConfirmingDelete || matchingState.mode !== null || showMatchFailedModal;
+    }
+
     function hasTextContent(el: HTMLElement): boolean {
         const clone = el.cloneNode(true) as HTMLElement;
         clone.querySelectorAll('button').forEach(btn => btn.remove());
         return !!clone.textContent?.trim();
     }
 
-    // Create edit/delete button pair
     function createButton(
         className: string,
         onEdit: () => void,
@@ -123,17 +141,64 @@
             onDelete();
         });
 
-        if (onMouseLeave) {
-            wrapper.addEventListener('mouseleave', onMouseLeave);
-        }
-
+        if (onMouseLeave) wrapper.addEventListener('mouseleave', onMouseLeave);
         return wrapper;
     }
 
-    // Show/hide block edit button
-    function showBlockButton(block: HTMLElement) {
-        if (currentHoveredBlock === block && blockButtonWrapper?.style.display === 'block') return;
+    function resolveTarget(element: Element | null): PartialEditTarget | null {
+        if (!element || !screenRoot) return null;
+        const bodyRoot = element.closest('.chattext') as HTMLElement | null;
+        const chatRoot = element.closest('.risu-chat[data-chat-index]') as HTMLElement | null;
+        if (!bodyRoot || !chatRoot || !screenRoot.contains(chatRoot) || !chatRoot.contains(bodyRoot)) return null;
 
+        if (chatRoot.dataset.partialEditDisabled === 'true') return null;
+        const messageIndex = Number.parseInt(chatRoot.dataset.chatIndex ?? '', 10);
+        if (!Number.isInteger(messageIndex) || messageIndex < 0) return null;
+        const messageRef = messages[messageIndex];
+        if (!messageRef) return null;
+
+        return {
+            characterIndex,
+            chatPage,
+            chatId: chatId ?? null,
+            messageIndex,
+            messageId: messageRef.chatId ?? null,
+            messageData: messageRef.data,
+            chatRoot,
+            bodyRoot,
+        };
+    }
+
+    function getCurrentMessage(target: PartialEditTarget): Message | null {
+        const character = DBState.db.characters[target.characterIndex];
+        const chat = character?.chats?.[target.chatPage];
+        if (!character || !chat) return null;
+        if (target.chatId && chat.id !== target.chatId) return null;
+        const message = chat.message?.[target.messageIndex];
+        if (!message) return null;
+        if (target.messageId && message.chatId !== target.messageId) return null;
+        return message;
+    }
+
+    function validateTarget(target = activeTarget, requireDom = true): target is PartialEditTarget {
+        if (!target || target.characterIndex !== characterIndex || target.chatPage !== chatPage) return false;
+        if ((target.chatId ?? null) !== (chatId ?? null)) return false;
+        const currentMessage = getCurrentMessage(target);
+        if (!currentMessage || currentMessage.data !== target.messageData) return false;
+        if (requireDom && (!screenRoot || target.chatRoot.dataset.partialEditDisabled === 'true' ||
+            !target.chatRoot.isConnected || !target.bodyRoot.isConnected ||
+            !screenRoot.contains(target.chatRoot) || !target.chatRoot.contains(target.bodyRoot))) return false;
+        return true;
+    }
+
+    function setActiveTarget(target: PartialEditTarget) {
+        activeTarget = target;
+        messageData = target.messageData;
+    }
+
+    function showBlockButton(block: HTMLElement, target: PartialEditTarget) {
+        if (currentHoveredBlock === block && blockButtonWrapper?.style.display === 'flex') return;
+        setActiveTarget(target);
         currentHoveredBlock = block;
 
         if (!blockButtonWrapper) {
@@ -143,20 +208,15 @@
                 startBlockDelete,
                 (e: MouseEvent) => {
                     const relatedTarget = e.relatedTarget as HTMLElement | null;
-                    if (!relatedTarget || !currentHoveredBlock?.contains(relatedTarget)) {
-                        hideBlockButton();
-                    }
+                    if (!relatedTarget || !currentHoveredBlock?.contains(relatedTarget)) hideBlockButton();
                 },
             );
             document.body.appendChild(blockButtonWrapper);
         }
 
-        // Calculate button position (fixed to viewport)
-        // Place button at top-left of block
         const rect = block.getBoundingClientRect();
-        const buttonHeight = 32;
         blockButtonWrapper.style.position = 'fixed';
-        blockButtonWrapper.style.top = `${rect.top - buttonHeight - 4}px`;
+        blockButtonWrapper.style.top = `${rect.top - 36}px`;
         blockButtonWrapper.style.left = `${rect.left}px`;
         blockButtonWrapper.style.display = 'flex';
         blockButtonWrapper.style.gap = '4px';
@@ -164,14 +224,13 @@
     }
 
     function hideBlockButton() {
-        if (blockButtonWrapper) {
-            blockButtonWrapper.style.display = 'none';
-        }
+        if (blockButtonWrapper) blockButtonWrapper.style.display = 'none';
         currentHoveredBlock = null;
+        if (!hasOpenInteraction() && !currentDragSelectedText) activeTarget = null;
     }
 
-    // Show/hide drag edit button
-    function showDragButton(rect: DOMRect) {
+    function showDragButton(rect: DOMRect, target: PartialEditTarget) {
+        setActiveTarget(target);
         if (!dragButtonWrapper) {
             dragButtonWrapper = createButton(
                 'partial-edit-btn-wrapper partial-edit-drag-btn-wrapper',
@@ -181,40 +240,68 @@
             document.body.appendChild(dragButtonWrapper);
         }
 
-        // 72px: 2 buttons (32px*2) + gap(4px) + margin
-        const buttonTotalWidth = 72;
         const centerX = (rect.left + rect.right) / 2;
-
         dragButtonWrapper.style.position = 'fixed';
         dragButtonWrapper.style.top = `${rect.bottom + 4}px`;
-        dragButtonWrapper.style.left = `${centerX - buttonTotalWidth / 2}px`;
+        dragButtonWrapper.style.left = `${centerX - 36}px`;
         dragButtonWrapper.style.display = 'flex';
         dragButtonWrapper.style.gap = '4px';
         dragButtonWrapper.style.zIndex = '1000';
     }
 
     function hideDragButton() {
-        if (dragButtonWrapper) {
-            dragButtonWrapper.style.display = 'none';
-        }
+        if (dragButtonWrapper) dragButtonWrapper.style.display = 'none';
         currentDragSelectedText = '';
+        if (!hasOpenInteraction() && !currentHoveredBlock) activeTarget = null;
+    }
+
+    function clearTimers() {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        if (selectionTimer) clearTimeout(selectionTimer);
+        if (focusTimer) clearTimeout(focusTimer);
+        if (scrollTimer) clearTimeout(scrollTimer);
+        rafId = null;
+        selectionTimer = null;
+        focusTimer = null;
+        scrollTimer = null;
+    }
+
+    function resetInteraction(removeButtons = false) {
+        clearTimers();
+        hideBlockButton();
+        hideDragButton();
+        isEditing = false;
+        isConfirmingDelete = false;
+        showMatchFailedModal = false;
+        editText = '';
+        matchingState = emptyMatchingState();
+        activeTarget = null;
+        messageData = '';
+        if (removeButtons) {
+            blockButtonWrapper?.remove();
+            dragButtonWrapper?.remove();
+            blockButtonWrapper = null;
+            dragButtonWrapper = null;
+        }
+    }
+
+    function ensureValidTarget() {
+        if (validateTarget()) return true;
+        resetInteraction();
+        return false;
     }
 
     function findAndProcessMatches(
         mode: MatchingMode,
         elementOrText: HTMLElement | string,
-        proceedCallback: (match: RangeResultWithContext) => void
+        proceedCallback: (match: RangeResultWithContext) => void,
     ) {
-        if (!elementOrText || !messageData) return;
-
+        if (!elementOrText || !ensureValidTarget()) return;
         matchingState.mode = mode;
-
-        // Set matching options based on mode
-        const options = mode === 'edit' 
+        const options = mode === 'edit'
             ? { extendToEOL: false, snapStartToPrevEOL: false }
             : { extendToEOL: true, snapStartToPrevEOL: true };
 
-        // Determine if matching from HTML element or text
         if (typeof elementOrText === 'string') {
             matchingState.targetElement = null;
             matchingState.originalHTML = '';
@@ -226,402 +313,249 @@
         }
 
         if (matchingState.foundMatches.length === 0) {
+            matchingState.mode = null;
             showMatchFailedModal = true;
-            return;
+        } else {
+            const highConfidenceMatches = matchingState.foundMatches.filter(m => m.confidence >= 0.95);
+            if (highConfidenceMatches.length === 1) proceedCallback(highConfidenceMatches[0]);
+            else if (matchingState.foundMatches.length === 1) proceedCallback(matchingState.foundMatches[0]);
         }
-
-        // Filter high-confidence matches
-        const highConfidenceMatches = matchingState.foundMatches.filter(m => m.confidence >= 0.95);
-
-        if (highConfidenceMatches.length === 1) {
-            proceedCallback(highConfidenceMatches[0]);
-        } else if (matchingState.foundMatches.length === 1) {
-            proceedCallback(matchingState.foundMatches[0]);
-        }
-
         hideBlockButton();
         hideDragButton();
     }
 
-    // Start block edit/delete
     function startBlockEdit() {
-        if (!currentHoveredBlock) return;
+        if (!currentHoveredBlock || !ensureValidTarget()) return;
         findAndProcessMatches('edit', currentHoveredBlock, proceedWithEdit);
     }
 
     function startBlockDelete() {
-        if (!currentHoveredBlock) return;
+        if (!currentHoveredBlock || !ensureValidTarget()) return;
         findAndProcessMatches('delete', currentHoveredBlock, proceedWithDelete);
     }
 
-    // Start drag edit/delete
     function startDragEdit() {
-        if (!currentDragSelectedText) return;
+        if (!currentDragSelectedText || !ensureValidTarget()) return;
         findAndProcessMatches('edit', currentDragSelectedText, proceedWithEdit);
     }
 
     function startDragDelete() {
-        if (!currentDragSelectedText) return;
+        if (!currentDragSelectedText || !ensureValidTarget()) return;
         findAndProcessMatches('delete', currentDragSelectedText, proceedWithDelete);
     }
 
-    // Proceed with edit/delete after match found
     function proceedWithEdit(match: RangeResultWithContext) {
+        if (!ensureValidTarget()) return;
         matchingState.selectedRange = match;
         matchingState.mode = null;
         editText = messageData.slice(match.start, match.end);
         isEditing = true;
-
-        // Focus textarea on next tick
-        setTimeout(() => {
-            if (textareaRef) {
-                textareaRef.focus();
-                adjustHeight();
-                setTimeout(() => {
-                    const buttonsEl = textareaRef.closest('.partial-edit-modal')?.querySelector('.partial-edit-buttons');
-                    if (buttonsEl) {
-                        (buttonsEl as HTMLElement).scrollIntoView({ behavior: 'instant', block: 'nearest' });
-                    }
-                }, 200);
-            }
+        focusTimer = setTimeout(() => {
+            if (!textareaRef) return;
+            textareaRef.focus();
+            adjustHeight();
+            scrollTimer = setTimeout(() => {
+                const buttonsEl = textareaRef?.closest('.partial-edit-modal')?.querySelector('.partial-edit-buttons');
+                if (buttonsEl) (buttonsEl as HTMLElement).scrollIntoView({ behavior: 'instant', block: 'nearest' });
+            }, 200);
         }, 10);
     }
 
-    // Select match from list
     function selectMatchAtIndex(index: number) {
+        if (!ensureValidTarget()) return;
         const match = matchingState.foundMatches[index];
         if (!match) return;
-
-        if (matchingState.mode === 'edit') {
-            proceedWithEdit(match);
-        } else if (matchingState.mode === 'delete') {
-            proceedWithDelete(match);
-        }
+        if (matchingState.mode === 'edit') proceedWithEdit(match);
+        else if (matchingState.mode === 'delete') proceedWithDelete(match);
     }
 
-    // Cancel match selection (restore HTML if in edit mode)
     function cancelMatchSelection() {
-        if (matchingState.mode === 'edit' && matchingState.targetElement && matchingState.originalHTML) {
-            matchingState.targetElement.innerHTML = matchingState.originalHTML;
-        }
-
-        matchingState = {
-            mode: null,
-            targetElement: null,
-            originalHTML: '',
-            foundMatches: [],
-            selectedRange: null,
-        };
+        matchingState = emptyMatchingState();
+        activeTarget = null;
+        messageData = '';
     }
 
-    // Save edited text
+    function saveNewData(newData: string) {
+        if (!ensureValidTarget() || !activeTarget) return;
+        const target = activeTarget;
+        const message = getCurrentMessage(target);
+        if (!message) {
+            resetInteraction();
+            return;
+        }
+        resetInteraction();
+        message.data = newData;
+        ReloadChatPointer.update(value => ({
+            ...value,
+            [target.messageIndex]: (value[target.messageIndex] ?? 0) + 1,
+        }));
+    }
+
     function handleSave() {
-        if (!matchingState.selectedRange) return;
-
-        const newData = replaceRange(messageData, matchingState.selectedRange, editText);
-        dispatch('save', { newData });
-
-        closeEdit();
+        if (!matchingState.selectedRange || !ensureValidTarget()) return;
+        saveNewData(replaceRange(messageData, matchingState.selectedRange, editText));
     }
 
-    // Cancel editing
     function handleCancel() {
-        if (matchingState.targetElement && matchingState.originalHTML) {
-            matchingState.targetElement.innerHTML = matchingState.originalHTML;
-        }
-        closeEdit();
+        resetInteraction();
     }
 
-    // Close edit mode
-    function closeEdit() {
-        isEditing = false;
-        editText = '';
-        matchingState = {
-            mode: null,
-            targetElement: null,
-            originalHTML: '',
-            foundMatches: [],
-            selectedRange: null,
-        };
-    }
-
-    // Proceed with delete after match selected
     function proceedWithDelete(match: RangeResultWithContext) {
+        if (!ensureValidTarget()) return;
         matchingState.selectedRange = match;
         matchingState.mode = null;
         isConfirmingDelete = true;
     }
 
-    // Confirm deletion
     function handleConfirmDelete() {
-        if (!matchingState.selectedRange) return;
-
+        if (!matchingState.selectedRange || !ensureValidTarget()) return;
         let newData = replaceRange(messageData, matchingState.selectedRange, '');
         newData = newData.replace(/\n{3,}/g, '\n\n').trim();
-
-        dispatch('save', { newData });
-        closeDeleteConfirm();
+        saveNewData(newData);
     }
 
-    // Cancel deletion
     function handleCancelDelete() {
-        closeDeleteConfirm();
-    }
-
-    // Close delete confirmation
-    function closeDeleteConfirm() {
-        isConfirmingDelete = false;
-        matchingState = {
-            mode: null,
-            targetElement: null,
-            originalHTML: '',
-            foundMatches: [],
-            selectedRange: null,
-        };
+        resetInteraction();
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            handleCancel();
-        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-            handleSave();
-        }
+        if (e.key === 'Escape') handleCancel();
+        else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSave();
     }
 
-    // Auto-adjust textarea height
     function adjustHeight() {
-        if (textareaRef) {
-            textareaRef.style.height = 'auto';
-            textareaRef.style.height = Math.max(60, textareaRef.scrollHeight) + 'px';
-        }
+        if (!textareaRef) return;
+        textareaRef.style.height = 'auto';
+        textareaRef.style.height = Math.max(60, textareaRef.scrollHeight) + 'px';
     }
 
-    // Check if mouse is over block button
     function isMouseOnBlockButton(mouseX: number, mouseY: number): boolean {
         if (!blockButtonWrapper || blockButtonWrapper.style.display === 'none') return false;
         const rect = blockButtonWrapper.getBoundingClientRect();
-        return mouseX >= rect.left && mouseX <= rect.right &&
-               mouseY >= rect.top && mouseY <= rect.bottom;
+        return mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom;
     }
 
-    // Check if mouse is in extended button zone above block
     function isMouseInButtonZone(mouseX: number, mouseY: number, block: HTMLElement): boolean {
         const rect = block.getBoundingClientRect();
-        const buttonHeight = 32;
-        const gap = 4;
-        const extendedTop = rect.top - buttonHeight - gap - 8;
-        
-        return mouseX >= rect.left && mouseX <= rect.right &&
-               mouseY >= extendedTop && mouseY < rect.top;
+        return mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top - 44 && mouseY < rect.top;
     }
 
-    // Viewport detection (enable block/drag edit when in view)
-    $effect(() => {
-        if (!bodyRoot || (!blockEditEnabled && !dragEditEnabled)) return;
+    function handleMove(e: MouseEvent) {
+        if (!blockEditEnabled || isEditing || isConfirmingDelete || matchingState.mode) return;
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+            hideBlockButton();
+            return;
+        }
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+            rafId = null;
+            if (isMouseOnBlockButton(mouseX, mouseY)) return;
+            if (currentHoveredBlock && isMouseInButtonZone(mouseX, mouseY, currentHoveredBlock)) return;
 
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                isInViewport = entry.isIntersecting;
-                if (!entry.isIntersecting) {
-                    hideBlockButton();
-                    hideDragButton();
-                }
-            },
-            {
-                threshold: [0, 0.1, 0.5, 1.0],
-                rootMargin: '300px',
-            }
-        );
-
-        observer.observe(bodyRoot);
-
-        return () => {
-            observer.disconnect();
-            isInViewport = false;
-        };
-    });
-
-    // Block hover detection (using elementFromPoint for precise detection)
-    $effect(() => {
-        if (!bodyRoot || !isBlockActive) return;
-
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-        let rafId: number | null = null;
-
-        const handleMove = (e: MouseEvent) => {
-            if (isEditing) return;
-            
-            const sel = window.getSelection();
-            if (sel && !sel.isCollapsed) {
-                hideBlockButton();
+            const elementAtPoint = document.elementFromPoint(mouseX, mouseY);
+            const block = elementAtPoint?.closest(SELECTOR) as HTMLElement | null;
+            const target = resolveTarget(block);
+            if (block && target && target.bodyRoot.contains(block) && hasTextContent(block)) {
+                showBlockButton(block, target);
                 return;
             }
-            
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
+            hideBlockButton();
+        });
+    }
 
-            if (rafId !== null) return;
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
-                
-                if (isMouseOnBlockButton(lastMouseX, lastMouseY)) {
-                    return;
-                }
-
-                if (currentHoveredBlock) {
-                    if (isMouseInButtonZone(lastMouseX, lastMouseY, currentHoveredBlock)) {
-                        return;
-                    }
-                }
-
-                const elementAtPoint = document.elementFromPoint(lastMouseX, lastMouseY);
-                if (elementAtPoint) {
-                    const block = elementAtPoint.closest(SELECTOR) as HTMLElement | null;
-                    if (block && bodyRoot.contains(block) && hasTextContent(block)) {
-                        showBlockButton(block);
-                        return;
-                    }
-                }
-
-                // Check if element is not hidden (verify at center top of block)
-                const blocks = bodyRoot.querySelectorAll(SELECTOR);
-                for (const block of blocks) {
-                    if (isMouseInButtonZone(lastMouseX, lastMouseY, block as HTMLElement)) {
-                        if (hasTextContent(block as HTMLElement)) {
-                            const rect = (block as HTMLElement).getBoundingClientRect();
-                            const checkX = rect.left + rect.width / 2;
-                            const checkY = rect.top + 5;
-                            const elementAtBlock = document.elementFromPoint(checkX, checkY);
-                            if (elementAtBlock && (block.contains(elementAtBlock) || elementAtBlock === block)) {
-                                showBlockButton(block as HTMLElement);
-                                return;
-                            }
-                        }
-                    }
-                }
-
-                hideBlockButton();
-            });
-        };
-
-        // mouseleave handler
-        const handleLeave = (e: MouseEvent) => {
-            if (isEditing) return;
-            
-            const relatedTarget = e.relatedTarget as HTMLElement | null;
-            
-            if (relatedTarget && blockButtonWrapper?.contains(relatedTarget)) {
+    function handleSelectionChange() {
+        if (!dragEditEnabled || isEditing || isConfirmingDelete || matchingState.mode) return;
+        if (selectionTimer) clearTimeout(selectionTimer);
+        selectionTimer = setTimeout(() => {
+            selectionTimer = null;
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed || !selection.toString().trim() || selection.rangeCount === 0) {
+                hideDragButton();
                 return;
             }
-            
-            hideBlockButton();
-        };
+            const range = selection.getRangeAt(0);
+            const ancestor = range.commonAncestorContainer;
+            const ancestorEl = ancestor.nodeType === Node.ELEMENT_NODE ? ancestor as HTMLElement : ancestor.parentElement;
+            const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer as HTMLElement : range.startContainer.parentElement;
+            const endEl = range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer as HTMLElement : range.endContainer.parentElement;
+            const target = resolveTarget(ancestorEl);
+            if (!target || !startEl || !endEl || !target.bodyRoot.contains(startEl) || !target.bodyRoot.contains(endEl)) {
+                hideDragButton();
+                return;
+            }
+            const rect = range.getBoundingClientRect();
+            const selectedText = selection.toString();
+            if ((rect.width === 0 && rect.height === 0) || selectedText.length < MIN_DRAG_SELECTION_LENGTH) {
+                hideDragButton();
+                return;
+            }
+            currentDragSelectedText = selectedText;
+            showDragButton(rect, target);
+        }, 150);
+    }
 
-        const handleScroll = () => {
-            if (isEditing) return;
-            hideBlockButton();
-        };
+    function handleMouseDown(e: MouseEvent) {
+        if (!dragEditEnabled || hasOpenInteraction()) return;
+        if (dragButtonWrapper?.contains(e.target as Node)) return;
+        hideDragButton();
+    }
 
-        // Listen at document level to include button area
-        document.addEventListener('mousemove', handleMove);
-        bodyRoot.addEventListener('mouseleave', handleLeave);
+    function handleScroll() {
+        if (hasOpenInteraction()) return;
+        hideBlockButton();
+        hideDragButton();
+    }
+
+    function handleScreenLeave(e: MouseEvent) {
+        if (hasOpenInteraction()) return;
+        const relatedTarget = e.relatedTarget as HTMLElement | null;
+        if (relatedTarget && blockButtonWrapper?.contains(relatedTarget)) return;
+        hideBlockButton();
+    }
+
+    $effect(() => {
+        if (!screenRoot) return;
+        if (blockEditEnabled) document.addEventListener('mousemove', handleMove);
+        if (dragEditEnabled) {
+            document.addEventListener('selectionchange', handleSelectionChange);
+            document.addEventListener('mousedown', handleMouseDown);
+        }
         document.addEventListener('scroll', handleScroll, true);
-
+        screenRoot.addEventListener('mouseleave', handleScreenLeave);
         return () => {
             document.removeEventListener('mousemove', handleMove);
-            bodyRoot.removeEventListener('mouseleave', handleLeave);
-            document.removeEventListener('scroll', handleScroll, true);
-            if (rafId !== null) {
-                cancelAnimationFrame(rafId);
-            }
-        };
-    });
-
-    // Drag selection detection
-    $effect(() => {
-        if (!bodyRoot || !isDragActive) return;
-
-        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-        const handleSelectionChange = () => {
-            if (isEditing || isConfirmingDelete || matchingState.mode) return;
-
-            // Debounce: wait for selection to stabilize
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                const sel = window.getSelection();
-                if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-                    hideDragButton();
-                    return;
-                }
-
-                // Check if selection is within bodyRoot
-                const range = sel.getRangeAt(0);
-                const ancestor = range.commonAncestorContainer;
-                const ancestorEl = ancestor.nodeType === Node.ELEMENT_NODE
-                    ? ancestor as HTMLElement
-                    : ancestor.parentElement;
-
-                if (!ancestorEl || !bodyRoot.contains(ancestorEl)) {
-                    hideDragButton();
-                    return;
-                }
-
-                // Position button based on selection bounds
-                const rect = range.getBoundingClientRect();
-                if (rect.width === 0 && rect.height === 0) {
-                    hideDragButton();
-                    return;
-                }
-
-                // Check selection text length
-                const selectedText = sel.toString();
-                if (selectedText.length < MIN_DRAG_SELECTION_LENGTH) {
-                    hideDragButton();
-                    return;
-                }
-
-                // Save selected text and show button
-                currentDragSelectedText = selectedText;
-                showDragButton(rect);
-            }, 150);
-        };
-
-        const handleDragScroll = () => {
-            if (isEditing) return;
-            hideDragButton();
-        };
-
-        const handleMouseDown = (e: MouseEvent) => {
-            if (isEditing || isConfirmingDelete || matchingState.mode) return;
-            if (dragButtonWrapper && dragButtonWrapper.contains(e.target as Node)) return;
-            hideDragButton();
-        };
-
-        document.addEventListener('selectionchange', handleSelectionChange);
-        document.addEventListener('scroll', handleDragScroll, true);
-        document.addEventListener('mousedown', handleMouseDown);
-
-        return () => {
             document.removeEventListener('selectionchange', handleSelectionChange);
-            document.removeEventListener('scroll', handleDragScroll, true);
             document.removeEventListener('mousedown', handleMouseDown);
-            if (debounceTimer) clearTimeout(debounceTimer);
+            document.removeEventListener('scroll', handleScroll, true);
+            screenRoot.removeEventListener('mouseleave', handleScreenLeave);
+            resetInteraction(true);
         };
     });
 
-    // Cleanup on component unmount
-    onDestroy(() => {
-        if (blockButtonWrapper) {
-            blockButtonWrapper.remove();
-            blockButtonWrapper = null;
-        }
-        if (dragButtonWrapper) {
-            dragButtonWrapper.remove();
-            dragButtonWrapper = null;
-        }
+    $effect(() => {
+        const identity = `${characterIndex}:${chatPage}:${chatId ?? ''}`;
+        void identity;
+        untrack(() => resetInteraction());
     });
+
+    $effect(() => {
+        if (!screenRoot) return;
+        const observer = new MutationObserver(() => {
+            if (activeTarget && !validateTarget(activeTarget)) resetInteraction();
+        });
+        observer.observe(screenRoot, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['data-partial-edit-disabled'],
+        });
+        return () => observer.disconnect();
+    });
+
+    onDestroy(() => resetInteraction(true));
 </script>
 
 {#snippet MatchSelectionModal(mode: MatchingMode, matches: RangeResultWithContext[], title: string)}

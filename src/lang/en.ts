@@ -124,6 +124,12 @@ export const languageEnglish = {
         openAIFixer: "OpenAI Fixer is a plugin that fixes some of the problems of OpenAI.",
         sayNothing: "If enabled, it will input 'say nothing' when no string inputed.",
         showUnrecommended: "If enabled, it will show unrecommended, deprecated settings. It is NOT RECOMMENDED to use these settings.",
+        streamingDisplayOptimizationMode:
+            "Reduces display lag when long responses are streamed with heavy post-processing, such as regex-based scripts. This can help on mobile or low-end devices.\n\n" +
+            "Off keeps the normal behavior, but post-processing runs on every token and can add significant overhead.\n\n" +
+            "Balanced lowers the load by trying post-processing only at short intervals, about every 0.125 seconds.\n\n" +
+            "Strong is similar to Balanced, but skips post-processing while streaming and runs it only once after the stream finishes.\n\n" +
+            "This is an experimental feature, and some features may behave unexpectedly because of it.",
         imageCompression: "If enabled, it will compress images when exporting character. if animated images doesn't works, try disabling this option.",
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
@@ -857,6 +863,10 @@ export const languageEnglish = {
     unrecommended: "Not Recommended",
     chatNotes: "Chat Notes",
     showUnrecommended: "Show Unrecommended Settings",
+    streamingDisplayOptimizationMode: "Streaming Display Optimization",
+    streamingDisplayOptimizationOff: "Off",
+    streamingDisplayOptimizationBalanced: "Balanced",
+    streamingDisplayOptimizationStrong: "Strong",
     altGreet: "Alternative First Messages",
     scripts: "Scripts",
     settings: "Settings",

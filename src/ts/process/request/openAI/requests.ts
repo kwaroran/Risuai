@@ -353,6 +353,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         [key:string]:any
     } = ({
         model: aiModel === 'nanogpt' ? db.nanogptRequestModel :
+            aiModel === 'orcarouter' ? db.orcarouterRequestModel :
             aiModel === 'openrouter' ? openrouterRequestModel :
             requestModel ===  'gpt35' ? 'gpt-3.5-turbo'
             : requestModel ===  'gpt35_0613' ? 'gpt-3.5-turbo-0613'

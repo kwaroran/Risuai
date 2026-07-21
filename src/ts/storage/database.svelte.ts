@@ -20,6 +20,9 @@ import {
     DEFAULT_CHAT_LOAD_INITIAL_PAGES,
     normalizeChatLoadPages,
 } from '../chatLoadPages';
+import { setDatabaseLite } from './databaseState.svelte';
+
+export { onDatabaseUpdate, setDatabaseLite } from './databaseState.svelte';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
 export let appVer = "2026.6.214" //<APP_VERSION_POINT>
@@ -718,10 +721,6 @@ export function setDatabase(data:Database){
     }
     changeLanguage(data.language)
     setDatabaseLite(data)
-}
-
-export function setDatabaseLite(data:Database){
-    DBState.db = data
 }
 
 interface getDatabaseOptions{

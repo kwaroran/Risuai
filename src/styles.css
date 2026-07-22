@@ -244,6 +244,7 @@ body {
 html,
 body {
   height: var(--risu-height-size);
+  overscroll-behavior-x: none;
 }
 
 .chattext p {

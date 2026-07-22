@@ -36,6 +36,7 @@
     import IrisModal from './lib/Others/IrisModal.svelte';
     import Legal from './lib/Others/Legal.svelte';
     import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
+    import { isIOS } from './ts/platform';
 
 
   
@@ -44,11 +45,23 @@
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
+
+    function preventIOSHistorySwipe(event: TouchEvent) {
+        if (!isIOS() || event.touches.length !== 1) {
+            return
+        }
+
+        const edgeWidth = 24
+        const touchX = event.touches[0].clientX
+        if (touchX <= edgeWidth || touchX >= window.innerWidth - edgeWidth) {
+            event.preventDefault()
+        }
+    }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
+<main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ontouchstart={preventIOSHistorySwipe} ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'link'
 }} ondrop={async (e) => {

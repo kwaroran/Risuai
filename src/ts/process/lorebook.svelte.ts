@@ -671,10 +671,11 @@ export async function importLoreBook(mode:'global'|'local'|'sglobal'){
     let lore = 
         mode === 'global' ? DBState.db.characters[selectedID].globalLore : 
         DBState.db.characters[selectedID].chats[page].localLore
-    const lorebook = (await selectSingleFile(['json', 'lorebook'])).data
-    if(!lorebook){
+    const selectedFile = await selectSingleFile(['json', 'lorebook'])
+    if(!selectedFile){
         return
     }
+    const lorebook = selectedFile.data
  
 
 

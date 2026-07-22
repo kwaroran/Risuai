@@ -2,9 +2,6 @@ import { get, writable, type Writable } from "svelte/store"
 import type { Database, Message } from "./storage/database.svelte"
 import { getDatabase } from "./storage/database.svelte"
 import { DBState, selectedCharID } from "./stores.svelte"
-import {open} from '@tauri-apps/plugin-dialog'
-import { readFile } from "@tauri-apps/plugin-fs"
-import { basename } from "@tauri-apps/api/path"
 import { createBlankChar, getCharImage } from "./characters"
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { isIOS, isTauri } from "src/ts/platform"
@@ -45,57 +42,33 @@ export function checkNullish(data:any){
     return data === undefined || data === null
 }
 
-const domSelect = true
-export async function selectSingleFile(ext:string[]){
-    if(domSelect){
-        const v = await selectFileByDom(ext, 'single')
-        const file = v[0]
-        return {name: file.name,data:await readFileAsUint8Array(file)}
-    }
-
-    const selected = await open({
-        filters: [{
-            name: ext.join(', '),
-            extensions: ext
-        }]
-    });
-    if (Array.isArray(selected)) {
-        return null
-    } else if (selected === null) {
-        return null
-    } else {
-        return {name: await basename(selected),data:await readFile(selected)}
-    }
+export type SelectedFile = {
+    name: string
+    data: Uint8Array
 }
 
-export async function selectMultipleFile(ext:string[]){
-    if(!isTauri){
-        const v = await selectFileByDom(ext, 'multiple')
-        let arr:{name:string, data:Uint8Array}[] = []
-        for(const file of v){
-            arr.push({name: file.name,data:await readFileAsUint8Array(file)})
-        }
-        return arr
-    }
+const FILE_DIALOG_FOCUS_DELAY = 300
 
-    const selected = await open({
-        filters: [{
-            name: ext.join(', '),
-            extensions: ext,
-        }],
-        multiple: true
-    });
-    if (Array.isArray(selected)) {
-        let arr:{name:string, data:Uint8Array}[] = []
-        for(const file of selected){
-            arr.push({name: await basename(file),data:await readFile(file)})
-        }
-        return arr
-    } else if (selected === null) {
+function normalizeFileExtension(ext: string) {
+    return ext.startsWith('.') ? ext.slice(1) : ext
+}
+
+export async function selectSingleFile(ext:string[]):Promise<SelectedFile|null>{
+    const v = await selectFileByDom(ext, 'single')
+    const file = v[0]
+    if(!file){
         return null
-    } else {
-        return [{name: await basename(selected),data:await readFile(selected)}]
     }
+    return {name: file.name,data:await readFileAsUint8Array(file)}
+}
+
+export async function selectMultipleFile(ext:string[]):Promise<SelectedFile[]>{
+    const v = await selectFileByDom(ext, 'multiple')
+    let arr:SelectedFile[] = []
+    for(const file of v){
+        arr.push({name: file.name,data:await readFileAsUint8Array(file)})
+    }
+    return arr
 }
 
 export const replacePlaceholders = (msg:string, name:string) => {
@@ -163,40 +136,70 @@ export function getUserIconProtrait(){
     }
 }
 
-export function selectFileByDom(allowedExtensions:string[], multiple:'multiple'|'single' = 'single') {
-    return new Promise<null|File[]>((resolve) => {
+export function selectFileByDom(allowedExtensions:string[], multiple:'multiple'|'single' = 'single'):Promise<File[]> {
+    return new Promise<File[]>((resolve) => {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.multiple = multiple === 'multiple';
+        fileInput.tabIndex = -1
         const acceptAll = (getDatabase().allowAllExtentionFiles || isIOS() || allowedExtensions[0] === '*')
         if(!acceptAll){
             if (allowedExtensions && allowedExtensions.length) {
-                fileInput.accept = allowedExtensions.map(ext => `.${ext}`).join(',');
+                fileInput.accept = allowedExtensions.map(ext => `.${normalizeFileExtension(ext)}`).join(',');
             }
         }
         else{
             fileInput.accept = '*'
         }
 
+        fileInput.style.position = 'fixed'
+        fileInput.style.left = '-9999px'
+        fileInput.style.top = '0'
+        fileInput.style.width = '1px'
+        fileInput.style.height = '1px'
+        fileInput.style.opacity = '0'
+        fileInput.style.pointerEvents = 'none'
+
+        let settled = false
+        const cleanup = () => {
+            fileInput.remove()
+            window.removeEventListener('focus', handleFocus)
+        }
+        const finish = (files: File[]) => {
+            if(settled){
+                return;
+            }
+            settled = true
+            cleanup()
+            resolve(files)
+        }
     
-        fileInput.addEventListener('change', (event) => {
-            if (fileInput.files.length === 0) {
-                resolve([]);
+        fileInput.addEventListener('change', () => {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                finish([])
                 return;
             }
     
             const files = acceptAll ? Array.from(fileInput.files) :(Array.from(fileInput.files).filter(file => {
-                const fileExtension = file.name.split('.').pop().toLowerCase();
-                return !allowedExtensions || allowedExtensions.includes(fileExtension);
+                const lastDotIndex = file.name.lastIndexOf('.')
+                const fileExtension = lastDotIndex > 0 ? file.name.slice(lastDotIndex + 1).toLowerCase() : ''
+                return !allowedExtensions || allowedExtensions.map(normalizeFileExtension).includes(fileExtension);
             })) 
     
-            fileInput.remove()
-            resolve(files);
+            finish(files);
         });
+
+        const handleFocus = () => {
+            setTimeout(() => {
+                if(!settled && (!fileInput.files || fileInput.files.length === 0)){
+                    finish([])
+                }
+            }, FILE_DIALOG_FOCUS_DELAY)
+        }
     
         document.body.appendChild(fileInput);
+        window.addEventListener('focus', handleFocus, { once: true })
         fileInput.click();
-        fileInput.style.display = 'none'; // Hide the file input element
     });
 }
 

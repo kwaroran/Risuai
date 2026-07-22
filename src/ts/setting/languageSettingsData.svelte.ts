@@ -9,10 +9,9 @@ import type { SettingItem } from './types';
 import { isTauri } from '../platform';
 import { changeLanguage, language } from 'src/lang';
 import { languageEnglish } from 'src/lang/en';
-import { sleep } from '../util';
+import { selectSingleFile, sleep } from '../util';
 import { alertNormal, alertSelect, alertConfirm, alertError, alertWait } from '../alert';
 import { downloadFile } from '../globalApi.svelte';
-import { selectFileByDom } from '../util';
 import { exportLLMCacheAsJSON, importLLMCacheFromJSON, clearLLMCache } from '../translator/translator';
 
 export const langState = $state({ changed: false });
@@ -303,13 +302,13 @@ export const languageSettingsItems: SettingItem[] = [
         options: {
             onClick: async () => {
                 try {
-                    const files = await selectFileByDom(['.json']);
-                    if (!files || files.length === 0) return;
-                    if (!files[0].name.endsWith('.json')) {
+                    const file = await selectSingleFile(['json']);
+                    if (!file) return;
+                    if (!file.name.endsWith('.json')) {
                         alertError('Invalid file type. Please select a .json file.');
                         return;
                     }
-                    const text = await files[0].text();
+                    const text = new TextDecoder().decode(file.data);
                     const data = JSON.parse(text);
                     if (typeof data !== 'object' || Array.isArray(data)) {
                         alertError('Invalid JSON format');

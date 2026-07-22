@@ -32,7 +32,7 @@ export const hubURL = isNodeServer
 export async function importCharacter() {
     try {
         const files = await selectFileByDom(["*"], 'multiple')
-        if(!files){
+        if(files.length === 0){
             return
         }
 

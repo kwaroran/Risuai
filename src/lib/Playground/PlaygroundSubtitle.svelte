@@ -131,9 +131,9 @@
             'mp3', 'ogg', 'wav', 'flac',
             'mp4', 'webm', 'mkv', 'avi', 'mov'  
 
-        ])
+        ], 'single')
 
-        const file = files?.[0]
+        const file = files[0]
 
         let requestFile:File = null
 

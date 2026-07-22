@@ -107,6 +107,9 @@
         </button>
         <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ml-2" onclick={async () => {
             const file = await selectSingleFile(['json'])
+            if(!file){
+                return
+            }
             const fileText = await (new TextDecoder()).decode(file.data)
             try {
                 const json = JSON.parse(fileText)

@@ -40,10 +40,11 @@ export function exportRegex(s?:customscript[]){
 
 export async function importRegex(o?:customscript[]):Promise<customscript[]>{
     o = o ?? []
-    const filedata = (await selectSingleFile(['json'])).data
-    if(!filedata){
+    const selectedFile = await selectSingleFile(['json'])
+    if(!selectedFile){
         return o
     }
+    const filedata = selectedFile.data
     let db = getDatabase()
     try {
         const imported= JSON.parse(Buffer.from(filedata).toString('utf-8'))

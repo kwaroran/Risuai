@@ -6,7 +6,7 @@ import { isTauri } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { decryptBuffer, encryptBuffer, sleep } from "../util";
+import { decryptBuffer, encryptBuffer, selectFileByDom, sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
 import { getColdStorageItem, listColdDataKeys, setColdStorageItem } from "../process/coldstorage.svelte";
@@ -49,9 +49,9 @@ export async function SaveLocalBackup(){
         for (const char of db.characters) {
             if (!char) continue
             const charName = char.name ?? 'Unknown Character'
-            
+
             if (char.image) assetMap.set(char.image, { charName: charName, assetName: 'Main Image' })
-            
+
             if (char.emotionImages) {
                 for (const em of char.emotionImages) {
                     if (em && em[1]) assetMap.set(em[1], { charName: charName, assetName: em[0] })
@@ -425,160 +425,164 @@ export async function SavePartialLocalBackup(){
     }
 }
 
-export function LoadLocalBackup(){
+export async function LoadLocalBackup(selectedFile?: File | null){
     try {
-        const input = document.createElement('input');
-        const encryptionMeta:{
-            type: 'none' | 'account';
-            time?: number;
-        } = {
-            type: 'none'
+        const file = selectedFile === undefined ? (await selectFileByDom(['bin'], 'single'))[0] : selectedFile
+        if(!file){
+            return
         }
-        input.type = 'file';
-        input.accept = '.bin';
-        input.onchange = async () => {
-            if (!input.files || input.files.length === 0) {
-                input.remove();
-                return;
-            }
-            const file = input.files[0];
-            input.remove();
 
-            const reader = file.stream().getReader();
-            const CHUNK_SIZE = 1024 * 1024; // 1MB chunk size
-            let bytesRead = 0;
-            let remainingBuffer = new Uint8Array();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    break;
-                }
-
-                bytesRead += value.length;
-                const progress = ((bytesRead / file.size) * 100).toFixed(2);
-                alertWait(`Loading local Backup... (${progress}%)`);
-
-                const newBuffer = new Uint8Array(remainingBuffer.length + value.length);
-                newBuffer.set(remainingBuffer);
-                newBuffer.set(value, remainingBuffer.length);
-                remainingBuffer = newBuffer;
-
-                let offset = 0;
-                while (offset + 4 <= remainingBuffer.length) {
-                    const nameLength = new Uint32Array(remainingBuffer.slice(offset, offset + 4).buffer)[0];
-
-                    if (offset + 4 + nameLength > remainingBuffer.length) {
-                        break;
-                    }
-                    const nameBuffer = remainingBuffer.slice(offset + 4, offset + 4 + nameLength);
-                    const name = new TextDecoder().decode(nameBuffer);
-
-                    if (offset + 4 + nameLength + 4 > remainingBuffer.length) {
-                        break;
-                    }
-                    const dataLength = new Uint32Array(remainingBuffer.slice(offset + 4 + nameLength, offset + 4 + nameLength + 4).buffer)[0];
-
-                    if (offset + 4 + nameLength + 4 + dataLength > remainingBuffer.length) {
-                        break;
-                    }
-                    const data = remainingBuffer.slice(offset + 4 + nameLength + 4, offset + 4 + nameLength + 4 + dataLength);
-
-                    if( name === 'encryption.risudat') {
-                        try {
-                            const meta = JSON.parse(new TextDecoder().decode(data)) as typeof encryptionMeta
-                            if (meta.type === 'account' && meta.time) {
-                                encryptionMeta.type = 'account'
-                                encryptionMeta.time = meta.time
-                            } else {
-                                alertError('Invalid encryption metadata, will attempt to load database backup without decryption.')
-                            }
-                        } catch (e) {
-                            console.error('Failed to parse encryption metadata:', e)
-                            alertError('Failed to parse encryption metadata, will attempt to load database backup without decryption.')
-                        }
-                    }
-
-                    else if (name === 'database.risudat') {
-                        let db = new Uint8Array(data);
-                        if(encryptionMeta.type === 'account' && encryptionMeta.time){
-                            try {
-                                const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
-                                const decrypted = await decryptBuffer(db, key)
-                                db = new Uint8Array(decrypted)
-                            }
-                            catch (e) {
-                                console.error('Failed to decrypt database backup:', e)
-                                alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
-                            }
-                        }
-                        const dbData = await decodeRisuSave(db);
-                        setDatabaseLite(dbData);
-                        requiresFullEncoderReload.state = true;
-                        if (isTauri) {
-                            await writeFile('database/database.bin', db, { baseDir: BaseDirectory.AppData });
-                            await relaunch();
-                            alertStore.set({
-                                type: "wait",
-                                msg: "Success, Refreshing your app."
-                            });
-                        } else {
-                            await forageStorage.setItem('database/database.bin', db);
-                            location.search = '';
-                            alertStore.set({
-                                type: "wait",
-                                msg: "Success, Refreshing your app."
-                            });
-                        }
-                    }
-                    
-                    else {
-                        const coldStorageKey = getColdStorageBackupKey(name)
-                        let handledAsColdStorage = false
-
-                        if (coldStorageKey && forageStorage.isAccount) {
-                            handledAsColdStorage = true
-                        }
-                        else if (coldStorageKey) {
-                            try {
-                                const text = new TextDecoder().decode(data)
-                                const jsonData = JSON.parse(text)
-
-                                if (isColdStorageBackupData(jsonData)) {
-                                    await setColdStorageItem(coldStorageKey, jsonData)
-                                    handledAsColdStorage = true
-                                } else {
-                                    console.warn(`Skipping invalid cold storage backup item ${name}`)
-                                }
-                            } catch (e) {
-                                console.error(`Failed to parse cold storage item ${coldStorageKey}:`, e)
-                            }
-                        }
-
-                        if (!handledAsColdStorage) {
-                            if (isTauri) {
-                                await writeFile(`assets/` + name, data, { baseDir: BaseDirectory.AppData });
-                            } else {
-                                await forageStorage.setItem('assets/' + name, data);
-                            }
-                        }
-                    }
-                    await sleep(10);
-                    if (forageStorage.isAccount) {
-                        await sleep(1000);
-                    }
-
-                    offset += 4 + nameLength + 4 + dataLength;
-                }
-                remainingBuffer = remainingBuffer.slice(offset);
-            }
-
-            alertNormal('Success');
-        };
-
-        input.click();
+        await loadBackupFromBlob(file)
     } catch (error) {
         console.error(error);
         alertError('Failed, Is file corrupted?')
     }
+}
+
+async function loadBackupFromBlob(file: Blob) {
+    const reader = file.stream().getReader();
+    await loadBackupFromChunks(async () => {
+        const { done, value } = await reader.read();
+        if(done){
+            return null
+        }
+        return value
+    }, file.size)
+}
+
+async function loadBackupFromChunks(readNextChunk: () => Promise<Uint8Array | null>, fileSize: number) {
+    const encryptionMeta:{
+        type: 'none' | 'account';
+        time?: number;
+    } = {
+        type: 'none'
+    }
+    let bytesRead = 0;
+    let remainingBuffer = new Uint8Array();
+
+    while (true) {
+        const value = await readNextChunk();
+        if (!value) {
+            break;
+        }
+
+        bytesRead += value.length;
+        const progress = fileSize > 0 ? ((bytesRead / fileSize) * 100).toFixed(2) : '100.00';
+        alertWait(`Loading local Backup... (${progress}%)`);
+
+        const newBuffer = new Uint8Array(remainingBuffer.length + value.length);
+        newBuffer.set(remainingBuffer);
+        newBuffer.set(value, remainingBuffer.length);
+        remainingBuffer = newBuffer;
+
+        let offset = 0;
+        while (offset + 4 <= remainingBuffer.length) {
+            const nameLength = new Uint32Array(remainingBuffer.slice(offset, offset + 4).buffer)[0];
+
+            if (offset + 4 + nameLength > remainingBuffer.length) {
+                break;
+            }
+            const nameBuffer = remainingBuffer.slice(offset + 4, offset + 4 + nameLength);
+            const name = new TextDecoder().decode(nameBuffer);
+
+            if (offset + 4 + nameLength + 4 > remainingBuffer.length) {
+                break;
+            }
+            const dataLength = new Uint32Array(remainingBuffer.slice(offset + 4 + nameLength, offset + 4 + nameLength + 4).buffer)[0];
+
+            if (offset + 4 + nameLength + 4 + dataLength > remainingBuffer.length) {
+                break;
+            }
+            const data = remainingBuffer.slice(offset + 4 + nameLength + 4, offset + 4 + nameLength + 4 + dataLength);
+
+            if( name === 'encryption.risudat') {
+                try {
+                    const meta = JSON.parse(new TextDecoder().decode(data)) as typeof encryptionMeta
+                    if (meta.type === 'account' && meta.time) {
+                        encryptionMeta.type = 'account'
+                        encryptionMeta.time = meta.time
+                    } else {
+                        alertError('Invalid encryption metadata, will attempt to load database backup without decryption.')
+                    }
+                } catch (e) {
+                    console.error('Failed to parse encryption metadata:', e)
+                    alertError('Failed to parse encryption metadata, will attempt to load database backup without decryption.')
+                }
+            }
+
+            else if (name === 'database.risudat') {
+                let db = new Uint8Array(data);
+                if(encryptionMeta.type === 'account' && encryptionMeta.time){
+                    try {
+                        const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
+                        const decrypted = await decryptBuffer(db, key)
+                        db = new Uint8Array(decrypted)
+                    }
+                    catch (e) {
+                        console.error('Failed to decrypt database backup:', e)
+                        alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
+                    }
+                }
+                const dbData = await decodeRisuSave(db);
+                setDatabaseLite(dbData);
+                requiresFullEncoderReload.state = true;
+                if (isTauri) {
+                    await writeFile('database/database.bin', db, { baseDir: BaseDirectory.AppData });
+                    await relaunch();
+                    alertStore.set({
+                        type: "wait",
+                        msg: "Success, Refreshing your app."
+                    });
+                } else {
+                    await forageStorage.setItem('database/database.bin', db);
+                    location.search = '';
+                    alertStore.set({
+                        type: "wait",
+                        msg: "Success, Refreshing your app."
+                    });
+                }
+            }
+
+            else {
+                const coldStorageKey = getColdStorageBackupKey(name)
+                let handledAsColdStorage = false
+
+                if (coldStorageKey && forageStorage.isAccount) {
+                    handledAsColdStorage = true
+                }
+                else if (coldStorageKey) {
+                    try {
+                        const text = new TextDecoder().decode(data)
+                        const jsonData = JSON.parse(text)
+
+                        if (isColdStorageBackupData(jsonData)) {
+                            await setColdStorageItem(coldStorageKey, jsonData)
+                            handledAsColdStorage = true
+                        } else {
+                            console.warn(`Skipping invalid cold storage backup item ${name}`)
+                        }
+                    } catch (e) {
+                        console.error(`Failed to parse cold storage item ${coldStorageKey}:`, e)
+                    }
+                }
+
+                if (!handledAsColdStorage) {
+                    if (isTauri) {
+                        await writeFile(`assets/` + name, data, { baseDir: BaseDirectory.AppData });
+                    } else {
+                        await forageStorage.setItem('assets/' + name, data);
+                    }
+                }
+            }
+            await sleep(10);
+            if (forageStorage.isAccount) {
+                await sleep(1000);
+            }
+
+            offset += 4 + nameLength + 4 + dataLength;
+        }
+        remainingBuffer = remainingBuffer.slice(offset);
+    }
+
+    alertNormal('Success');
 }

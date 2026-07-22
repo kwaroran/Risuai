@@ -12,6 +12,7 @@
     import { type triggerEffectV2, type triggerEffect, type triggerscript, displayAllowList, requestAllowList, type triggerV2IfAdvanced } from "src/ts/process/triggers";
     import { onDestroy, onMount } from "svelte";
     import { DBState } from "src/ts/stores.svelte";
+    import { selectSingleFile } from "src/ts/util";
 
     interface Props {
         value?: triggerscript[];
@@ -495,43 +496,36 @@
         lastSelectedTriggerIndex = -1
     }
 
-    const importTriggers = () => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = '.json'
-        input.onchange = async (event) => {
-            const file = (event.target as HTMLInputElement)?.files?.[0]
-            if (!file) return
-            
-            try {
-                const text = await file.text()
-                const importedTriggers = JSON.parse(text)
-                
-                if (!Array.isArray(importedTriggers)) {
+    const importTriggers = async () => {
+        const file = await selectSingleFile(['json'])
+        if (!file) return
+
+        try {
+            const text = new TextDecoder().decode(file.data)
+            const importedTriggers = JSON.parse(text)
+
+            if (!Array.isArray(importedTriggers)) {
+                return
+            }
+
+            for (const trigger of importedTriggers) {
+                if (!trigger.hasOwnProperty('comment') ||
+                    !trigger.hasOwnProperty('type') ||
+                    !trigger.hasOwnProperty('conditions') ||
+                    !trigger.hasOwnProperty('effect') ||
+                    !Array.isArray(trigger.conditions) ||
+                    !Array.isArray(trigger.effect)) {
                     return
                 }
-                
-                for (const trigger of importedTriggers) {
-                    if (!trigger.hasOwnProperty('comment') || 
-                        !trigger.hasOwnProperty('type') ||
-                        !trigger.hasOwnProperty('conditions') ||
-                        !trigger.hasOwnProperty('effect') ||
-                        !Array.isArray(trigger.conditions) ||
-                        !Array.isArray(trigger.effect)) {
-                        return
-                    }
-                }
-                
-                for (const trigger of importedTriggers) {
-                    value.push(trigger)
-                }
-                
-            } catch (error) {
-                console.error('Import error:', error)
             }
+
+            for (const trigger of importedTriggers) {
+                value.push(trigger)
+            }
+
+        } catch (error) {
+            console.error('Import error:', error)
         }
-        
-        input.click()
     }
 
     const selectTriggerRange = (startIndex: number, endIndex: number) => {

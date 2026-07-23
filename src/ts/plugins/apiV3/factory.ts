@@ -439,6 +439,7 @@ export class SandboxHost {
 
     private instanceRegistry = new Map<string, any>();
     private abortControllers = new Map<string, AbortController>();
+    private messageHandlerRef: ((event: MessageEvent) => void) | null = null;
     private callbackWrapperCache = new Map<string, Function>();
 
     private pendingCallbacks = new Map<string, { resolve: Function, reject: Function }>();
@@ -886,7 +887,8 @@ export class SandboxHost {
             }
         };
 
-        window.addEventListener('message', messageHandler);
+        this.messageHandlerRef = messageHandler;
+        window.addEventListener('message', this.messageHandlerRef);
 
 
         const html = `
@@ -919,17 +921,15 @@ export class SandboxHost {
         this.iframe.srcdoc = html;
 
         return () => {
-            window.removeEventListener('message', messageHandler);
-            this.iframe.remove();
-            this.closeActiveStreams();
-            this.instanceRegistry.clear();
-            this.pendingCallbacks.clear();
-            this.abortControllers.clear();
-            this.callbackWrapperCache.clear();
+            this.terminate();
         };
     }
 
     public terminate() {
+        if (this.messageHandlerRef) {
+            window.removeEventListener('message', this.messageHandlerRef);
+            this.messageHandlerRef = null;
+        }
         if (this.iframe) {
             this.iframe.remove();
         }

@@ -10,7 +10,7 @@ import { sleep } from "../util"
 import { fetchProtectedResource } from "../sionyw"
 
 export const AccountWarning = writable('')
-const risuSession = Date.now().toFixed(0)
+let risuSession = ''
 const cachedForage = localforage.createInstance({name: "risuaiAccountCached"})
 
 let seenWarnings:string[] = []
@@ -35,6 +35,15 @@ export class AccountStorage{
         while((!da) || da.status === 403){
 
             const saveDate = Date.now().toFixed(0)
+
+            if(risuSession === ''){
+                da = await fetchProtectedResource('/api/account/getsessionnumber', {
+                    method: "GET"
+                })
+
+                const json = await da.json()
+                risuSession = `${json.sessionNumber}`
+            }
 
             da = await fetchProtectedResource('/api/account/write', {
                 method: "POST",

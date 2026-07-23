@@ -21,6 +21,8 @@
         retranslate: boolean
         bodyRoot?: HTMLElement|null
         modelShortName: string
+        renderRawStreaming?: boolean
+        rawStreamingText?: string
     }
 
     let {
@@ -34,6 +36,8 @@
         retranslate = $bindable(false),
         bodyRoot,
         modelShortName = '',
+        renderRawStreaming = false,
+        rawStreamingText = '',
     }: Props =  $props()
 
     // svelte-ignore non_reactive_update
@@ -56,6 +60,8 @@
             }
         }
     }
+
+    let shouldRenderRawStreaming = $derived(renderRawStreaming && !translated && !retranslate)
 
     const markParsing = async (data: string, charArg: string | simpleCharacterArgument, chatID: number, tries?:number) => {
         // track 'translated' and 'retranslate' state
@@ -243,14 +249,21 @@
     let markParsingResult = $derived.by(() => markParsing(msgDisplay, character, idx))
 
     $effect(() => {
+        if(shouldRenderRawStreaming){
+            return
+        }
         markParsingResult
         checkImg()
         markParsingResult.then(checkImg)
     })
 </script>
 
-{#await markParsingResult}
-    {@html addMetadataToElement(trimMarkdown(lastParsed), modelShortName)}
-{:then md}
-    {@html addMetadataToElement(trimMarkdown(md), modelShortName)}
-{/await}
+{#if shouldRenderRawStreaming}
+    <span class="whitespace-pre-wrap">{rawStreamingText}</span>
+{:else}
+    {#await markParsingResult}
+        {@html addMetadataToElement(trimMarkdown(lastParsed), modelShortName)}
+    {:then md}
+        {@html addMetadataToElement(trimMarkdown(md), modelShortName)}
+    {/await}
+{/if}

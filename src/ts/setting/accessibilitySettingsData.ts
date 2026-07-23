@@ -204,6 +204,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['move', 'instead', 'of', 'copy', 'on', 'CMP', 'convert'],
     },
     {
+        id: 'acc.applyAdditionalParamsToAll',
+        type: 'check',
+        labelKey: 'applyAdditionalParamsToAll',
+        bindKey: 'applyAdditionalParamsToAll',
+        keywords: ['apply', 'additional', 'parameters', 'to', 'all', 'models'],
+    },
+    {
         id: 'acc.enableRisuaiProTools',
         type: 'check',
         labelKey: 'enableRisuaiProTools',

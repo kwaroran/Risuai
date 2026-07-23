@@ -47,26 +47,29 @@ export function setObjectValue<T>(obj: T, key: string, value: any): T {
 export function getAdditionalParameters(aiModel?: string): [string, string][] {
     const db = getDatabase()
 
-    const additionalParams: [string, string][] = []
-
-    if (db.additionalParams) {
-        additionalParams.push(...db.additionalParams)
-    }
-
     if (!aiModel) {
-        return additionalParams
+        return []
     }
 
-    if (aiModel.startsWith('xcustom:::')) {
-        const found = db.customModels.find((model) => model.id === aiModel)
-        const params = found?.params
-        if (params) {
-            for (const line of params.split('\n')) {
-                const split = line.split('=')
-                if (split.length >= 2) {
-                    additionalParams.push([split[0], split.slice(1).join('=')])
-                }
-            }
+    if (aiModel === 'reverse_proxy') {
+        return [...(db.additionalParams ?? [])]
+    }
+
+    if (!aiModel.startsWith('xcustom:::')) {
+        return db.applyAdditionalParamsToAll ? [...(db.additionalParams ?? [])] : []
+    }
+
+    const found = db.customModels.find((model) => model.id === aiModel)
+    const params = found?.params
+    if (!params) {
+        return []
+    }
+
+    const additionalParams: [string, string][] = []
+    for (const line of params.split('\n')) {
+        const split = line.split('=')
+        if (split.length >= 2) {
+            additionalParams.push([split[0], split.slice(1).join('=')])
         }
     }
 

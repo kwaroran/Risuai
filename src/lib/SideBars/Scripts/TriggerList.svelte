@@ -86,7 +86,7 @@
     <span class="text-draculared">{language.triggerV1Warning}</span>
 {/if}
 {#if value?.[0]?.effect?.[0]?.type === 'triggerlua'}
-    <TextAreaInput margin="both" autocomplete="off" bind:value={value[0].effect[0].code}></TextAreaInput>
+    <TextAreaInput margin="both" autocomplete="off" bind:value={value[0].effect[0].code} popupLanguage="lua"></TextAreaInput>
     <Button onclick={() => {
         openURL(hubURL + '/redirect/docs/lua')
     }}>{language.helpBlock}</Button>

@@ -55,6 +55,7 @@ export const samplingParameterItems: SettingItem[] = [
         labelKey: 'temperature',
         helpKey: 'tempature',
         bindKey: 'temperature',
+        condition: (ctx) => ctx.modelInfo.parameters.includes('temperature'),
         options: {
             min: 0,
             max: 200,
@@ -133,11 +134,26 @@ export const modelSpecificParameterItems: SettingItem[] = [
         options: {
             segmentOptions: [
                 { value: 'off', label: 'Off' },
-                { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking)  },
+                { value: 'budget', label: 'Budget (Manual Tokens)', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeThinking) },
                 { value: 'adaptive', label: 'Adaptive', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) },
             ]
         },
         keywords: ['thinking', 'type', 'mode', 'adaptive', 'budget'],
+    },
+    {
+        id: 'params.deepseekThinkingType',
+        type: 'segmented',
+        fallbackLabel: 'Thinking Mode',
+        bindKey: 'deepseekThinkingType',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle),
+        options: {
+            segmentOptions: [
+                { value: 'off', label: 'Off' },
+                { value: 'enabled', label: 'Enabled' },
+            ]
+        },
+        keywords: ['thinking', 'type', 'mode', 'deepseek', 'reasoning'],
     },
     {
         id: 'params.thinkingTokens',
@@ -168,10 +184,27 @@ export const modelSpecificParameterItems: SettingItem[] = [
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
                 { value: 'high', label: 'High' },
+                { value: 'xhigh', label: 'XHigh', condition: (ctx) => ctx.modelInfo.flags.includes(LLMFlags.claudeXHighEffort) },
                 { value: 'max', label: 'Max' },
             ]
         },
         keywords: ['adaptive', 'thinking', 'effort'],
+    },
+    {
+        id: 'params.deepseekReasoningEffort',
+        type: 'segmented',
+        fallbackLabel: 'Reasoning Effort',
+        bindKey: 'deepseekReasoningEffort',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle) &&
+            ctx.db.deepseekThinkingType === 'enabled',
+        options: {
+            segmentOptions: [
+                { value: 'high', label: 'High' },
+                { value: 'max', label: 'Max' },
+            ]
+        },
+        keywords: ['deepseek', 'reasoning', 'effort'],
     },
     {
         id: 'params.topK',
@@ -234,31 +267,38 @@ export const modelSpecificParameterItems: SettingItem[] = [
     },
     {
         id: 'params.reasoningEffort',
-        type: 'slider',
+        type: 'segmented',
         fallbackLabel: 'Reasoning Effort',
         bindKey: 'reasoningEffort',
-        condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort'),
+        condition: (ctx) =>
+            ctx.modelInfo.parameters.includes('reasoning_effort') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_none') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_xhigh'),
         options: {
-            min: -1,
-            max: 2,
-            step: 1,
-            fixed: 0,
-            disableable: true,
+            segmentOptions: [
+                { value: -1, label: 'Minimal', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_none') && !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
+                { value: -1, label: 'None', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none') },
+                { value: 0, label: 'Low', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
+                { value: 1, label: 'Medium' },
+                { value: 2, label: 'High' },
+                { value: 3, label: 'XHigh', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_xhigh') },
+            ]
         },
-        keywords: ['reasoning', 'effort'],
+        keywords: ['reasoning', 'effort', 'xhigh'],
     },
     {
         id: 'params.verbosity',
-        type: 'slider',
+        type: 'segmented',
         fallbackLabel: 'Verbosity',
         bindKey: 'verbosity',
         condition: (ctx) => ctx.modelInfo.parameters.includes('verbosity'),
         options: {
-            min: 0,
-            max: 2,
-            step: 1,
-            fixed: 0,
-            disableable: true,
+            segmentOptions: [
+                { value: 0, label: 'Low' },
+                { value: 1, label: 'Medium' },
+                { value: 2, label: 'High' },
+            ]
         },
         keywords: ['verbosity', 'length'],
     },
@@ -275,8 +315,10 @@ export const allBasicParameterItems: SettingItem[] = [
 
     // Model-specific sampling parameters (in user-specified order)
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingType')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.deepseekThinkingType')!,
     modelSpecificParameterItems.find(i => i.id === 'params.thinkingTokens')!,
     modelSpecificParameterItems.find(i => i.id === 'params.adaptiveThinkingEffort')!,
+    modelSpecificParameterItems.find(i => i.id === 'params.deepseekReasoningEffort')!,
     ...samplingParameterItems, // temperature
     modelSpecificParameterItems.find(i => i.id === 'params.topK')!,
     modelSpecificParameterItems.find(i => i.id === 'params.minP')!,

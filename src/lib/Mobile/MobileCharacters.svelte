@@ -7,13 +7,19 @@
     import { MessageSquareIcon, PlusIcon } from "@lucide/svelte";
 
     interface Props {
-        gridMode?: boolean;
         endGrid?: () => void;
+        search?: string;
+        hideTrash?: boolean;
     }
 
     const agoFormatter = new Intl.RelativeTimeFormat(navigator.languages, { style: 'short' });
 
-    let {gridMode = false, endGrid = () => {}}: Props = $props();
+    let {endGrid = () => {}, search, hideTrash = false}: Props = $props();
+    let normalizedSearch = $derived(normalizeSearch(search ?? $MobileSearch));
+
+    function normalizeSearch(value:string){
+        return value.replace(/ /g,"").toLocaleLowerCase();
+    }
 
     function makeAgoText(time:number){
         if(time === 0){
@@ -45,7 +51,9 @@
     }
 
     function sortChar(char: (character|groupChat)[]) {
-        return char.map((c, i) => {
+        return char.map((c, i) => ({ c, i })).filter(({ c }) => {
+            return !hideTrash || !c.trashTime;
+        }).map(({ c, i }) => {
             return {
                 name: c.name || "Unnamed",
                 image: c.image,
@@ -64,7 +72,7 @@
 </script>
 <div class="flex flex-col items-center w-full overflow-y-auto h-full">
     {#each sortChar(DBState.db.characters) as char, i}
-        {#if char.name.toLocaleLowerCase().includes($MobileSearch.toLocaleLowerCase())}
+        {#if normalizeSearch(char.name).includes(normalizedSearch)}
             <button class="flex p-2 border-t-darkborderc gap-2 w-full" class:border-t={i !== 0} onclick={() => {
                 changeChar(char.i)
                 endGrid()
@@ -84,10 +92,8 @@
     {/each}
 </div>
 
-{#if gridMode}
-    <button class="p-4 rounded-full absolute bottom-2 right-2 bg-borderc" onclick={() => {
-        addCharacter()
-    }}>
-        <PlusIcon size={24} />
-    </button>
-{/if}
+<button class="p-4 rounded-full absolute bottom-2 right-2 bg-borderc" onclick={() => {
+    addCharacter()
+}}>
+    <PlusIcon size={24} />
+</button>

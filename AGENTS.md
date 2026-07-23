@@ -142,6 +142,18 @@ Key stores:
 - `loadedStore`, `alertStore` - Application state
 - `DynamicGUI` - Responsive layout switching
 
+### Styling & Theming
+
+To ensure dynamic theme support across the app, always use the project's custom theme colors defined in `src/styles.css` when styling components with Tailwind CSS. If you need to check how these colors are dynamically managed or view available presets (like dark, light, cherry, etc.), reference `src/ts/gui/colorscheme.ts`. Only inspect this file when specifically working on theme-related logic.
+
+Available custom theme colors include:
+- `textcolor`, `textcolor2`
+- `bgcolor`, `darkbg`, `darkbutton`, `selected`
+- `borderc`, `darkborderc`
+- `draculared`
+
+You can safely apply Tailwind's opacity modifiers directly to these custom theme colors (e.g., `text-textcolor/90`, `bg-textcolor/5`, `border-textcolor/10`).
+
 ### File Naming Conventions
 
 - `.svelte.ts` - Svelte 5 files with runes
@@ -188,6 +200,7 @@ See `plugins.md` for comprehensive plugin development guide.
 - Multiple UI modes: Classic, WaifuLike, WaifuCut
 - Dynamic GUI switching based on viewport
 - No traditional router; uses conditional rendering in App.svelte
+- In-app drag-and-drop uses custom MIME types to avoid conflicting with file imports; see `src/ts/dragTypes.ts`
 
 ## Supported AI Providers
 

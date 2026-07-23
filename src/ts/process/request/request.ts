@@ -1,6 +1,6 @@
 import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
-import { globalFetch } from "../../globalApi.svelte";
+import { fetchNative, globalFetch } from "../../globalApi.svelte";
 import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
 import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
@@ -19,7 +19,7 @@ import { runTrigger } from "../triggers";
 import { requestClaude } from './anthropic';
 import { requestGoogleCloudVertex } from './google';
 import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI/requests";
-import { applyParameters, type ModelModeExtended } from './shared';
+import { applyAdditionalParameters, applyParameters, getAdditionalParameters, type ModelModeExtended } from './shared';
 
 export type ToolCall = {
     name: string;
@@ -91,6 +91,116 @@ export type requestDataResponse = {
 }
 
 export interface StreamResponseChunk{[key:string]:string}
+
+type OllamaThinkMode = boolean | 'low' | 'medium' | 'high'
+
+function getOllamaThinkMode(mode: string): OllamaThinkMode | undefined {
+    switch (mode) {
+        case 'off':
+            return false
+        case 'on':
+            return true
+        case 'low':
+        case 'medium':
+        case 'high':
+            return mode
+        default:
+            return undefined
+    }
+}
+
+function formatThinkingOutput(thinking: string, content: string): string {
+    return thinking ? `<Thoughts>\n${thinking}\n</Thoughts>\n\n${content}` : content
+}
+
+function normalizeFetchHeaders(headers?: HeadersInit): { [key: string]: string } {
+    if (!headers) {
+        return {}
+    }
+    if (headers instanceof Headers) {
+        return Object.fromEntries(headers.entries())
+    }
+    if (Array.isArray(headers)) {
+        return Object.fromEntries(headers)
+    }
+    return headers as { [key: string]: string }
+}
+
+async function ollamaCloudFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    const url = input instanceof Request ? input.url : input.toString()
+    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')) as 'POST' | 'GET' | 'PUT' | 'DELETE'
+    const headers = normalizeFetchHeaders(init.headers ?? (input instanceof Request ? input.headers : undefined))
+    const body = init.body ?? (input instanceof Request ? await input.arrayBuffer() : undefined)
+
+    const response = await fetchNative(url, {
+        body: body as string | Uint8Array | ArrayBuffer | undefined,
+        headers,
+        method,
+        signal: init.signal as AbortSignal,
+        interceptor: 'ollama_sdk',
+    })
+
+    return normalizeOllamaStreamResponse(response)
+}
+
+function normalizeOllamaStreamResponse(response: Response): Response {
+    if (!response.body) {
+        return response
+    }
+
+    const decoder = new TextDecoder()
+    const encoder = new TextEncoder()
+    let depth = 0
+    let inString = false
+    let escaped = false
+
+    const stream = response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+            let out = ''
+            const text = decoder.decode(chunk, { stream: true })
+
+            for (const char of text) {
+                out += char
+
+                if (escaped) {
+                    escaped = false
+                    continue
+                }
+                if (char === '\\' && inString) {
+                    escaped = true
+                    continue
+                }
+                if (char === '"') {
+                    inString = !inString
+                    continue
+                }
+                if (inString) {
+                    continue
+                }
+                if (char === '{') {
+                    depth++
+                    continue
+                }
+                if (char === '}') {
+                    depth = Math.max(0, depth - 1)
+                    if (depth === 0) {
+                        out += '\n'
+                    }
+                }
+            }
+
+            if (out) {
+                controller.enqueue(encoder.encode(out))
+            }
+        }
+    }))
+
+    return new Response(stream, {
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText,
+    })
+}
 
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
@@ -203,10 +313,11 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
             }
     
             if(da.type !== 'fail' || da.noRetry){
-                return {
+                const usedModel = fallBackModels[fallbackIndex] || da.model
+                return usedModel ? {
                     ...da,
-                    model: fallBackModels[fallbackIndex]
-                }
+                    model: usedModel
+                } : da
             }
     
             if(da.failByServerError){
@@ -218,7 +329,8 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
             
             trys += 1
             if(trys > db.requestRetrys){
-                if(fallbackIndex === fallBackModels.length-1 || da.model === 'custom'){
+                const isPluginModel = da.model === 'custom' || da.model?.startsWith('pluginmodel:::')
+                if(fallbackIndex === fallBackModels.length-1 || isPluginModel){
                     return da
                 }
                 break
@@ -256,7 +368,7 @@ export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
         for(let i=0;i<formated.length;i++){
             if(formated[i].role === 'system'){
                 formated[i].content = db.systemContentReplacement ? db.systemContentReplacement.replace('{{slot}}', formated[i].content) : `system: ${formated[i].content}`
-                formated[i].role = db.systemRoleReplacement
+                formated[i].role = db.systemRoleReplacement || 'user'
             }
         }
     }
@@ -372,7 +484,14 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     switch(format){
         case LLMFormat.OpenAICompatible:
         case LLMFormat.Mistral:
+        case LLMFormat.NanoGPT:
             return requestOpenAI(targ)
+        case LLMFormat.NanoGPTResponses:
+            return requestOpenAIResponseAPI(targ)
+        case LLMFormat.NanoGPTMessages:
+            return requestClaude(targ)
+        case LLMFormat.NanoGPTLegacy:
+            return requestOpenAILegacyInstruct(targ)
         case LLMFormat.OpenAILegacyInstruct:
             return requestOpenAILegacyInstruct(targ)
         case LLMFormat.NovelAI:
@@ -497,17 +616,21 @@ async function requestNovelAI(arg:RequestDataArgumentExtended):Promise<requestDa
     
 
       
-    const body = {
+    let body = {
         "input": prompt,
         "model": aiModel === 'novelai_kayra' ? 'kayra-v1' : 'clio-v1',
         "parameters":payload
     }
 
+    let headers = {
+        "Authorization": "Bearer " + (arg.key ?? db.novelai.token)
+    }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
+
     const da = await globalFetch(aiModel === 'novelai_kayra' ? "https://text.novelai.net/ai/generate" : "https://api.novelai.net/ai/generate", {
         body: body,
-        headers: {
-            "Authorization": "Bearer " + (arg.key ?? db.novelai.token)
-        },
+        headers: headers,
         abortSignal,
         chatId: arg.chatId,
     })
@@ -567,9 +690,11 @@ async function requestOobaLegacy(arg:RequestDataArgumentExtended):Promise<reques
         prompt: prompt
     }
 
-    const headers = (aiModel === 'textgen_webui') ? {} : {
+    let headers: Record<string, string> = (aiModel === 'textgen_webui') ? {} : {
         'X-API-KEY': db.mancerHeader
     }
+
+    bodyTemplate = applyAdditionalParameters(bodyTemplate, headers, getAdditionalParameters(aiModel))
 
     if(arg.previewBody){
         return {
@@ -640,7 +765,7 @@ async function requestOobaLegacy(arg:RequestDataArgumentExtended):Promise<reques
     const dat = res.data as any
     if(res.ok){
         try {
-            let result:string = dat.results[0].text
+            let result:string = dat.results[0].text ?? ''
 
             return {
                 type: 'success',
@@ -700,19 +825,23 @@ async function requestOoba(arg:RequestDataArgumentExtended):Promise<requestDataR
         }
     }
 
+    let headers: Record<string, string> = {}
+    bodyTemplate = applyAdditionalParameters(bodyTemplate, headers, getAdditionalParameters(aiModel))
+
     if(arg.previewBody){
         return {
             type: 'success',
             result: JSON.stringify({
                 url: urlStr,
                 body: bodyTemplate,
-                headers: {}
+                headers: headers
             })      
         }
     }
 
     const response = await globalFetch(urlStr, {
         body: bodyTemplate,
+        headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal
     })
@@ -723,7 +852,7 @@ async function requestOoba(arg:RequestDataArgumentExtended):Promise<requestDataR
             result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
         }
     }
-    const text:string = response.data.choices[0].text
+    const text:string = response.data.choices[0].text ?? ''
     return {
         type: 'success',
         result: text.replace(/##\n/g, '')
@@ -733,11 +862,13 @@ async function requestOoba(arg:RequestDataArgumentExtended):Promise<requestDataR
 
 async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDataResponse> {
     const db = getDatabase()
+    const isV3Model = arg.aiModel.startsWith('pluginmodel:::')
+    const responseModel = isV3Model ? arg.aiModel : 'custom'
     try {
         const formated = arg.formated
         const maxTokens = arg.maxTokens
         const bias = arg.biasString
-        const model = arg.aiModel.startsWith('pluginmodel:::') ? arg.aiModel.replace('pluginmodel:::', '') : db.currentPluginProvider
+        const model = isV3Model ? arg.aiModel.replace('pluginmodel:::', '') : db.currentPluginProvider
         const v2Function = pluginV2.providers.get(model)
 
         if(arg.previewBody){
@@ -771,14 +902,14 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
             return {
                 type: 'fail',
                 result: (language.errors.unknownModel),
-                model: 'custom'
+                model: responseModel
             }
         }
         else if(!d.success){
             return {
                 type: 'fail',
                 result: d.content instanceof ReadableStream ? await (new Response(d.content)).text() : d.content,
-                model: 'custom'
+                model: responseModel
             }
         }
         else if(d.content instanceof ReadableStream){
@@ -796,14 +927,14 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
             return {
                 type: 'streaming',
                 result: d.content.pipeThrough(piper),
-                model: 'custom'
+                model: responseModel
             }
         }
         else{
             return {
                 type: 'success',
-                result: d.content,
-                model: 'custom'
+                result: d.content ?? '',
+                model: responseModel
             }
         }   
     } catch (error) {
@@ -811,7 +942,7 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
         return {
             type: 'fail',
             result: `Plugin Error from ${db.currentPluginProvider}: ` + JSON.stringify(error),
-            model: 'custom'
+            model: responseModel
         }
     }
 }
@@ -843,7 +974,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
         url.pathname = 'api/v1/generate'
     }
 
-    const body = applyParameters({
+    let body = applyParameters({
         "prompt": prompt,
         max_length: maxTokens,
         max_context_length: db.maxContext,
@@ -860,13 +991,19 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
         modelId: arg.aiModel
     }) as KoboldGenerationInputSchema
 
+    let headers: Record<string, string> = {
+        "content-type": "application/json",
+    }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel)) as KoboldGenerationInputSchema
+
     if(arg.previewBody){
         return {
             type: 'success',
             result: JSON.stringify({
                 url: url.toString(),
                 body: body,
-                headers: {}
+                headers: headers
             })      
         }
     }
@@ -874,9 +1011,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
     const da = await globalFetch(url.toString(), {
         method: "POST",
         body: body,
-        headers: {
-            "content-type": "application/json",
-        },
+        headers: headers,
         abortSignal,
         chatId: arg.chatId
     })
@@ -884,7 +1019,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
     if(!da.ok){
         return {
             type: "fail",
-            result: da.data,
+            result: (typeof da.data === 'string') ? da.data : JSON.stringify(da.data),
             noRetry: true
         }
     }
@@ -914,12 +1049,13 @@ async function requestNovelList(arg:RequestDataArgumentExtended):Promise<request
         logit_bias.push(bia[0])
         logit_bias_values.push(bia[1].toString())
     }
-    const headers = {
+
+    let headers: Record<string, string> = {
         'Authorization': `Bearer ${auth_key}`,
         'Content-Type': 'application/json'
     };
     
-    const send_body = {
+    let send_body: Record<string, any> = {
         text: stringlizeAINChat(formated, currentChar?.name ?? '', arg.continue),
         length: maxTokens,
         temperature: temperature,
@@ -937,6 +1073,7 @@ async function requestNovelList(arg:RequestDataArgumentExtended):Promise<request
         logit_bias_values: (logit_bias_values.length > 0) ? logit_bias_values.join("|") : undefined,
     };
 
+    send_body = applyAdditionalParameters(send_body, headers, getAdditionalParameters(arg.aiModel))
 
     if(arg.previewBody){
         return {
@@ -981,19 +1118,37 @@ async function requestNovelList(arg:RequestDataArgumentExtended):Promise<request
 async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDataResponse> {
     const formated = arg.formated
     const db = getDatabase()
+    const isCloud = arg.aiModel === 'ollama-cloud'
+    const requestFormat = isCloud ? db.ollamaRequestFormat : LLMFormat.Ollama
+    const ollamaModel = isCloud ? db.ollamaCloudModel : db.ollamaModel
+    const ollamaThinkMode = getOllamaThinkMode(db.ollamaThinkingMode)
 
-    if(arg.previewBody){
-        return {
-            type: 'success',
-            result: JSON.stringify({
-                error: "Preview body is not supported for Ollama"
-            })
-        }
+    if(isCloud && requestFormat === LLMFormat.OpenAICompatible){
+        arg.customURL = 'https://ollama.com/v1/chat/completions'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo.internalID = ollamaModel
+        return requestOpenAI(arg)
     }
 
-    const ollama = new Ollama({host: db.ollamaURL})
+    if(isCloud && requestFormat === LLMFormat.OpenAIResponseAPI){
+        arg.customURL = 'https://ollama.com/v1/responses'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo.internalID = ollamaModel
+        return requestOpenAIResponseAPI(arg)
+    }
 
-    const messages = []
+    if(isCloud && requestFormat === LLMFormat.Anthropic){
+        arg.customURL = 'https://ollama.com/v1/messages'
+        arg.key = db.ollamaApiKey
+        arg.modelInfo = {
+            ...arg.modelInfo,
+            internalID: ollamaModel,
+            parameters: ['temperature', 'top_k', 'top_p']
+        }
+        return requestClaude(arg)
+    }
+
+    const messages: any[] = []
     for (const v of formated) {
         if (v.role === 'assistant' || v.role === 'user' || v.role === 'system') {
             messages.push({
@@ -1003,17 +1158,62 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
         }
     }
 
-    const response = await ollama.chat({
-        model: db.ollamaModel,
+    let customHeaders: Record<string, string> = isCloud && db.ollamaApiKey ? { Authorization: 'Bearer ' + db.ollamaApiKey } : {}
+
+    let requestBody: any = {
+        model: ollamaModel,
         messages: messages,
-        stream: true
+        stream: arg.useStreaming,
+        think: ollamaThinkMode
+    }
+
+    requestBody = applyAdditionalParameters(requestBody, customHeaders, getAdditionalParameters(arg.aiModel))
+
+    if(arg.previewBody){
+        return {
+            type: 'success',
+            result: JSON.stringify({
+                url: isCloud ? 'https://ollama.com/api/chat' : `${db.ollamaURL}/api/chat`,
+                model: ollamaModel,
+                source: db.ollamaModelSource,
+                stream: arg.useStreaming,
+                think: ollamaThinkMode,
+                headers: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
+                body: requestBody
+            })
+        }
+    }
+
+    const ollama = new Ollama({
+        host: isCloud ? 'https://ollama.com' : db.ollamaURL,
+        headers: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
+        fetch: isCloud ? ollamaCloudFetch : undefined
     })
+
+    if(!arg.useStreaming){
+        requestBody.stream = false
+        const response: any = await ollama.chat(requestBody)
+
+        const result = formatThinkingOutput(response.message?.thinking ?? '', response.message?.content ?? '')
+        return {
+            type: 'success',
+            result: unstringlizeChat(result, formated, arg.currentChar?.name ?? ''),
+            model: arg.aiModel
+        }
+    }
+
+    requestBody.stream = true
+    const response: any = await ollama.chat(requestBody)
 
     const readableStream = new ReadableStream<StreamResponseChunk>({
         async start(controller){
+            let content = ''
+            let thinking = ''
             for await(const chunk of response){
+                thinking += chunk.message?.thinking ?? ''
+                content += chunk.message?.content ?? ''
                 controller.enqueue({
-                    "0": chunk.message.content
+                    "0": formatThinkingOutput(thinking, content)
                 })
             }
             controller.close()
@@ -1022,7 +1222,8 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     return {
         type: 'streaming',
-        result: readableStream
+        result: readableStream,
+        model: arg.aiModel
     }
 }
 
@@ -1107,6 +1308,12 @@ async function requestCohere(arg:RequestDataArgumentExtended):Promise<requestDat
         }
     }
 
+    let headers: Record<string, string> = {
+        "Authorization": "Bearer " + (arg.key ?? db.cohereAPIKey),
+        "Content-Type": "application/json"
+    }
+
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(arg.aiModel))
     console.log(body)
 
     if(arg.previewBody){
@@ -1115,20 +1322,14 @@ async function requestCohere(arg:RequestDataArgumentExtended):Promise<requestDat
             result: JSON.stringify({
                 url: arg.customURL ?? 'https://api.cohere.com/v1/chat',
                 body: body,
-                headers: {
-                    "Authorization": "Bearer " + (arg.key ?? db.cohereAPIKey),
-                    "Content-Type": "application/json"
-                }
+                headers: headers
             })
         }
     }
 
     const res = await globalFetch(arg.customURL ?? 'https://api.cohere.com/v1/chat', {
         method: "POST",
-        headers: {
-            "Authorization": "Bearer " + (arg.key ?? db.cohereAPIKey),
-            "Content-Type": "application/json"
-        },
+        headers: headers,
         body: body,
         abortSignal: arg.abortSignal
     })
@@ -1203,13 +1404,17 @@ async function requestHorde(arg:RequestDataArgumentExtended):Promise<requestData
         apiKey = db.hordeConfig.apiKey
     }
 
+    let headers: Record<string, string> = {
+        "content-type": "application/json",
+        "apikey": apiKey
+    }
+
+    let finalBody = applyAdditionalParameters(argument, headers, getAdditionalParameters(arg.aiModel))
+
     const da = await fetch("https://stablehorde.net/api/v2/generate/text/async", {
-        body: JSON.stringify(argument),
+        body: JSON.stringify(finalBody),
         method: "POST",
-        headers: {
-            "content-type": "application/json",
-            "apikey": apiKey
-        },
+        headers: headers,
         signal: abortSignal
     })
 
@@ -1249,7 +1454,7 @@ async function requestHorde(arg:RequestDataArgumentExtended):Promise<requestData
             if(generations && generations.length > 0){
                 return {
                     type: "success",
-                    result: unstringlizeChat(generations[0].text, formated, currentChar?.name ?? '')
+                    result: unstringlizeChat(generations[0].text ?? '', formated, currentChar?.name ?? '')
                 }
             }
             return {
@@ -1279,17 +1484,21 @@ async function requestWebLLM(arg:RequestDataArgumentExtended):Promise<requestDat
             })
         }
     }
-    const v = await runTransformers(prompt, realModel, {
+    const transformersParams = {
         temperature: temperature,
         max_new_tokens: maxTokens,
         top_k: db.ooba.top_k,
         top_p: db.ooba.top_p,
         repetition_penalty: db.ooba.repetition_penalty,
         typical_p: db.ooba.typical_p,
-    } as any)
+    } as any
+
+    const finalParams = applyAdditionalParameters(transformersParams, {}, getAdditionalParameters(arg.aiModel))
+
+    const v = await runTransformers(prompt, realModel, finalParams)
     return {
         type: 'success',
-        result: unstringlizeChat(v.generated_text as string, formated, currentChar?.name ?? '')
+        result: unstringlizeChat((v.generated_text as string) ?? '', formated, currentChar?.name ?? '')
     }
 }
 

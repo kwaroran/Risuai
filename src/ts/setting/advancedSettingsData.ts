@@ -94,6 +94,16 @@ export const advancedSettingsItems: SettingItem[] = [
         }
     },
 
+    // Chat Loading
+    {
+        id: 'adv.chatLoadInitial', type: 'number', labelKey: 'chatLoadInitialPages', bindKey: 'chatLoadInitialPages',
+        helpKey: 'chatLoadInitialPages', classes: 'mt-4', options: { min: 1 }
+    },
+    {
+        id: 'adv.chatLoadAdditional', type: 'number', labelKey: 'chatLoadAdditionalPages', bindKey: 'chatLoadAdditionalPages',
+        helpKey: 'chatLoadAdditionalPages', options: { min: 1 }
+    },
+
     // Request Location (Non-Node/Tauri)
     {
         id: 'adv.reqLoc', type: 'segmented', labelKey: 'requestLocation', bindKey: 'requestLocation',
@@ -112,7 +122,6 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.showUnrec', type: 'check', labelKey: 'showUnrecommended', bindKey: 'showUnrecommended', helpKey: 'showUnrecommended', classes: 'mt-4' },
     { id: 'adv.imgComp', type: 'check', labelKey: 'imageCompression', bindKey: 'imageCompression', helpKey: 'imageCompression', classes: 'mt-4' },
     { id: 'adv.useExp', type: 'check', labelKey: 'useExperimental', bindKey: 'useExperimental', helpKey: 'useExperimental', classes: 'mt-4' },
-    { id: 'adv.sourceMap', type: 'check', labelKey: 'sourcemapTranslate', bindKey: 'sourcemapTranslate', helpKey: 'sourcemapTranslate', classes: 'mt-4' },
     { id: 'adv.forceProxy', type: 'check', labelKey: 'forceProxyAsOpenAI', bindKey: 'forceProxyAsOpenAI', helpKey: 'forceProxyAsOpenAI', classes: 'mt-4' },
     { id: 'adv.legacyMedia', type: 'check', labelKey: 'legacyMediaFindings', bindKey: 'legacyMediaFindings', helpKey: 'legacyMediaFindings', classes: 'mt-4' },
     { id: 'adv.autoFill', type: 'check', labelKey: 'autoFillRequestURL', bindKey: 'autofillRequestUrl', helpKey: 'autoFillRequestURL', classes: 'mt-4' },
@@ -133,12 +142,31 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     { id: 'adv.autoCont', type: 'check', labelKey: 'autoContinueChat', bindKey: 'autoContinueChat', helpKey: 'autoContinueChat', classes: 'mt-4' },
     { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', classes: 'mt-4' },
+    {
+        id: 'adv.streamingDisplayOpt',
+        type: 'segmented',
+        labelKey: 'streamingDisplayOptimizationMode',
+        bindKey: 'streamingDisplayOptimizationMode',
+        helpKey: 'streamingDisplayOptimizationMode',
+        condition: (ctx) => ctx.db.useExperimental,
+        showExperimental: true,
+        classes: 'mt-4',
+        options: {
+            segmentOptions: [
+                { value: 'off', labelKey: 'streamingDisplayOptimizationOff' },
+                { value: 'balanced', labelKey: 'streamingDisplayOptimizationBalanced' },
+                { value: 'strong', labelKey: 'streamingDisplayOptimizationStrong' }
+            ]
+        }
+    },
     { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', classes: 'mt-4' },
     { id: 'adv.noWaitTrans', type: 'check', labelKey: 'noWaitForTranslate', bindKey: 'noWaitForTranslate', classes: 'mt-4' },
     { id: 'adv.newImgBeta', type: 'check', labelKey: 'newImageHandlingBeta', bindKey: 'newImageHandlingBeta', classes: 'mt-4' },
     { id: 'adv.allowExt', type: 'check', fallbackLabel: 'Allow all in file select', bindKey: 'allowAllExtentionFiles', classes: 'mt-4' },
     { id: 'adv.dynamicModelRegistry', type: 'check', labelKey: 'dynamicModelRegistry', bindKey: 'dynamicModelRegistry', classes: 'mt-4' },
     { id: 'adv.disableSeperateParameterChangeOnPresetChange', type: 'check', labelKey: 'disableSeperateParameterChangeOnPresetChange', bindKey: 'disableSeperateParameterChangeOnPresetChange', classes: 'mt-4' },
+    { id: 'adv.coldstorage', type: 'check', labelKey: 'coldStorage', bindKey: 'coldstorage', classes: 'mt-4', helpKey: 'coldstorage' },
+
     // Experimental Section (visible when useExperimental is true)
     {
         id: 'adv.exp.googleToken', type: 'check', labelKey: 'googleCloudTokenization', bindKey: 'googleClaudeTokenizing',
@@ -147,10 +175,6 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.exp.cachePoint', type: 'check', labelKey: 'automaticCachePoint', bindKey: 'automaticCachePoint',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
-    },
-    {
-        id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
     },
     // Unrecommended Section
     {
@@ -175,15 +199,13 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.remoteSave', type: 'check', labelKey: 'enableRemoteSaving', bindKey: 'enableRemoteSaving',
     },
-    {
-        id: 'adv.disableAprilFools', type: 'check', labelKey: 'disableAprilFools', bindKey: 'disableAprilFools',
-    },
 
     // Dynamic Assets & Others
     { id: 'adv.dynAssets', type: 'check', labelKey: 'dynamicAssets', bindKey: 'dynamicAssets', helpKey: 'dynamicAssets', classes: 'mt-4' },
     { id: 'adv.realmOpen', type: 'check', labelKey: 'realmDirectOpen', bindKey: 'realmDirectOpen', helpKey: 'realmDirectOpen', classes: 'mt-4' },
     { id: 'adv.cssErr', type: 'check', labelKey: 'returnCSSError', bindKey: 'returnCSSError', classes: 'mt-4' },
     { id: 'adv.antiOverload', type: 'check', labelKey: 'antiServerOverload', bindKey: 'antiServerOverloads', classes: 'mt-4' },
+    { id: 'adv.openAIFlex', type: 'check', labelKey: 'openAIFlexProcessing', bindKey: 'openAIFlexProcessing', helpKey: 'openAIFlexProcessing', showExperimental: true, classes: 'mt-4' },
     { id: 'adv.claudeCache', type: 'check', labelKey: 'claude1HourCaching', bindKey: 'claude1HourCaching', classes: 'mt-4' },
     { id: 'adv.claudeBatch', type: 'check', labelKey: 'claudeBatching', bindKey: 'claudeBatching', showExperimental: true, classes: 'mt-4' },
     { id: 'adv.personaNote', type: 'check', labelKey: 'personaNote', bindKey: 'personaNote', showExperimental: true, classes: 'mt-4' },
@@ -223,6 +245,10 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     {
         id: 'adv.depTrig', type: 'check', labelKey: 'showDeprecatedTriggerV1', bindKey: 'showDeprecatedTriggerV1',
+        condition: (ctx) => ctx.db.showUnrecommended, helpKey: 'unrecommended', helpUnrecommended: true, classes: 'mt-4'
+    },
+    {
+        id: 'adv.skipSavingAssetsOnWebSync', type: 'check', labelKey: 'skipSavingAssetsOnWebSync', bindKey: 'skipSavingAssetsOnWebSync',
         condition: (ctx) => ctx.db.showUnrecommended, helpKey: 'unrecommended', helpUnrecommended: true, classes: 'mt-4'
     },
 

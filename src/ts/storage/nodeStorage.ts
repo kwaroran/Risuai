@@ -124,12 +124,12 @@ export class NodeStorage{
         }
         return data.content
     }
-    async removeItem(key:string){
+    async removeItem(key:string|string[]){
         await this.checkAuth()
         const da = await fetch('/api/remove', {
             method: "GET",
             headers: {
-                'file-path': Buffer.from(key, 'utf-8').toString('hex'),
+                'file-path': Buffer.from(Array.isArray(key) ? key.join('$$') : key, 'utf-8').toString('hex'),
                 'risu-auth': await this.createAuth()
             }
         })

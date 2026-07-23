@@ -1,16 +1,17 @@
 <script lang="ts">
     import { getModuleToggles } from "src/ts/process/modules";
-    import { DBState, MobileGUI } from "src/ts/stores.svelte";
+    import { DBState, MobileGUI, selectedCharID } from "src/ts/stores.svelte";
     import { parseToggleSyntax, type sidebarToggle, type sidebarToggleGroup } from "src/ts/util";
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
-    import type { character, groupChat } from "src/ts/storage/database.svelte";
+    import { getCurrentCharacter, type character, type groupChat } from "src/ts/storage/database.svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
     import TextInput from "../UI/GUI/TextInput.svelte";
+    import CustomSideBar from "./CustomSidebar.svelte";
 
     interface Props {
         chara?: character|groupChat
@@ -50,8 +51,20 @@
         return templateUsesJailbreakToggle(template)
     })
 
+    let charToggle = $state((DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle)
+    $effect(() => {
+        const charToggleTemp = (DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle
+        if(charToggleTemp !== charToggle) {
+            charToggle = charToggleTemp
+        }
+    })
+
     let groupedToggles = $derived.by(() => {
-        const ungrouped = parseToggleSyntax(DBState.db.customPromptTemplateToggle + getModuleToggles())
+        const ungrouped = parseToggleSyntax(
+            DBState.db.customPromptTemplateToggle + '\n' +
+            getModuleToggles() + '\n' +
+            charToggle
+        )
 
         let groupOpen = false
         // group toggles together between group ... groupEnd
@@ -124,11 +137,14 @@
 
 {#if !noContainer && groupedToggles.length > 4}
     <div class="h-48 border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2 overflow-y-auto">
+        <CustomSideBar />
+
         {#if hasJailbreakPrompt}
             <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
                 <CheckInput bind:check={DBState.db.jailbreakToggle} name={language.jailbreakToggle} reverse />
             </div>
         {/if}
+
         {@render toggles(groupedToggles, true)}
         {#if chara && (DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypaV3)}
             <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
@@ -137,6 +153,8 @@
         {/if}
     </div>
 {:else}
+    <CustomSideBar />
+
     {#if hasJailbreakPrompt}
         <div class="flex mt-2 items-center">
             <CheckInput bind:check={DBState.db.jailbreakToggle} name={language.jailbreakToggle}/>

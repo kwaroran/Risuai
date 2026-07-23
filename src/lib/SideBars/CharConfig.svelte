@@ -1,7 +1,7 @@
 <script lang="ts">
     import { language } from "../../lang";
     import { tokenizeAccurate } from "../../ts/tokenizer";
-    import { saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
+    import { getCurrentCharacter, saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { untrack } from 'svelte';
     import { CharConfigSubMenu, MobileGUI, ShowRealmFrameStore, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
@@ -9,7 +9,7 @@
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, makeGroupImage, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
-    import { alertTOS, showHypaV2Alert } from "../../ts/alert";
+    import { alertNormal, alertTOS, showHypaV2Alert } from "../../ts/alert";
     import BarIcon from "./BarIcon.svelte";
     import { findCharacterbyId, getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
@@ -33,6 +33,7 @@
     import { exportRegex, importRegex } from "src/ts/process/scripts";
     import SliderInput from "../UI/GUI/SliderInput.svelte";
     import Toggles from "./Toggles.svelte";
+    import { convertCharacterToModule } from "src/ts/interchangeability";
 
     let iconRemoveMode = $state(false)
     let viewSubMenu = $state(0)
@@ -160,6 +161,15 @@
                 },
                 chunk_length: 200,
                 normalize: false,
+            };
+        }
+    });
+
+    $effect.pre(() => {
+        if (DBState.db.characters[$selectedCharID].ttsMode === 'openai' && (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig === undefined) {
+            (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig = {
+                enabled: false,
+                format: 'mp3',
             };
         }
     });
@@ -847,12 +857,50 @@
                 <OptionInput value="v2">v2</OptionInput>
             </SelectInput>
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'openai'}
-            <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].oaiVoice}>
-                <OptionInput value="">Unset</OptionInput>
-                {#each oaiVoices as voice}
-                    <OptionInput value={voice}>{voice}</OptionInput>
-                {/each}
-            </SelectInput>
+            <span class="text-textcolor">Voice</span>
+            {#if !DBState.db.characters[$selectedCharID].oaiTTSConfig?.enabled}
+                <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].oaiVoice}>
+                    <OptionInput value="">Unset</OptionInput>
+                    {#each oaiVoices as voice}
+                        <OptionInput value={voice}>{voice}</OptionInput>
+                    {/each}
+                </SelectInput>
+            {:else}
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.voice}
+                    placeholder={DBState.db.characters[$selectedCharID].oaiVoice || 'alloy'} />
+            {/if}
+
+            <span class="text-textcolor">Advanced (OpenAI-compatible endpoint)</span>
+            <Check bind:check={DBState.db.characters[$selectedCharID].oaiTTSConfig.enabled} />
+
+            {#if DBState.db.characters[$selectedCharID].oaiTTSConfig?.enabled}
+                <span class="text-textcolor">Base URL</span>
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.baseURL}
+                    placeholder="https://api.openai.com/v1" />
+
+                <span class="text-textcolor">API Key (overrides global)</span>
+                <TextInput className="mb-4 mt-2" hideText={DBState.db.hideApiKey}
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.apiKey}
+                    placeholder="Leave empty to use global OpenAI API key" />
+
+                <span class="text-textcolor">Model</span>
+                <TextInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.model}
+                    placeholder="tts-1" />
+
+                <span class="text-textcolor">Response Format</span>
+                <SelectInput className="mb-4 mt-2"
+                    bind:value={DBState.db.characters[$selectedCharID].oaiTTSConfig.format}>
+                    <OptionInput value="mp3">mp3</OptionInput>
+                    <OptionInput value="opus">opus</OptionInput>
+                    <OptionInput value="aac">aac</OptionInput>
+                    <OptionInput value="flac">flac</OptionInput>
+                    <OptionInput value="wav">wav</OptionInput>
+                    <OptionInput value="pcm">pcm</OptionInput>
+                </SelectInput>
+            {/if}
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'huggingface'}
             <span class="text-textcolor">Model</span>
             <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].hfTTS.model} />
@@ -1087,6 +1135,9 @@
         <span class="text-textcolor mt-2">{language.translatorNote} <Help key="translatorNote" /></span>
         <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].translatorNote}></TextAreaInput>
 
+        <span class="text-textcolor mt-2">{language.customPromptTemplateToggle} <Help key="customPromptTemplateToggle" /></span>
+        <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].customModuleToggle}></TextAreaInput>
+
         <span class="text-textcolor">{language.creator}</span>
         <TextInput size="sm" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
 
@@ -1209,6 +1260,20 @@
             {language.applyModule}
         </Button>
 
+        <Button
+            onclick={async () => {
+                const char = getCurrentCharacter()
+                if(char.type === 'group'){
+                    return
+                }
+                const m = convertCharacterToModule(char)
+                DBState.db.modules.push(m)
+                alertNormal(language.successfullyConverted)
+            }}
+            className="mt-4"
+        >
+            {language.convertToModule}
+        </Button>
     {:else}
         {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || DBState.db.characters[$selectedCharID].supaMemory}
             <span class="text-textcolor mt-4">{language.SuperMemory}</span>

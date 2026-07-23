@@ -3,7 +3,7 @@ import { SandboxHost } from "./factory";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
-import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, bodyIntercepterStore, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
+import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, bodyIntercepterStore, chatPanelStore, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
 import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
@@ -13,6 +13,7 @@ import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type Color
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
+import { getInlayAsset } from "src/ts/process/files/inlays";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser/parser.svelte";
 import localforage from "localforage";
@@ -21,6 +22,18 @@ import { sendChat as processSendChat, doingChat } from "src/ts/process/index.sve
 import { getModelInfo } from "src/ts/model/modellist";
 import type { ModelModeExtended } from "src/ts/process/request/shared";
 import { requestChatDataMain } from "src/ts/process/request/request";
+import { getModuleLorebooks } from "src/ts/process/modules";
+import {
+    registerTTSPreprocessor,
+    unregisterTTSPreprocessor,
+    registerTTSPostprocessor,
+    unregisterTTSPostprocessor,
+    type BeforeTTSContext,
+    type BeforeTTSResult,
+    type AfterTTSContext,
+    type AfterTTSResult,
+    type TTSHookFn,
+} from "src/ts/process/ttsHooks";
 
 /*
     V3 API for RisuAI Plugins
@@ -42,6 +55,7 @@ import { requestChatDataMain } from "src/ts/process/request/request";
 */
 
 const pluginChannel = new Map<string, Function>();
+const documentEventListeners: Array<{type: string, listener: EventListenerOrEventListenerObject, options: any}> = [];
 
 class SafeElement {
     #element: HTMLElement;
@@ -145,14 +159,14 @@ class SafeElement {
     public focus() {
         this.#element.focus();
     }
-    public getChildren(): SafeElement[] {
+    public getChildren(): SafeClassArray<SafeElement> {
         const children: SafeElement[] = [];
         this.#element.childNodes.forEach(node => {
             if(node instanceof HTMLElement) {
                 children.push(new SafeElement(node));
             }
         });
-        return children;
+        return new SafeClassArray<SafeElement>(children);
     }
     public getParent(): SafeElement | null {
         if(this.#element.parentElement) {
@@ -184,7 +198,7 @@ class SafeElement {
     public nodeType(): number {
         return this.#element.nodeType;
     }
-    public querySelectorAll(selector: string): SafeElement[] {
+    public querySelectorAll(selector: string): SafeClassArray<SafeElement> {
         const nodeList = this.#element.querySelectorAll(selector);
         const elements: SafeElement[] = [];
         nodeList.forEach(node => {
@@ -192,7 +206,7 @@ class SafeElement {
                 elements.push(new SafeElement(node));
             }
         });
-        return elements;
+        return new SafeClassArray<SafeElement>(elements);
     }
     public querySelector(selector: string): SafeElement | null {
         const element = this.#element.querySelector(selector);
@@ -205,9 +219,8 @@ class SafeElement {
         const element = this.querySelector('#' + id);
         return element;
     }
-    public getElementsByClassName(className: string): SafeElement[] {
-        const nodeList = this.querySelectorAll('.' + className);
-        return nodeList;
+    public getElementsByClassName(className: string): SafeClassArray<SafeElement> {
+        return this.querySelectorAll('.' + className);
     }
     public getClientRects(): DOMRectList {
         return this.#element.getClientRects();
@@ -302,6 +315,7 @@ class SafeElement {
                 listener(trimEvent(event))
             }
             this.#eventIdMap.set(id, modifiedListener)
+            documentEventListeners.push({type, listener: modifiedListener as EventListenerOrEventListenerObject, options: realOptions})
             document.addEventListener(type, modifiedListener, realOptions)
             return id;
         }
@@ -316,6 +330,7 @@ class SafeElement {
                 }, delay);
             }
             this.#eventIdMap.set(id, modifiedListener)
+            documentEventListeners.push({type, listener: modifiedListener as EventListenerOrEventListenerObject, options: realOptions})
             document.addEventListener(type, modifiedListener, realOptions);
             return id;
         }
@@ -329,6 +344,8 @@ class SafeElement {
         if(listener){
             const realOptions = typeof options === 'boolean' ? { capture: options } : options || {};
             document.removeEventListener(type, listener as EventListenerOrEventListenerObject, realOptions);
+            const idx = documentEventListeners.findIndex(e => e.listener === listener);
+            if(idx !== -1) documentEventListeners.splice(idx, 1);
             this.#eventIdMap.delete(id);
         }
     }
@@ -464,6 +481,10 @@ class SafeMutationObserver {
         }
     }
 
+    disconnect() {
+        this.#observer.disconnect();
+    }
+
 }
 
 const pluginUnloadCallbacks: Map<string, Function[]> = new Map();
@@ -480,6 +501,21 @@ const makeMenuUnloadCallback = (menuId:string, menuStore: MenuDef[]) =>{
         const index = menuStore.findIndex(item => item.id === menuId);
         if(index !== -1){
             menuStore.splice(index, 1);
+        }
+    }
+}
+
+const removeChatPanel = (id: string) => {
+    const index = chatPanelStore.findIndex(item => item.id === id);
+    if(index !== -1){
+        chatPanelStore.splice(index, 1);
+    }
+}
+
+const removePluginChatPanels = (pluginName: string) => {
+    for(let i = chatPanelStore.length - 1; i >= 0; i--){
+        if(chatPanelStore[i].pluginName === pluginName){
+            chatPanelStore.splice(i, 1);
         }
     }
 }
@@ -668,6 +704,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             customV3ProviderMetaStore.push(modelData);
         },
+        addTTSPreprocessor: async (
+            func: TTSHookFn<BeforeTTSContext, BeforeTTSResult>,
+        ) => {
+            registerTTSPreprocessor(func);
+            addPluginUnloadCallback(plugin.name, () => unregisterTTSPreprocessor(func));
+        },
+        addTTSPostprocessor: async (
+            func: TTSHookFn<AfterTTSContext, AfterTTSResult>,
+        ) => {
+            registerTTSPostprocessor(func);
+            addPluginUnloadCallback(plugin.name, () => unregisterTTSPostprocessor(func));
+        },
         addRisuScriptHandler: oldApis.addRisuScriptHandler,
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
         addRisuReplacer: async (name:string,func:Function) => {
@@ -683,6 +731,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         setDatabase: oldApis.setDatabase,
         loadPlugins: oldApis.loadPlugins,
         readImage: oldApis.readImage,
+        readInlay: async (id: string) => {
+            return await getInlayAsset(id);
+        },
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
         getDatabase: async (includeOnly:string[]|'all' = 'all') => {
@@ -835,6 +886,18 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             const db = DBState.db
             const charId = get(selectedCharID)
             return db.characters[charId].chatPage
+        },
+        getCurrentLorebookEntries: () => {
+            const charId = get(selectedCharID)
+            const char = DBState.db.characters[charId]
+            if(!char){
+                return []
+            }
+            const page = char.chatPage
+            const characterLore = char.globalLore ?? []
+            const chatLore = char.chats?.[page]?.localLore ?? []
+            const moduleLore = getModuleLorebooks()
+            return $state.snapshot(characterLore.concat(chatLore).concat(moduleLore))
         },
         //New names for character APIs, to match API naming conventions
         getCharacter: oldApis.getChar,
@@ -1016,6 +1079,43 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return {id};
         },
+        setChatPanel: (
+            content: string | null,
+            options: {
+                id?: string,
+                className?: string,
+            } = {}
+        ) => {
+            const id = options.id || `${plugin.name}:default`;
+
+            if(content === null || content === ''){
+                removeChatPanel(id);
+                return {id};
+            }
+
+            if(typeof content !== 'string'){
+                throw new Error("content must be a string or null");
+            }
+
+            const panel = {
+                id,
+                pluginName: plugin.name,
+                html: DOMPurify.sanitize(content),
+                className: typeof options.className === 'string'
+                    ? DOMPurify.sanitize(options.className, {ALLOWED_TAGS: [], ALLOWED_ATTR: []})
+                    : undefined,
+            }
+
+            const existingIndex = chatPanelStore.findIndex(item => item.id === id);
+            if(existingIndex !== -1){
+                chatPanelStore[existingIndex] = panel;
+            }
+            else{
+                chatPanelStore.push(panel);
+            }
+            addPluginUnloadCallback(plugin.name, () => removePluginChatPanels(plugin.name));
+            return {id};
+        },
         registerMCP: registerMCPModule,
         unregisterMCP: unregisterMCPModule,
         unregisterUIPart: (id: string) => {
@@ -1030,12 +1130,17 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             removeFromMenuStore(additionalFloatingActionButtons);
             removeFromMenuStore(additionalHamburgerMenu);
             removeFromMenuStore(additionalChatMenu);
+            removeChatPanel(id);
         },
         log: (message:string) => {
             console.log(`[RisuAI Plugin: ${plugin.name}] ${message}`);
         },
         createMutationObserver(callback: SafeMutationCallback): SafeMutationObserver {
-            return new SafeMutationObserver(callback)
+            const observer = new SafeMutationObserver(callback)
+            addPluginUnloadCallback(plugin.name, () => {
+                observer.disconnect()
+            })
+            return observer
         },
         onUnload: (callback: () => void) => {
             addPluginUnloadCallback(plugin.name, callback);
@@ -1145,14 +1250,21 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             mode: ModelModeExtended
             messages: OpenAIChat[]
             staticModel?: string
+            allowPlugins?: boolean
         }) => {
             return requestChatDataMain({
                 formated: options.messages,
                 bias: {},
                 staticModel: options.staticModel,
 
-                //Executing plugin provider is block because it can be used for loopholes for ipc right now.
-                blockPlugins: true
+                // Calls into plugin-provided models are blocked by default to
+                // guard against accidental IPC loops between provider plugins.
+                // Plugin authors who need to reach the user's plugin-supplied
+                // main or auxiliary model (e.g. a TTS preprocessor that
+                // rewrites text with the configured otherAx model) can opt in
+                // explicitly with `allowPlugins: true`, accepting responsibility
+                // for avoiding provider-to-provider call loops.
+                blockPlugins: !options.allowPlugins,
             }, options.mode)
         },
         sendChat: async (message: string) => {
@@ -1167,6 +1279,11 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
             if(get(doingChat)){
                 throw new Error("A chat is already in progress");
+            }
+
+            if(getModelInfo(DBState.db.aiModel).id.startsWith('pluginmodel:::')){
+                // Executing plugin provider is block because it can be used for loopholes for ipc right now.
+                throw new Error("Sending chat with plugin-based model is currently blocked");
             }
 
             const charId = get(selectedCharID);
@@ -1188,17 +1305,21 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 });
             }
 
-            if(getModelInfo(DBState.db.aiModel).id.startsWith('pluginmodel:::')){
-                // Executing plugin provider is block because it can be used for loopholes for ipc right now.
-                throw new Error("Sending chat with plugin-based model is currently blocked");    
+            try {
+                await processSendChat(-1, {});
+            } finally {
+                // Plugin API path does not pass through the UI unlock logic,
+                // so release doingChat here on both success and failure.
+                doingChat.set(false);
             }
-
-            await processSendChat(-1, {});
 
             return true;
         },
         addPluginChannelListener: (channelName: string, callback: Function) => {
             pluginChannel.set(plugin.name + channelName, callback);
+            addPluginUnloadCallback(plugin.name, () => {
+                pluginChannel.delete(plugin.name + channelName);
+            })
         },
         postPluginChannelMessage: (pluginName: string, channelName: string, message: any) => {
 
@@ -1210,7 +1331,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return;
             }
 
-            if(!receiverPlugin.allowedIPC?.includes(pluginName)){
+            if(!receiverPlugin.allowedIPC?.includes(currentPluginName)){
                 console.warn(`[RisuAI Plugin: ${currentPluginName}] Attempted to send message to plugin '${pluginName}' but receiver plugin does not allow IPC communication from this plugin. declare //@allowed-ipc ${currentPluginName} in the reciver plugin script to allow IPC communication.`);
                 return;
             }
@@ -1248,6 +1369,12 @@ export async function loadV3Plugins(plugins:RisuPlugin[]){
     await Promise.all(v3PluginInstances.map(async (instance) => {
         await unloadV3Plugin(instance.name);
     }));
+
+    for(const entry of documentEventListeners){
+        document.removeEventListener(entry.type, entry.listener, entry.options);
+    }
+    documentEventListeners.length = 0;
+
     const loadPromises = plugins.map(plugin => executePluginV3(plugin));
     await Promise.all(loadPromises);
 }

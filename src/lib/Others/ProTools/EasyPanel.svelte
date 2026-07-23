@@ -114,7 +114,7 @@
                 }}/>
 
                 {#if parameterModelSelection !== ''}
-                    <AllSeperateParameters bind:value={DBState.db.seperateParameters.overrides[parameterModelSelection]} withImportExport />
+                    <AllSeperateParameters bind:value={DBState.db.seperateParameters.overrides[parameterModelSelection]} withImportExport paramKey={parameterModelSelection} />
 
                 {/if}
             {:else}
@@ -130,13 +130,13 @@
                 />
                 <div class="w-full mt-4 flex flex-col">
                     {#if selectedParameterOption === 'memory'}
-                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.memory} withImportExport />
+                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.memory} withImportExport paramKey="memory" />
                     {:else if selectedParameterOption === 'translate'}
-                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.translate} withImportExport />
+                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.translate} withImportExport paramKey="translate" />
                     {:else if selectedParameterOption === 'emotion'}
-                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.emotion} withImportExport />
+                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.emotion} withImportExport paramKey="emotion" />
                     {:else if selectedParameterOption === 'otherAx'}
-                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.otherAx} withImportExport />
+                        <AllSeperateParameters bind:value={DBState.db.seperateParameters.otherAx} withImportExport paramKey="otherAx" />
                     {/if}
                 </div>
 

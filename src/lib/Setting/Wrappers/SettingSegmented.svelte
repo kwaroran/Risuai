@@ -25,14 +25,19 @@
     $effect(() => {
         const currentVal = getSettingValue(item, ctx);
         if (processedOptions.length > 0 && currentVal !== undefined && !processedOptions.some(o => o.value === currentVal)) {
-            setSettingValue(item, processedOptions[processedOptions.length - 1].value, ctx);
+            const numericOptions = processedOptions.filter((o): o is { value: number; label: string } => typeof o.value === 'number');
+            const fallback = typeof currentVal === 'number' && numericOptions.length > 0
+                ? numericOptions.reduce((closest, option) => Math.abs(option.value - currentVal) < Math.abs(closest.value - currentVal) ? option : closest).value
+                : processedOptions[processedOptions.length - 1].value;
+            setSettingValue(item, fallback, ctx);
         }
     });
 </script>
 
 <span class="text-textcolor {item.classes ?? ''}">
     {getLabel(item)}
-    {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
+    {#if item.showExperimental}<Help key="experimental"/>{/if}
+    {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
 </span>
 <SegmentedControl
     bind:value={(DBState.db as any)[item.bindKey]}

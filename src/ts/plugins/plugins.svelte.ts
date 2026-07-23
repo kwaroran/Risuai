@@ -754,7 +754,6 @@ export const getV2PluginAPIs = () => {
                     db.pluginCustomStorage[key] = newDb[key];
                 }
             }
-            DBState.db = db;
         },
         setDatabase: async (newDb: any) => {
             const db = getDatabase();

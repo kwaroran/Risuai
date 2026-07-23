@@ -1,7 +1,7 @@
 import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
-import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
 import { getDatabase } from "src/ts/storage/database.svelte"
@@ -11,7 +11,7 @@ import type { MultiModal } from "../index.svelte"
 import { extractJSON } from "../templates/jsonSchema"
 import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters } from './shared'
+import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from './shared'
 
 interface Claude3TextBlock {
     type: 'text',
@@ -73,6 +73,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     const db = getDatabase()
     const aiModel = arg.aiModel
     const useStreaming = arg.useStreaming
+    const ollamaCloudAnthropic = aiModel === 'ollama-cloud'
     let replacerURL = arg.customURL ?? ('https://api.anthropic.com/v1/messages')
     let apiKey = arg.key || ((aiModel === 'reverse_proxy') ? db.proxyKey : db.claudeAPIKey)
     const maxTokens = arg.maxTokens
@@ -366,14 +367,19 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
         // Adaptive thinking mode
         delete body.thinking
-        body.thinking = { type: 'adaptive' }
-        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
+        body.thinking = { type: 'adaptive', display: 'summarized' }
+        let effort = db.adaptiveThinkingEffort ?? 'high'
+        if(effort === 'xhigh' && !arg.modelInfo.flags.includes(LLMFlags.claudeXHighEffort)){
+            effort = 'high'
+        }
+        body.output_config = { effort }
     }
     else if(body?.thinking?.budget_tokens === 0){
         delete body.thinking
     }
     else if(body?.thinking?.budget_tokens && body?.thinking?.budget_tokens > 0){
         body.thinking.type = 'enabled'
+        body.thinking.display = 'summarized'
     }
     else if(body?.thinking?.budget_tokens === null){
         delete body.thinking
@@ -384,6 +390,10 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     }
 
     const bedrock = arg.modelInfo.format === LLMFormat.AWSBedrockClaude
+    const additionalParams = getAdditionalParameters(aiModel)
+    const hasCustomAnthropicBeta = additionalParams.some(([key]) => {
+        return key.startsWith('header::') && key.slice('header::'.length).toLocaleLowerCase() === 'anthropic-beta'
+    })
 
     if(bedrock && aiModel !== 'reverse_proxy'){
         function getCredentialParts(key:string) {
@@ -431,16 +441,22 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             delete params.top_p
         }
 
+        let bedrockHeaders: Record<string, string> = {
+            ["Host"]: host,
+            ["Content-Type"]: "application/json",
+            ["accept"]: "application/json",
+        }
+
+        if(additionalParams.length > 0){
+            params = applyAdditionalParameters(params, bedrockHeaders, additionalParams)
+        }
+
         const rq = new HttpRequest({
             method: "POST",
             protocol: "https:",
             hostname: host,
             path: `/model/${awsModel}/invoke${stream ? "-with-response-stream" : ""}`,
-            headers: {
-              ["Host"]: host,
-              ["Content-Type"]: "application/json",
-              ["accept"]: "application/json",
-            },
+            headers: bedrockHeaders,
             body: JSON.stringify(params),
         });
         
@@ -518,8 +534,12 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                 resText += '\n{{redacted_thinking}}\n'
             }
         }
-    
-    
+
+        if(thinking){
+            resText += "</Thoughts>\n\n"
+        }
+
+
         if(arg.extractJson && db.jsonSchemaEnabled){
             return {
                 type: 'success',
@@ -542,19 +562,9 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         "accept": "application/json",
     }
 
-    let betas:string[] = []
-
-    if(body.max_tokens > 8192){
-        betas.push('output-128k-2025-02-19')
-    }
-
-
-    if(db.claude1HourCaching){
-        betas.push('extended-cache-ttl-2025-04-11')
-    }
-
-    if(betas.length > 0){
-        headers['anthropic-beta'] = betas.join(',')
+    if(ollamaCloudAnthropic){
+        headers["Authorization"] = "Bearer " + apiKey
+        delete headers["x-api-key"]
     }
 
     if(db.usePlainFetch){
@@ -572,6 +582,25 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
 
     }
 
+    if(additionalParams.length > 0){
+        body = applyAdditionalParameters(body, headers, additionalParams)
+    }
+
+    let betas:string[] = []
+
+    if(body.max_tokens > 8192){
+        betas.push('output-128k-2025-02-19')
+    }
+
+
+    if(db.claude1HourCaching){
+        betas.push('extended-cache-ttl-2025-04-11')
+    }
+
+    if(betas.length > 0 && !hasCustomAnthropicBeta){
+        headers['anthropic-beta'] = betas.join(',')
+    }
+
     if(arg.previewBody){
         return {
             type: 'success',
@@ -583,39 +612,72 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    if(db.claudeBatching){
+    if(db.claudeBatching && !ollamaCloudAnthropic){
         if(body.stream !== undefined){
             delete body.stream
         }
         const id = v4()
-        const resp = await fetchNative(replacerURL + '/batches', {
-            "body": JSON.stringify({
-                "requests": [{
-                    "custom_id": id,
-                    "params": body,
-                }]
-            }),
+        const batchRequestUrl = replacerURL + '/batches'
+        const batchRequestBody = {
+            "requests": [{
+                "custom_id": id,
+                "params": body,
+            }]
+        }
+
+        const resp = await fetchNative(batchRequestUrl, {
+            "body": JSON.stringify(batchRequestBody),
             "method": "POST",
             signal: arg.abortSignal,
             headers: headers,
-            interceptor: 'anthropic_batching'
+            interceptor: 'anthropic_batching',
+            logFetch: false
         })
 
         if(resp.status !== 200){
+            const responseText = await textifyReadableStream(resp.body)
+            addFetchLog({
+                body: batchRequestBody,
+                headers: headers,
+                response: responseText,
+                success: false,
+                url: batchRequestUrl,
+                chatId: arg.chatId,
+                status: resp.status
+            })
             return {
                 type: 'fail',
-                result: await textifyReadableStream(resp.body)
+                result: responseText
             }
         }
 
         const r = (await resp.json())
 
         if(!r.id){
+            addFetchLog({
+                body: batchRequestBody,
+                headers: headers,
+                response: r,
+                success: false,
+                url: batchRequestUrl,
+                chatId: arg.chatId,
+                status: resp.status
+            })
             return {
                 type: 'fail',
                 result: 'No results URL returned from Claude batch request'
             }
         }
+
+        addFetchLog({
+            body: batchRequestBody,
+            headers: headers,
+            response: r,
+            success: true,
+            url: batchRequestUrl,
+            chatId: arg.chatId,
+            status: resp.status
+        })
 
         const statusUrl = replacerURL + `/batches/${r.id}`
         const resultsUrl = replacerURL + `/batches/${r.id}/results`
@@ -640,7 +702,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     "body": "{}",
                                     "method": "POST",
                                     "headers": headers,
-                                    "interceptor": 'anthropic_batching_cancel'
+                                    "interceptor": 'anthropic_batching_cancel',
+                                    logFetch: false
                                 })
                             } catch(e) {
                                 // ignore cancel request errors
@@ -655,11 +718,22 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_status'
+                            "interceptor": 'anthropic_batching_status',
+                            logFetch: false
                         })
 
                         if(statusRes.status !== 200){
-                            controller.error(new Error(await textifyReadableStream(statusRes.body)))
+                            const statusResponseText = await textifyReadableStream(statusRes.body)
+                            addFetchLog({
+                                body: batchRequestBody,
+                                headers: headers,
+                                response: statusResponseText,
+                                success: false,
+                                url: statusUrl,
+                                chatId: arg.chatId,
+                                status: statusRes.status
+                            })
+                            controller.error(new Error(statusResponseText))
                             return
                         }
 
@@ -673,16 +747,28 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_results'
+                            "interceptor": 'anthropic_batching_results',
+                            logFetch: false
                         })
 
                         if(batchRes.status !== 200){
-                            controller.error(new Error(await textifyReadableStream(batchRes.body)))
+                            const resultResponseText = await textifyReadableStream(batchRes.body)
+                            addFetchLog({
+                                body: batchRequestBody,
+                                headers: headers,
+                                response: resultResponseText,
+                                success: false,
+                                url: resultsUrl,
+                                chatId: arg.chatId,
+                                status: batchRes.status
+                            })
+                            controller.error(new Error(resultResponseText))
                             return
                         }
 
                         //since jsonl
-                        const batchTextData = (await batchRes.text()).split('\n').filter((v) => v.trim() !== ''). map((v) => {
+                        const batchResultRawText = await batchRes.text()
+                        const batchTextData = batchResultRawText.split('\n').filter((v) => v.trim() !== ''). map((v) => {
                             try {
                                 return JSON.parse(v)
                             } catch (error) {
@@ -727,6 +813,15 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 }
 
                                 controller.enqueue({ "0": resText })
+                                addFetchLog({
+                                    body: batchRequestBody,
+                                    headers: headers,
+                                    response: batchData,
+                                    success: true,
+                                    url: resultsUrl,
+                                    chatId: arg.chatId,
+                                    status: batchRes.status
+                                })
                                 controller.close()
                                 return
                             }
@@ -737,14 +832,41 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                 `${batchError.error.type}: ${batchError.error.message}` : 
                                 JSON.stringify(batchError)
 
+                                addFetchLog({
+                                    body: batchRequestBody,
+                                    headers: headers,
+                                    response: batchData,
+                                    success: false,
+                                    url: resultsUrl,
+                                    chatId: arg.chatId,
+                                    status: batchRes.status
+                                })
                                 controller.error(new Error(message))
                                 return
                             }
                             if(batchData?.result?.type === 'canceled'){
+                                addFetchLog({
+                                    body: batchRequestBody,
+                                    headers: headers,
+                                    response: batchData,
+                                    success: false,
+                                    url: resultsUrl,
+                                    chatId: arg.chatId,
+                                    status: batchRes.status
+                                })
                                 controller.close()
                                 return
                             }
                             if(batchData?.result?.type === 'expired'){
+                                addFetchLog({
+                                    body: batchRequestBody,
+                                    headers: headers,
+                                    response: batchData,
+                                    success: false,
+                                    url: resultsUrl,
+                                    chatId: arg.chatId,
+                                    status: batchRes.status
+                                })
                                 controller.error(new Error('Claude batch request expired'))
                                 return
                             }
@@ -909,6 +1031,12 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                         await sleep(1)
                     }
                 }
+                if(thinking){
+                    text += "</Thoughts>\n\n"
+                    controller.enqueue({
+                        "0": text
+                    })
+                }
                 controller.close()
             },
             cancel(){
@@ -1064,6 +1192,9 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
         }
     }
 
+    if(thinking){
+        resText += "</Thoughts>\n\n"
+    }
 
     arg.additionalOutput ??= ""
     if(arg.extractJson && db.jsonSchemaEnabled){

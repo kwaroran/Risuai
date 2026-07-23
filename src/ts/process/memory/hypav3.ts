@@ -1,5 +1,5 @@
-import { type memoryVector, HypaProcesser, similarity, contextHash } from "./hypamemory";
-import { globalFetch } from "src/ts/globalApi.svelte";
+import { type memoryVector, HypaProcesser, similarity } from "./hypamemory";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 import { TaskRateLimiter } from "./taskRateLimiter";
 import {
     type EmbeddingText,
@@ -39,6 +39,7 @@ export interface HypaV3Settings {
     preserveOrphanedMemory: boolean;
     processRegexScript: boolean;
     doNotSummarizeUserMessage: boolean;
+    summaryChunkSeparator: string;
     // Experimental
     useExperimentalImpl: boolean;
     summarizationRequestsPerMinute: number;
@@ -100,6 +101,19 @@ export interface HypaV3Result {
 const logPrefix = "[HypaV3]";
 const memoryPromptTag = "Past Events Summary";
 const summarySeparator = "\n\n";
+
+function splitBySeparator(text: string, separator: string): string[] {
+    try {
+        const regexMatch = separator.match(/^\/(.+)\/([gimuy]*)$/);
+        if (regexMatch) {
+            const [, pattern, flags] = regexMatch;
+            return text.split(new RegExp(pattern, flags));
+        }
+        return text.split(new RegExp(separator));
+    } catch {
+        return text.split("\n\n");
+    }
+}
 
 export async function hypaMemoryV3(
     chats: OpenAIChat[],
@@ -600,8 +614,7 @@ async function hypaMemoryV3MainExp(
         // Dynamically generate embedding texts
         const ebdTexts: EmbeddingText<Summary>[] = unusedSummaries.flatMap(
             (summary, summaryIndex) => {
-                const splitted = summary.text
-                    .split("\n\n")
+                const splitted = splitBySeparator(summary.text, settings.summaryChunkSeparator)
                     .filter((e) => e.trim().length > 0);
 
                 return splitted.map((chunk, chunkIndex) => ({
@@ -1320,8 +1333,7 @@ async function hypaMemoryV3Main(
         const summaryChunks: SummaryChunk[] = [];
 
         unusedSummaries.forEach((summary) => {
-            const splitted = summary.text
-                .split("\n\n")
+            const splitted = splitBySeparator(summary.text, settings.summaryChunkSeparator)
                 .filter((e) => e.trim().length > 0);
 
             summaryChunks.push(
@@ -1721,11 +1733,22 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
 
         // Remove thoughts content for API
         const thoughtsRegex = /<Thoughts>[\s\S]*?<\/Thoughts>/g;
+        const result = response.result.replace(thoughtsRegex, "").trim();
 
-        return response.result.replace(thoughtsRegex, "").trim();
+        if (result.length === 0) {
+            throw new Error("Empty summary after removing thoughts content");
+        }
+
+        return result;
     }
 
-    // Local
+    // Local — ensure system message comes first for WebLLM models
+    const firstSystemIndex = formated.findIndex(m => m.role === 'system');
+    if (firstSystemIndex > 0) {
+        const [system] = formated.splice(firstSystemIndex, 1);
+        formated.unshift(system);
+    }
+
     const content = await chatCompletion(formated, settings.summarizationModel, {
         max_tokens: 8192,
         temperature: 0,
@@ -1740,8 +1763,13 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
 
     // Remove think content
     const thinkRegex = /<think>[\s\S]*?<\/think>/g;
+    const result = content.replace(thinkRegex, "").trim();
 
-    return content.replace(thinkRegex, "").trim();
+    if (result.length === 0) {
+        throw new Error("Empty summary after removing think content");
+    }
+
+    return result;
 }
 
 export function getCurrentHypaV3Preset(): HypaV3Preset {
@@ -1772,6 +1800,7 @@ export function createHypaV3Preset(
         preserveOrphanedMemory: false,
         processRegexScript: false,
         doNotSummarizeUserMessage: false,
+        summaryChunkSeparator: "\\n\\n",
         // Experimental
         useExperimentalImpl: false,
         summarizationRequestsPerMinute: 20,
@@ -1896,8 +1925,8 @@ class HypaProcesserEx extends HypaProcesser {
     summaryChunkVectors: SummaryChunkVector[] = [];
 
     async addSummaryChunks(chunks: SummaryChunk[]): Promise<void> {
-        if (this.model === 'voyageContext3') {
-            await this.addSummaryChunksVoyage(chunks);
+        if (isContextModel(this.model)) {
+            await this.addSummaryChunksContextual(chunks);
             return;
         }
 
@@ -1918,16 +1947,11 @@ class HypaProcesserEx extends HypaProcesser {
         this.summaryChunkVectors.push(...newSummaryChunkVectors);
     }
 
-    private async addSummaryChunksVoyage(chunks: SummaryChunk[]): Promise<void> {
-        const db = getDatabase();
-        const apiKey = db.voyageApiKey?.trim();
-        if (!apiKey) {
-            throw new Error('Voyage Context 3 requires a Voyage API Key');
-        }
+    private async addSummaryChunksContextual(chunks: SummaryChunk[]): Promise<void> {
+        const provider = getContextProvider(this.model);
 
         const cacheKeyFor = (text: string, groupTexts: string[]) => {
-            const ctx = groupTexts.length > 1 ? `|ctx:${contextHash(groupTexts)}` : '';
-            return `${text}|voyageContext3${ctx}`;
+            return `${text}${provider.getCacheKeySuffix(groupTexts)}`;
         };
 
         const summaryGroups = new Map<Summary, SummaryChunk[]>();
@@ -1964,48 +1988,27 @@ class HypaProcesserEx extends HypaProcesser {
         }
 
         if (groupsToEmbed.length > 0) {
-            const batches = this.batchVoyageGroups(groupsToEmbed);
+            const groups = groupsToEmbed.map(group =>
+                group.map(chunk => chunk.text)
+            );
 
-            for (const batch of batches) {
-                const input = batch.map(group =>
-                    group.map(chunk => chunk.text)
-                );
+            const results = await provider.embedDocumentGroups(groups);
 
-                const response = await globalFetch(
-                    "https://api.voyageai.com/v1/contextualizedembeddings",
-                    {
-                        headers: {
-                            "Authorization": "Bearer " + apiKey,
-                            "Content-Type": "application/json"
-                        },
-                        body: {
-                            "model": "voyage-context-3",
-                            "inputs": input,
-                            "input_type": "document"
-                        }
-                    }
-                );
+            for (let i = 0; i < groupsToEmbed.length; i++) {
+                const group = groupsToEmbed[i];
+                const groupTexts = group.map(c => c.text);
+                const embeddings = results[i];
 
-                if (!response.ok || !response.data.data) {
-                    throw new Error(JSON.stringify(response.data));
-                }
+                for (let j = 0; j < group.length; j++) {
+                    const chunk = group[j];
+                    const embedding = embeddings[j];
+                    const vector: memoryVector = {
+                        content: chunk.text,
+                        embedding
+                    };
 
-                for (let i = 0; i < batch.length; i++) {
-                    const group = batch[i];
-                    const groupTexts = group.map(c => c.text);
-                    const groupEmbeddings = response.data.data[i].data;
-
-                    for (let j = 0; j < group.length; j++) {
-                        const chunk = group[j];
-                        const embedding = groupEmbeddings[j].embedding;
-                        const vector: memoryVector = {
-                            content: chunk.text,
-                            embedding
-                        };
-
-                        await this.forage.setItem(cacheKeyFor(chunk.text, groupTexts), vector);
-                        cachedVectors.set(chunk.text, vector);
-                    }
+                    await this.forage.setItem(cacheKeyFor(chunk.text, groupTexts), vector);
+                    cachedVectors.set(chunk.text, vector);
                 }
             }
         }
@@ -2021,34 +2024,6 @@ class HypaProcesserEx extends HypaProcesser {
             this.vectors.push(vector);
             this.summaryChunkVectors.push({ chunk, vector });
         }
-    }
-
-    private batchVoyageGroups(groups: SummaryChunk[][]): SummaryChunk[][][] {
-        const MAX_CHUNKS_PER_REQUEST = 16000;
-        const MAX_INPUTS_PER_REQUEST = 1000;
-        const batches: SummaryChunk[][][] = [];
-        let currentBatch: SummaryChunk[][] = [];
-        let currentChunkCount = 0;
-
-        for (const group of groups) {
-            if (
-                currentBatch.length > 0 &&
-                (currentBatch.length + 1 > MAX_INPUTS_PER_REQUEST ||
-                 currentChunkCount + group.length > MAX_CHUNKS_PER_REQUEST)
-            ) {
-                batches.push(currentBatch);
-                currentBatch = [];
-                currentChunkCount = 0;
-            }
-            currentBatch.push(group);
-            currentChunkCount += group.length;
-        }
-
-        if (currentBatch.length > 0) {
-            batches.push(currentBatch);
-        }
-
-        return batches;
     }
 
     async similaritySearchScoredEx(

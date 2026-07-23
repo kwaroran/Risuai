@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------------------
 
-FROM node:20-slim AS base
+FROM node:24-slim AS base
 WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -9,7 +9,7 @@ COPY package.json .
 COPY pnpm-lock.yaml .
 
 RUN corepack enable
-RUN corepack install --global pnpm@latest
+RUN corepack install --global pnpm@10.34.1
 
 # ------------------------------------------------------------------------------------------
 

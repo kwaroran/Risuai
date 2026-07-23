@@ -197,10 +197,26 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
     },
     {
+        id: 'acc.moveInsteadOfCopyOnCMPConvert',
+        type: 'check',
+        labelKey: 'moveInsteadOfCopyOnCMPConvert',
+        bindKey: 'moveInsteadOfCopyOnCMPConvert',
+        keywords: ['move', 'instead', 'of', 'copy', 'on', 'CMP', 'convert'],
+    },
+    {
+        id: 'acc.applyAdditionalParamsToAll',
+        type: 'check',
+        labelKey: 'applyAdditionalParamsToAll',
+        bindKey: 'applyAdditionalParamsToAll',
+        keywords: ['apply', 'additional', 'parameters', 'to', 'all', 'models'],
+    },
+    {
         id: 'acc.enableRisuaiProTools',
         type: 'check',
         labelKey: 'enableRisuaiProTools',
         bindKey: 'enableRisuaiProTools',
         keywords: ['pro', 'tools', 'accessibility'],
-    }
+    },
+    { type: 'custom', id: 'acc.customSidebarConfig', componentId: 'CustomSidebarConfig' },
+
 ];

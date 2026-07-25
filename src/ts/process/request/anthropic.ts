@@ -362,7 +362,12 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
 
     // Handle thinking mode: off, adaptive, or budget
     if(db.thinkingType === 'off'){
-        delete body.thinking
+        if(arg.modelInfo.flags.includes(LLMFlags.claudeThinkingOnByDefault)){
+            body.thinking = { type: 'disabled' }
+        }
+        else {
+            delete body.thinking
+        }
     }
     else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
         // Adaptive thinking mode

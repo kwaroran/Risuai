@@ -790,6 +790,7 @@ export const languageKorean = {
     "hub": "RisuRealm",
     "tags": "태그",
     "backgroundHTML": "백그라운드 임베딩",
+    "sideMenuEmbedding": "사이드 메뉴 임베딩",
     "copied": "복사됨",
     "useChatCopy": "채팅 메시지 복사 사용",
     "useChatSticker": "채팅 스티커 사용",

@@ -63,6 +63,7 @@
     "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
+    "idiomorph": "^0.7.4",
     "katex": "^0.16.27",
     "localforage": "^1.10.0",
     "lodash": "^4.17.21",

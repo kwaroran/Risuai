@@ -928,6 +928,7 @@ export const languageEnglish = {
     hub: "RisuRealm",
     tags: "Tags",
     backgroundHTML: "Background Embedding",
+    sideMenuEmbedding: "Side Menu Embedding",
     copied: "Copied",
     useChatCopy: "Use Chat Message Copy",
     useChatSticker: "Use Chat Sticker",

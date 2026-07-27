@@ -399,7 +399,12 @@
         {#await getOrcaRouterModels()}
             <ModelGrid bind:value={DBState.db.orcarouterRequestModel} loading={true} />
         {:then m}
-            <ModelGrid bind:value={DBState.db.orcarouterRequestModel} items={(m ?? []).map(orcaToGridItem)} />
+            <ModelGrid
+                bind:value={DBState.db.orcarouterRequestModel}
+                items={(m ?? []).map(orcaToGridItem)}
+                selectedLabelOverride={DBState.db.orcarouterRequestModel && !DBState.db.orcarouterRequestModelName ? DBState.db.orcarouterRequestModel : undefined}
+                onselect={(_id, name) => { DBState.db.orcarouterRequestModelName = name }}
+            />
         {/await}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy'}

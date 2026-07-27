@@ -1462,13 +1462,13 @@ Add clear comments and metadata:
 
     // Monitor DOM changes
     let changeCount = 0;
-    const observer = Risuai.createMutationObserver(async (mutations) => {
-      changeCount += mutations.length;
+    const observer = await Risuai.createMutationObserver(async (mutations) => {
+      changeCount += await mutations.length();
       await indicator.setTextContent(`Changes: ${changeCount}`);
     });
 
     if (body) {
-      observer.observe(body, {
+      await observer.observe(body, {
         childList: true,
         subtree: true,
         attributes: false

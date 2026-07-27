@@ -46,6 +46,11 @@
 
 <div
     bind:this={host}
-    class="absolute top-0 right-0 h-full z-20"
+    class="absolute top-0 right-0 h-full pointer-events-none"
     data-risu-side-menu
 ></div>
+<style>
+    :global([data-risu-side-menu] > :not(style)) {
+        pointer-events: auto;
+    }
+</style>

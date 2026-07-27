@@ -27,6 +27,23 @@
             : "",
     );
 
+    function preserveInteractiveAttribute(attributeName: string, node: Element) {
+        if (
+            (node instanceof HTMLInputElement && ["value", "checked"].includes(attributeName)) ||
+            (node instanceof HTMLTextAreaElement && attributeName === "value") ||
+            (node instanceof HTMLOptionElement && attributeName === "selected") ||
+            (node instanceof HTMLDetailsElement && attributeName === "open")
+        ) {
+            return false;
+        }
+    }
+
+    function preserveEditableContent(oldNode: Node) {
+        if (oldNode instanceof HTMLElement && oldNode.isContentEditable) {
+            return false;
+        }
+    }
+
     $effect(() => {
         if (!host) {
             return;
@@ -58,6 +75,10 @@
                 morphStyle: "innerHTML",
                 restoreFocus: true,
                 ignoreActiveValue: true,
+                callbacks: {
+                    beforeNodeMorphed: preserveEditableContent,
+                    beforeAttributeUpdated: preserveInteractiveAttribute,
+                },
             });
             lastRenderedHTML = sanitizedHTML;
         })().catch((error) => {

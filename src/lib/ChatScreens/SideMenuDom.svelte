@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Idiomorph } from "idiomorph";
+    import { morphInner } from "morphlex";
     import { ParseMarkdown, risuChatParser, trimMarkdown } from "src/ts/parser/parser.svelte";
     import { runLuaButtonTrigger } from "src/ts/process/scriptings";
     import { runTrigger } from "src/ts/process/triggers";
@@ -27,21 +27,12 @@
             : "",
     );
 
-    function preserveInteractiveAttribute(attributeName: string, node: Element) {
-        if (
-            (node instanceof HTMLInputElement && ["value", "checked"].includes(attributeName)) ||
-            (node instanceof HTMLTextAreaElement && attributeName === "value") ||
-            (node instanceof HTMLOptionElement && attributeName === "selected") ||
-            (node instanceof HTMLDetailsElement && attributeName === "open")
-        ) {
-            return false;
-        }
+    function preserveInteractiveAttribute(element: Element, attributeName: string) {
+        return !(element instanceof HTMLDetailsElement && attributeName === "open");
     }
 
     function preserveEditableContent(oldNode: Node) {
-        if (oldNode instanceof HTMLElement && oldNode.isContentEditable) {
-            return false;
-        }
+        return !(oldNode instanceof HTMLElement && oldNode.isContentEditable);
     }
 
     $effect(() => {
@@ -71,14 +62,12 @@
                 return;
             }
 
-            Idiomorph.morph(target, sanitizedHTML, {
-                morphStyle: "innerHTML",
-                restoreFocus: true,
-                ignoreActiveValue: true,
-                callbacks: {
-                    beforeNodeMorphed: preserveEditableContent,
-                    beforeAttributeUpdated: preserveInteractiveAttribute,
-                },
+            const reference = document.createElement("div");
+            reference.innerHTML = sanitizedHTML;
+            morphInner(target, reference, {
+                preserveChanges: true,
+                beforeNodeVisited: preserveEditableContent,
+                beforeAttributeUpdated: preserveInteractiveAttribute,
             });
             lastRenderedHTML = sanitizedHTML;
         })().catch((error) => {

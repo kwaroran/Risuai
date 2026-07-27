@@ -131,9 +131,6 @@ importers:
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
-      idiomorph:
-        specifier: ^0.7.4
-        version: 0.7.4
       katex:
         specifier: ^0.16.27
         version: 0.16.27
@@ -155,6 +152,9 @@ importers:
       monaco-editor:
         specifier: ^0.55.1
         version: 0.55.1
+      morphlex:
+        specifier: ^1.4.0
+        version: 1.4.0
       msgpackr:
         specifier: 1.10.1
         version: 1.10.1
@@ -1973,9 +1973,6 @@ packages:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
     engines: {node: '>=0.10.0'}
 
-  idiomorph@0.7.4:
-    resolution: {integrity: sha512-uCdSpLo3uMfqOmrwXTpR1k/sq4sSmKC7l4o/LdJOEU+MMMq+wkevRqOQYn3lP7vfz9Mv+USBEqPvi0XhdL9ENw==}
-
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
@@ -2204,6 +2201,9 @@ packages:
 
   monaco-editor@0.55.1:
     resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
+
+  morphlex@1.4.0:
+    resolution: {integrity: sha512-20/rnlsvvzExLmdq8o9yRz4btq7ZV8bmFaRbkgvlmWYUyFQ31nvORHyKgvCdBIx83HWzxulPAoKNq2Hq1VjYmg==}
 
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
@@ -4236,8 +4236,6 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  idiomorph@0.7.4: {}
-
   ieee754@1.2.1: {}
 
   immediate@3.0.6: {}
@@ -4413,6 +4411,8 @@ snapshots:
     dependencies:
       dompurify: 3.2.7
       marked: 14.0.0
+
+  morphlex@1.4.0: {}
 
   mri@1.2.0: {}
 

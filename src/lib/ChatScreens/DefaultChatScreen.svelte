@@ -47,6 +47,7 @@
     let loadPages = $state(getInitialChatLoadPages(DBState.db))
     let autoMode = $state(false)
     let pendingVariants:MessageVariant[]|null = null
+    let pendingVariantsKey = ''
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
@@ -238,7 +239,14 @@
             }
         }
         const popped = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - cha.length
-        pendingVariants = popped === 1 ? collectVariants(lastBeforePop) : null
+        if(popped === 1){
+            pendingVariants = collectVariants(lastBeforePop)
+            pendingVariantsKey = currentChatKey()
+        }
+        else if(popped > 1){
+            pendingVariants = null
+        }
+        //popped === 0 keeps pendingVariants: retrying after a failed regeneration starts from the user message
         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = cha
         await sendChatMain()
     }
@@ -255,6 +263,10 @@
 
     let abortController:null|AbortController = null
 
+    function currentChatKey(){
+        return `${$selectedCharID}:${DBState.db.characters[$selectedCharID].chatPage}`
+    }
+
     async function sendChatMain(continued:boolean = false) {
 
         let previousLength = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length
@@ -266,14 +278,17 @@
                 continue:continued
             })
             const message = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-            if(message.length - previousLength === 1 && pendingVariants){
-                attachVariants(message[message.length - 1], pendingVariants)
+            if(message.length > previousLength){
+                if(message.length - previousLength === 1 && pendingVariants && pendingVariantsKey === currentChatKey()){
+                    attachVariants(message[message.length - 1], pendingVariants)
+                }
+                pendingVariants = null
             }
+            //pendingVariants is kept when nothing was generated, so a retry can still attach it
         } catch (error) {
             console.error(error)
             alertError(error)
         }
-        pendingVariants = null
         $doingChat = false
         if(DBState.db.playMessage){
             const audio = new Audio(sendSound);

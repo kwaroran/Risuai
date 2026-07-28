@@ -30,7 +30,12 @@ export const languageChinese = {
         "requestLogRemovedDesc": "当客户端刷新或加载时，该请求记录会被删除。",
         "vertexAuthError": "Vertex AI 身份验证详情缺失。",
         "coldStorageWriteFailed": "冷存储写入失败。您的聊天数据已被保留。",
-        "coldStorageVerifyFailed": "冷存储验证失败。您的聊天数据已被保留。"
+        "coldStorageVerifyFailed": "冷存储验证失败。您的聊天数据已被保留。",
+        "coldStorageRestoreFailed": "无法加载冷存储数据。受影响角色的数据可能已永久丢失。",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `${characterNames || "未知角色"}的冷存储数据缺失或无效。${unresolvedCount > 0 ? `有 ${unresolvedCount} 个项目无法关联到角色。` : ""}\n\n如果继续，此备份将缺少 ${unavailableCount} 个冷存储项目，受影响的角色或聊天数据可能无法从该备份恢复。\n\n仍要创建不完整的备份吗？`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `无法恢复 ${characterNames || "未知角色"}的冷存储数据。${unresolvedCount > 0 ? `有 ${unresolvedCount} 个项目无法关联到角色。` : ""}\n\n如果继续，${unavailableCount} 个冷存储项目将不可用，受影响的角色或聊天数据可能会永久丢失。\n\n仍要继续不完整的恢复吗？`
     },
     "showHelp": "显示帮助",
     "help": {
@@ -85,6 +90,7 @@ export const languageChinese = {
         "openAIFixer": "OpenAI Fixer 是一个用于修复 OpenAI 部分问题的插件。",
         "sayNothing": "激活后，如果用户没有输入聊天内容，系统会自动填入 ’say nothing‘。",
         "showUnrecommended": "激活后，将显示不建议使用的过时设置。不建议使用这些设置。",
+        "streamingDisplayOptimizationMode": "在使用正则脚本等大量后处理时，减少长回复流式生成造成的界面卡顿。对移动设备或低端设备可能有帮助。\n\n关闭会保留普通行为，但每个 Token 都会触发后处理，可能带来明显开销。\n\n均衡会只按较短间隔（约 0.125 秒）尝试后处理来降低负载。\n\n强与均衡类似，但流式生成期间会跳过后处理，只在流式完成后尝试一次后处理，从而大幅降低负载。\n\n这是一项实验性功能，可能会导致部分功能出现非预期行为。",
         "imageCompression": "激活后，在导出角色时会压缩略图片。如果动画图片无法显示，请尝试关闭此选项。",
         "useExperimental": "激活后，将显示部分实验性功能。",
         "forceProxyAsOpenAI": "激活后，使用反向代理（Reverse proxy）时将强制使用 OpenAI 格式。",
@@ -705,6 +711,10 @@ export const languageChinese = {
     "unrecommended": "不建议",
     "chatNotes": "聊天备注",
     "showUnrecommended": "显示不建议的设置",
+    "streamingDisplayOptimizationMode": "流式显示优化",
+    "streamingDisplayOptimizationOff": "关闭",
+    "streamingDisplayOptimizationBalanced": "均衡",
+    "streamingDisplayOptimizationStrong": "强",
     "altGreet": "备选初始消息",
     "scripts": "脚本",
     "settings": "设置",

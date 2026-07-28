@@ -27,7 +27,8 @@ export const LLMFlags = {
     claudeXHighEffort: 23,
     deepSeekThinkingToggle: 24,
     noStructuredOutput: 25,
-    adaptiveThinking: 26
+    geminiThinkingNoMinimal: 26,
+    adaptiveThinking: 27
 } as const;
 export type LLMFlags = (typeof LLMFlags)[keyof typeof LLMFlags];
 

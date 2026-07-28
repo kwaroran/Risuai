@@ -9,6 +9,7 @@
     import { ArrowDown, ArrowUp, XIcon } from "@lucide/svelte";
     import TextInput from "./GUI/TextInput.svelte";
     import { DBState } from 'src/ts/stores.svelte';
+    import { RISU_PROMPT_DRAG_TYPE } from "src/ts/dragTypes";
     
     interface Props {
         promptItem: PromptItem;
@@ -52,12 +53,12 @@
         promptItem = currentprompt
     }
 
-    const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role?: PromptRole } => {
+    const hasPromptBlockRole = (promptItem: PromptItem): promptItem is PromptItem & { role2?: PromptRole } => {
         return promptItem.type === 'persona' || promptItem.type === 'description' || promptItem.type === 'authornote' || promptItem.type === 'memory'
     }
 
     const isPromptRole = (role: unknown): role is PromptRole => {
-        return role === 'user' || role === 'bot' || role === 'system'
+        return role === 'user' || role === 'bot' || role === 'system' || role === 'assistant'
     }
 
     function getName(promptItem:PromptItem){
@@ -121,24 +122,39 @@
 
     }
 
+    const isPromptDrag = (e:DragEvent) => {
+        return e.dataTransfer?.types.includes(RISU_PROMPT_DRAG_TYPE) ?? false
+    }
+
+    const markPromptDrag = (e:DragEvent) => {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', 'prompt')
+        e.dataTransfer.setData(RISU_PROMPT_DRAG_TYPE, 'true')
+        e.dataTransfer.setData('prompt', JSON.stringify(promptItem))
+    }
+
 </script>
 
 <div class="first:mt-0 w-full h-2" role="doc-pagebreak"
     ondrop={(e) => {
+        if(!isPromptDrag(e)){
+            return
+        }
         e.preventDefault()
         e.stopPropagation()
-        const data = e.dataTransfer.getData('text')
-        if(data === 'prompt'){
-            onDrop()
-        }
+        onDrop()
     }}
     ondragover={(e) => {
+        if(!isPromptDrag(e)){
+            return
+        }
         e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = 'move'
     }}
     draggable="true"
     ondragstart={(e) => {
-        e.dataTransfer.setData('text', 'prompt')
-        e.dataTransfer.setData('prompt', JSON.stringify(promptItem))
+        markPromptDrag(e)
     }}>
 
 </div>
@@ -149,7 +165,12 @@
     class:scale-95={isDragging}
 
     ondragover={(e) => {
+        if(!isPromptDrag(e)){
+            return
+        }
         e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = 'move'
         if(draggedIndex === -1 || draggedIndex === currentIndex) {
             return
         }
@@ -165,11 +186,12 @@
         }
     }}
     ondrop={(e) => {
-        e.preventDefault()
-        const data = e.dataTransfer.getData('text')
-        if(data === 'prompt'){
-            onDrop()
+        if(!isPromptDrag(e)){
+            return
         }
+        e.preventDefault()
+        e.stopPropagation()
+        onDrop()
     }}
 >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -179,8 +201,7 @@
         style:cursor="grab"
         ondragstart={(e) => {
             draggedIndex = currentIndex
-            e.dataTransfer.setData('text', 'prompt')
-            e.dataTransfer.setData('prompt', JSON.stringify(promptItem))
+            markPromptDrag(e)
 
             const dragElement = document.createElement('div')
             dragElement.textContent = getName(promptItem)
@@ -241,8 +262,8 @@
                 promptItem.rangeStart = -1000
                 promptItem.rangeEnd = 'end'
             }
-            if(hasPromptBlockRole(promptItem) && !isPromptRole(promptItem.role)){
-                promptItem.role = 'system'
+            if(hasPromptBlockRole(promptItem) && !isPromptRole(promptItem.role2)){
+                promptItem.role2 = 'system'
             }
         }} >
             <OptionInput value="plain">{language.formating.plain}</OptionInput>
@@ -342,9 +363,9 @@
         {/if}
         {#if hasPromptBlockRole(promptItem)}
             <span>{language.role}</span>
-            <SelectInput value={promptItem.role ?? 'system'} onchange={(event) => {
+            <SelectInput value={promptItem.role2 ?? 'system'} onchange={(event) => {
                 if(hasPromptBlockRole(promptItem)){
-                    promptItem.role = event.currentTarget.value as PromptRole
+                    promptItem.role2 = event.currentTarget.value as PromptRole
                 }
             }}>
                 <OptionInput value="user">{language.user}</OptionInput>

@@ -30,7 +30,12 @@ export const languageVietnamese = {
         "requestLogRemovedDesc": "This request log removes when client is refreshed or reloaded.",
         "vertexAuthError": "Thiếu thông tin xác thực Vertex AI.",
         "coldStorageWriteFailed": "Ghi vào bộ nhớ lạnh thất bại. Dữ liệu trò chuyện của bạn đã được bảo toàn.",
-        "coldStorageVerifyFailed": "Xác minh bộ nhớ lạnh thất bại. Dữ liệu trò chuyện của bạn đã được bảo toàn."
+        "coldStorageVerifyFailed": "Xác minh bộ nhớ lạnh thất bại. Dữ liệu trò chuyện của bạn đã được bảo toàn.",
+        "coldStorageRestoreFailed": "Không thể tải dữ liệu bộ nhớ lạnh. Dữ liệu của nhân vật bị ảnh hưởng có thể đã bị mất vĩnh viễn.",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Dữ liệu bộ nhớ lạnh của ${characterNames || "nhân vật không xác định"} bị thiếu hoặc không hợp lệ.${unresolvedCount > 0 ? ` Có ${unresolvedCount} mục không thể liên kết với nhân vật.` : ""}\n\nNếu tiếp tục, bản sao lưu này sẽ thiếu ${unavailableCount} mục bộ nhớ lạnh và dữ liệu nhân vật hoặc cuộc trò chuyện bị ảnh hưởng có thể không thể khôi phục từ bản sao lưu.\n\nVẫn tạo bản sao lưu không đầy đủ?`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Không thể khôi phục dữ liệu bộ nhớ lạnh của ${characterNames || "nhân vật không xác định"}.${unresolvedCount > 0 ? ` Có ${unresolvedCount} mục không thể liên kết với nhân vật.` : ""}\n\nNếu tiếp tục, ${unavailableCount} mục bộ nhớ lạnh sẽ vẫn không khả dụng và dữ liệu nhân vật hoặc cuộc trò chuyện bị ảnh hưởng có thể bị mất vĩnh viễn.\n\nVẫn tiếp tục khôi phục không đầy đủ?`
     },
     "showHelp": "Hiển thị trợ giúp",
     "help": {
@@ -85,6 +90,7 @@ export const languageVietnamese = {
         "openAIFixer": "OpenAI Fixer là một plugin khắc phục một số vấn đề của OpenAI.",
         "sayNothing": "Nếu được bật, nó sẽ nhập 'say nothing' khi không có chuỗi nào được nhập.",
         "showUnrecommended": "Nếu được bật, nó sẽ hiển thị các cài đặt không được khuyến nghị, không còn được dùng nữa. KHÔNG KHUYẾN NGHỊ sử dụng các cài đặt này.",
+        "streamingDisplayOptimizationMode": "Giảm giật lag khi stream phản hồi dài trong các trường hợp có nhiều hậu xử lý, chẳng hạn script dùng regex. Tùy chọn này có thể hữu ích trên thiết bị di động hoặc máy cấu hình thấp.\n\nTắt giữ hành vi bình thường, nhưng hậu xử lý chạy sau mỗi token và có thể tạo chi phí đáng kể.\n\nCân bằng giảm tải bằng cách chỉ thử hậu xử lý theo khoảng ngắn, khoảng 0,125 giây một lần.\n\nMạnh tương tự Cân bằng, nhưng bỏ qua hậu xử lý trong lúc stream và chỉ thử hậu xử lý một lần sau khi stream hoàn tất.\n\nĐây là tính năng thử nghiệm, nên một số tính năng có thể hoạt động ngoài ý muốn.",
         "imageCompression": "Nếu được bật, nó sẽ nén hình ảnh khi xuất nhân vật. Nếu hình ảnh động không hoạt động, hãy thử tắt tùy chọn này.",
         "useExperimental": "Nếu được bật, nó sẽ hiển thị một số tính năng thử nghiệm.",
         "forceProxyAsOpenAI": "Nếu được bật, nó sẽ buộc sử dụng định dạng OpenAI khi sử dụng proxy ngược.",
@@ -705,6 +711,10 @@ export const languageVietnamese = {
     "unrecommended": "Không được khuyến khích",
     "chatNotes": "Ghi chú trò chuyện",
     "showUnrecommended": "Hiển thị cài đặt không được đề xuất",
+    "streamingDisplayOptimizationMode": "Tối ưu hiển thị streaming",
+    "streamingDisplayOptimizationOff": "Tắt",
+    "streamingDisplayOptimizationBalanced": "Cân bằng",
+    "streamingDisplayOptimizationStrong": "Mạnh",
     "altGreet": "Tin nhắn đầu tiên thay thế",
     "scripts": "Tập lệnh",
     "settings": "Cài đặt",

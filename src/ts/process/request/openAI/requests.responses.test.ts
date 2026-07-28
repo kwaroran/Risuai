@@ -103,7 +103,7 @@ vi.mock('src/ts/model/modellist', () => ({
         deepSeekThinkingInput: 18,
         deepSeekThinkingOutput: 19,
         deepSeekThinkingToggle: 24,
-        adaptiveThinking: 26,
+        adaptiveThinking: 27,
     },
     LLMFormat: {
         Mistral: 4,

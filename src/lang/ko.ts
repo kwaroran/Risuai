@@ -30,7 +30,12 @@ export const languageKorean = {
         "requestLogRemovedDesc": "요청 로그는 앱이 재시작되거나 새로고침되면 삭제됩니다.",
         "vertexAuthError": "Vertex AI 인증 정보가 누락되었습니다.",
         "coldStorageWriteFailed": "콜드 스토리지 저장에 실패했습니다. 채팅 데이터는 보존되었습니다.",
-        "coldStorageVerifyFailed": "콜드 스토리지 검증에 실패했습니다. 채팅 데이터는 보존되었습니다."
+        "coldStorageVerifyFailed": "콜드 스토리지 검증에 실패했습니다. 채팅 데이터는 보존되었습니다.",
+        "coldStorageRestoreFailed": "콜드 스토리지 데이터를 불러올 수 없습니다. 해당 캐릭터의 데이터가 영구적으로 손실되었을 수 있습니다.",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `${characterNames || "알 수 없는 캐릭터"}의 콜드 스토리지 데이터가 없거나 손상되었습니다.${unresolvedCount > 0 ? ` 캐릭터를 확인할 수 없는 항목이 ${unresolvedCount}개 있습니다.` : ""}\n\n계속하면 이 백업에서 콜드 스토리지 항목 ${unavailableCount}개가 누락되며, 해당 캐릭터 또는 채팅 데이터를 이 백업으로 복구하지 못할 수 있습니다.\n\n그래도 불완전한 백업을 생성하시겠습니까?`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `${characterNames || "알 수 없는 캐릭터"}의 콜드 스토리지 데이터를 복원하지 못했습니다.${unresolvedCount > 0 ? ` 캐릭터를 확인할 수 없는 항목이 ${unresolvedCount}개 있습니다.` : ""}\n\n계속하면 콜드 스토리지 항목 ${unavailableCount}개를 사용할 수 없으며, 해당 캐릭터 또는 채팅 데이터가 영구적으로 손실될 수 있습니다.\n\n그래도 불완전한 복원을 계속하시겠습니까?`
     },
     "showHelp": "도움말 보기",
     "help": {
@@ -85,6 +90,7 @@ export const languageKorean = {
         "openAIFixer": "OpenAI Fixer는 OpenAI의 일부 문제를 수정하는 플러그인입니다.",
         "sayNothing": "활성화되면 문자열이 입력되지 않을 때 '아무 말도 하지 않음'을 입력합니다.",
         "showUnrecommended": "활성화되면 권장되지 않는, 사용되지 않는 설정을 표시합니다. 이러한 설정을 사용하는 것을 권장하지 않습니다.",
+        "streamingDisplayOptimizationMode": "정규식 스크립트처럼 후처리가 많은 상태에서 긴 응답을 스트리밍으로 받을 때 화면 버벅임을 줄입니다. 모바일 기기나 로우엔드 장비에서 유용할 수 있습니다.\n\n끄기는 일반 동작을 유지하지만, 매 토큰마다 후처리가 발생해 상당한 오버헤드를 유발할 수 있습니다.\n\n균형은 짧은 간격(약 0.125초) 단위로만 후처리를 시도하여 부하를 낮춥니다.\n\n강함은 균형과 비슷하지만 스트리밍 중에는 후처리를 건너뛰고, 스트리밍 완료 후 한 번만 후처리를 시도하여 부하를 크게 낮춥니다.\n\n이는 실험적 기능이며, 이로 인해 일부 기능이 의도하지 않은대로 동작할 수 있습니다.",
         "imageCompression": "활성화되면 캐릭터 내보내기 시 이미지를 압축합니다. 애니메이션 이미지가 작동하지 않는 경우 이 옵션을 비활성화해보세요.",
         "useExperimental": "활성화되면 일부 실험적인 기능이 표시됩니다.",
         "forceProxyAsOpenAI": "활성화되면 커스텀 모델 사용 시 OpenAI 형식을 강제로 사용합니다.",
@@ -724,6 +730,10 @@ export const languageKorean = {
     "unrecommended": "비권장",
     "chatNotes": "채팅 노트",
     "showUnrecommended": "비권장 설정 보이기",
+    "streamingDisplayOptimizationMode": "스트리밍 표시 최적화",
+    "streamingDisplayOptimizationOff": "끄기",
+    "streamingDisplayOptimizationBalanced": "균형",
+    "streamingDisplayOptimizationStrong": "강함",
     "altGreet": "추가 첫 메시지",
     "scripts": "스크립트",
     "settings": "설정",

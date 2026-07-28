@@ -36,7 +36,7 @@ export interface PromptItemChatML {
 export interface PromptItemTyped {
     type: 'persona'|'description'|'lorebook'|'postEverything'|'memory'
     innerFormat?: string,
-    role?: PromptRole
+    role2?: PromptRole
     name?: string
 }
 
@@ -44,7 +44,7 @@ export interface PromptItemAuthorNote {
     type : 'authornote'
     innerFormat?: string
     defaultText?: string
-    role?: PromptRole
+    role2?: PromptRole
     name?: string
 }
 

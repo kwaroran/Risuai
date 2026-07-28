@@ -23,7 +23,7 @@ import { getInlayAsset } from "./files/inlays";
 import { getGenerationModelString } from "./models/modelString";
 import { connectionOpen, peerRevertChat, peerSafeCheck, peerSync } from "../sync/multiuser";
 import { runInlayScreen } from "./inlayScreen";
-import { addRerolls } from "./prereroll";
+import { appendCandidateVariants } from "./prereroll";
 import { runImageEmbedding } from "./transformers";
 import { hanuraiMemory } from "./memory/hanuraiMemory";
 import { hypaMemoryV2 } from "./memory/hypav2";
@@ -1722,7 +1722,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             return false
         }
 
-        addRerolls(generationId, Object.values(lastResponseChunk))
+        if(!arg.continue){
+            appendCandidateVariants(DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex], Object.values(lastResponseChunk).slice(1), generationInfo)
+        }
 
         DBState.db.characters[selectedChar].chats[selectedChat] = runCurrentChatFunction(DBState.db.characters[selectedChar].chats[selectedChat])
         currentChat = DBState.db.characters[selectedChar].chats[selectedChat]        
@@ -1768,6 +1770,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             result = inlayResult.text
             emoChanged = result2.emoChanged
             if(i === 0 && arg.continue){
+                const beforeMessage = DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex]
                 DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex] = {
                     role: 'char',
                     data: result,
@@ -1776,7 +1779,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     generationInfo,
                     promptInfo,
                     chatId: generationId,
-                }       
+                    variants: beforeMessage.variants,
+                    variantIndex: beforeMessage.variantIndex,
+                }
                 if(inlayResult.promise){
                     const p = await inlayResult.promise
                     DBState.db.characters[selectedChar].chats[selectedChat].message[msgIndex].data = p
@@ -1808,8 +1813,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             }
         }
 
-        if(mrerolls.length >1){
-            addRerolls(generationId, mrerolls)
+        if(!arg.continue && mrerolls.length > 1){
+            const message = DBState.db.characters[selectedChar].chats[selectedChat].message
+            appendCandidateVariants(message[message.length - 1], mrerolls.slice(1), generationInfo)
         }
 
         DBState.db.characters[selectedChar].chats[selectedChat] = runCurrentChatFunction(DBState.db.characters[selectedChar].chats[selectedChat])

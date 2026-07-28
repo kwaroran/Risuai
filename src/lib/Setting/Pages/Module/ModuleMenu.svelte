@@ -230,7 +230,7 @@
 {#if submenu === 2 && (Array.isArray(currentModule.regex))}
     <span class="text-textcolor">{language.backgroundHTML}</span>
     <TextAreaInput bind:value={currentModule.backgroundEmbedding} className="mt-2" placeholder={language.backgroundHTML} size="sm"/>
-    <span class="text-textcolor mt-4">{language.sideMenuEmbedding}</span>
+    <span class="text-textcolor mt-4">{language.sideMenuEmbedding} <Help key="sideMenuEmbedding" /></span>
     <TextAreaInput bind:value={currentModule.sideMenuEmbedding} className="mt-2" placeholder={language.sideMenuEmbedding} size="sm"/>
     <RegexList bind:value={currentModule.regex}/>
     <div class="text-textcolor2 mt-2 flex gap-2">

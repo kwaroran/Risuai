@@ -7,7 +7,7 @@ import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
 import { compressImage } from '../media'
 import { decodeRPack, encodeRPack } from "../rpack/rpack_js"
-import { DBState, HideIconStore, moduleBackgroundEmbedding, moduleSideMenuEmbedding, ReloadGUIPointer } from "../stores.svelte"
+import { DBState, HideIconStore, moduleBackgroundEmbedding, moduleSidePanelEmbedding, ReloadGUIPointer } from "../stores.svelte"
 import {get} from "svelte/store"
 import { convertCharacterToModule, convertModuleToCharacter } from "../interchangeability"
 import { exportCharacterCard, importCharacterProcess } from "../characterCards"
@@ -579,7 +579,7 @@ export function moduleUpdate(){
     if(backgroundEmbedding){
         moduleBackgroundEmbedding.set(backgroundEmbedding)
     }
-    moduleSideMenuEmbedding.set(sideMenuEmbedding)
+    moduleSidePanelEmbedding.set(sideMenuEmbedding)
     HideIconStore.set(getCurrentCharacter()?.hideChatIcon || moduleHideIcon)
 
     if(lastModuleIds !== ids){

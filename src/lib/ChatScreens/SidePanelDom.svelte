@@ -11,7 +11,7 @@
     import {
         CurrentTriggerIdStore,
         DBState,
-        moduleSideMenuEmbedding,
+        moduleSidePanelEmbedding,
         ReloadGUIPointer,
         selIdState,
     } from "src/ts/stores.svelte";
@@ -21,9 +21,9 @@
     let renderVersion = 0;
 
     let currentChar = $derived(DBState.db?.characters?.[selIdState.selId]);
-    let sideMenuEmbedding = $derived(
+    let sidePanelEmbedding = $derived(
         selIdState.selId > -1
-            ? `${currentChar?.sideMenuHTML ?? ""}\n${$moduleSideMenuEmbedding ?? ""}`
+            ? `${currentChar?.sideMenuHTML ?? ""}\n${$moduleSidePanelEmbedding ?? ""}`
             : "",
     );
 
@@ -40,7 +40,7 @@
             return;
         }
 
-        const source = sideMenuEmbedding;
+        const source = sidePanelEmbedding;
         const char = currentChar;
         const target = host;
         const reloadPointer = $ReloadGUIPointer;

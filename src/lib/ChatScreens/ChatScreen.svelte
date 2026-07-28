@@ -9,7 +9,7 @@
     import ChatList from "../Others/ChatList.svelte";
     import TransitionImage from "./TransitionImage.svelte";
     import BackgroundDom from "./BackgroundDom.svelte";
-    import SideMenuDom from "./SideMenuDom.svelte";
+    import SideMenuDom from "./SidePanelDom.svelte";
     import SideBarArrow from "../UI/GUI/SideBarArrow.svelte";
     import ModuleChatMenu from "../Setting/Pages/Module/ModuleChatMenu.svelte";
     let openChatList = $state(false)

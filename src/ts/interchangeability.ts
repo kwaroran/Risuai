@@ -18,7 +18,7 @@ export function convertModuleToCharacter(m: RisuModule): character {
     char.lowLevelAccess = m.lowLevelAccess || false
     char.hideChatIcon = m.hideIcon || false
     char.backgroundHTML = m.backgroundEmbedding || ""
-    char.sideMenuHTML = m.sideMenuEmbedding || ""
+    char.sidePanelHTML = m.sidePanelEmbedding || ""
     char.additionalAssets = m.assets || []
     char.customModuleToggle = m.customModuleToggle || ""
     char.image = m.icon || ""
@@ -61,7 +61,7 @@ export function convertCharacterToModule(c: character): RisuModule {
         lowLevelAccess: c.lowLevelAccess,
         hideIcon: c.hideChatIcon,
         backgroundEmbedding: c.backgroundHTML,
-        sideMenuEmbedding: c.sideMenuHTML,
+        sidePanelEmbedding: c.sidePanelHTML,
         assets: c.additionalAssets,
         customModuleToggle: c.customModuleToggle,
         id: v4(),

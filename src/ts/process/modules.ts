@@ -27,7 +27,7 @@ export interface RisuModule{
     lowLevelAccess?: boolean
     hideIcon?: boolean
     backgroundEmbedding?:string
-    sideMenuEmbedding?:string
+    sidePanelEmbedding?:string
     assets?:[string,string,string][]
     namespace?:string
     customModuleToggle?:string
@@ -559,7 +559,7 @@ export function moduleUpdate(){
     
     let moduleHideIcon = false
     let backgroundEmbedding = ''
-    let sideMenuEmbedding = ''
+    let sidePanelEmbedding = ''
     m.forEach((module) => {
         if(!module){
             return
@@ -571,15 +571,15 @@ export function moduleUpdate(){
         if(module.backgroundEmbedding){
             backgroundEmbedding += '\n' + module.backgroundEmbedding + '\n'
         }
-        if(module.sideMenuEmbedding){
-            sideMenuEmbedding += '\n' + module.sideMenuEmbedding + '\n'
+        if(module.sidePanelEmbedding){
+            sidePanelEmbedding += '\n' + module.sidePanelEmbedding + '\n'
         }
     })
 
     if(backgroundEmbedding){
         moduleBackgroundEmbedding.set(backgroundEmbedding)
     }
-    moduleSidePanelEmbedding.set(sideMenuEmbedding)
+    moduleSidePanelEmbedding.set(sidePanelEmbedding)
     HideIconStore.set(getCurrentCharacter()?.hideChatIcon || moduleHideIcon)
 
     if(lastModuleIds !== ids){

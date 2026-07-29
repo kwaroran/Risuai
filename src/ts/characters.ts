@@ -598,7 +598,7 @@ export function characterFormatUpdate(indexOrCharacter:number|character, arg:{
             language: 'en'
         }
         cha.backgroundHTML ??= ''
-        cha.sideMenuHTML ??= ''
+        cha.sidePanelHTML ??= ''
         cha.backgroundCSS ??= ''
         cha.creation_date ??= Date.now()
         cha.globalLore = updateLorebooks(cha.globalLore)

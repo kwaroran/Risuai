@@ -23,7 +23,7 @@
     let currentChar = $derived(DBState.db?.characters?.[selIdState.selId]);
     let sidePanelEmbedding = $derived(
         selIdState.selId > -1
-            ? `${currentChar?.sideMenuHTML ?? ""}\n${$moduleSidePanelEmbedding ?? ""}`
+            ? `${currentChar?.sidePanelHTML ?? ""}\n${$moduleSidePanelEmbedding ?? ""}`
             : "",
     );
 
@@ -71,7 +71,7 @@
             });
             lastRenderedHTML = sanitizedHTML;
         })().catch((error) => {
-            console.error("Failed to render side menu embedding:", error);
+            console.error("Failed to render side panel embedding:", error);
         });
     });
 
@@ -117,12 +117,12 @@
 <div
     bind:this={host}
     class="chattext absolute top-0 right-0 h-full pointer-events-none"
-    data-risu-side-menu
+    data-risu-side-panel
     onclickcapture={handleButtonTriggerWithin}
 ></div>
 
 <style>
-    :global([data-risu-side-menu] > :not(style)) {
+    :global([data-risu-side-panel] > :not(style)) {
         pointer-events: auto;
     }
 </style>

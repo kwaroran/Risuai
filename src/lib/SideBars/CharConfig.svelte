@@ -688,8 +688,8 @@
         <span class="text-textcolor mt-2">{language.backgroundHTML} <Help key="backgroundHTML" /></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].backgroundHTML}></TextAreaInput>
 
-        <span class="text-textcolor mt-2">{language.sideMenuEmbedding} <Help key="sideMenuEmbedding" /></span>
-        <TextAreaInput highlight margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].sideMenuHTML}></TextAreaInput>
+        <span class="text-textcolor mt-2">{language.sidePanelEmbedding} <Help key="sidePanelEmbedding" /></span>
+        <TextAreaInput highlight margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].sidePanelHTML}></TextAreaInput>
 
         <span class="text-textcolor mt-4">{language.regexScript} <Help key="regexScript"/></span>
         <RegexList bind:value={DBState.db.characters[$selectedCharID].customscript} />

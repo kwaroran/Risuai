@@ -660,6 +660,9 @@ export function setDatabase(data:Database){
         otherAx: data.fallbackModels.otherAx.filter((v) => v !== '')
     }
     data.customModels ??= []
+    for (const customModel of data.customModels) {
+        customModel.thinkingControl ??= 'tokens'
+    }
     data.authRefreshes ??= []
     data.openAIFlexProcessing ??= false
     data.rememberToolUsage ??= true
@@ -1195,6 +1198,7 @@ export interface Database{
         name: string
         params: string
         flags: LLMFlags[]
+        thinkingControl: CustomModelThinkingControl
     }[]
     igpPrompt:string
     useTokenizerCaching:boolean
@@ -2278,6 +2282,7 @@ import type { SerializableHypaV2Data } from '../process/memory/hypav2';
 import { decodeRPack, encodeRPack } from '../rpack/rpack_js';
 import { DBState, selectedCharID } from '../stores.svelte';
 import { LLMFlags, LLMFormat, LLMTokenizer } from '../model/modellist';
+import type { CustomModelThinkingControl } from '../model/types';
 import type { HypaModel } from '../process/memory/hypamemory';
 import type { SerializableHypaV3Data } from '../process/memory/hypav3';
 import { defaultHotkeys, type Hotkey } from '../defaulthotkeys';

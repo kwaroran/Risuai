@@ -40,7 +40,9 @@
         modelInfo.parameters.includes('reasoning_effort') ||
         modelInfo.parameters.includes('reasoning_effort_min_medium') ||
         modelInfo.parameters.includes('reasoning_effort_none') ||
-        modelInfo.parameters.includes('reasoning_effort_xhigh')
+        modelInfo.parameters.includes('reasoning_effort_no_disabled') ||
+        modelInfo.parameters.includes('reasoning_effort_xhigh') ||
+        modelInfo.parameters.includes('reasoning_effort_max')
     )
     let hasVerbosity = $derived(modelInfo.parameters.includes('verbosity'))
     const verbosityOptions = [
@@ -49,7 +51,7 @@
         { value: 2, label: 'High' },
     ]
     let reasoningEffortOptions = $derived([
-        ...(!modelInfo.parameters.includes('reasoning_effort_min_medium') ? [{
+        ...(!modelInfo.parameters.includes('reasoning_effort_min_medium') && !modelInfo.parameters.includes('reasoning_effort_no_disabled') ? [{
             value: -1,
             label: modelInfo.parameters.includes('reasoning_effort_none') ? 'None' : 'Minimal',
         }] : []),
@@ -57,11 +59,18 @@
         { value: 1, label: 'Medium' },
         { value: 2, label: 'High' },
         ...(modelInfo.parameters.includes('reasoning_effort_xhigh') ? [{ value: 3, label: 'XHigh' }] : []),
+        ...(modelInfo.parameters.includes('reasoning_effort_max') ? [{ value: 4, label: 'Max' }] : []),
     ])
 
     $effect(() => {
+        if (!modelInfo.parameters.includes('reasoning_effort_max') && value.reasoning_effort === 4) {
+            value.reasoning_effort = modelInfo.parameters.includes('reasoning_effort_xhigh') ? 3 : 2
+        }
         if (!modelInfo.parameters.includes('reasoning_effort_xhigh') && value.reasoning_effort === 3) {
             value.reasoning_effort = 2
+        }
+        if (modelInfo.parameters.includes('reasoning_effort_no_disabled') && value.reasoning_effort < 0) {
+            value.reasoning_effort = 0
         }
         if (modelInfo.parameters.includes('reasoning_effort_min_medium') && value.reasoning_effort < 1) {
             value.reasoning_effort = 1

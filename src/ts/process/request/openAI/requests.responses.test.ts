@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer } from 'src/ts/model/types'
 import { fetchNative } from 'src/ts/globalApi.svelte'
 import { callTool } from '../../mcp/mcp'
-import { __testResponsesAPI, requestOpenAIResponseAPI } from './requests'
+import { __testResponsesAPI, requestOpenAI, requestOpenAIResponseAPI } from './requests'
 
 const mocks = vi.hoisted(() => ({
     db: {
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
         additionalParams: [],
         autofillRequestUrl: false,
         customModels: [],
+        frequencyPenalty: 0,
         gptVisionQuality: 'high',
         jsonSchema: '{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}',
         jsonSchemaEnabled: false,
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
         nanogptUseSubscriptionEndpoint: false,
         openAIKey: 'openai-key',
         proxyKey: 'proxy-key',
+        PresensePenalty: 0,
         requestRetrys: 0,
         reasoningEffort: 2,
         seperateParametersEnabled: false,
@@ -192,6 +194,7 @@ describe('OpenAI Responses API helpers', () => {
         mocks.db.nanogptUseSubscriptionEndpoint = false
         mocks.db.simplifiedToolUse = false
         mocks.db.autofillRequestUrl = false
+        mocks.db.reasoningEffort = 2
     })
 
     it('builds a Responses request body for text, developer role, multimodal input, tools, and model parameters', async () => {
@@ -245,6 +248,92 @@ describe('OpenAI Responses API helpers', () => {
         const body = await __testResponsesAPI.buildResponsesBody(baseArg())
 
         expect(body.reasoning).toEqual({ effort: 'high', summary: 'auto' })
+    })
+
+    it('sends max effort for a custom Responses model that supports it', async () => {
+        mocks.db.reasoningEffort = 4
+
+        const body = await __testResponsesAPI.buildResponsesBody(baseArg({
+            modelInfo: {
+                ...baseArg().modelInfo,
+                parameters: [
+                    'temperature',
+                    'top_p',
+                    'reasoning_effort',
+                    'reasoning_effort_xhigh',
+                    'reasoning_effort_max',
+                ],
+            },
+        }))
+
+        expect(body.reasoning).toEqual({ effort: 'max', summary: 'auto' })
+    })
+
+    it('sends max effort for a custom OpenAI-compatible model', async () => {
+        mocks.db.reasoningEffort = 4
+
+        const result = await requestOpenAI(baseArg({
+            aiModel: 'xcustom:::openai',
+            customURL: 'https://api.openai.com/v1/chat/completions',
+            formated: [{ role: 'user', content: 'Hello' }],
+            key: 'openai-key',
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                flags: [],
+                format: LLMFormat.OpenAICompatible,
+                id: 'xcustom:::openai',
+                internalID: 'gpt-5.6',
+                parameters: [
+                    'reasoning_effort',
+                    'reasoning_effort_no_disabled',
+                    'reasoning_effort_xhigh',
+                    'reasoning_effort_max',
+                ],
+                provider: LLMProvider.AsIs,
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body).toMatchObject({
+            model: 'gpt-5.6',
+            reasoning_effort: 'max',
+        })
+    })
+
+    it('sends the selected effort and internal model ID for a custom Mistral model', async () => {
+        mocks.db.reasoningEffort = 3
+
+        const result = await requestOpenAI(baseArg({
+            aiModel: 'xcustom:::mistral',
+            customURL: 'https://api.mistral.ai/v1/chat/completions',
+            formated: [{ role: 'user', content: 'Hello' }],
+            key: 'mistral-key',
+            previewBody: true,
+            modelInfo: {
+                ...baseArg().modelInfo,
+                flags: [],
+                format: LLMFormat.Mistral,
+                id: 'xcustom:::mistral',
+                internalID: 'magistral-medium-latest',
+                parameters: [
+                    'temperature',
+                    'top_p',
+                    'reasoning_effort',
+                    'reasoning_effort_no_disabled',
+                    'reasoning_effort_xhigh',
+                ],
+                provider: LLMProvider.AsIs,
+            },
+        }))
+
+        expect(result.type).toBe('success')
+        const preview = JSON.parse(result.result as string)
+        expect(preview.body).toMatchObject({
+            model: 'magistral-medium-latest',
+            reasoning_effort: 'xhigh',
+        })
     })
 
     it('does not request reasoning summaries for Responses non-reasoning models', async () => {

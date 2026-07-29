@@ -9,7 +9,13 @@ import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
 import { addFetchLog } from "src/ts/globalApi.svelte"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyAdditionalParameters, applyParameters, getAdditionalParameters, type LLMParameter } from './shared'
+import {
+    applyAdditionalParameters,
+    applyParameters,
+    getAdditionalParameters,
+    isReasoningCapabilityParameter,
+    type LLMParameter,
+} from './shared'
 import { bodyIntercepterStore } from "src/ts/stores.svelte"
 
 type GeminiFunctionCall = {
@@ -317,14 +323,15 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
 
     let para:LLMParameter[] = ['temperature', 'top_p', 'top_k', 'presence_penalty', 'frequency_penalty']
 
-    if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
-        para.push('thinking_tokens')
-        para.push('reasoning_effort')
+    for (const thinkingParameter of ['thinking_tokens', 'reasoning_effort'] as LLMParameter[]) {
+        if (arg.modelInfo.parameters.includes(thinkingParameter)) {
+            para.push(thinkingParameter)
+        }
     }
 
-    para = para.filter((v) => {
-        return arg.modelInfo.parameters.includes(v)
-    })
+    para = arg.modelInfo.parameters.filter((parameter) =>
+        para.includes(parameter) || isReasoningCapabilityParameter(parameter)
+    )
 
     let body: any = {
         contents: reformatedChat,
@@ -361,7 +368,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         }
     }
 
-    if(arg.modelInfo.flags.includes(LLMFlags.geminiThinking)){
+    if(arg.modelInfo.parameters.includes('thinking_tokens') || arg.modelInfo.parameters.includes('reasoning_effort')){
         const generationConfig = body.generation_config
 
         // 2.5's flat thinkingBudget is wrapped into thinkingConfig here.

@@ -13,7 +13,9 @@ export type LLMParameter =
     | 'reasoning_effort'
     | 'reasoning_effort_min_medium'
     | 'reasoning_effort_none'
+    | 'reasoning_effort_no_disabled'
     | 'reasoning_effort_xhigh'
+    | 'reasoning_effort_max'
     | 'thinking_tokens'
     | 'verbosity'
 
@@ -22,10 +24,12 @@ export type ModelModeExtended = 'model' | 'submodel' | 'memory' | 'emotion' | 'o
 const reasoningCapabilityParameters: LLMParameter[] = [
     'reasoning_effort_min_medium',
     'reasoning_effort_none',
+    'reasoning_effort_no_disabled',
     'reasoning_effort_xhigh',
+    'reasoning_effort_max',
 ]
 
-function isReasoningCapabilityParameter(parameter: LLMParameter): boolean {
+export function isReasoningCapabilityParameter(parameter: LLMParameter): boolean {
     return reasoningCapabilityParameters.includes(parameter)
 }
 
@@ -147,12 +151,21 @@ export function applyParameters(
     const db = getDatabase()
     const reasoningDisabledEffort = parameters.includes('reasoning_effort_none') ? 'none' : 'minimal'
     const reasoningMinEffort = parameters.includes('reasoning_effort_min_medium') ? 'medium' : 'low'
+    const supportsDisabledReasoning = !parameters.includes('reasoning_effort_no_disabled')
     const supportsXHighReasoning = parameters.includes('reasoning_effort_xhigh')
+    const supportsMaxReasoning = parameters.includes('reasoning_effort_max')
 
-    function getEffort(effort: number, disabledEffort: 'minimal' | 'none' = 'minimal', supportsXHigh = false, minEffort: 'low' | 'medium' = 'low') {
+    function getEffort(
+        effort: number,
+        disabledEffort: 'minimal' | 'none' = 'minimal',
+        supportsDisabled = true,
+        supportsXHigh = false,
+        supportsMax = false,
+        minEffort: 'low' | 'medium' = 'low',
+    ) {
         switch (effort) {
             case -1: {
-                return disabledEffort
+                return supportsDisabled ? disabledEffort : minEffort
             }
             case 0: {
                 return minEffort
@@ -164,6 +177,12 @@ export function applyParameters(
                 return 'high'
             }
             case 3: {
+                return supportsXHigh ? 'xhigh' : 'high'
+            }
+            case 4: {
+                if (supportsMax) {
+                    return 'max'
+                }
                 return supportsXHigh ? 'xhigh' : 'high'
             }
             default: {
@@ -248,7 +267,9 @@ export function applyParameters(
                     value = getEffort(
                         sepParams.reasoning_effort,
                         reasoningDisabledEffort,
+                        supportsDisabledReasoning,
                         supportsXHighReasoning,
+                        supportsMaxReasoning,
                         reasoningMinEffort
                     )
                     break
@@ -310,7 +331,9 @@ export function applyParameters(
                 value = getEffort(
                     db.reasoningEffort,
                     reasoningDisabledEffort,
+                    supportsDisabledReasoning,
                     supportsXHighReasoning,
+                    supportsMaxReasoning,
                     reasoningMinEffort
                 )
                 break

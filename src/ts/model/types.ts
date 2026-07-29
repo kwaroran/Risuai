@@ -101,6 +101,53 @@ export const LLMTokenizer = {
 } as const;
 export type LLMTokenizer = (typeof LLMTokenizer)[keyof typeof LLMTokenizer];
 
+export type CustomModelThinkingControl = 'tokens' | 'effort'
+
+const customModelBaseParameters: LLMParameter[] = [
+    'temperature',
+    'top_p',
+    'frequency_penalty',
+    'presence_penalty',
+    'repetition_penalty',
+    'min_p',
+    'top_a',
+    'top_k',
+]
+
+export function getCustomModelParameters(
+    format: LLMFormat,
+    thinkingControl: CustomModelThinkingControl = 'tokens',
+): LLMParameter[] {
+    if (thinkingControl === 'tokens') {
+        return [...customModelBaseParameters, 'thinking_tokens']
+    }
+
+    const parameters: LLMParameter[] = [
+        ...customModelBaseParameters,
+        'reasoning_effort',
+        'reasoning_effort_no_disabled',
+    ]
+
+    switch (format) {
+        case LLMFormat.OpenAICompatible:
+        case LLMFormat.OpenAIResponseAPI:
+        case LLMFormat.Anthropic:
+        case LLMFormat.AWSBedrockClaude:
+            parameters.push('reasoning_effort_xhigh', 'reasoning_effort_max')
+            break
+        case LLMFormat.Mistral:
+            parameters.push('reasoning_effort_xhigh')
+            break
+        case LLMFormat.GoogleCloud:
+        case LLMFormat.VertexAIGemini:
+            break
+        default:
+            return [...customModelBaseParameters]
+    }
+
+    return parameters
+}
+
 export interface LLMModel{
     id: string
     name: string

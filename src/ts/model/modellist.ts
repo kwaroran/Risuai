@@ -7,6 +7,7 @@ import {
     ProviderNames,
     OpenAIParameters,
     ClaudeParameters,
+    getCustomModelParameters,
     type LLMModel
 } from './types'
 import { OpenAIModels } from './providers/openai'
@@ -777,7 +778,7 @@ export function getModelInfo(id?: string | null): LLMModel{
                 provider: LLMProvider.AsIs,
                 format: found.format,
                 flags: found.flags,
-                parameters: ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'repetition_penalty', 'min_p', 'top_a', 'top_k', 'thinking_tokens'],
+                parameters: getCustomModelParameters(found.format, found.thinkingControl),
                 tokenizer: found.tokenizer
             }
         }

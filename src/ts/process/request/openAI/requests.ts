@@ -13,7 +13,13 @@ import { applyChatTemplate } from "../../templates/chatTemplate"
 import { supportsInlayImage } from "../../files/inlays"
 import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
-import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
+import {
+    applyAdditionalParameters,
+    applyParameters,
+    getAdditionalParameters,
+    isReasoningCapabilityParameter,
+    type LLMParameter,
+} from '../shared'
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ToolCall } from './types'
 
@@ -227,7 +233,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
     console.log(formatedChat)
     if(arg.modelInfo.format === LLMFormat.Mistral){
-        requestModel = aiModel
+        requestModel = arg.modelInfo.internalID ?? aiModel
 
         let reformatedChat:OpenAIChatExtra[] = []
 
@@ -281,6 +287,16 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
         const requestURL = arg.customURL ?? "https://api.mistral.ai/v1/chat/completions"
         const networkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
+        const supportedParameters: LLMParameter[] = [
+            'temperature',
+            'presence_penalty',
+            'frequency_penalty',
+            'top_p',
+            'reasoning_effort',
+        ]
+        const requestParameters = arg.modelInfo.parameters.filter((parameter) =>
+            supportedParameters.includes(parameter) || isReasoningCapabilityParameter(parameter)
+        )
 
         const targs = {
             body: applyParameters({
@@ -288,7 +304,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 messages: reformatedChat,
                 safe_prompt: false,
                 max_tokens: arg.maxTokens,
-            }, ['temperature', 'presence_penalty', 'frequency_penalty', 'top_p'], {}, arg.mode, {
+            }, requestParameters, {}, arg.mode, {
                 modelId: arg.modelInfo.id
             } ),
             headers: {

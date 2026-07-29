@@ -347,6 +347,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         })
     }
 
+    const usesReasoningEffort = arg.modelInfo.parameters.includes('reasoning_effort')
+
     console.log(arg.modelInfo.parameters)
     let body = applyParameters({
         model: arg.modelInfo.internalID,
@@ -355,13 +357,20 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         max_tokens: maxTokens,
         stream: useStreaming ?? false,
     }, arg.modelInfo.parameters, {
-        'thinking_tokens': 'thinking.budget_tokens'
+        'thinking_tokens': 'thinking.budget_tokens',
+        'reasoning_effort': 'output_config.effort',
     }, arg.mode, {
         modelId: arg.modelInfo.id
     })
 
     // Handle thinking mode: off, adaptive, or budget
-    if(db.thinkingType === 'off'){
+    if(usesReasoningEffort){
+        delete body.thinking
+        body.thinking = arg.modelInfo.format === LLMFormat.AWSBedrockClaude
+            ? { type: 'adaptive' }
+            : { type: 'adaptive', display: 'summarized' }
+    }
+    else if(db.thinkingType === 'off'){
         delete body.thinking
     }
     else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){

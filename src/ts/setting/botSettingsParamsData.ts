@@ -274,18 +274,21 @@ export const modelSpecificParameterItems: SettingItem[] = [
             ctx.modelInfo.parameters.includes('reasoning_effort') ||
             ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') ||
             ctx.modelInfo.parameters.includes('reasoning_effort_none') ||
-            ctx.modelInfo.parameters.includes('reasoning_effort_xhigh'),
+            ctx.modelInfo.parameters.includes('reasoning_effort_no_disabled') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_xhigh') ||
+            ctx.modelInfo.parameters.includes('reasoning_effort_max'),
         options: {
             segmentOptions: [
-                { value: -1, label: 'Minimal', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_none') && !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
-                { value: -1, label: 'None', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none') },
+                { value: -1, label: 'Minimal', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_none') && !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') && !ctx.modelInfo.parameters.includes('reasoning_effort_no_disabled') },
+                { value: -1, label: 'None', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_none') && !ctx.modelInfo.parameters.includes('reasoning_effort_no_disabled') },
                 { value: 0, label: 'Low', condition: (ctx) => !ctx.modelInfo.parameters.includes('reasoning_effort_min_medium') },
                 { value: 1, label: 'Medium' },
                 { value: 2, label: 'High' },
                 { value: 3, label: 'XHigh', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_xhigh') },
+                { value: 4, label: 'Max', condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort_max') },
             ]
         },
-        keywords: ['reasoning', 'effort', 'xhigh'],
+        keywords: ['reasoning', 'effort', 'xhigh', 'max'],
     },
     {
         id: 'params.verbosity',

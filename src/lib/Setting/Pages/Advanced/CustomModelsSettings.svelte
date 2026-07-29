@@ -8,10 +8,24 @@
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import { PlusIcon, TrashIcon, ArrowUp, ArrowDown } from "@lucide/svelte";
-    import type { LLMFlags, LLMFormat, LLMTokenizer } from "src/ts/model/types";
+    import {
+        LLMFormat,
+        type CustomModelThinkingControl,
+        type LLMFlags,
+        type LLMTokenizer,
+    } from "src/ts/model/types";
     import { v4 } from "uuid";
 
     let openedModels = $state(new Set<string>());
+    const effortFormats: LLMFormat[] = [
+        LLMFormat.OpenAICompatible,
+        LLMFormat.Anthropic,
+        LLMFormat.Mistral,
+        LLMFormat.GoogleCloud,
+        LLMFormat.VertexAIGemini,
+        LLMFormat.AWSBedrockClaude,
+        LLMFormat.OpenAIResponseAPI,
+    ]
 
     let { noAccordion }:{
         noAccordion?: boolean,
@@ -131,6 +145,15 @@
                 <OptionInput value="17">AWSBedrockClaude</OptionInput>
                 <OptionInput value="18">OpenAIResponseAPI</OptionInput>
             </SelectInput>
+            {#if effortFormats.includes(model.format)}
+                <span class="text-textcolor">Thinking control</span>
+                <SelectInput size={"sm"} value={model.thinkingControl ?? 'tokens'} onchange={(e) => {
+                    DBState.db.customModels[index].thinkingControl = e.currentTarget.value as CustomModelThinkingControl
+                }}>
+                    <OptionInput value="tokens">Token budget</OptionInput>
+                    <OptionInput value="effort">Effort level</OptionInput>
+                </SelectInput>
+            {/if}
             <span class="text-textcolor">{language.proxyAPIKey}</span>
             <TextInput size={"sm"} bind:value={DBState.db.customModels[index].key}/>
             <span class="text-textcolor">{language.additionalParams}</span>
@@ -182,6 +205,7 @@
                 name: "",
                 params: "",
                 flags: [],
+                thinkingControl: "tokens",
             })
         }}>
             <PlusIcon />

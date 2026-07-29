@@ -6,8 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - VITE_RISU_LEGAL_CONFIGURED=FALSE
     restart: always
     ports:
       - 6001:6001

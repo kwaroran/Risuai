@@ -32,6 +32,15 @@ import { getModelInfo, LLMFlags } from "../model/modellist";
 import { hypaMemoryV3 } from "./memory/hypav3";
 import { getModuleAssets, getModuleToggles } from "./modules";
 import { readImage } from "../globalApi.svelte";
+import {
+    appendRequestContextSources,
+    calculateRequestTokenParts,
+    clearRequestContextMetadata,
+    prepareRequestContextSources,
+    setRequestContextCategory,
+    type RequestContextCategory,
+    type RequestTokenPart,
+} from "./requestContext";
 
 export interface OpenAIChat{
     role: 'system'|'user'|'assistant'|'function'
@@ -52,15 +61,10 @@ export interface MultiModal{
     width?:number
 }
 
-export interface requestTokenPart{
-    name:string
-    tokens:number
-}
-
 export const doingChat = writable(false)
 export const chatProcessStage = writable(0)
 export const abortChat = writable(false)
-export let requestTokenParts:{[key:string]:requestTokenPart[]} = {}
+export let requestTokenParts:{[key:string]:RequestTokenPart[]} = {}
 export let previewFormated:OpenAIChat[] = []
 export let previewBody:string = ''
 
@@ -500,10 +504,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     console.log(normalActives)
 
     for(const lorebook of normalActives){
-        unformated.lorebook.push({
+        const chat:OpenAIChat = {
             role: lorebook.role,
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
-        })
+        }
+        setRequestContextCategory(chat, lorebook.sourceType)
+        unformated.lorebook.push(chat)
     }
 
     const descActives = lorepmt.actives.filter(v => {
@@ -511,10 +517,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     })
 
     for(const lorebook of descActives){
-        const c = {
+        const c:OpenAIChat = {
             role: lorebook.role,
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
         }
+        setRequestContextCategory(c, lorebook.sourceType)
         if(lorebook.pos === 'before_desc'){
             beforeDescriptionPrompts.unshift(c)
             unformated.description.unshift(c)
@@ -551,10 +558,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         return v.pos === 'depth' && v.depth === 0 && v.role !== 'assistant'
     })
     for(const lorebook of postEverythingLorebooks){
-        unformated.postEverything.push({
+        const chat:OpenAIChat = {
             role: lorebook.role,
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
-        })
+        }
+        setRequestContextCategory(chat, lorebook.sourceType)
+        unformated.postEverything.push(chat)
     }
 
     //Since assistant needs to be prefill, we need to add assistant lorebooks after user/system lorebooks
@@ -572,10 +581,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
     
     for(const lorebook of postEverythingAssistantLorebooks){
-        unformated.postEverything.push({
+        const chat:OpenAIChat = {
             role: lorebook.role,
             content: risuChatParser(resolvePosition(lorebook.prompt), {chara: currentChar})
-        })
+        }
+        setRequestContextCategory(chat, lorebook.sourceType)
+        unformated.postEverything.push(chat)
     }
 
     //await tokenize currernt
@@ -797,6 +808,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
     
     const examples = exampleMessage(currentChar, getUserName())
+    for(const example of examples){
+        setRequestContextCategory(example, 'character')
+    }
 
     for(const example of examples){
         currentTokens += await tokenizer.tokenizeChat(example)
@@ -805,11 +819,13 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     let chats:OpenAIChat[] = examples
 
     if(!DBState.db.aiModel.startsWith('novelai') && !DBState.db?.promptSettings?.trimStartNewChat){
-        chats.push({
+        const newChatMarker:OpenAIChat = {
             role: 'system',
             content: '[Start a new chat]',
             memo: "NewChat"
-        })
+        }
+        setRequestContextCategory(newChatMarker, 'character')
+        chats.push(newChatMarker)
     }
 
     
@@ -847,6 +863,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             chat.content = `${currentChar.name}: ${chat.content}`
             chat.attr = ['nameAdded']
         }
+        setRequestContextCategory(chat, 'character')
         chats.push(chat)
         currentTokens += await tokenizer.tokenizeChat(chat)
     }
@@ -1012,6 +1029,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             multimodals: multimodal,
             thoughts: thoughts
         }
+        setRequestContextCategory(chat, index === ms.length - 1 ? 'currentMessage' : 'previousMessages')
         if(chat.multimodals.length === 0){
             delete chat.multimodals
         }
@@ -1030,6 +1048,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             role: depthPrompt.role,
             content: risuChatParser(resolvePosition(depthPrompt.prompt), {chara: currentChar})
         }
+        setRequestContextCategory(chat, depthPrompt.sourceType)
         currentTokens += await tokenizer.tokenizeChat(chat)
     }
     
@@ -1139,6 +1158,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             v.removable = true
         }
         else if(supaMemoryCardUsed){
+            setRequestContextCategory(v, 'longTermMemory')
             memories.push(v)
             return {
                 role: 'system',
@@ -1147,6 +1167,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
         else{
             v.content = `<Previous Conversation>${v.content}</Previous Conversation>`
+            setRequestContextCategory(v, 'longTermMemory')
         }
         return v
     }).filter((v) => {
@@ -1158,6 +1179,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             role: depthPrompt.role,
             content: risuChatParser(resolvePosition(depthPrompt.prompt), {chara: currentChar})
         }
+        setRequestContextCategory(chat, depthPrompt.sourceType)
         const depth = depthPrompt.pos === 'depth' ? (depthPrompt.depth) : (unformated.chats.length - depthPrompt.depth)
         unformated.chats.splice(depth,0,chat)
     }
@@ -1200,11 +1222,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         })
     }
 
-    function pushPrompts(cha:OpenAIChat[]){
+    function pushPrompts(cha:OpenAIChat[], fallbackCategory:RequestContextCategory = 'other'){
         for(const chat of cha){
             if(!chat.content.trim() && !(chat.multimodals && chat.multimodals.length > 0)){
                 continue
             }
+            prepareRequestContextSources(chat, fallbackCategory)
             if(!(DBState.db.aiModel.startsWith('gpt') || DBState.db.aiModel.startsWith('claude') || DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy')){
                 formated.push(chat)
                 continue
@@ -1212,6 +1235,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             if(chat.role === 'system'){
                 const endf = formated.at(-1)
                 if(endf && endf.role === 'system' && endf.memo === chat.memo && endf.name === chat.name){
+                    appendRequestContextSources(endf, chat, '\n\n')
                     formated[formated.length - 1].content += '\n\n' + chat.content
                 }
                 else{
@@ -1254,7 +1278,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         }
                     }
 
-                    pushPrompts(pmt)
+                    pushPrompts(pmt, 'character')
                     break
                 }
                 case 'description':{
@@ -1269,7 +1293,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         }
                     }
 
-                    pushPrompts(pmt)
+                    pushPrompts(pmt, 'character')
                     break
                 }
                 case 'authornote':{
@@ -1285,20 +1309,20 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         }
                     }
 
-                    pushPrompts(pmt)
+                    pushPrompts(pmt, 'prompt')
                     break
                 }
                 case 'lorebook':{
-                    pushPrompts(unformated.lorebook)
+                    pushPrompts(unformated.lorebook, 'lorebook')
                     break
                 }
                 case 'postEverything':{
-                    pushPrompts(unformated.postEverything)
+                    pushPrompts(unformated.postEverything, 'prompt')
                     if(usingPromptTemplate && DBState.db.promptSettings.postEndInnerFormat){
                         pushPrompts([{
                             role: 'system',
                             content: DBState.db.promptSettings.postEndInnerFormat
-                        }])
+                        }], 'prompt')
                     }
                     break
                 }
@@ -1340,12 +1364,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         pushPromptInfoBody(prompt.role, prompt.content, promptBodyformatedForChatStore)
                     }
 
-                    pushPrompts([prompt])
+                    pushPrompts([prompt], 'prompt')
                     break
                 }
                 case 'chatML':{
                     let prompts = parseChatML(card.text)
-                    pushPrompts(prompts)
+                    pushPrompts(prompts, 'prompt')
                     break
                 }
                 case 'chat':{
@@ -1376,7 +1400,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                     if(usingPromptTemplate && DBState.db.promptSettings.sendChatAsSystem && (!card.chatAsOriginalOnSystem)){
                         chats = systemizeChat(chats)
                     }
-                    pushPrompts(chats)
+                    pushPrompts(chats, 'previousMessages')
 
                     if(DBState.db.automaticCachePoint && !hasCachePoint){
                         let pointer = formated.length - 1
@@ -1407,7 +1431,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
                         }
                     }
 
-                    pushPrompts(pmt)
+                    pushPrompts(pmt, 'longTermMemory')
                     break
                 }
                 case 'cache':{
@@ -1429,9 +1453,23 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
     }
     else{
+        const getFormatContextCategory = (key:string):RequestContextCategory => {
+            switch(key){
+                case 'description':
+                case 'personaPrompt':
+                    return 'character'
+                case 'lorebook':
+                    return 'lorebook'
+                case 'chats':
+                case 'lastChat':
+                    return 'previousMessages'
+                default:
+                    return 'prompt'
+            }
+        }
         for(let i=0;i<formatOrder.length;i++){
             const cha = unformated[formatOrder[i]]
-            pushPrompts(cha)
+            pushPrompts(cha, getFormatContextCategory(formatOrder[i]))
         }
     }
 
@@ -1452,10 +1490,13 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     if(currentChar.depth_prompt && currentChar.depth_prompt.prompt && currentChar.depth_prompt.prompt.length > 0){
         //depth_prompt
         const depthPrompt = currentChar.depth_prompt
-        formated.splice(formated.length - depthPrompt.depth, 0, {
+        const depthPromptChat:OpenAIChat = {
             role: 'system',
             content: risuChatParser(depthPrompt.prompt, {chara: currentChar})
-        })
+        }
+        setRequestContextCategory(depthPromptChat, 'character')
+        prepareRequestContextSources(depthPromptChat, 'character')
+        formated.splice(formated.length - depthPrompt.depth, 0, depthPromptChat)
     }
 
     formated = await runLuaEditTrigger(currentChar, 'editRequest', formated)
@@ -1466,11 +1507,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     //token rechecking
-    let inputTokens = 0
-
-    for(const chat of formated){
-        inputTokens += await tokenizer.tokenizeChat(chat)
-    }
+    let inputTokenBreakdown = await calculateRequestTokenParts(
+        formated,
+        (chat) => tokenizer.tokenizeChat(chat),
+        tokenize,
+    )
+    let inputTokens = inputTokenBreakdown.reduce((sum, part) => sum + part.tokens, 0)
 
     if(inputTokens > maxContextTokens){
         let pointer = 0
@@ -1488,6 +1530,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         formated = formated.filter((v) => {
             return v.content !== ''  || (v.multimodals && v.multimodals.length > 0)
         })
+        inputTokenBreakdown = await calculateRequestTokenParts(
+            formated,
+            (chat) => tokenizer.tokenizeChat(chat),
+            tokenize,
+        )
+        inputTokens = inputTokenBreakdown.reduce((sum, part) => sum + part.tokens, 0)
     }
 
     //estimate tokens
@@ -1497,6 +1545,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
     const generationId = v4()
     const generationModel = getGenerationModelString()
+    requestTokenParts = {
+        [generationId]: inputTokenBreakdown,
+    }
 
     generationInfo = {
         model: generationModel,
@@ -1504,6 +1555,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         inputTokens: inputTokens,
         outputTokens: outputTokens,
         maxContext: maxContextTokens,
+        inputTokenBreakdown: requestTokenParts[generationId],
         stageTiming: {
             stage1: stageTimings.stage1Duration,
             stage2: stageTimings.stage2Duration,
@@ -1511,6 +1563,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             stage4: 0
         }
     }
+    clearRequestContextMetadata(formated)
 
     chatProcessStage.set(3)
     stageTimings.stage3Start = Date.now()

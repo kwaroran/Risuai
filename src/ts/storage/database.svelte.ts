@@ -1863,6 +1863,7 @@ export interface MessageGenerationInfo{
     inputTokens?: number
     outputTokens?: number
     maxContext?: number
+    inputTokenBreakdown?: RequestTokenPart[]
     stageTiming?: {
         stage1?: number
         stage2?: number
@@ -2284,6 +2285,7 @@ import type { HypaModel } from '../process/memory/hypamemory';
 import type { SerializableHypaV3Data } from '../process/memory/hypav3';
 import { defaultHotkeys, type Hotkey } from '../defaulthotkeys';
 import type { OpenAIChat } from '../process/index.svelte';
+import type { RequestTokenPart } from '../process/requestContext';
 import type { Loadout } from '../loadout';
 
 export async function downloadPreset(id:number, type:'json'|'risupreset'|'return' = 'json'){

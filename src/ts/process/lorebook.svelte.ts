@@ -79,7 +79,11 @@ export async function loadLoreBookV3Prompt(){
     const characterLore = char.globalLore ?? []
     const chatLore = char.chats[page].localLore ?? []
     const moduleLorebook = getModuleLorebooks()
-    const fullLore = safeStructuredClone(characterLore.concat(chatLore).concat(moduleLorebook))
+    const fullLore = safeStructuredClone([
+        ...characterLore.map((lore) => ({...lore, sourceType: 'lorebook' as const})),
+        ...chatLore.map((lore) => ({...lore, sourceType: 'lorebook' as const})),
+        ...moduleLorebook.map((lore) => ({...lore, sourceType: 'module' as const})),
+    ])
     const currentChat = char.chats[page].message
     const loreDepth = char.loreSettings?.scanDepth ?? DBState.db.loreBookDepth
     const loreToken = char.loreSettings?.tokenBudget ?? DBState.db.loreBookToken
@@ -239,6 +243,7 @@ export async function loadLoreBookV3Prompt(){
         tokens:number
         priority:number
         source:string
+        sourceType:'lorebook'|'module'
         inject:{
             operation:'append'|'prepend'|'replace',
             location:string,
@@ -576,6 +581,7 @@ export async function loadLoreBookV3Prompt(){
                     tokens: await tokenize(risuChatParser(content, {chara: char})),
                     priority: priority,
                     source: fullLore[i].comment || `lorebook ${i}`,
+                    sourceType: fullLore[i].sourceType,
                     inject: inject ?? null
                 })
                 activatedIndexes.push(i)

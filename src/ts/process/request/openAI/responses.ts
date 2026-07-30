@@ -12,7 +12,47 @@ import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseCh
 import { applyAdditionalParameters, applyParameters, getAdditionalParameters } from '../shared'
 
 import type { OpenAIChatExtra, ResponseFunctionCallItem, ResponseInputItem, ResponseItem, ResponseOutputItem } from './types'
-import { getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+import { applyOpenAIFlexProcessing, getLocalNetworkRequestOptions, type LocalNetworkRequestOptions } from './shared'
+
+function responseAPIErrorToString(data:any):string{
+    if(typeof data === 'string'){
+        return data
+    }
+    const errorObjectToString = (error:any) => {
+        if(typeof error?.message !== 'string'){
+            return undefined
+        }
+        const details = ['type', 'param', 'code']
+            .filter((key) => error[key] !== undefined && error[key] !== null)
+            .map((key) => `${key}: ${String(error[key])}`)
+        return details.length > 0 ? `${error.message}\n${details.join('\n')}` : error.message
+    }
+    const responseError = errorObjectToString(data?.response?.error)
+    if(responseError){
+        return responseError
+    }
+    const directError = errorObjectToString(data?.error)
+    if(directError){
+        return directError
+    }
+    const topLevelError = errorObjectToString(data)
+    if(topLevelError){
+        return topLevelError
+    }
+    if(typeof data?.response?.error?.message === 'string'){
+        return data.response.error.message
+    }
+    if(typeof data?.error?.message === 'string'){
+        return data.error.message
+    }
+    if(typeof data?.error === 'string'){
+        return data.error
+    }
+    if(typeof data?.message === 'string'){
+        return data.message
+    }
+    return JSON.stringify(data) ?? String(data)
+}
 
 function responseTextContentToString(content:any):string{
     if(typeof content === 'string'){
@@ -528,13 +568,13 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     if(!response.ok){
         return {
             type: 'fail',
-            result: (language.errors.httpError + `${JSON.stringify(response.data)}`)
+            result: (language.errors.httpError + responseAPIErrorToString(response.data))
         }
     }
 
     const data = response.data as any
-    if(data?.status === 'failed' || data?.error){
-        return { type: 'fail', result: JSON.stringify(data.error ?? data) }
+    if(data?.status === 'failed' || data?.error || data?.response?.status === 'failed' || data?.response?.error){
+        return { type: 'fail', result: responseAPIErrorToString(data.error ?? data) }
     }
     if(data?.status === 'incomplete'){
         const result = extractResponsesText(data, arg)
@@ -645,7 +685,7 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
             }
         }
         else if(type === 'response.failed' || type === 'response.error' || type === 'error'){
-            error = JSON.stringify(event.error ?? event)
+            error = responseAPIErrorToString(event.response?.error ?? event.error ?? event)
         }
         else if(type === 'response.completed'){
             const finalText = extractResponsesText(event.response, arg)
@@ -685,6 +725,10 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
                 applyEvent(JSON.parse(data))
             }
             catch{}
+            if(error){
+                controller.error(new Error(error))
+                return true
+            }
             emit(controller)
             emitted = true
         }
@@ -702,6 +746,12 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
                 emit(controller)
             }
         }
+    })
+}
+
+function pipeResponsesBodyToTranStream(body:ReadableStream<Uint8Array>, transtream:TransformStream<Uint8Array, StreamResponseChunk>){
+    body.pipeTo(transtream.writable).catch(() => {
+        // Stream failures are surfaced to callers through reader.read(); pipeTo rejects as well when the transform errors.
     })
 }
 
@@ -785,7 +835,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 })
 
                 const transtream = getResponsesTranStream(arg)
-                resRec.body.pipeTo(transtream.writable)
+                pipeResponsesBodyToTranStream(resRec.body, transtream)
                 reader = transtream.readable.getReader()
                 lastValue = { "0": '' }
             }
@@ -800,9 +850,10 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     const { requestURL, risuIdentify } = getResponsesRequestURL(arg)
     const headers = buildResponsesHeaders(arg, risuIdentify)
 
-    if(aiModel === 'reverse_proxy' || aiModel?.startsWith('xcustom:::')){
-        body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
+    if(db.openAIFlexProcessing){
+        applyOpenAIFlexProcessing(body, aiModel, requestURL, arg.modelInfo.provider)
     }
+    body = applyAdditionalParameters(body, headers, getAdditionalParameters(aiModel))
     if(!arg.useStreaming){
         body.stream = false
     }
@@ -850,7 +901,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         })
 
         const transtream = getResponsesTranStream(arg)
-        response.body.pipeTo(transtream.writable)
+        pipeResponsesBodyToTranStream(response.body, transtream)
         return {
             type: 'streaming',
             result: wrapResponsesToolStream(transtream.readable, body, headers, requestURL, arg, streamingLocalNetworkOptions)

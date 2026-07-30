@@ -66,7 +66,7 @@ function nodeObserve(node:HTMLElement){
                         bgmElement.remove();
                         bgmElement = null;
                     })
-                    bgmElement.play();
+                    bgmElement.play().catch(() => {});
                 }
                 break
             }

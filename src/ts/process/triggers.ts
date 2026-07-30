@@ -1039,17 +1039,22 @@ async function collectStreamingText(stream: ReadableStream<{ [key: string]: stri
     const reader = stream.getReader()
     let lastChunk = ''
 
-    while (true) {
-        const { done, value } = await reader.read()
-        if (value) {
-            const firstKey = Object.keys(value)[0]
-            if (firstKey) {
-                lastChunk = value[firstKey] ?? lastChunk
+    try {
+        while (true) {
+            const { done, value } = await reader.read()
+            if (value) {
+                const firstKey = Object.keys(value)[0]
+                if (firstKey) {
+                    lastChunk = value[firstKey] ?? lastChunk
+                }
+            }
+            if (done) {
+                break
             }
         }
-        if (done) {
-            break
-        }
+    }
+    finally {
+        reader.releaseLock()
     }
 
     return lastChunk
@@ -1913,8 +1918,13 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
                         setVar(risuChatParser(effect.outputVar, {chara:char}), 'null')
                     }
                     else if(result.type === 'streaming'){
-                        const text = await collectStreamingText(result.result)
-                        setVar(risuChatParser(effect.outputVar, {chara:char}), text)
+                        try {
+                            const text = await collectStreamingText(result.result)
+                            setVar(risuChatParser(effect.outputVar, {chara:char}), text)
+                        }
+                        catch {
+                            setVar(risuChatParser(effect.outputVar, {chara:char}), 'null')
+                        }
                     }
                     else{
                         setVar(risuChatParser(effect.outputVar, {chara:char}), result.result)

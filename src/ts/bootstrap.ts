@@ -46,6 +46,7 @@ import { isTauri } from "./platform";
 import { registerModelDynamic } from "./model/modellist";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
+import { initializeApiUsagePersistence } from "./apiUsageStorage";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -223,6 +224,8 @@ export async function loadData() {
             } catch (error) {
 
             }
+            LoadingStatusState.text = "Loading API Usage Statistics..."
+            await initializeApiUsagePersistence(getDatabase(), forageStorage)
             LoadingStatusState.text = "Checking For Format Update..."
             await checkNewFormat()
             const db = getDatabase();

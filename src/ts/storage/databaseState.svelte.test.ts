@@ -1,6 +1,8 @@
 import { flushSync } from 'svelte'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DBState } from '../stores.svelte'
+import { createEmptyApiUsageStats, recordApiUsage } from '../apiUsage'
+import { replaceApiUsageState } from '../apiUsageState.svelte'
 import { getDatabase, onDatabaseUpdate, setDatabaseLite, type character, type Chat, type Database } from './database.svelte'
 
 vi.mock('../globalApi.svelte', () => ({
@@ -32,6 +34,23 @@ afterEach(() => {
 })
 
 describe('database proxy layering', () => {
+    it('keeps API usage recording outside database dirty tracking', () => {
+        setDatabaseLite(database({ characters: [{ chaId: 'active', chats: [] }] as character[] }))
+        replaceApiUsageState(createEmptyApiUsageStats())
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        recordApiUsage({
+            model: 'test-model',
+            inputTokens: 10,
+            outputTokens: 2,
+        })
+
+        expect(listener).not.toHaveBeenCalled()
+        expect(getDatabase().apiUsage).toBeUndefined()
+        unsubscribe()
+    })
+
     it('tracks nested mutations after receiving a plain object', () => {
         setDatabaseLite(database({ pluginCustomStorage: { plugin: { enabled: false } } }))
         const listener = vi.fn()

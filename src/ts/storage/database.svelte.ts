@@ -21,6 +21,7 @@ import {
     normalizeChatLoadPages,
 } from '../chatLoadPages';
 import { setDatabaseLite } from './databaseState.svelte';
+import type { ApiUsageStats } from '../apiUsage';
 
 export { onDatabaseUpdate, setDatabaseLite } from './databaseState.svelte';
 
@@ -1093,6 +1094,8 @@ export interface Database{
         messages: number
         imports: number
     }
+    /** Legacy migration source. New API usage data is stored separately. */
+    apiUsage?: ApiUsageStats
     customQuotes:boolean
     customQuotesData?:[string, string, string, string]
     groupTemplate?:string

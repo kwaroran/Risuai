@@ -515,6 +515,9 @@ async function appendResponsesToolOutputs(body:any, calls:ResponseFunctionCallIt
 
 async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Record<string,string>, arg:RequestDataArgumentExtended, networkOptions:LocalNetworkRequestOptions):Promise<requestDataResponse>{
     const db = getDatabase()
+    arg.onUsageAttemptPrepared?.({
+        input: body.input,
+    })
     const response = await globalFetch(requestURL, {
         body: toExternalResponsesBody(body),
         headers: headers,
@@ -534,12 +537,20 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
 
     const data = response.data as any
     if(data?.status === 'failed' || data?.error){
-        return { type: 'fail', result: JSON.stringify(data.error ?? data) }
+        return {
+            type: 'fail',
+            result: JSON.stringify(data.error ?? data),
+            usage: data.usage,
+        }
     }
     if(data?.status === 'incomplete'){
         const result = extractResponsesText(data, arg)
         const reason = data?.incomplete_details?.reason ? `Incomplete response: ${data.incomplete_details.reason}` : 'Incomplete response'
-        return { type: 'fail', result: result ? `${reason}\n${result}` : reason }
+        return {
+            type: 'fail',
+            result: result ? `${reason}\n${result}` : reason,
+            usage: data.usage,
+        }
     }
 
     const calls = extractResponsesFunctionCalls(data)
@@ -552,6 +563,10 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
         let resRec:requestDataResponse
         let attempt = 0
         do{
+            await arg.onUsageNextAttempt?.(attempt === 0 ? 'success' : 'failed', attempt === 0 ? {
+                usage: data.usage,
+                output: [JSON.stringify(data.output ?? calls)],
+            } : undefined)
             attempt++
             resRec = await requestHTTPResponsesAPI(requestURL, body, headers, arg, networkOptions)
             if(resRec.type !== 'fail'){
@@ -560,7 +575,12 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
         } while(attempt <= db.requestRetrys)
 
         if(resRec.type === 'success'){
-            return { type: 'success', result: prefix ? prefix + '\n\n' + resRec.result : resRec.result }
+            return {
+                type: 'success',
+                result: prefix ? prefix + '\n\n' + resRec.result : resRec.result,
+                usage: resRec.usage,
+                usageBillingStatus: resRec.usageBillingStatus,
+            }
         }
         return resRec
     }
@@ -568,10 +588,14 @@ async function requestHTTPResponsesAPI(requestURL:string, body:any, headers:Reco
     const result = extractResponsesText(data, arg)
     if(!result){
         const incomplete = data?.incomplete_details?.reason ? `Incomplete response: ${data.incomplete_details.reason}` : ''
-        return { type: 'fail', result: incomplete || JSON.stringify(data) }
+        return {
+            type: 'fail',
+            result: incomplete || JSON.stringify(data),
+            usage: data.usage,
+        }
     }
 
-    return { type: 'success', result }
+    return { type: 'success', result, usage: data.usage }
 }
 
 function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Array, StreamResponseChunk>{
@@ -581,6 +605,8 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
     let text = ''
     let reasoning = ''
     let error = ''
+    let usage: unknown
+    let usageStatus: 'success' | 'failed' | undefined
     const calls:Record<string, ResponseFunctionCallItem> = {}
 
     const appendReasoning = (incoming?:string) => {
@@ -607,6 +633,12 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
         const chunk:Record<string,string> = { "0": error || result }
         if(Object.keys(calls).length > 0){
             chunk["__tool_calls"] = JSON.stringify(calls)
+        }
+        if(usage){
+            chunk["__usage"] = JSON.stringify(usage)
+        }
+        if(usageStatus){
+            chunk["__usageStatus"] = usageStatus
         }
         controller.enqueue(chunk)
     }
@@ -644,10 +676,9 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
                 status: event.item.status
             }
         }
-        else if(type === 'response.failed' || type === 'response.error' || type === 'error'){
-            error = JSON.stringify(event.error ?? event)
-        }
-        else if(type === 'response.completed'){
+        else if(type === 'response.completed' || type === 'response.incomplete' || type === 'response.failed'){
+            usage = event.response?.usage
+            usageStatus = type === 'response.completed' ? 'success' : 'failed'
             const finalText = extractResponsesText(event.response, arg)
             if(finalText){
                 text = finalText
@@ -655,9 +686,19 @@ function getResponsesTranStream(arg:RequestDataArgumentExtended):TransformStream
                     reasoning = ''
                 }
             }
-            for(const call of extractResponsesFunctionCalls(event.response)){
-                calls[call.call_id] = call
+            if(type === 'response.completed'){
+                for(const call of extractResponsesFunctionCalls(event.response)){
+                    calls[call.call_id] = call
+                }
             }
+            if(type !== 'response.completed'){
+                const reason = event.response?.incomplete_details?.reason
+                error = JSON.stringify(event.error ?? event.response?.error ?? (reason ? { message: `Incomplete response: ${reason}` } : event))
+            }
+        }
+        else if(type === 'response.error' || type === 'error'){
+            usageStatus = 'failed'
+            error = JSON.stringify(event.error ?? event)
         }
     }
 
@@ -728,7 +769,11 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 const { done, value } = await reader.read()
                 if(!done){
                     lastValue = value
-                    controller.enqueue({ "0": (prefix ? prefix + '\n\n' : '') + (value?.["0"] ?? '') })
+                    controller.enqueue({
+                        "0": (prefix ? prefix + '\n\n' : '') + (value?.["0"] ?? ''),
+                        ...(value?.["__usage"] ? { "__usage": value["__usage"] } : {}),
+                        ...(value?.["__usageStatus"] ? { "__usageStatus": value["__usageStatus"] } : {}),
+                    })
                     continue
                 }
 
@@ -748,15 +793,29 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 const callPrefix = await appendResponsesToolOutputs(body, calls, arg, lastValue?.["0"] ?? '')
                 delete body.__lastOutput
                 prefix += (prefix && callPrefix ? '\n\n' : '') + callPrefix
-                if(prefix){
-                    controller.enqueue({ "0": prefix })
-                }
+                controller.enqueue({ "0": prefix, "__usage": "" })
 
                 let resRec:Response
                 let attempt = 0
                 let ok = false
                 do{
+                    let usage: unknown
+                    try {
+                        usage = attempt === 0 && lastValue?.["__usage"]
+                            ? JSON.parse(lastValue["__usage"])
+                            : undefined
+                    }
+                    catch {
+                        usage = undefined
+                    }
+                    await arg.onUsageNextAttempt?.(attempt === 0 ? 'success' : 'failed', attempt === 0 ? {
+                        usage,
+                        output: [lastValue?.["0"] ?? '', JSON.stringify(calls)],
+                    } : undefined)
                     attempt++
+                    arg.onUsageAttemptPrepared?.({
+                        input: body.input,
+                    })
                     resRec = await fetchNative(requestURL, {
                         body: JSON.stringify(toExternalResponsesBody(body)),
                         method: "POST",
@@ -771,6 +830,7 @@ function wrapResponsesToolStream(stream:ReadableStream<StreamResponseChunk>, bod
                 } while(!ok && attempt <= db.requestRetrys)
 
                 if(!ok){
+                    await arg.onUsageFinalAttempt?.('failed')
                     alertError(`Failed to fetch model response after tool execution`)
                     controller.close()
                     return
@@ -807,6 +867,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.stream = false
     }
 
+    arg.onUsageModelResolved?.(typeof body.model === 'string' ? body.model : undefined)
+
     const localNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, false)
     const streamingLocalNetworkOptions = getLocalNetworkRequestOptions(requestURL, db, true)
 
@@ -823,6 +885,9 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
 
     if(arg.useStreaming){
         body.stream = true
+        arg.onUsageAttemptPrepared?.({
+            input: body.input,
+        })
         const response = await fetchNative(requestURL, {
             body: JSON.stringify(toExternalResponsesBody(body)),
             method: "POST",

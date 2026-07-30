@@ -2,6 +2,8 @@ import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
 import { fetchNative, globalFetch } from "../../globalApi.svelte";
 import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
+import { createApiUsageRecorder } from "../../apiUsageRecorder";
+import { getApiUsageProvider } from "../../apiUsage";
 import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
 import { getCurrentCharacter, getCurrentChat, getDatabase, type character } from "../../storage/database.svelte";
@@ -63,6 +65,21 @@ export interface RequestDataArgumentExtended extends requestDataArgument{
     key?:string
     additionalOutput?:string
     saveSignatures?:boolean
+    onUsageAttemptPrepared?: (attempt: ApiUsageAttemptDetails) => void
+    onUsageNextAttempt?: (completedStatus: 'success' | 'failed', result?: ApiUsageAttemptResult) => Promise<void>
+    onUsageFinalAttempt?: (completedStatus: 'success' | 'failed', result?: ApiUsageAttemptResult) => Promise<void>
+    onUsageModelResolved?: (model: string | null | undefined) => void
+}
+
+export interface ApiUsageAttemptDetails {
+    input?: unknown
+    inputChats?: OpenAIChat[]
+}
+
+export interface ApiUsageAttemptResult {
+    usage?: unknown
+    output?: string[]
+    billingStatus?: 'estimated' | 'not_billed' | 'unknown'
 }
 
 export type requestDataResponse = {
@@ -74,6 +91,8 @@ export type requestDataResponse = {
     },
     failByServerError?: boolean
     model?: string
+    usage?: unknown
+    usageBillingStatus?: 'estimated' | 'not_billed' | 'unknown'
 }|{
     type: "streaming",
     result: ReadableStream<StreamResponseChunk>,
@@ -81,6 +100,8 @@ export type requestDataResponse = {
         emotion?: string
     }
     model?: string
+    usage?: unknown
+    usageBillingStatus?: 'estimated' | 'not_billed' | 'unknown'
 }|{
     type: "multiline",
     result: ['user'|'char',string][],
@@ -88,6 +109,8 @@ export type requestDataResponse = {
         emotion?: string
     }
     model?: string
+    usage?: unknown
+    usageBillingStatus?: 'estimated' | 'not_billed' | 'unknown'
 }
 
 export interface StreamResponseChunk{[key:string]:string}
@@ -478,58 +501,77 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     }
 
     const format = targ.modelInfo.format
-
     targ.formated = reformater(targ.formated, targ.modelInfo)
+    const shouldTrackUsage = !arg.previewBody && format !== undefined && format !== LLMFormat.Echo
+    const usageRecorder = shouldTrackUsage ? createApiUsageRecorder({
+        formated: targ.formated,
+        mode: model,
+        model: targ.aiModel,
+        modelInfo: targ.modelInfo,
+        provider: getApiUsageProvider(targ.aiModel, targ.modelInfo, targ.customURL),
+        abortSignal,
+    }) : null
+    targ.onUsageNextAttempt = usageRecorder?.recordNextAttempt
+    targ.onUsageFinalAttempt = usageRecorder?.finalizeAttempt
+    targ.onUsageModelResolved = usageRecorder?.resolveModel
+    targ.onUsageAttemptPrepared = usageRecorder?.prepareAttempt
 
-    switch(format){
-        case LLMFormat.OpenAICompatible:
-        case LLMFormat.Mistral:
-        case LLMFormat.NanoGPT:
-            return requestOpenAI(targ)
-        case LLMFormat.NanoGPTResponses:
-            return requestOpenAIResponseAPI(targ)
-        case LLMFormat.NanoGPTMessages:
-            return requestClaude(targ)
-        case LLMFormat.NanoGPTLegacy:
-            return requestOpenAILegacyInstruct(targ)
-        case LLMFormat.OpenAILegacyInstruct:
-            return requestOpenAILegacyInstruct(targ)
-        case LLMFormat.NovelAI:
-            return requestNovelAI(targ)
-        case LLMFormat.OobaLegacy:
-            return requestOobaLegacy(targ)
-        case LLMFormat.Plugin:
-            return requestPlugin(targ)
-        case LLMFormat.Ooba:
-            return requestOoba(targ)
-        case LLMFormat.VertexAIGemini:
-        case LLMFormat.GoogleCloud:
-            return requestGoogleCloudVertex(targ)
-        case LLMFormat.Kobold:
-            return requestKobold(targ)
-        case LLMFormat.NovelList:
-            return requestNovelList(targ)
-        case LLMFormat.Ollama:
-            return requestOllama(targ)
-        case LLMFormat.Cohere:
-            return requestCohere(targ)
-        case LLMFormat.Anthropic:
-        case LLMFormat.AnthropicLegacy:
-        case LLMFormat.AWSBedrockClaude:
-            return requestClaude(targ)
-        case LLMFormat.Horde:
-            return requestHorde(targ)
-        case LLMFormat.WebLLM:
-            return requestWebLLM(targ)
-        case LLMFormat.OpenAIResponseAPI:
-            return requestOpenAIResponseAPI(targ)
-        case LLMFormat.Echo:
-            return requestEcho(targ)
+    try {
+        let response: requestDataResponse
+        switch(format){
+            case LLMFormat.OpenAICompatible:
+            case LLMFormat.Mistral:
+            case LLMFormat.NanoGPT:
+                response = await requestOpenAI(targ); break
+            case LLMFormat.NanoGPTResponses:
+                response = await requestOpenAIResponseAPI(targ); break
+            case LLMFormat.NanoGPTMessages:
+                response = await requestClaude(targ); break
+            case LLMFormat.NanoGPTLegacy:
+            case LLMFormat.OpenAILegacyInstruct:
+                response = await requestOpenAILegacyInstruct(targ); break
+            case LLMFormat.NovelAI:
+                response = await requestNovelAI(targ); break
+            case LLMFormat.OobaLegacy:
+                response = await requestOobaLegacy(targ); break
+            case LLMFormat.Plugin:
+                response = await requestPlugin(targ); break
+            case LLMFormat.Ooba:
+                response = await requestOoba(targ); break
+            case LLMFormat.VertexAIGemini:
+            case LLMFormat.GoogleCloud:
+                response = await requestGoogleCloudVertex(targ); break
+            case LLMFormat.Kobold:
+                response = await requestKobold(targ); break
+            case LLMFormat.NovelList:
+                response = await requestNovelList(targ); break
+            case LLMFormat.Ollama:
+                response = await requestOllama(targ); break
+            case LLMFormat.Cohere:
+                response = await requestCohere(targ); break
+            case LLMFormat.Anthropic:
+            case LLMFormat.AnthropicLegacy:
+            case LLMFormat.AWSBedrockClaude:
+                response = await requestClaude(targ); break
+            case LLMFormat.Horde:
+                response = await requestHorde(targ); break
+            case LLMFormat.WebLLM:
+                response = await requestWebLLM(targ); break
+            case LLMFormat.OpenAIResponseAPI:
+                response = await requestOpenAIResponseAPI(targ); break
+            case LLMFormat.Echo:
+                response = await requestEcho(targ); break
+            default:
+                response = {
+                    type: 'fail',
+                    result: (language.errors.unknownModel)
+                }
+        }
+        return usageRecorder ? await usageRecorder.finalizeResponse(response) : response
     }
-
-    return {
-        type: 'fail',
-        result: (language.errors.unknownModel)
+    catch (error) {
+        await usageRecorder?.finalizeFailure()
+        throw error
     }
 }
 
@@ -870,6 +912,7 @@ async function requestPlugin(arg:RequestDataArgumentExtended):Promise<requestDat
         const bias = arg.biasString
         const model = isV3Model ? arg.aiModel.replace('pluginmodel:::', '') : db.currentPluginProvider
         const v2Function = pluginV2.providers.get(model)
+        arg.onUsageModelResolved?.(isV3Model ? arg.modelInfo.internalID || arg.aiModel : model)
 
         if(arg.previewBody){
             return {
@@ -1168,6 +1211,7 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
     }
 
     requestBody = applyAdditionalParameters(requestBody, customHeaders, getAdditionalParameters(arg.aiModel))
+    arg.onUsageModelResolved?.(typeof requestBody.model === 'string' ? requestBody.model : undefined)
 
     if(arg.previewBody){
         return {

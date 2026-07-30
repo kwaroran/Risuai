@@ -389,6 +389,11 @@ export async function saveDb() {
                 return
             }
 
+            if (rootKey === 'apiUsage') {
+                saveTimeoutExecute()
+                return
+            }
+
             if (rootKey === 'characters') {
                 const affectedCharacters: Database['characters'] = []
 

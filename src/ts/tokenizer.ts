@@ -22,9 +22,10 @@ function getHash(
     currentPluginProvider: string,
     googleClaudeTokenizing: boolean,
     modelInfo: LLMModel,
-    pluginTokenizer: string
+    pluginTokenizer: string,
+    localOnly: boolean
 ): string {
-    const combined = `${data}::${aiModel}::${customTokenizer}::${currentPluginProvider}::${googleClaudeTokenizing ? '1' : '0'}::${modelInfo.tokenizer}::${pluginTokenizer}`;
+    const combined = `${data}::${aiModel}::${customTokenizer}::${currentPluginProvider}::${googleClaudeTokenizing ? '1' : '0'}::${modelInfo.id}::${modelInfo.internalID ?? ''}::${modelInfo.tokenizer}::${pluginTokenizer}::${localOnly ? '1' : '0'}`;
     return combined;
 }
 
@@ -78,21 +79,29 @@ export async function encodeWithTokenizer(data: string, tokenizerType: string): 
     }
 }
 
-export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Array)>{
+export interface TokenizerEncodeOptions {
+    aiModel?: string
+    modelInfo?: LLMModel
+    localOnly?: boolean
+}
+
+export async function encode(data:string, options:TokenizerEncodeOptions = {}):Promise<(number[]|Uint32Array|Int32Array)>{
     const db = getDatabase();
-    const modelInfo = getModelInfo(db.aiModel);
+    const aiModel = options.aiModel ?? db.aiModel;
+    const modelInfo = options.modelInfo ?? getModelInfo(aiModel);
     const pluginTokenizer = pluginV2.providerOptions.get(db.currentPluginProvider)?.tokenizer ?? "none";
 
     let cacheKey = ''
     if(db.useTokenizerCaching){
         cacheKey = getHash(
             data,
-            db.aiModel,
+            aiModel,
             db.customTokenizer,
             db.currentPluginProvider,
             db.googleClaudeTokenizing,
             modelInfo,
-            pluginTokenizer
+            pluginTokenizer,
+            options.localOnly ?? false
         );
         const cachedResult = encodeCache.get(cacheKey);
         if (cachedResult !== undefined) {
@@ -102,7 +111,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
 
     let result: number[] | Uint32Array | Int32Array;
 
-    if(db.aiModel === 'openrouter' || db.aiModel === 'reverse_proxy'){
+    if(aiModel === 'openrouter' || aiModel === 'reverse_proxy'){
         switch(db.customTokenizer){
             case 'mistral':
                 result = await tokenizeWebTokenizers(data, 'mistral'); break;
@@ -131,7 +140,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
             default:
                 result = await tikJS(data, 'o200k_base'); break;
         }
-    } else if (db.aiModel === 'custom' && pluginTokenizer) {
+    } else if (aiModel === 'custom' && pluginTokenizer) {
         switch(pluginTokenizer){
             case 'mistral':
                 result = await tokenizeWebTokenizers(data, 'mistral'); break;
@@ -184,7 +193,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
             result = await tokenizeGGUFModel(data);
         } else if(modelInfo.tokenizer === LLMTokenizer.tiktokenO200Base){
             result = await tikJS(data, 'o200k_base');
-        } else if(modelInfo.tokenizer === LLMTokenizer.GoogleCloud && db.googleClaudeTokenizing){
+        } else if(modelInfo.tokenizer === LLMTokenizer.GoogleCloud && db.googleClaudeTokenizing && !options.localOnly){
             result = await tokenizeGoogleCloud(data);
         } else if(modelInfo.tokenizer === LLMTokenizer.Gemma || modelInfo.tokenizer === LLMTokenizer.GoogleCloud){
             result = await gemmaTokenize(data);
@@ -394,8 +403,8 @@ export async function tokenizerChar(char:character) {
     return encoded.length
 }
 
-export async function tokenize(data:string) {
-    const encoded = await encode(data)
+export async function tokenize(data:string, options:TokenizerEncodeOptions = {}) {
+    const encoded = await encode(data, options)
     return encoded.length
 }
 
@@ -413,17 +422,19 @@ export class ChatTokenizer {
 
     private chatAdditionalTokens:number
     private useName:'name'|'noName'
+    private options:TokenizerEncodeOptions
 
-    constructor(chatAdditionalTokens:number, useName:'name'|'noName'){
+    constructor(chatAdditionalTokens:number, useName:'name'|'noName', options:TokenizerEncodeOptions = {}){
         this.chatAdditionalTokens = chatAdditionalTokens
         this.useName = useName
+        this.options = options
     }
     async tokenizeChat(data:OpenAIChat, args:{
         countThoughts?:boolean,
     } = {}) {
-        let encoded = (await encode(data.content)).length + this.chatAdditionalTokens
+        let encoded = (await encode(data.content, this.options)).length + this.chatAdditionalTokens
         if(data.name && this.useName ==='name'){
-            encoded += (await encode(data.name)).length + 1
+            encoded += (await encode(data.name, this.options)).length + 1
         }
         if(data.multimodals && data.multimodals.length > 0){
             for(const multimodal of data.multimodals){
@@ -432,7 +443,7 @@ export class ChatTokenizer {
         }
         if(data.thoughts && data.thoughts.length > 0 && args.countThoughts){
             for(const thought of data.thoughts){
-                encoded += (await encode(thought)).length + 1
+                encoded += (await encode(thought, this.options)).length + 1
             }
         }
         return encoded

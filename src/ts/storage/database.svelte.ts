@@ -386,6 +386,7 @@ export function setDatabase(data:Database){
     data.nanogptUseSubscriptionEndpoint ??= false
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
+    data.chatLimitSize ??= -1
     data.animationSpeed ??= 0.4
     data.colorScheme ??= safeStructuredClone(defaultColorScheme)
     data.colorSchemeName ??= 'default'
@@ -954,6 +955,7 @@ export interface Database{
     personas:RisuPersona[]
     personaNote:boolean
     assetWidth:number
+    chatLimitSize: number
     animationSpeed:number
     botSettingAtStart:false
     NAIsettings:NAISettings

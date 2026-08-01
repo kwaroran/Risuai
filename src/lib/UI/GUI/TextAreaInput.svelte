@@ -33,6 +33,9 @@
     class:mb-2={margin === 'both'}
     class:mt-4={margin === 'top'}
     class:mt-2={margin === 'both'}
+    class:resize-y={DBState.db.resizeTextarea}
+    class:shrink-0={DBState.db.resizeTextarea}
+    class:overflow-hidden={DBState.db.resizeTextarea}
     bind:this={highlightDom}
     onfocusout={() => {
         hideAutoComplete()

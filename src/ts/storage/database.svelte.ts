@@ -713,6 +713,7 @@ export function setDatabase(data:Database){
     data.customSidebarItems ??= []
     data.moveInsteadOfCopyOnCMPConvert ??= false
     data.skipSavingAssetsOnWebSync ??= true
+    data.resizeTextarea ??= false
     data.coldstorage ??= data?.plugins?.length === 0
     for(const char of data.characters){
         for(const chat of char.chats ?? []){
@@ -1274,6 +1275,7 @@ export interface Database{
     lastLoadedLoadoutName: string
     moveInsteadOfCopyOnCMPConvert?:boolean
     skipSavingAssetsOnWebSync?:boolean
+    resizeTextarea?: boolean
 }
 
 export interface CustomSideBarItem{

@@ -360,7 +360,7 @@ bind:this={textareaInput}
 
     function startResize(event: PointerEvent) {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
-        
+        event.preventDefault();
         const startY = event.clientY;
         const startHeight = textareaInput.offsetHeight;
 

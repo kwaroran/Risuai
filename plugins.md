@@ -512,7 +512,7 @@ await observer.observe(body, {
 });
 ```
 
-Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only.
+Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only; text nodes and SVG elements are excluded.
 
 ### SafeClassArray
 

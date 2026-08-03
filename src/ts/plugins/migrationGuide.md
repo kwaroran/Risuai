@@ -419,7 +419,7 @@ await observer.observe(element, {
 - `getAddedNodes()`: `SafeClassArray<SafeElement>` of added nodes
 - `getRemovedNodes()`: `SafeClassArray<SafeElement>` of removed nodes
 
-Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only.
+Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only; text nodes and SVG elements are excluded.
 
 #### UI Registration
 

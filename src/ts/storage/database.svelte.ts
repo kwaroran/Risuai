@@ -378,6 +378,9 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.orcaRouterKey ??= ''
+    data.orcarouterRequestModel ??= 'orcarouter/auto'
+    data.orcarouterRequestModelName ??= ''
     data.nanogptKey ??= ''
     data.nanogptRequestModel ??= ''
     data.nanogptRequestModelName ??= ''
@@ -943,6 +946,9 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    orcaRouterKey:string
+    orcarouterRequestModel:string
+    orcarouterRequestModelName:string
     nanogptKey:string
     nanogptRequestModel:string
     nanogptRequestModelName:string

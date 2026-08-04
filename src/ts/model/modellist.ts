@@ -213,6 +213,17 @@ export const LLMModels: LLMModel[] = [
         recommended: true,
         tokenizer: LLMTokenizer.Unknown
     },
+    // OrcaRouter — OpenAI-compatible gateway; model list fetched on demand via getOrcaRouterModels()
+    {
+        name: 'OrcaRouter',
+        id: 'orcarouter',
+        provider: LLMProvider.AsIs,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming],
+        parameters: ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'repetition_penalty', 'min_p', 'top_a', 'top_k'],
+        recommended: true,
+        tokenizer: LLMTokenizer.Unknown
+    },
     // Mistral models
     {
         name: 'Mistral Small Latest',

@@ -40,7 +40,14 @@ await (async function() {
     const pendingRequests = new Map();
     const callbackRegistry = new Map();
     const callbackIdByFunction = new WeakMap();
-    const proxyRefRegistry = new Map();
+    const proxyRefRegistry = new WeakMap();
+    const releaseRegistry = new FinalizationRegistry((id) => {
+        try {
+            send({ type: 'RELEASE_INSTANCE', id: id });
+        } catch (_) {
+            // Frame is tearing down; host clears its registry anyway
+        }
+    });
     const abortControllers = new Map();
 
     function serializeArg(arg) {
@@ -89,15 +96,25 @@ await (async function() {
                     if (prop === 'release') {
                         return () => send({ type: 'RELEASE_INSTANCE', id: val.id });
                     }
-                    return (...args) => sendRequest('CALL_INSTANCE', {
-                        id: val.id,
-                        method: prop,
-                        args: args
-                    });
+                    return (...args) => {
+                        // Extracted methods must pin their owning proxy:
+                        // without this reference the proxy could be
+                        // collected (and auto-released) while this
+                        // function is still callable.
+                        void proxy;
+                        return sendRequest('CALL_INSTANCE', {
+                            id: val.id,
+                            method: prop,
+                            args: args
+                        });
+                    };
                 }
             });
             // Store the mapping so we can serialize it back
             proxyRefRegistry.set(proxy, val.id);
+            // Held value must be the id string, never the proxy itself:
+            // the registry holds it strongly until cleanup fires.
+            releaseRegistry.register(proxy, val.id);
             return proxy;
         }
         if (val && typeof val === 'object' && val.__type === 'CALLBACK_STREAMS') {

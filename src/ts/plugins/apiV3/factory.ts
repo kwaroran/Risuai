@@ -11,6 +11,7 @@ interface RpcMessage {
     type: MsgType;
     reqId?: string;
     id?: string;
+    ids?: string[];
     method?: string;
     args?: any[];
     result?: any;
@@ -41,12 +42,20 @@ await (async function() {
     const callbackRegistry = new Map();
     const callbackIdByFunction = new WeakMap();
     const proxyRefRegistry = new WeakMap();
-    const releaseRegistry = new FinalizationRegistry((id) => {
+    const releaseBuffer = [];
+    const flushReleases = () => {
+        if (releaseBuffer.length === 0) return;
+        const ids = releaseBuffer.splice(0);
         try {
-            send({ type: 'RELEASE_INSTANCE', id: id });
+            send({ type: 'RELEASE_INSTANCE', ids: ids });
         } catch (_) {
             // Frame is tearing down; host clears its registry anyway
         }
+    };
+    const releaseRegistry = new FinalizationRegistry((id) => {
+        // Schedule one flush per burst: first push arms the microtask.
+        if (releaseBuffer.length === 0) queueMicrotask(flushReleases);
+        releaseBuffer.push(id);
     });
     const abortControllers = new Map();
 
@@ -838,7 +847,8 @@ export class SandboxHost {
 
 
             if (data.type === 'RELEASE_INSTANCE') {
-                this.instanceRegistry.delete(data.id!);
+                if (data.id) this.instanceRegistry.delete(data.id!);
+                if (Array.isArray(data.ids)) for (const id of data.ids) this.instanceRegistry.delete(id);
                 return;
             }
 

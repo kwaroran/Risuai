@@ -1,3 +1,4 @@
+import { untrack } from 'svelte'
 import type { Database } from './database.svelte'
 
 type DatabaseUpdatePathKey = string | number | symbol
@@ -139,7 +140,7 @@ function readDatabaseProxyChild(target: object, prop: PropertyKey, receiver: obj
         if (childState) {
             // A new plain container may contain a retained database proxy. Keep
             // the Svelte target in state so tracking proxies are never persisted.
-            Reflect.set(target, prop, childState.target, target)
+            untrack(() => Reflect.set(target, prop, childState.target, target))
             value = Reflect.get(target, prop, receiver)
         }
     }
@@ -151,6 +152,7 @@ function createDatabaseProxy<T>(target: T): T {
     if (!isProxyableDatabaseValue(target)) {
         return target
     }
+    const databaseTarget: object = target
 
     const cached = databaseProxyCache.get(target)
     if (cached) {
@@ -158,9 +160,10 @@ function createDatabaseProxy<T>(target: T): T {
     }
 
     let state: DatabaseProxyState
-    const proxy = new Proxy(target, {
-        get(obj, prop, receiver) {
-            const value = readDatabaseProxyChild(obj, prop, receiver)
+    const proxyTarget = Array.isArray(databaseTarget) ? [] : Object.create(Reflect.getPrototypeOf(databaseTarget))
+    const proxy = new Proxy(proxyTarget, {
+        get(_obj, prop, receiver) {
+            const value = readDatabaseProxyChild(databaseTarget, prop, receiver)
             if (!isProxyableDatabaseValue(value)) {
                 removeDatabaseProxyChild(state, prop)
                 return value
@@ -168,59 +171,129 @@ function createDatabaseProxy<T>(target: T): T {
 
             const child = state.children.get(prop)
             if (child?.state.target !== value) {
-                addDatabaseProxyChild(state, prop, value)
+                untrack(() => addDatabaseProxyChild(state, prop, value))
             }
             return state.children.get(prop)?.state.proxy ?? value
         },
-        set(obj, prop, value, receiver) {
-            const oldValue = readDatabaseProxyChild(obj, prop, receiver)
-            const newValue = unwrapDatabaseProxy(value)
-            const truncatedEntries = Array.isArray(obj) && prop === 'length' &&
-                typeof oldValue === 'number' && typeof value === 'number' &&
-                Number.isInteger(value) && value >= 0 && value < oldValue
-                ? Reflect.ownKeys(obj)
-                    .filter((key): key is string => typeof key === 'string' && /^\d+$/.test(key) && Number(key) >= value)
-                    .map((key) => ({ index: Number(key), oldValue: readDatabaseProxyChild(obj, key) }))
-                    .sort((a, b) => b.index - a.index)
-                : []
-            const result = Reflect.set(obj, prop, newValue, receiver)
-            const assignedValue = result ? readDatabaseProxyChild(obj, prop, receiver) : oldValue
-            if (result && !Object.is(oldValue, assignedValue)) {
-                addDatabaseProxyChild(state, prop, assignedValue)
-                for (const entry of truncatedEntries) {
-                    removeDatabaseProxyChild(state, String(entry.index))
-                    notifyDatabaseProxy(state, {
-                        path: [entry.index],
-                        value: undefined,
-                        oldValue: entry.oldValue,
-                        type: 'delete',
-                    })
-                }
-                notifyDatabaseProxy(state, {
-                    path: [normalizePathKey(obj, prop)],
-                    value: assignedValue,
-                    oldValue,
-                    type: 'set',
-                })
-            }
-            return result
+        set(_obj, prop, value, receiver) {
+            return untrack(() => setDatabaseProxyProperty(prop, value, receiver))
         },
-        deleteProperty(obj, prop) {
-            const existed = Object.prototype.hasOwnProperty.call(obj, prop)
-            const oldValue = readDatabaseProxyChild(obj, prop)
-            const result = Reflect.deleteProperty(obj, prop)
-            if (result && existed) {
-                removeDatabaseProxyChild(state, prop)
+        deleteProperty(_obj, prop) {
+            return untrack(() => deleteDatabaseProxyProperty(prop))
+        },
+        defineProperty(_obj, prop, descriptor) {
+            if ('value' in descriptor &&
+                descriptor.configurable !== false &&
+                descriptor.enumerable !== false &&
+                descriptor.writable !== false
+            ) {
+                return untrack(() => setDatabaseProxyProperty(prop, descriptor.value, proxy))
+            }
+            return untrack(() => Reflect.defineProperty(databaseTarget, prop, descriptor))
+        },
+        preventExtensions() {
+            return untrack(() => preventDatabaseProxyExtensions())
+        },
+        isExtensible() {
+            return Reflect.isExtensible(databaseTarget)
+        },
+        setPrototypeOf(_obj, prototype) {
+            return Reflect.setPrototypeOf(databaseTarget, prototype)
+        },
+        has(_obj, prop) {
+            return Reflect.has(databaseTarget, prop)
+        },
+        ownKeys() {
+            return Reflect.ownKeys(databaseTarget)
+        },
+        getOwnPropertyDescriptor(_obj, prop) {
+            const descriptor = Reflect.getOwnPropertyDescriptor(databaseTarget, prop)
+            if (!descriptor || Array.isArray(proxyTarget) && prop === 'length') {
+                return descriptor
+            }
+            return { ...descriptor, configurable: true }
+        },
+    })
+
+    function preventDatabaseProxyExtensions() {
+        const targetKeys = new Set(Reflect.ownKeys(databaseTarget))
+        for (const prop of Reflect.ownKeys(proxyTarget)) {
+            if (!targetKeys.has(prop) && !Reflect.deleteProperty(proxyTarget, prop)) {
+                return false
+            }
+        }
+        for (const prop of targetKeys) {
+            const descriptor = Reflect.getOwnPropertyDescriptor(databaseTarget, prop)
+            if (descriptor && !Reflect.defineProperty(proxyTarget, prop,
+                Array.isArray(proxyTarget) && prop === 'length'
+                    ? descriptor
+                    : { ...descriptor, configurable: true }
+            )) {
+                return false
+            }
+        }
+        if (!Reflect.preventExtensions(databaseTarget)) {
+            return false
+        }
+        return Reflect.preventExtensions(proxyTarget)
+    }
+
+    if (!Reflect.isExtensible(databaseTarget) && !untrack(() => preventDatabaseProxyExtensions())) {
+        throw new TypeError('Unable to mirror non-extensible database value')
+    }
+
+    function setDatabaseProxyProperty(prop: PropertyKey, value: unknown, receiver: object) {
+        const oldValue = readDatabaseProxyChild(databaseTarget, prop, receiver)
+        const newValue = unwrapDatabaseProxy(value)
+        const truncatedEntries = Array.isArray(databaseTarget) && prop === 'length' &&
+            typeof oldValue === 'number' && typeof value === 'number' &&
+            Number.isInteger(value) && value >= 0 && value < oldValue
+            ? Reflect.ownKeys(databaseTarget)
+                .filter((key): key is string => typeof key === 'string' && /^\d+$/.test(key) && Number(key) >= value)
+                .map((key) => ({ index: Number(key), oldValue: readDatabaseProxyChild(databaseTarget, key) }))
+                .sort((a, b) => b.index - a.index)
+            : []
+        const result = Reflect.set(databaseTarget, prop, newValue, receiver)
+        const assignedValue = result ? readDatabaseProxyChild(databaseTarget, prop, receiver) : oldValue
+        if (result && !Object.is(oldValue, assignedValue)) {
+            addDatabaseProxyChild(state, prop, assignedValue)
+            for (const entry of truncatedEntries) {
+                removeDatabaseProxyChild(state, String(entry.index))
                 notifyDatabaseProxy(state, {
-                    path: [normalizePathKey(obj, prop)],
+                    path: [entry.index],
                     value: undefined,
-                    oldValue,
+                    oldValue: entry.oldValue,
                     type: 'delete',
                 })
             }
-            return result
-        },
-    })
+            notifyDatabaseProxy(state, {
+                path: [normalizePathKey(databaseTarget, prop)],
+                value: assignedValue,
+                oldValue,
+                type: 'set',
+            })
+        }
+        return result
+    }
+
+    function deleteDatabaseProxyProperty(prop: PropertyKey) {
+        const existed = Object.prototype.hasOwnProperty.call(databaseTarget, prop)
+        const oldValue = readDatabaseProxyChild(databaseTarget, prop)
+        const result = Reflect.deleteProperty(databaseTarget, prop)
+        if (result && !Reflect.deleteProperty(proxyTarget, prop)) {
+            return false
+        }
+        if (result && existed) {
+            removeDatabaseProxyChild(state, prop)
+            notifyDatabaseProxy(state, {
+                path: [normalizePathKey(databaseTarget, prop)],
+                value: undefined,
+                oldValue,
+                type: 'delete',
+            })
+        }
+        return result
+    }
 
     state = {
         target,

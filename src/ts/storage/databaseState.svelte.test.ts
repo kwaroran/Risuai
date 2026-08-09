@@ -48,6 +48,53 @@ describe('database proxy layering', () => {
         unsubscribe()
     })
 
+    it('treats plain data descriptors like assignments and connects retained children', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 0 } } }))
+        const storage = DBState.db.pluginCustomStorage
+        const retained = storage.retained
+        delete storage.retained
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        try {
+            storage.defined = retained
+            const assignmentEvent = listener.mock.calls[0][0]
+            delete storage.defined
+            listener.mockClear()
+
+            Object.defineProperty(storage, 'defined', { value: retained })
+
+            expect(listener).toHaveBeenCalledTimes(1)
+            expect(listener.mock.calls[0][0]).toEqual(assignmentEvent)
+            listener.mockClear()
+            retained.value = 1
+            expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+                path: ['pluginCustomStorage', 'defined', 'value'],
+                value: 1,
+                oldValue: 0,
+                type: 'set',
+            }))
+        } finally {
+            unsubscribe()
+        }
+    })
+
+    it('rejects accessor descriptors without changing database state', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { value: 1 } }))
+        const storage = DBState.db.pluginCustomStorage
+        const listener = vi.fn()
+        const unsubscribe = onDatabaseUpdate(listener)
+
+        try {
+            expect(() => Object.defineProperty(storage, 'value', { get: () => 2 }))
+                .toThrowError(/state_descriptors_fixed/)
+            expect(storage.value).toBe(1)
+            expect(listener).not.toHaveBeenCalled()
+        } finally {
+            unsubscribe()
+        }
+    })
+
     it('keeps Svelte reactivity outside the database proxy', () => {
         setDatabaseLite(database({ username: 'before' }))
         let observed = ''
@@ -63,6 +110,72 @@ describe('database proxy layering', () => {
 
         expect(observed).toBe('after')
         dispose()
+    })
+
+    it('does not track reads performed by proxy writes inside effects', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { plugin: { list: [] } } }))
+        let runs = 0
+        const dispose = $effect.root(() => {
+            $effect(() => {
+                runs++
+                if (DBState.db.pluginCustomStorage) {
+                    DBState.db.pluginCustomStorage.plugin.list = []
+                }
+            })
+        })
+
+        flushSync()
+
+        expect(runs).toBe(1)
+        dispose()
+    })
+
+    it('tracks only the requested property when reconnecting a child inside an effect', () => {
+        const storage: Record<string, unknown> = {}
+        setDatabaseLite(database({ pluginCustomStorage: storage }))
+        storage.a = { b: 1, c: { d: 1 } }
+        let observed = 0
+        let runs = 0
+        const dispose = $effect.root(() => {
+            $effect(() => {
+                runs++
+                observed = DBState.db.pluginCustomStorage.a.b
+            })
+        })
+
+        try {
+            flushSync()
+            DBState.db.pluginCustomStorage.a.c.d = 2
+            flushSync()
+
+            expect(runs).toBe(1)
+            DBState.db.pluginCustomStorage.a.b = 2
+            flushSync()
+            expect(runs).toBe(2)
+            expect(observed).toBe(2)
+        } finally {
+            dispose()
+        }
+    })
+
+    it('removes retained proxies from state when first read by a derived', () => {
+        setDatabaseLite(database({ pluginCustomStorage: { retained: { value: 1 } } }))
+        const retained = DBState.db.pluginCustomStorage.retained
+        const container: Record<string, unknown> = {}
+        setDatabaseLite(database({ pluginCustomStorage: { container } }))
+        container.retained = retained
+        const derivedValue = $derived.by(() => DBState.db.pluginCustomStorage.container.retained.value)
+        let observed = 0
+
+        expect(() => {
+            observed = derivedValue
+        }).not.toThrow()
+        expect(observed).toBe(1)
+        expect(Object.getOwnPropertyDescriptor(DBState.db.pluginCustomStorage.container, 'retained')?.value)
+            .not.toBe(retained)
+        const snapshot = $state.snapshot(DBState.db)
+        expect(() => structuredClone(snapshot)).not.toThrow()
+        expect(snapshot.pluginCustomStorage.container.retained).toEqual({ value: 1 })
     })
 
     it('does not add another database proxy when passed the wrapped database again', () => {

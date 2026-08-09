@@ -364,15 +364,21 @@ export async function runScripted(code:string, arg:{
                 if(!ScriptingLowLevelIds.has(id)){
                     return
                 }
-                const options = parseLuaOptions(optionsStr) as NAIImageGenOptions
-                const gen = await generateAIImage(value, char as character, negValue, 'inlay', options)
-                if(!gen){
+                try {
+                    const options = parseLuaOptions(optionsStr) as NAIImageGenOptions
+                    const gen = await generateAIImage(value, char as character, negValue, 'inlay', options)
+                    if(!gen){
+                        return 'Error: Image generation failed'
+                    }
+                    const imgHTML = new Image()
+                    imgHTML.src = gen
+                    const inlay = await writeInlayImage(imgHTML)
+                    return `{{inlay::${inlay}}}`
+                } catch (error) {
+                    // Keep failures inside the script instead of aborting the whole run
+                    console.error('Error in generateImage:', error)
                     return 'Error: Image generation failed'
                 }
-                const imgHTML = new Image()
-                imgHTML.src = gen
-                const inlay = await writeInlayImage(imgHTML)
-                return `{{inlay::${inlay}}}`
             })
 
             declareAPI('getCharacterImageMain', async (id:string) => {

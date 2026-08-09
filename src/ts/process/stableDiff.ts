@@ -8,6 +8,7 @@ import type { OpenAIChat } from "./index.svelte"
 import { processZip } from "./processzip"
 import { keiServerURL } from "../kei/kei"
 import random from "lodash/random"
+import { buildNAICharacterPrompts, naiEmphasis, type NAICharacterPrompt, type NAIImageGenOptions } from "./naiCharacterPrompts"
 
 export async function stableDiff(currentChar:character,prompt:string){
     let db = getDatabase()
@@ -61,23 +62,7 @@ export async function stableDiff(currentChar:character,prompt:string){
     return await generateAIImage(genPrompt, currentChar, neg, '')
 }
 
-export interface NAICharacterPrompt{
-    /** Positive prompt for this character */
-    prompt: string
-    /** Optional negative prompt for this character */
-    negative?: string
-    /** Optional horizontal position (0~1). When given, coordinate placement is enabled */
-    x?: number
-    /** Optional vertical position (0~1). When given, coordinate placement is enabled */
-    y?: number
-}
-
-export interface NAIImageGenOptions{
-    /** Per-character prompts for NAI v4/v4.5 multi-character prompting */
-    characters?: NAICharacterPrompt[]
-    /** Force coordinate-based placement. Defaults to true when any character supplies x/y */
-    use_coords?: boolean
-}
+export type { NAICharacterPrompt, NAIImageGenOptions }
 
 export async function generateAIImage(genPrompt:string, currentChar:character, neg:string, returnSdData:string, naiOptions?:NAIImageGenOptions):Promise<string|false>{
     const db = getDatabase()
@@ -139,33 +124,10 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
         }
     }
     if(db.sdProvider === 'novelai'){
-        // Convert SD-style () emphasis to NAI-style {} emphasis, preserving escaped \( \)
-        const naiEmphasis = (s:string) => s
-            .replaceAll('\\(', "♧")
-            .replaceAll('\\)', "♤")
-            .replaceAll('(','{')
-            .replaceAll(')','}')
-            .replaceAll('♧','(')
-            .replaceAll('♤',')')
-
         genPrompt = naiEmphasis(genPrompt)
 
         // Per-character prompts (NAI v4/v4.5 multi-character prompting), supplied by modules via Lua
-        const naiCharacters = naiOptions?.characters ?? []
-        const useCoords = naiOptions?.use_coords ??
-            naiCharacters.some(c => typeof c?.x === 'number' || typeof c?.y === 'number')
-        const charCenter = (c:NAICharacterPrompt) => ({
-            x: typeof c?.x === 'number' ? c.x : 0.5,
-            y: typeof c?.y === 'number' ? c.y : 0.5
-        })
-        const posCharCaptions = naiCharacters.map((c) => ({
-            char_caption: naiEmphasis(c?.prompt ?? ''),
-            centers: [charCenter(c)]
-        }))
-        const negCharCaptions = naiCharacters.map((c) => ({
-            char_caption: c?.negative ?? '',
-            centers: [charCenter(c)]
-        }))
+        const { useCoords, posCharCaptions, negCharCaptions, characterPrompts } = buildNAICharacterPrompts(naiOptions)
 
         let reqlist:any = {}
 
@@ -198,6 +160,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                     //add v4
                     "autoSmea": false,
                     "use_coords": useCoords,
+                    "characterPrompts": characterPrompts,
                     "legacy_uc": db.NAIImgConfig.legacy_uc,
                     "v4_prompt":{
                         caption:{
@@ -205,7 +168,8 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                             char_captions: posCharCaptions
                         },
                         use_coords: useCoords,
-                        use_order: !useCoords,
+                        // novelai-python keeps use_order on even with coordinates enabled
+                        use_order: true,
                     },
                     "v4_negative_prompt":{
                         caption:{

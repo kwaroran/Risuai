@@ -455,6 +455,7 @@ export class SandboxHost {
     private csp = `connect-src 'none'; script-src 'nonce-${this.nonce}' 'wasm-unsafe-eval'; frame-src 'none'; object-src 'none'; style-src * 'unsafe-inline'; default-src 'none'; img-src * data: blob:; font-src * data: blob:; media-src * data: blob:; base-uri 'none';`;
 
     private instanceRegistry = new Map<string, any>();
+    private refIdCounter = 0;
     private abortControllers = new Map<string, AbortController>();
     private messageHandlerRef: ((event: MessageEvent) => void) | null = null;
     private callbackWrapperCache = new Map<string, Function>();
@@ -533,7 +534,7 @@ export class SandboxHost {
             if (Array.isArray(val)) return val;
 
 
-            const id = 'ref_' + Math.random().toString(36).substring(2);
+            const id = 'ref_' + (++this.refIdCounter);
             this.instanceRegistry.set(id, val);
             return { __type: 'REMOTE_REF', id } as RemoteRef;
         }

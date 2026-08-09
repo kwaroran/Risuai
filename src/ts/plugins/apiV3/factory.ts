@@ -624,6 +624,7 @@ export class SandboxHost {
                 if (instance) {
                     return instance;
                 }
+                throw new Error("Instance not found or released");
             }
             if (arg && typeof arg === 'object' && arg.constructor === Object) {
                 let out: any = null;

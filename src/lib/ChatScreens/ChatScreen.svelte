@@ -69,7 +69,7 @@
     <div class="grow h-full min-w-0 relative justify-center flex">
         <SideBarArrow />
         <BackgroundDom />
-        <div style={bgImg} class="h-full w-full" style:max-width={getMaxWidth()}>
+        <div style={bgImg} class="h-full w-full" style:max-width={$selectedCharID >= 0 ? getMaxWidth() : undefined}>
             {#if $selectedCharID >= 0}
                 {#if DBState.db.characters[$selectedCharID].viewScreen !== 'none' && (DBState.db.characters[$selectedCharID].type === 'group' || (!DBState.db.characters[$selectedCharID].inlayViewScreen))}
                     <ResizeBox />

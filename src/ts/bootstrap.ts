@@ -46,6 +46,7 @@ import { isTauri } from "./platform";
 import { registerModelDynamic } from "./model/modellist";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
+import { showLatestPatchNotesAfterUpdate } from "./patchNotesUi";
 
 const appWindow = isTauri ? getCurrentWebviewWindow() : null
 
@@ -256,7 +257,7 @@ export async function loadData() {
             saveDb()
             moduleUpdate()
             cleanChunks()
-            alertTOS().then((a) => {
+            showLatestPatchNotesAfterUpdate().then(() => alertTOS()).then((a) => {
                 if (a === false) {
                     location.reload()
                 }

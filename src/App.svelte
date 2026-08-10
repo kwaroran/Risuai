@@ -36,6 +36,7 @@
     import IrisModal from './lib/Others/IrisModal.svelte';
     import Legal from './lib/Others/Legal.svelte';
     import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
+    import PatchNotesModal from './lib/Others/PatchNotesModal.svelte';
     import { RISU_APP_INTERNAL_DRAG_TYPE, RISU_SIDEBAR_DRAG_TYPE } from './ts/dragTypes';
 
 
@@ -276,6 +277,7 @@
     {#if irisStore.open}
         <IrisModal />
     {/if}
+    <PatchNotesModal />
     {#if customSideBarConfigDialogStore.open}
         <CustomSidebarConfig />
     {/if}

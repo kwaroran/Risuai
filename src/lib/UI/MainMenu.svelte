@@ -8,6 +8,7 @@
     import { getRisuHub, hubAdditionalHTML } from "src/ts/characterCards";
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import Title from "./Title.svelte";
+    import { openPatchNotesModal } from "src/ts/patchNotesUi";
 
     type RelatedLink = {
       title: string;
@@ -49,7 +50,12 @@
 <div class="h-full w-full flex flex-col overflow-y-auto items-center">
     {#if !$OpenRealmStore}
       <Title />
-      <h3 class="text-textcolor2 mt-1">Version {getVersionString()}</h3>
+      <button
+        class="mt-1 text-textcolor2 transition-colors hover:text-textcolor hover:underline"
+        onclick={() => void openPatchNotesModal()}
+      >
+        Version {getVersionString()}
+      </button>
     {/if}
     <div class="w-full flex p-4 flex-col text-textcolor max-w-4xl">
       {#if !$OpenRealmStore}

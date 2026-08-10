@@ -20,6 +20,7 @@ import {
     DEFAULT_CHAT_LOAD_INITIAL_PAGES,
     normalizeChatLoadPages,
 } from '../chatLoadPages';
+import { normalizePatchNoteViewState } from '../patchNotes';
 import { setDatabaseLite } from './databaseState.svelte';
 
 export { onDatabaseUpdate, setDatabaseLite } from './databaseState.svelte';
@@ -31,6 +32,7 @@ export let webAppSubVer = ''
 export type StreamingDisplayOptimizationMode = 'off'|'balanced'|'strong'
 
 export function setDatabase(data:Database){
+    normalizePatchNoteViewState(data, appVer)
     if(checkNullish(data.characters)){
         data.characters = []
     }
@@ -1012,6 +1014,7 @@ export interface Database{
     top_a:number
     claudeAws:boolean
     lastPatchNoteCheckVersion?:string,
+    isUserViewLastestPatchnote?:boolean,
     removePunctuationHypa?:boolean
     memoryLimitThickness?:number
     modules: RisuModule[]

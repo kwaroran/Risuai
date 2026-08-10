@@ -1707,6 +1707,23 @@ export const languageEnglish = {
     convertToModule: "Convert to Module",
     skipSavingAssetsOnWebSync: "Skip Saving Assets on Web Sync",
     applyAdditionalParamsToAll: "Apply Additional Parameters to All Models",
+    patchNotes: {
+        title: "Patch Notes",
+        previousTitle: "Previous Patch Notes",
+        viewPrevious: "View previous version patch notes",
+        back: "Back",
+        backToList: "Back to version list",
+        loading: "Loading patch notes...",
+        loadError: "Could not load these patch notes.",
+        listError: "Could not load the release list.",
+        retry: "Retry",
+        empty: "There are no more releases.",
+        noContent: "No patch notes were provided for this release.",
+        previousPage: "Previous",
+        nextPage: "Next",
+        page: (page: number) => `Page ${page}`,
+        close: "Close",
+    },
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

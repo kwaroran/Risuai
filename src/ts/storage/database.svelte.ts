@@ -373,6 +373,7 @@ export function setDatabase(data:Database){
         note: data.userNote,
         largePortrait: false
     }]
+    // Legacy option no longer in use
     data.classicMaxWidth ??= false
     data.ooba ??= safeStructuredClone(defaultOoba)
     data.ainconfig ??= safeStructuredClone(defaultAIN)
@@ -930,6 +931,7 @@ export interface Database{
         useSync?:boolean
         kei?:boolean
     },
+    // Legacy option no longer in use
     classicMaxWidth: boolean,
     useChatSticker:boolean,
     useAdditionalAssetsPreview:boolean,

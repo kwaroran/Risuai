@@ -1335,3 +1335,26 @@ export function base64url(source: Uint8Array | ArrayBuffer): string {
         .replace(/\//g, "_");
     return encodedSource;
 }
+
+export function getMaxWidth(): string {
+        switch (DBState.db.chatLimitSize) {
+            //Unlimited
+            case -1:
+                return '100%'
+            
+            //Small
+            case 0:
+               return '600px'
+
+            //Normal
+            case 1:
+                return '800px'
+            
+            //Huge
+            case 2:
+               return '1200px'
+            
+            default:
+                return '100%'
+        }
+    }

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getCustomBackground, getEmotion, getMaxWidth } from "../../ts/util";
+    import { getCustomBackground, getEmotion } from "../../ts/util";
     
     import { DBState } from 'src/ts/stores.svelte';
     import { CharEmotion, selectedCharID } from "../../ts/stores.svelte";
@@ -11,6 +11,7 @@
     import BackgroundDom from "./BackgroundDom.svelte";
     import SideBarArrow from "../UI/GUI/SideBarArrow.svelte";
     import ModuleChatMenu from "../Setting/Pages/Module/ModuleChatMenu.svelte";
+  import { getMaxWidth } from "src/ts/chatWidth";
     let openChatList = $state(false)
     let openModuleList = $state(false)
 

@@ -10,6 +10,7 @@ import { updateAnimationSpeed } from '../gui/animation';
 import { guiSizeText, updateGuisize } from '../gui/guisize';
 import { updateTextThemeAndCSS } from '../gui/colorscheme';
 import { CustomGUISettingMenuStore } from '../stores.svelte';
+import { CHAT_WIDTH_PRESET_INFO, ChatWidthPreset } from '../chatWidth';
 
 export const displayThemeSettingsItems: SettingItem[] = [
     {
@@ -149,21 +150,7 @@ export const displaySizeSettingsItems: SettingItem[] = [
             min: -1,
             max: 2,
             step: 1,
-            customText: (value) => {
-               switch (value) {
-                    case -1:
-                        return "Unlimited"
-                    case 0:
-                        return "Small"
-                    case 1:
-                        return "Normal"
-                    case 2:
-                        return "Huge"
-                    default:
-                        return "Unlimited"
-                    
-                }
-            }
+            customText: (value) => CHAT_WIDTH_PRESET_INFO[value as ChatWidthPreset]?.label ?? CHAT_WIDTH_PRESET_INFO[ChatWidthPreset.Unlimited].label
         },
         keywords: ['chat', 'size', 'limit'],
     },

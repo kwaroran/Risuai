@@ -30,7 +30,12 @@ export const languageSpanish = {
         "requestLogRemovedDesc": "Este registro de solicitud se elimina cuando el cliente se actualiza o recarga.",
         "vertexAuthError": "Faltan los detalles de autenticación de Vertex AI.",
         "coldStorageWriteFailed": "Error al escribir en almacenamiento frío. Sus datos de chat se han conservado.",
-        "coldStorageVerifyFailed": "Error en la verificación del almacenamiento frío. Sus datos de chat se han conservado."
+        "coldStorageVerifyFailed": "Error en la verificación del almacenamiento frío. Sus datos de chat se han conservado.",
+        "coldStorageRestoreFailed": "No se pudieron cargar los datos del almacenamiento frío. Los datos del personaje afectado pueden haberse perdido permanentemente.",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Faltan datos del almacenamiento frío de ${characterNames || "personajes desconocidos"} o no son válidos.${unresolvedCount > 0 ? ` No se pudieron asociar ${unresolvedCount} elemento(s) con un personaje.` : ""}\n\nSi continúa, a esta copia de seguridad le faltarán ${unavailableCount} elemento(s) del almacenamiento frío y puede que no sea posible recuperar los datos de los personajes o chats afectados.\n\n¿Crear de todos modos la copia de seguridad incompleta?`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `No se pudieron restaurar los datos del almacenamiento frío de ${characterNames || "personajes desconocidos"}.${unresolvedCount > 0 ? ` No se pudieron asociar ${unresolvedCount} elemento(s) con un personaje.` : ""}\n\nSi continúa, ${unavailableCount} elemento(s) del almacenamiento frío seguirán sin estar disponibles y los datos de los personajes o chats afectados podrían perderse permanentemente.\n\n¿Continuar de todos modos con la restauración incompleta?`
     },
     "showHelp": "Mostrar Ayuda",
     "help": {
@@ -85,6 +90,7 @@ export const languageSpanish = {
         "openAIFixer": "OpenAI Fixer es un complemento que soluciona algunos de los problemas de OpenAI.",
         "sayNothing": "Si está habilitado, ingresará 'no decir nada' cuando no se haya ingresado ninguna cadena.",
         "showUnrecommended": "Si está habilitado, mostrará configuraciones no recomendadas y obsoletas. NO SE RECOMIENDA usar estas configuraciones.",
+        "streamingDisplayOptimizationMode": "Reduce el lag de visualización al recibir respuestas largas por streaming con mucho posprocesamiento, como scripts basados en regex. Puede ser útil en dispositivos móviles o equipos de gama baja.\n\nDesactivado mantiene el comportamiento normal, pero ejecuta el posprocesamiento en cada token y puede generar una sobrecarga importante.\n\nEquilibrado reduce la carga intentando el posprocesamiento solo en intervalos cortos, aproximadamente cada 0,125 segundos.\n\nFuerte es similar a Equilibrado, pero omite el posprocesamiento durante el streaming y lo intenta solo una vez cuando el stream termina.\n\nEsta es una función experimental, por lo que algunas funciones pueden comportarse de forma inesperada.",
         "imageCompression": "Si está habilitado, comprimirá las imágenes al exportar el personaje. Si las imágenes animadas no funcionan, intenta desactivar esta opción.",
         "useExperimental": "Si está habilitado, mostrará algunas características experimentales.",
         "forceProxyAsOpenAI": "Si está habilitado, forzará el uso del formato OpenAI al usar un proxy inverso.",
@@ -705,6 +711,10 @@ export const languageSpanish = {
     "unrecommended": "No Recomendado",
     "chatNotes": "Notas del Chat",
     "showUnrecommended": "Mostrar Configuraciones No Recomendadas",
+    "streamingDisplayOptimizationMode": "Optimización de visualización en streaming",
+    "streamingDisplayOptimizationOff": "Desactivado",
+    "streamingDisplayOptimizationBalanced": "Equilibrado",
+    "streamingDisplayOptimizationStrong": "Fuerte",
     "altGreet": "Mensajes de Inicio Alternativos",
     "scripts": "Scripts",
     "settings": "Configuración",

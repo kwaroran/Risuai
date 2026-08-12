@@ -1,10 +1,10 @@
 <script lang="ts">
     import { getModuleToggles } from "src/ts/process/modules";
-    import { DBState, MobileGUI } from "src/ts/stores.svelte";
+    import { DBState, MobileGUI, selectedCharID } from "src/ts/stores.svelte";
     import { parseToggleSyntax, type sidebarToggle, type sidebarToggleGroup } from "src/ts/util";
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
-    import type { character, groupChat } from "src/ts/storage/database.svelte";
+    import { getCurrentCharacter, type character, type groupChat } from "src/ts/storage/database.svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
@@ -51,8 +51,20 @@
         return templateUsesJailbreakToggle(template)
     })
 
+    let charToggle = $state((DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle)
+    $effect(() => {
+        const charToggleTemp = (DBState.db?.characters?.[$selectedCharID] as character)?.customModuleToggle
+        if(charToggleTemp !== charToggle) {
+            charToggle = charToggleTemp
+        }
+    })
+
     let groupedToggles = $derived.by(() => {
-        const ungrouped = parseToggleSyntax(DBState.db.customPromptTemplateToggle + getModuleToggles())
+        const ungrouped = parseToggleSyntax(
+            DBState.db.customPromptTemplateToggle + '\n' +
+            getModuleToggles() + '\n' +
+            charToggle
+        )
 
         let groupOpen = false
         // group toggles together between group ... groupEnd

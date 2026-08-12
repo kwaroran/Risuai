@@ -462,6 +462,8 @@ export type PluginV2ProviderOptions = {
 
 export type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
 type ReplacerFunction = (content: OpenAIChat[], type: string) => OpenAIChat[] | Promise<OpenAIChat[]>
+type ChatOutputListenerArg = { char: any, chat: any, characterIndex: number, chatIndex: number, messageIndex: number }
+type ChatOutputListener = (arg: ChatOutputListenerArg) => void | Promise<void>
 
 export const pluginV2 = {
     providers: new Map<string, (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string | ReadableStream<string> }>>(),
@@ -472,6 +474,7 @@ export const pluginV2 = {
     editinput: new Set<EditFunction>(),
     replacerbeforeRequest: new Set<ReplacerFunction>(),
     replacerafterRequest: new Set<(content: string, type: string) => string | Promise<string>>(),
+    chatOutput: new Set<ChatOutputListener>(),
     unload: new Set<() => void | Promise<void>>(),
     loaded: false
 }
@@ -562,6 +565,22 @@ export const getV2PluginAPIs = () => {
             }
             else {
                 throw (`replacer handler named ${name} not found`)
+            }
+        },
+        addRisuChatListener: (mode: string, func: ChatOutputListener) => {
+            if (mode === 'output') {
+                pluginV2.chatOutput.add(func)
+            }
+            else {
+                throw (`chat listener mode ${mode} not found`)
+            }
+        },
+        removeRisuChatListener: (mode: string, func: ChatOutputListener) => {
+            if (mode === 'output') {
+                pluginV2.chatOutput.delete(func)
+            }
+            else {
+                throw (`chat listener mode ${mode} not found`)
             }
         },
         onUnload: (func: () => void | Promise<void>) => {
@@ -820,6 +839,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         pluginV2.editoutput.clear()
         pluginV2.editprocess.clear()
         pluginV2.editinput.clear()
+        pluginV2.chatOutput.clear()
     }
 
     pluginV2.loaded = true

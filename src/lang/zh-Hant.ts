@@ -30,7 +30,12 @@ export const languageChineseTraditional = {
         "requestLogRemovedDesc": "當用戶端重新整理或重新載入時，該請求記錄會被刪除。",
         "vertexAuthError": "缺少 Vertex AI 驗證詳細資料。",
         "coldStorageWriteFailed": "冷儲存寫入失敗。您的對話資料已被保留。",
-        "coldStorageVerifyFailed": "冷儲存驗證失敗。您的對話資料已被保留。"
+        "coldStorageVerifyFailed": "冷儲存驗證失敗。您的對話資料已被保留。",
+        "coldStorageRestoreFailed": "無法載入冷儲存資料。受影響角色的資料可能已永久遺失。",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `${characterNames || "未知角色"}的冷儲存資料遺失或無效。${unresolvedCount > 0 ? `有 ${unresolvedCount} 個項目無法連結到角色。` : ""}\n\n若繼續，此備份將缺少 ${unavailableCount} 個冷儲存項目，受影響的角色或對話資料可能無法從此備份復原。\n\n仍要建立不完整的備份嗎？`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `無法復原 ${characterNames || "未知角色"}的冷儲存資料。${unresolvedCount > 0 ? `有 ${unresolvedCount} 個項目無法連結到角色。` : ""}\n\n若繼續，${unavailableCount} 個冷儲存項目將無法使用，受影響的角色或對話資料可能永久遺失。\n\n仍要繼續不完整的復原嗎？`
     },
     "showHelp": "顯示幫助",
     "help": {
@@ -85,6 +90,7 @@ export const languageChineseTraditional = {
         "openAIFixer": "OpenAI Fixer 是一個用於修復 OpenAI 部分問題的外掛。",
         "sayNothing": "啟用後，如果使用者沒有輸入對話內容，系統會自動填入 ’say nothing‘。",
         "showUnrecommended": "啟用後，將顯示不建議使用的過時設定。不建議使用這些設定。",
+        "streamingDisplayOptimizationMode": "在使用正規表示式腳本等大量後處理時，減少長回覆串流生成造成的介面卡頓。對行動裝置或低階裝置可能有幫助。\n\n關閉會保留一般行為，但每個 Token 都會觸發後處理，可能帶來明顯開銷。\n\n均衡會只按較短間隔（約 0.125 秒）嘗試後處理來降低負載。\n\n強與均衡類似，但串流生成期間會跳過後處理，只在串流完成後嘗試一次後處理，從而大幅降低負載。\n\n這是一項實驗性功能，可能會導致部分功能出現非預期行為。",
         "imageCompression": "啟用後，在匯出角色時會壓縮圖片。如果動畫圖片無法顯示，請嘗試關閉此選項。",
         "useExperimental": "啟用後，將顯示部分實驗性功能。",
         "forceProxyAsOpenAI": "啟用後，使用反向代理（Reverse proxy）時將強制使用 OpenAI 格式。",
@@ -716,6 +722,10 @@ export const languageChineseTraditional = {
     "unrecommended": "不建議",
     "chatNotes": "對話備註",
     "showUnrecommended": "顯示不建議的設定",
+    "streamingDisplayOptimizationMode": "串流顯示最佳化",
+    "streamingDisplayOptimizationOff": "關閉",
+    "streamingDisplayOptimizationBalanced": "均衡",
+    "streamingDisplayOptimizationStrong": "強",
     "altGreet": "備選問候語",
     "scripts": "指令碼",
     "settings": "設定",

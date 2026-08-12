@@ -15,7 +15,7 @@ import { reencodeImage } from "./process/files/inlays"
 import { PngChunk } from "./pngChunk"
 import type { OnnxModelFiles } from "./process/transformers"
 import { CharXImporter, CharXSkippableChecker, CharXWriter } from "./process/processzip"
-import { exportModule, readModule, type RisuModule } from "./process/modules"
+import { exportModuleLegacy, readModule, type RisuModule } from "./process/modules"
 import { readFile } from "@tauri-apps/plugin-fs"
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { AccountStorage } from "./storage/accountStorage"
@@ -49,11 +49,12 @@ export async function importCharacter() {
     }
 }
 
-export async function importCharacterProcess(f:{
+export async function importCharacterProcess<T extends boolean = false>(f:{
     name: string;
     data: Uint8Array|File|ReadableStream<Uint8Array>
     lightningRealmImport?:boolean
-}) {
+    returnCharacter?:T //note That this option only works with v3 charx
+}):Promise<T extends true ? character | number | null : number | null>{
     if(f.name.endsWith('json')){
         if(f.data instanceof ReadableStream){
             return null
@@ -62,7 +63,7 @@ export async function importCharacterProcess(f:{
         const da = JSON.parse(Buffer.from(data).toString('utf-8'))
         if(await importCharacterCardSpec(da)){
             let db = getDatabase()
-            return db.characters.length - 1
+            return db.characters.length - 1 as any
         }
         if((da.char_name || da.name) && (da.char_persona || da.description) && (da.char_greeting || da.first_mes)){
             DBState.db.characters.push(convertOffSpecCards(da))
@@ -156,7 +157,10 @@ export async function importCharacterProcess(f:{
             }
         }
         await importer.done()
-        await importCharacterCardSpec(card, undefined, 'normal', importer.assets, lorebook)
+        let v = await importCharacterCardSpec(card, undefined, 'normal', importer.assets, lorebook, f.returnCharacter)
+        if(f.returnCharacter){
+            return v as any
+        }
         let db = getDatabase()
         return db.characters.length - 1
     }
@@ -713,7 +717,7 @@ export async function exportChar(charaID:number):Promise<string> {
 }
 
 
-async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3, img?:Uint8Array, mode:'hub'|'normal' = 'normal', assetDict:{[key:string]:string} = {}, overrideLorebook: loreBook[] = null):Promise<boolean>{
+async function importCharacterCardSpec<T extends boolean = false>(card:CharacterCardV2Risu|CharacterCardV3, img?:Uint8Array, mode:'hub'|'normal' = 'normal', assetDict:{[key:string]:string} = {}, overrideLorebook: loreBook[] = null, returnValue:T = false as T):Promise<T extends true ? character|false : boolean>{
     if(!card ||(card.spec !== 'chara_card_v2' && card.spec !== 'chara_card_v3' )){
         return false
     }
@@ -1008,6 +1012,9 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
         prebuiltAssetCommand: data?.extensions?.risuai?.prebuiltAssetCommand ?? '',
         prebuiltAssetExclude: data?.extensions?.risuai?.prebuiltAssetExclude ?? [],
         prebuiltAssetStyle: data?.extensions?.risuai?.prebuiltAssetStyle ?? '',
+        customModuleToggle: data?.extensions?.risuai?.toggles ?? {},
+        moduleNamespace: data?.extensions?.risuai?.moduleNamespace,
+        hideChatIcon: data?.extensions?.risuai?.hideChatIcon ?? false,
     }
 
     if(card.spec === 'chara_card_v3'){
@@ -1018,9 +1025,13 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
         char.modification_date = card.data.modification_date ?? 0
     }
 
+    if(returnValue){
+        return char as any
+    }
+
     db.characters.push(char)
     alertNormal(language.importedCharacter)
-    return true
+    return true as any
 
 }
 
@@ -1488,7 +1499,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
                 }
                 delete card.data.extensions.risuai.triggerscript
                 delete card.data.extensions.risuai.customScripts
-                await writer.write("module.risum", await exportModule(md, {
+                await writer.write("module.risum", await exportModuleLegacy(md, {
                     alertEnd: false,
                     saveData: false
                 }))
@@ -1640,6 +1651,9 @@ export function createBaseV3(char:character){
                     prebuiltAssetCommand: char.prebuiltAssetCommand ?? '',
                     prebuiltAssetExclude: char.prebuiltAssetExclude ?? [],
                     prebuiltAssetStyle: char.prebuiltAssetStyle ?? '',
+                    toggles: char.customModuleToggle ?? '',
+                    moduleNamespace: char.moduleNamespace,
+                    hideChatIcon: char.hideChatIcon ?? false
                 },
                 depth_prompt: char.depth_prompt
             },
@@ -1768,7 +1782,7 @@ export async function getRisuHub(arg:{
         arg.search += ' __shared'
         const stringArg = `search==${arg.search}&&page==${arg.page}&&nsfw==${arg.nsfw}&&sort==${arg.sort}&&web==${(!isNodeServer && !isTauri) ? 'web' : 'other'}`
 
-        const da = await fetch(hubURL + '/realm/' + encodeURIComponent(stringArg), {
+        const da = await fetch(hubURL + '/realm/' + encodeURIComponent(stringArg) + "?cache=30", {
             headers: {
                 "x-risuai-info": appVer + ';' + (isNodeServer ? 'node' : (isTauri ? 'tauri' : 'web'))
             }

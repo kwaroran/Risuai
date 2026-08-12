@@ -30,7 +30,12 @@ export const languageGerman = {
         "requestLogRemovedDesc": "Dieses Anfrage-Protokoll wird entfernt, wenn der Client aktualisiert oder neu geladen wird.",
         "vertexAuthError": "Vertex AI-Authentifizierungsdetails fehlen.",
         "coldStorageWriteFailed": "Kaltlager-Schreibvorgang fehlgeschlagen. Ihre Chat-Daten wurden beibehalten.",
-        "coldStorageVerifyFailed": "Kaltlager-Überprüfung fehlgeschlagen. Ihre Chat-Daten wurden beibehalten."
+        "coldStorageVerifyFailed": "Kaltlager-Überprüfung fehlgeschlagen. Ihre Chat-Daten wurden beibehalten.",
+        "coldStorageRestoreFailed": "Kaltlagerdaten konnten nicht geladen werden. Die Daten des betroffenen Charakters können dauerhaft verloren sein.",
+        "coldStorageIncompleteBackupConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Kaltlagerdaten für ${characterNames || "unbekannte Charaktere"} fehlen oder sind ungültig.${unresolvedCount > 0 ? ` ${unresolvedCount} Element(e) konnten keinem Charakter zugeordnet werden.` : ""}\n\nWenn Sie fortfahren, fehlen in dieser Sicherung ${unavailableCount} Kaltlagerelement(e). Die betroffenen Charakter- oder Chatdaten können daraus möglicherweise nicht wiederhergestellt werden.\n\nTrotzdem eine unvollständige Sicherung erstellen?`,
+        "coldStorageIncompleteRestoreConfirm": (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Kaltlagerdaten für ${characterNames || "unbekannte Charaktere"} konnten nicht wiederhergestellt werden.${unresolvedCount > 0 ? ` ${unresolvedCount} Element(e) konnten keinem Charakter zugeordnet werden.` : ""}\n\nWenn Sie fortfahren, bleiben ${unavailableCount} Kaltlagerelement(e) nicht verfügbar. Die betroffenen Charakter- oder Chatdaten können dauerhaft verloren gehen.\n\nTrotzdem mit der unvollständigen Wiederherstellung fortfahren?`
     },
     "showHelp": "Hilfe anzeigen",
     "help": {
@@ -85,6 +90,7 @@ export const languageGerman = {
         "openAIFixer": "OpenAI Fixer ist ein Plugin, das einige der Probleme von OpenAI behebt.",
         "sayNothing": "Wenn aktiviert, wird 'sag nichts' eingegeben, wenn keine Zeichenfolge eingegeben wurde.",
         "showUnrecommended": "Wenn aktiviert, werden nicht empfohlene, veraltete Einstellungen angezeigt. Es wird NICHT EMPFOHLEN, diese Einstellungen zu verwenden.",
+        "streamingDisplayOptimizationMode": "Verringert Anzeigeruckeln, wenn lange Antworten mit viel Nachbearbeitung gestreamt werden, zum Beispiel durch regex-basierte Skripte. Das kann auf Mobilgeraeten oder leistungsschwaecherer Hardware hilfreich sein.\n\nAus behaelt das normale Verhalten bei, fuehrt die Nachbearbeitung aber bei jedem Token aus und kann dadurch deutlichen Overhead verursachen.\n\nAusgewogen senkt die Last, indem Nachbearbeitung nur in kurzen Abstaenden von etwa 0,125 Sekunden versucht wird.\n\nStark ist aehnlich wie Ausgewogen, ueberspringt die Nachbearbeitung waehrend des Streamings aber und versucht sie nur einmal nach Abschluss des Streams.\n\nDies ist eine experimentelle Funktion. Dadurch koennen einige Funktionen unbeabsichtigt anders funktionieren.",
         "imageCompression": "Wenn aktiviert, werden Bilder beim Exportieren des Charakters komprimiert. Wenn animierte Bilder nicht funktionieren, versuchen Sie, diese Option zu deaktivieren.",
         "useExperimental": "Wenn aktiviert, werden einige experimentelle Funktionen angezeigt.",
         "forceProxyAsOpenAI": "Wenn aktiviert, wird bei Verwendung eines Reverse-Proxys das OpenAI-Format erzwungen.",
@@ -705,6 +711,10 @@ export const languageGerman = {
     "unrecommended": "Nicht empfohlen",
     "chatNotes": "Chat-Notizen",
     "showUnrecommended": "Nicht empfohlene Einstellungen anzeigen",
+    "streamingDisplayOptimizationMode": "Streaming-Anzeigeoptimierung",
+    "streamingDisplayOptimizationOff": "Aus",
+    "streamingDisplayOptimizationBalanced": "Ausgewogen",
+    "streamingDisplayOptimizationStrong": "Stark",
     "altGreet": "Alternative erste Nachrichten",
     "scripts": "Skripte",
     "settings": "Einstellungen",

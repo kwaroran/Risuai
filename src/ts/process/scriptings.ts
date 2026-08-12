@@ -29,7 +29,7 @@ interface BasicScriptingEngineState {
     code?: string;
     mutex: Mutex;
     chat?: Chat;
-    setVar?: (key:string, value:string) => void,
+    setVar?: (key:string, value:string) => boolean|void,
     getVar?: (key:string) => string,
 }
 
@@ -53,7 +53,7 @@ export async function runScripted(code:string, arg:{
     char?:character|groupChat|simpleCharacterArgument,
     chat?:Chat
     data?: string|OpenAIChat[],
-    setVar?: (key:string, value:string) => void,
+    setVar?: (key:string, value:string) => boolean|void,
     getVar?: (key:string) => string,
     lowLevelAccess?: boolean,
     meta?: object,
@@ -111,6 +111,14 @@ export async function runScripted(code:string, arg:{
                 }
                 ScriptingEngineState.setVar(key, value)
             })
+            declareAPI('setChatVarChanged', (id:string,key:string, value:string) => {
+                if(!ScriptingSafeIds.has(id) && !ScriptingEditDisplayIds.has(id)){
+                    return
+                }
+                if(ScriptingEngineState.setVar(key, value) === true){
+                    return true
+                }
+            })
             declareAPI('getGlobalVar', (id:string, key:string) => {
                 return getGlobalChatVar(key)
             })
@@ -162,6 +170,27 @@ export async function runScripted(code:string, arg:{
                     time: chat.time ?? 0
                 }
                 return JSON.stringify(data)
+            })
+
+            declareAPI('getChatData', (id:string, index:number) => {
+                const chat = ScriptingEngineState.chat.message.at(index)
+                return chat?.data ?? ''
+            })
+
+            declareAPI('getChatRole', (id:string, index:number) => {
+                const chat = ScriptingEngineState.chat.message.at(index)
+                return chat?.role ?? ''
+            })
+
+            declareAPI('getRecentChatsMain', (id:string, count:number) => {
+                const chats = ScriptingEngineState.chat.message
+                const safeCount = Math.max(0, Math.floor(count || 0))
+                const start = Math.max(0, chats.length - safeCount)
+                return JSON.stringify(chats.slice(start).map((v) => ({
+                    role: v.role,
+                    data: v.data,
+                    time: v.time ?? 0,
+                })))
             })
 
             declareAPI('setChat', (id:string, index:number, value:string) => {
@@ -1227,6 +1256,10 @@ function getFullChat(id)
     return json.decode(getFullChatMain(id))
 end
 
+function getRecentChats(id, count)
+    return json.decode(getRecentChatsMain(id, count))
+end
+
 function setFullChat(id, value)
     setFullChatMain(id, json.encode(value))
 end
@@ -1301,6 +1334,11 @@ end
 function setState(id, name, value)
     local escapedName = "__"..name
     setChatVar(id, escapedName, json.encode(value))
+end
+
+function setStateChanged(id, name, value)
+    local escapedName = "__"..name
+    return setChatVarChanged(id, escapedName, json.encode(value))
 end
 
 function async(callback)

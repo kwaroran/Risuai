@@ -20,9 +20,6 @@ import {
     DEFAULT_CHAT_LOAD_INITIAL_PAGES,
     normalizeChatLoadPages,
 } from '../chatLoadPages';
-import { setDatabaseLite } from './databaseState.svelte';
-
-export { onDatabaseUpdate, setDatabaseLite } from './databaseState.svelte';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
 export let appVer = "2026.6.215" //<APP_VERSION_POINT>
@@ -389,6 +386,7 @@ export function setDatabase(data:Database){
     data.animationSpeed ??= 0.4
     data.colorScheme ??= safeStructuredClone(defaultColorScheme)
     data.colorSchemeName ??= 'default'
+    data.customColorScheme ??= safeStructuredClone(data.colorSchemeName === 'custom' ? data.colorScheme : defaultColorScheme)
     data.NAIsettings.starter ??= ""
     data.hypaModel ??= 'MiniLM'
     data.mancerHeader ??= ''
@@ -723,6 +721,10 @@ export function setDatabase(data:Database){
     setDatabaseLite(data)
 }
 
+export function setDatabaseLite(data:Database){
+    DBState.db = data
+}
+
 interface getDatabaseOptions{
     snapshot?:boolean
 }
@@ -959,6 +961,7 @@ export interface Database{
     hideRealm:boolean
     colorScheme:ColorScheme
     colorSchemeName:string
+    customColorScheme:ColorScheme
     promptTemplate?:PromptItem[]
     forceProxyAsOpenAI?:boolean
     hypaModel:HypaModel
@@ -1489,6 +1492,7 @@ export interface character{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    moduleNamespace?:string
     coldstorage?:string
     coldStoragedChats?:string[]
     customModuleToggle?:string

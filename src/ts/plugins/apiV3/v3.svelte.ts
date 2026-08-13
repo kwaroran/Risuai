@@ -728,6 +728,11 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             oldApis.addRisuReplacer(name, func as any);
         },
         removeRisuReplacer: oldApis.removeRisuReplacer,
+        addRisuChatListener: async (mode:'output', func:Function) => {
+            oldApis.addRisuChatListener(mode, func as any);
+            addPluginUnloadCallback(plugin.name, () => oldApis.removeRisuChatListener(mode, func as any));
+        },
+        removeRisuChatListener: oldApis.removeRisuChatListener,
         setDatabaseLite: (newDb: any) => {
             if(newDb && Object.hasOwn(newDb, 'plugins')){
                 if(!isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
@@ -783,6 +788,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             const db = DBState.db
             db.colorSchemeName = 'custom'
+            db.customColorScheme = scheme
             db.colorScheme = scheme
             updateColorScheme()
         },

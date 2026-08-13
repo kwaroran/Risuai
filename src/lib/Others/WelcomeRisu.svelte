@@ -73,7 +73,7 @@
     $effect.pre(() => {
         if(step === 10){
             setTimeout(() => {
-                setPreset(DBState.db, prebuiltPresets.OAI2)
+                DBState.db = setPreset(DBState.db, prebuiltPresets.OAI2)
                 DBState.db.textTheme = 'highcontrast'
                 updateTextThemeAndCSS()
 

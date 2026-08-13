@@ -735,7 +735,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         removeRisuChatListener: oldApis.removeRisuChatListener,
         setDatabaseLite: (newDb: any) => {
             if(newDb && Object.hasOwn(newDb, 'plugins')){
-                if(!isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
+                if(import.meta.env.DEV && !isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
                     console.warn(`Plugin "${plugin.name}" attempted to modify the plugin list using setDatabaseLite. The change was ignored.`);
                 }
 

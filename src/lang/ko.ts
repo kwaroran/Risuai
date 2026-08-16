@@ -1478,6 +1478,7 @@ export const languageKorean = {
         "save": "저장",
         "cancel": "취소",
     },
+    "providerPermissionDenied": "사용자가 플러그인의 제공자 접근 권한을 거부했습니다.",
     "hamburgerButtonBottom": "메뉴 버튼을 사이드바 하단으로 이동",
     "nanoGPTLoadingAccountInfo": "계정 정보 불러오는 중…",
     "nanoGPTCreditBalance": "크레딧 잔액:",

@@ -1423,6 +1423,7 @@ export const languageVietnamese = {
     "newMessageButtonBottomLeft": "Phía dưới bên trái",
     "newMessageButtonBottomCenter": "Dưới cùng ở giữa (Mặc định)",
     "fetchLogConsent": "Plugin {} đang yêu cầu truy xuất nhật ký, hành động này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép điều này không?",
+    "providerPermissionDenied": "Người dùng đã từ chối quyền truy cập nhà cung cấp của plugin.",
     "newMessageButtonTopBar": "Thanh trên cùng",
     "pluginDevelopMode": "Chế độ phát triển Plugin",
     "mainDomAccessConsent": "Plugin {} đang yêu cầu truy cập vào Tài liệu chính, điều này có thể làm lộ thông tin nhạy cảm. Bạn có muốn cho phép không?",

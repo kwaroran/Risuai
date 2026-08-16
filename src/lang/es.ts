@@ -1428,6 +1428,7 @@ export const languageSpanish = {
     "trimStartNewChat": "Recortar mensajes de «Iniciar nuevo chat»",
     "getFullDatabaseConsent": "El plugin {} está solicitando acceso a la base de datos completa, lo que podría exponer información confidencial. ¿Desea permitir esto?",
     "fetchLogConsent": "El complemento {} está solicitando obtener registros, lo cual podría exponer información confidencial. ¿Desea permitir esto?",
+    "providerPermissionDenied": "El usuario ha denegado al plugin el permiso para acceder al proveedor.",
     "disableAbove": "Mensajes cortados para la IA",
     "hamburgerButtonBottom": "Mover el botón de menú a la parte inferior de la barra lateral",
     "nanoGPTLoadingAccountInfo": "Cargando información de la cuenta…",

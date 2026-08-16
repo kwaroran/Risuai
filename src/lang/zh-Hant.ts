@@ -1417,6 +1417,7 @@ export const languageChineseTraditional = {
     "mainDomAccessConsent": "外掛 {} 正在請求存取主文件，此操作可能暴露敏感資訊。是否允許？",
     "replacerPermissionConsent": "外掛 {} 正在請求替換對話內容的權限，此操作可能被用於操縱對話。是否允許？",
     "providerPermissionConsent": "外掛 {} 正在請求存取提供商的權限，此操作可能允許未授權的 API 呼叫。是否允許？",
+    "providerPermissionDenied": "使用者已拒絕外掛存取提供商的權限。",
     "sendChatConsent": "外掛 {} 正在請求以您的名義發送對話訊息的權限，這將觸發 AI 回應。是否允許？",
     "pluginV2Warning": "外掛 V2 與 V2.1 版本被視為不安全，並將於未來版本中停用。**請勿使用此版本的外掛。**若您是外掛開發者，請盡快更新至 V3。",
     "createFolderOnBranch": "在分支上建立資料夾",

@@ -1,5 +1,6 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
+import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -551,8 +552,7 @@ const unloadV3Plugin = async (pluginName: string) => {
     }
 }
 
-const permissionGivenPlugins: Set<string> = new Set();
-const permissionDeniedPlugins: Set<string> = new Set();
+const permissionSessionCache = new PluginPermissionSessionCache();
 const permissionForage = localforage.createInstance({
     name: 'plugin_permissions',
     storeName: 'plugin_permissions'
@@ -564,15 +564,13 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 
 export const customV3ProviderMetaStore:LLMModel[] = []
 
-const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider'|'sendChat', reconfirm: boolean|'periodically' = false) => {
-    if(permissionGivenPlugins.has(pluginName)){
-        return true;
-    }
-    if(permissionDeniedPlugins.has(pluginName)){
-        return false;
+const getPluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
+    const cachedPermission = permissionSessionCache.get(scriptHash, permissionDesc)
+    if(cachedPermission !== undefined){
+        return cachedPermission;
     }
 
-    let pluginHash = ''
+    const permissionKey = getPluginPermissionKey(scriptHash, permissionDesc)
 
     let requiresReconfirm = false;
 
@@ -587,14 +585,8 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         requiresReconfirm = true;
     }
 
-    pluginHash = await hasher(
-        new TextEncoder().encode(
-            DBState.db.plugins.find(p => p.name === pluginName)?.script
-        )
-    ) + `_${permissionDesc}`;
-
-    if(!requiresReconfirm &&await permissionForage.getItem(pluginHash)){
-        permissionGivenPlugins.add(pluginName);
+    if(!requiresReconfirm && await permissionForage.getItem(permissionKey)){
+        permissionSessionCache.set(scriptHash, permissionDesc, true)
         return true;
     }   
     
@@ -611,15 +603,15 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
         return false;
     }
     const conf = await alertConfirm(alertTitle)
-    if(conf && pluginHash){
-        permissionGivenPlugins.add(pluginName);
-        await permissionForage.setItem(pluginHash, true);
+    if(conf && permissionKey){
+        permissionSessionCache.set(scriptHash, permissionDesc, true)
+        await permissionForage.setItem(permissionKey, true);
         if(reconfirm === 'periodically'){
             await permissionForage.setItem(pluginName + '_' + permissionDesc + '_lastGrantTime', Date.now());
         }
         return true;
     }
-    permissionDeniedPlugins.add(pluginName);
+    permissionSessionCache.set(scriptHash, permissionDesc, false)
     return false;
 }
 
@@ -638,6 +630,10 @@ const authorizationHeaders = [
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
+    const getPluginScriptHash = createPluginScriptHashGetter(plugin.script, hasher)
+    const getPermission = async (permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
+        return getPluginPermission(plugin.name, await getPluginScriptHash(), permissionDesc, reconfirm)
+    }
     return {
 
         //Old APIs from v2.1
@@ -680,12 +676,20 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             console.warn(`[WARN] addProvider is a powerful API that can potentially be unsafe if used incorrectly. addProvider's functionality might be limited or changed in future updates to ensure security. please use other APIs if possible.`);
             let provs = get(customProviderStore)
             provs.push(name)
-            pluginV2.providers.set(name, async (arg, abortSignal) => {
-               await getPluginPermission(plugin.name, 'provider', 'periodically');
-               //mode is overridden to v3, due to vulnerabilities using mode.
-               //Alternative to mode will be added in future
-               arg.mode = 'v3'
-               return await func(arg, abortSignal);
+            pluginV2.providers.set(name, (arg, abortSignal) => {
+                return runWithPluginPermission(
+                    () => getPermission('provider', 'periodically'),
+                    async () => {
+                        //mode is overridden to v3, due to vulnerabilities using mode.
+                        //Alternative to mode will be added in future
+                        arg.mode = 'v3'
+                        return func(arg, abortSignal);
+                    },
+                    {
+                        success: false,
+                        content: language.providerPermissionDenied,
+                    },
+                )
             }),
             pluginV2.providerOptions.set(name, options ?? {})
             customProviderStore.set(provs)
@@ -720,7 +724,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         removeRisuScriptHandler: oldApis.removeRisuScriptHandler,
         addRisuReplacer: async (name:string,func:Function) => {
             //permission check for replacer
-            const conf = await getPluginPermission(plugin.name, 'replacer', 'periodically');
+            const conf = await getPermission('replacer', 'periodically');
             if(!conf){
                 return;
             }
@@ -742,7 +746,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
         getDatabase: async (includeOnly:string[]|'all' = 'all') => {
-            const conf = await getPluginPermission(plugin.name, 'db', 'periodically');
+            const conf = await getPermission('db', 'periodically');
             if(!conf){
                 return null;
             }
@@ -941,7 +945,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             iframe.style.display = "none";
         },
         getRootDocument: async () => {
-            const conf = await getPluginPermission(plugin.name, 'mainDom');
+            const conf = await getPermission('mainDom');
             if(!conf){
                 return null;
             }
@@ -986,7 +990,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         registerBodyIntercepter: async (callback: (body: any, type: string) => any) => {
 
-            if(await getPluginPermission(plugin.name, 'replacer') === false){
+            if(await getPermission('replacer') === false){
                 return null;
             }
             
@@ -1153,7 +1157,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         getFetchLogs: async () => {
             const unsafeFetchLog = getFetchLogs()
-            const conf = await getPluginPermission(plugin.name, 'fetchLogs');
+            const conf = await getPermission('fetchLogs');
             if(!conf){
                 return null;
             }
@@ -1196,7 +1200,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         checkCharOrder: checkCharOrder,
         requestPluginPermission: (permission:string) => {
-            return getPluginPermission(plugin.name, permission as any);
+            return getPermission(permission as any);
         },
         //Internal use APIs
         _getOldKeys: () => {
@@ -1274,7 +1278,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }, options.mode)
         },
         sendChat: async (message: string) => {
-            const conf = await getPluginPermission(plugin.name, 'sendChat');
+            const conf = await getPermission('sendChat');
             if(!conf){
                 return false;
             }

@@ -1428,6 +1428,7 @@ export const languageChinese = {
     "mainDomAccessConsent": "插件 {} 正在请求访问主文档，这可能会泄露敏感信息。是否允许？",
     "getFullDatabaseConsent": "插件 {} 正在请求访问完整数据库，这可能会泄露敏感信息。是否允许？",
     "fetchLogConsent": "插件 {} 正在请求获取日志，这可能会泄露敏感信息。是否允许？",
+    "providerPermissionDenied": "用户拒绝了插件的服务商访问权限。",
     "enableScrollToActiveChar": "启用滚动至当前角色",
     "trimStartNewChat": "修剪“开始新对话”消息",
     "hamburgerButtonBottom": "将菜单按钮移至侧边栏底部",

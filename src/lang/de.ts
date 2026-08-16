@@ -1427,6 +1427,7 @@ export const languageGerman = {
     "fetchLogConsent": "Plugin {} möchte Protokolle abrufen, was sensible Informationen offenlegen könnte. Möchten Sie dies zulassen?",
     "getFullDatabaseConsent": "Das Plugin {} möchte auf die gesamte Datenbank zugreifen, was zur Offenlegung sensibler Informationen führen kann. Möchten Sie dies zulassen?",
     "mainDomAccessConsent": "Plugin {} möchte auf das Hauptdokument zugreifen, wodurch sensible Informationen offengelegt werden könnten. Möchten Sie dies zulassen?",
+    "providerPermissionDenied": "Der Benutzer hat dem Plugin den Zugriff auf den Anbieter verweigert.",
     "enableScrollToActiveChar": "Scrollen zum aktiven Charakter aktivieren",
     "newMessageButtonRightCenter": "Mitte rechts",
     "trimStartNewChat": "„Neuen Chat starten“-Nachrichten kürzen",

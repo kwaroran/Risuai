@@ -1,4 +1,5 @@
 <div 
+bind:this={textareaInput}
     class={"border border-darkborderc relative n-scroll focus-within:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus-within:ring-borderc focus-within:ring-2 focus-within:outline-hidden transition-colors duration-200 z-20 focus-within:z-40" + ((className) ? (' ' + className) : '')} 
     class:text-sm={size === 'sm' || (size === 'default' && $textAreaTextSize === 1)}
     class:text-md={size === 'md' || (size === 'default' && $textAreaTextSize === 2)}
@@ -33,6 +34,8 @@
     class:mb-2={margin === 'both'}
     class:mt-4={margin === 'top'}
     class:mt-2={margin === 'both'}
+    class:shrink-0={DBState.db.resizeTextarea}
+    class:overflow-visible={DBState.db.resizeTextarea}
     bind:this={highlightDom}
     onfocusout={() => {
         hideAutoComplete()
@@ -135,6 +138,11 @@
             }}>{content}</button>
         {/each}
     </div>
+    {#if DBState.db.resizeTextarea}
+    <div id="resize-handle" class="resize-handle  absolute -right-3 -bottom-3 w-10 h-10 pt-2 pl-2 pb-4 pr-4 z-1000 cursor-ns-resize touch-none [&>svg]:size-full" style:color="var(--risu-theme-darkborderc)" role="separator" bind:this={resizeHandle} onpointerdown={startResize}>
+        {@html resizeIcon}
+    </div>
+    {/if}
 </div>
 <script lang="ts">
     import { textAreaSize, textAreaTextSize } from 'src/ts/gui/guisize'
@@ -144,6 +152,7 @@
   import { DBState, disableHighlight, popUpEditorStore } from 'src/ts/stores.svelte';
   import { isMobile } from 'src/ts/platform'
     import { hotkeyMatches } from 'src/ts/hotkey';
+  import resizeIcon from 'src/etc/resizeIcon.svg?raw'
     interface Props {
         size?: 'xs'|'sm'|'md'|'lg'|'xl'|'default';
         autocomplete?: 'on'|'off';
@@ -189,6 +198,8 @@
     let autoCompleteDom: HTMLDivElement = $state()
     let autocompleteContents:string[] = $state([])
     let inputDom: HTMLDivElement = $state()
+    let textareaInput: HTMLDivElement;
+    let resizeHandle: HTMLDivElement;
 
     const autoComplete = () => {
         if(isMobile){
@@ -346,5 +357,29 @@
     $effect.pre(() => {
         highlightChange(value, highlightId)
     });
+
+    function startResize(event: PointerEvent) {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        const startY = event.clientY;
+        const startHeight = textareaInput.offsetHeight;
+
+        resizeHandle.setPointerCapture(event.pointerId);
+
+        function resize(event: PointerEvent) {
+            const deltaY = event.clientY - startY;
+            textareaInput.style.height = `${startHeight + deltaY}px`;
+        }
+
+         function stopResize() {
+      resizeHandle.removeEventListener('pointermove', resize);
+      resizeHandle.removeEventListener('pointerup', stopResize);
+      resizeHandle.removeEventListener('pointercancel', stopResize);
+    }
+
+    resizeHandle.addEventListener('pointermove', resize);
+    resizeHandle.addEventListener('pointerup', stopResize);
+    resizeHandle.addEventListener('pointercancel', stopResize);
+    }
 
 </script>

@@ -1708,6 +1708,7 @@ export const languageEnglish = {
     convertToModule: "Convert to Module",
     skipSavingAssetsOnWebSync: "Skip Saving Assets on Web Sync",
     applyAdditionalParamsToAll: "Apply Additional Parameters to All Models",
+    resizeTextarea: "Allow Textarea Resizing"
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

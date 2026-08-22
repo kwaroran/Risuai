@@ -361,20 +361,20 @@
             return
         }
 
-        const obj = {}
-        for (const [k, v] of new FormData(target)) {
-            if (obj[k]) {
-                if (Array.isArray(obj[k])) {
-                    (obj[k] as any[]).push(v)
+        const data: Record<string, FormDataEntryValue | FormDataEntryValue[]> = Object.create(null)
+        for (const [key, value] of new FormData(target, event.submitter)) {
+            if (Object.hasOwn(data, key)) {
+                if (Array.isArray(data[key])) {
+                    data[key].push(value)
                 } else {
-                    obj[k] = [obj[k], v]
+                    data[key] = [data[key], value]
                 }
             } else {
-                obj[k] = v
+                data[key] = value
             }
         }
 
-        const triggerResult =  formEvent ? await runLuaInteractionTrigger('form', currentChar, formEvent, { data: obj }) : null
+        const triggerResult = await runLuaInteractionTrigger('form', currentChar, formEvent, { data })
 
         if(triggerResult) {
             setCurrentChat(triggerResult.chat)

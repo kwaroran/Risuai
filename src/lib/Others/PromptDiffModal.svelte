@@ -2,6 +2,7 @@
     import { XIcon } from "@lucide/svelte"
     import { getDatabase, type PromptDiffPrefs } from "../../ts/storage/database.svelte"
     import type { PromptItem, PromptItemPlain, PromptItemChatML, PromptItemTyped, PromptItemAuthorNote, PromptItemChat } from "src/ts/process/prompt.ts";
+    import { language } from "src/lang";
 
     interface Props {
         firstPresetId: number;
@@ -1611,7 +1612,7 @@
           <div class="flex items-center justify-between mb-3 text-xs text-textcolor2">
             {@render renderCounts(cardDiffResult.counts)}
             <div class="text-xs text-textcolor2 flex items-center gap-2 flex-wrap">
-              <span class="text-textcolor2">Cards changed:</span>
+              <span class="text-textcolor2">{language.promptDiffCardsChanged}</span>
               <span class="text-textcolor">{cardChangedTotal}</span>
               <span class="text-textcolor2/60">/</span>
               <span class="text-textcolor2">compared {cardDiffResult.parts.length}</span>
@@ -1655,7 +1656,7 @@
                 <!-- body -->
                 <div class="mt-2 border-t border-darkborderc pt-2 font-mono text-sm leading-5">
                   {#if bodyParts.length === 0}
-                    <div class="text-textcolor2 italic">No body content</div>
+                    <div class="text-textcolor2 italic">{language.promptDiffNoBodyContent}</div>
                   {:else}
                     {@const segments = buildSegments(bodyParts, { showOnlyChanges, contextRadius, scope: `card-${idx}`, expandedRanges })}
                     {#each segments as seg, sIdx (sIdx)}
@@ -1766,7 +1767,7 @@
             {/each}
           </div>
         {:else}
-          <div class="text-textcolor2 text-sm">No diff computed yet.</div>
+          <div class="text-textcolor2 text-sm">{language.promptDiffNotComputedYet}</div>
         {/if}
       {:else}<!-- raw view -->
         {#if currentFlatResult}
@@ -1777,7 +1778,7 @@
             <div class="flex items-center justify-center py-10">
               <div class="flex items-center gap-2 px-3 py-2 rounded-lg border border-darkborderc bg-black/30 text-textcolor2">
                 <span class="inline-block w-2 h-2 rounded-full bg-green-500/70"></span>
-                <span class="text-sm">No changes</span>
+                <span class="text-sm">{language.promptDiffNoChanges}</span>
               </div>
             </div>
           {:else if viewStyle === 'unified' || isFlatText}
@@ -1833,7 +1834,7 @@
             </div>
           {/if}
         {:else}
-          <div class="text-textcolor2 text-sm">No diff computed yet.</div>
+          <div class="text-textcolor2 text-sm">{language.promptDiffNotComputedYet}</div>
         {/if}
       {/if}
     </div>

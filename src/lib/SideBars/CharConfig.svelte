@@ -344,7 +344,7 @@
         {/if}
     {/if}
 {:else if licensed === 'private'}
-    <span>You are not allowed</span>
+    <span>{language.notAllowed}</span>
     {(() => {
         $CharConfigSubMenu = 0
     })()}
@@ -788,11 +788,11 @@
                     {/each}
                 </SelectInput>
                 {#if (DBState.db.characters[$selectedCharID] as character).ttsSpeech !== ''}
-                    <span class="text-red-400 text-sm">If you do not set it to Auto, it may not work properly when importing from another OS or browser.</span>
+                    <span class="text-red-400 text-sm">{language.ttsAutoImportWarning}</span>
                 {/if}
             {/if}
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
-            <span class="text-sm mb-2 text-textcolor2">Please set the ElevenLabs API key in "global Settings → Bot Settings → Others → ElevenLabs API key"</span>
+            <span class="text-sm mb-2 text-textcolor2">{language.elevenLabsKeyLocationHint}</span>
             {#await getElevenTTSVoices() then voices}
                 <span class="text-textcolor">{language.Speech}</span>
                 <SelectInput className="mb-4 mt-2" bind:value={(DBState.db.characters[$selectedCharID] as character).ttsSpeech}>
@@ -1039,7 +1039,7 @@
                     {/each}
                 </SelectInput>
             {:catch}
-                <span class="text-textcolor">An error occurred while fetching the models.</span>
+                <span class="text-textcolor">{language.modelFetchError}</span>
             {/await}
 
             <span class="text-textcolor">Chunk Length</span>

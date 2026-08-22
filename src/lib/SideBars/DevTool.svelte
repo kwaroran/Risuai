@@ -19,6 +19,7 @@
     import OptionInput from "../UI/GUI/OptionInput.svelte";
   import { loadLoreBookV3Prompt } from "src/ts/process/lorebook.svelte";
   import { getModules } from "src/ts/process/modules";
+  import { language } from "src/lang";
 
     let previewMode = $state('chat')
     let previewJoin = $state('yes')
@@ -157,7 +158,7 @@
             {/await}
         {/if}
     </div>
-    <span class="text-sm text-textcolor2">This is a estimate. The actual token count may be different.</span>
+    <span class="text-sm text-textcolor2">{language.tokenEstimateDisclaimer}</span>
 </Accordion>
 
 <Accordion styled name={"Autopilot"}>

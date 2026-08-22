@@ -9,6 +9,7 @@
     import { RisuAccessClient } from "src/ts/process/mcp/risuaccess";
     import localforage from "localforage";
     import { getModelInfo, LLMFormat } from "src/ts/model/modellist";
+    import { language } from "src/lang";
 
     interface DialogueLine {
         speaker: string;
@@ -485,7 +486,7 @@
                     class="mt-1 flex items-center gap-2"
                     transition:fade={{ duration: 150 }}
                 >
-                    <span class="text-xs text-white/40">Iris is typing</span
+                    <span class="text-xs text-white/40">{language.irisTypingIndicator}</span
                     >
                     <span class="flex gap-1">
                         <span

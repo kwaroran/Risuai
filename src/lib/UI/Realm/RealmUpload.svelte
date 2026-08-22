@@ -6,8 +6,8 @@
     }}>
         
         {#if !DBState.db.account}
-            <span class="font-bold text-2xl w-full">You must login to Risu Account upload to RisuRealm</span>
-            <span class="text-textcolor2">You can login in app settings 🡲 account</span>
+            <span class="font-bold text-2xl w-full">{language.realmLoginRequired}</span>
+            <span class="text-textcolor2">{language.realmLoginHint}</span>
             <button onclick={async () => {
                 close()
             }} class="text-textcolor mt-2 text-lg bg-transparent border-solid border-1 border-borderc p-4 hover:bg-blue-800 transition-colors cursor-pointer">OK</button>
@@ -26,11 +26,11 @@
         {/if}
         <div class="mb-2 mt-2 w-full border-t-2 border-t-bgcolor"></div>
         <span class="text-textcolor">{language.creatorNotes}</span>
-        <span class="text-textcolor2 text-sm">A description that displays when you search and when you first open a bot.</span>
-        <span class="text-textcolor2 text-sm">More than 20 characters.</span>
+        <span class="text-textcolor2 text-sm">{language.realmCreatorNotesDesc}</span>
+        <span class="text-textcolor2 text-sm">{language.realmCreatorNotesLengthHint}</span>
         <MultiLangInput bind:value={char.creatorNotes} />
         <span class="text-textcolor">{language.tags}</span>
-        <span class="text-textcolor2 text-sm">Tags to search your character easily. latin alphabets only. seperate by comma.</span>
+        <span class="text-textcolor2 text-sm">{language.realmTagsDesc}</span>
         <TextInput placeholder="" bind:value={tags} oninput={() => {
             tags = tags.replace(/[^a-zA-Z,\-]/g, '').toLocaleLowerCase().replace(/ /g, '')
         }} />
@@ -47,8 +47,8 @@
 
         {#if char.license !== 'CC BY-NC-SA 4.0' && char.license !== 'CC BY-SA 4.0'}
 
-        <span class="text-textcolor mt-4">License</span>
-        <span class="text-textcolor2 text-sm">You can choose license for the downloaders to limit the usages of your card's prompt.</span>
+        <span class="text-textcolor mt-4">{language.license}</span>
+        <span class="text-textcolor2 text-sm">{language.realmLicenseDesc}</span>
         <SelectInput bind:value={license}>
             <OptionInput value="">None</OptionInput>
             {#each Object.keys(CCLicenseData) as ccl}

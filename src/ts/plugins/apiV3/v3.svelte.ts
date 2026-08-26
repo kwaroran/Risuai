@@ -59,13 +59,15 @@ const documentEventListeners: Array<{type: string, listener: EventListenerOrEven
 
 class SafeElement {
     #element: HTMLElement;
+    #eventTarget: EventTarget;  // Differs from #element for SafeDocument
     __classType = 'REMOTE_REQUIRED' as const;
 
-    constructor(element: HTMLElement) {
+    constructor(element: HTMLElement, eventTarget?: EventTarget) {
         if(element.getAttribute('freezed')){
             throw new Error("This element cannot be accessed by SafeELement")
         }
         this.#element = element;
+        this.#eventTarget = eventTarget ?? element;
     }
 
     public appendChild(child: SafeElement) {
@@ -358,7 +360,8 @@ class SafeElement {
 class SafeDocument extends SafeElement {
     __classType = 'REMOTE_REQUIRED' as const;
     constructor(document: Document) {
-        super(document.documentElement);
+        // document-level events (including viewport scroll) are bound to the Document
+        super(document.documentElement, document);
     }
     createElement(tagName: string): SafeElement {
         if(!tagWhitelist.includes(tagName.toLowerCase())) {

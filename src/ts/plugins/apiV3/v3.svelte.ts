@@ -360,6 +360,8 @@ class SafeElement {
     }
 
     public removeEventListener(type:string, id:string, options?: boolean | EventListenerOptions) {
+        // type/options are unused, but are kept in the signature for API compatibility
+        // DOM removal silently no-ops if type/capture don't exactly match the registration, so the stored record is replayed instead
         const tracked = this.#eventIdMap.get(id);
         if(tracked){
             tracked.eventTarget.removeEventListener(tracked.type, tracked.listener, tracked.options);

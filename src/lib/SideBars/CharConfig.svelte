@@ -1063,11 +1063,6 @@
                 {/each}
             </SelectInput>
 
-            <span class="text-textcolor">API Key (overrides global)</span>
-            <TextInput className="mb-4 mt-2" hideText={DBState.db.hideApiKey}
-                bind:value={DBState.db.characters[$selectedCharID].minimaxTTSConfig.apiKey}
-                placeholder="Leave empty to use the global MiniMax API key" />
-
             <span class="text-textcolor">Model</span>
             <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].minimaxTTSConfig.model}>
                 {#each minimaxTTSModels as model}

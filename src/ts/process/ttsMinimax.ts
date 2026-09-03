@@ -70,8 +70,6 @@ export const minimaxTTSVoiceLimits = {
 export interface MinimaxTTSConfig {
     /** Regional endpoint to call. Falls back to the global endpoint. */
     region?: MinimaxTTSRegion
-    /** Per character API key. Falls back to the global MiniMax speech key. */
-    apiKey?: string
     /** Speech model id. Falls back to the newest HD model. */
     model?: string
     /** Voice id to render with. Required by the endpoint, so an empty value is refused early. */

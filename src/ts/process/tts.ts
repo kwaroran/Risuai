@@ -427,7 +427,7 @@ export async function sayTTS(character:character,text:string) {
                 }
 
                 const cfg = character.minimaxTTSConfig ?? {}
-                const apiKey = (cfg.apiKey || db.minimaxTTSKey || '').trim()
+                const apiKey = (db.minimaxTTSKey || '').trim()
                 if(apiKey === ''){
                     throw new Error('MiniMax API key is not set')
                 }

@@ -65,6 +65,93 @@
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
     }
+
+    async function appendPostFileResults(results: Awaited<ReturnType<typeof postChatFile>>) {
+        if(!results) return
+        for(const res of results){
+            if(res?.type === 'asset'){
+                fileInput.push(res.data)
+            }
+            if(res?.type === 'text'){
+                messageInput += `{{file::${res.name}::${res.data}}}`
+            }
+        }
+        updateInputSizeAll()
+    }
+
+    let chatFileDragDepth = $state(0)
+    const chatFileDropOutlineClass = 'outline-2 outline-dashed -outline-offset-2 outline-textcolor'
+
+    // Hardcoded intersection of the extensions postChatFile routes to postInlayAsset and the ones postInlayAsset accepts; replace with a shared source when the file upload system is reworked.
+    const chatDropFileExtensions = new Set([
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'avif',
+        'wav',
+        'mp3',
+        'ogg',
+        'flac',
+        'mp4',
+        'webm',
+    ])
+
+    function isChatDropFile(file: File) {
+        const extension = file.name.split('.').at(-1)?.toLowerCase()
+        return extension ? chatDropFileExtensions.has(extension) : false
+    }
+
+    function hasChatDropFileDrag(e: DragEvent) {
+        return Array.from(e.dataTransfer?.items ?? []).some((item) => {
+            return item.kind === 'file' && (
+                item.type.startsWith('image/') ||
+                item.type.startsWith('audio/') ||
+                item.type.startsWith('video/')
+            )
+        })
+    }
+
+    function handleChatFileDragEnter(e: DragEvent) {
+        if(!hasChatDropFileDrag(e)){
+            return
+        }
+        e.preventDefault()
+        chatFileDragDepth += 1
+    }
+
+    function handleChatFileDragOver(e: DragEvent) {
+        if(!hasChatDropFileDrag(e)){
+            return
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = 'copy'
+    }
+
+    function handleChatFileDragLeave(e: DragEvent) {
+        if(!hasChatDropFileDrag(e)){
+            return
+        }
+        chatFileDragDepth = Math.max(0, chatFileDragDepth - 1)
+    }
+
+    async function handleChatFileDrop(e: DragEvent) {
+        chatFileDragDepth = 0
+        const files = Array.from(e.dataTransfer?.files ?? []).filter(isChatDropFile)
+        if(files.length === 0){
+            return
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        for(const file of files){
+            await appendPostFileResults(await postChatFile({
+                name: file.name,
+                data: new Uint8Array(await file.arrayBuffer())
+            }))
+        }
+    }
     $effect(() => {
         if(ScrollToMessageStore.value !== -1){
             const index = ScrollToMessageStore.value
@@ -601,8 +688,12 @@
             }
         }}>
             <div
-                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full risu-chat-input-bar"
+                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full risu-chat-input-bar {chatFileDragDepth > 0 ? chatFileDropOutlineClass : ''}"
                     style="{DBState.db.fixedChatTextarea ? 'z-index:29;' : ''}"
+                    ondragenter={handleChatFileDragEnter}
+                    ondragover={handleChatFileDragOver}
+                    ondragleave={handleChatFileDragLeave}
+                    ondrop={handleChatFileDrop}
             >
                 {#if DBState.db.useChatSticker && currentCharacter.type !== 'group'}
                     <div onclick={()=>{toggleStickers = !toggleStickers}}
@@ -648,20 +739,10 @@
                                     reader.onload = async (e) => {
                                         const buf = e.target?.result as ArrayBuffer
                                         const uint8 = new Uint8Array(buf)
-                                        const results = await postChatFile({
+                                        await appendPostFileResults(await postChatFile({
                                             name: file.name,
                                             data: uint8
-                                        })
-                                        if(!results) return
-                                        for(const res of results){
-                                            if(res?.type === 'asset'){
-                                                fileInput.push(res.data)
-                                            }
-                                            if(res?.type === 'text'){
-                                                messageInput += `{{file::${res.name}::${res.data}}}`
-                                            }
-                                        }
-                                        updateInputSizeAll()
+                                        }))
                                     }
                                     reader.readAsArrayBuffer(file)
                                 }
@@ -823,17 +904,7 @@
                         </div>
 
                         <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={async () => {
-                            const results = await postChatFile(messageInput)
-                            if(!results) return
-                            for(const res of results){
-                                if(res?.type === 'asset'){
-                                    fileInput.push(res.data)
-                                }
-                                if(res?.type === 'text'){
-                                    messageInput += `{{file::${res.name}::${res.data}}}`
-                                }
-                            }
-                            updateInputSizeAll()
+                            await appendPostFileResults(await postChatFile(messageInput))
                         }}>
 
                             <ImagePlusIcon />
@@ -905,7 +976,13 @@
             {/if}
 
             {#if fileInput.length > 0}
-                <div class="flex items-center ml-4 flex-wrap p-2 m-2 border-darkborderc border rounded-md">
+                <div
+                        class="flex items-center ml-4 flex-wrap p-2 m-2 border-darkborderc border rounded-md {chatFileDragDepth > 0 ? chatFileDropOutlineClass : ''}"
+                        ondragenter={handleChatFileDragEnter}
+                        ondragover={handleChatFileDragOver}
+                        ondragleave={handleChatFileDragLeave}
+                        ondrop={handleChatFileDrop}
+                >
                     {#each fileInput as file, i}
                         {#await getInlayAsset(file) then inlayAsset}
                             <div class="relative">

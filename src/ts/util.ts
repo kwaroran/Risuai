@@ -1088,6 +1088,30 @@ export function parseToggleSyntax(template:string){
     }
 }
 
+export function buildPromptInfoToggles(
+    customPromptTemplateToggle: string,
+    moduleToggles: string,
+    characterToggles: string | undefined,
+    chatVariables: {[key:string]:string}
+){
+    // Join sources with newlines like the toggle sidebar does, so a source
+    // without a trailing newline cannot merge with the next source's first line.
+    const template = [customPromptTemplateToggle, moduleToggles, characterToggles ?? '']
+        .filter(source => source)
+        .join('\n')
+    return parseToggleSyntax(template)
+        .flatMap(toggle => {
+            const raw = chatVariables[`toggle_${toggle.key}`]
+            if (toggle.type === 'select' || toggle.type === 'text') {
+                return [{ key: toggle.value, value: toggle.options[raw] }];
+            }
+            if (raw === '1') {
+                return [{ key: toggle.value, value: 'ON' }];
+            }
+            return [];
+        })
+}
+
 export const sortableOptions = {
 	delay: 300, // time in milliseconds to define when the sorting should start
 	delayOnTouchOnly: true,

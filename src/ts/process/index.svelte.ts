@@ -7,7 +7,7 @@ import { language } from "../../lang";
 import { alertError, alertToast } from "../alert";
 import { parseChatML } from "../parser/chatML";
 import { loadLoreBookV3Prompt } from "./lorebook.svelte";
-import { findCharacterbyId, getAuthorNoteDefaultText, getPersonaPrompt, getUserName, isLastCharPunctuation, trimUntilPunctuation, parseToggleSyntax, prebuiltAssetCommand } from "../util";
+import { findCharacterbyId, getAuthorNoteDefaultText, getPersonaPrompt, getUserName, isLastCharPunctuation, trimUntilPunctuation, buildPromptInfoToggles, prebuiltAssetCommand } from "../util";
 import { requestChatData } from "./request/request";
 import { stableDiff } from "./stableDiff";
 import { processScript, processScriptFull, risuChatParser } from "./scripts";
@@ -266,17 +266,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }[] = []
     if(DBState.db.promptInfoInsideChat){
         initialPresetNameForPromptInfo = DBState.db.botPresets[DBState.db.botPresetsId]?.name ?? ''
-        initialPromptTogglesForPromptInfo = parseToggleSyntax(DBState.db.customPromptTemplateToggle + getModuleToggles())
-            .flatMap(toggle => {
-                const raw = DBState.db.globalChatVariables[`toggle_${toggle.key}`]
-                if (toggle.type === 'select' || toggle.type === 'text') {
-                    return [{ key: toggle.value, value: toggle.options[raw] }];
-                }
-                if (raw === '1') {
-                    return [{ key: toggle.value, value: 'ON' }];
-                }
-                return [];
-            })
+        initialPromptTogglesForPromptInfo = buildPromptInfoToggles(
+            DBState.db.customPromptTemplateToggle,
+            getModuleToggles(),
+            nowChatroom.type !== 'group' ? nowChatroom.customModuleToggle : undefined,
+            DBState.db.globalChatVariables
+        )
 
         promptInfo = {
             promptName: initialPresetNameForPromptInfo,

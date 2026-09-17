@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { buildPromptInfoToggles } from "src/ts/util";
+import { buildPromptInfoToggles } from "src/ts/toggleSyntax";
 
 // https://github.com/kwaroran/Risuai/issues/1614
 // ROOT CAUSE:
@@ -13,7 +13,9 @@ import { buildPromptInfoToggles } from "src/ts/util";
 // Before: no shared helper existed; the capture composed only the two sources.
 //
 // We fixed this by composing the same three sources the sidebar renders, in
-// the same order, through one helper used by the capture path.
+// the same order, through one helper used by the capture path. The helper
+// lives in src/ts/toggleSyntax (zero imports) so importing it here never
+// drags Svelte/store initialization into the Vitest workers.
 test("includes the selected character boolean toggle in promptInfo toggles (Issue #1614)", () => {
   const toggles = buildPromptInfoToggles("", "", "charT=Character Toggle", {
     toggle_charT: "1",

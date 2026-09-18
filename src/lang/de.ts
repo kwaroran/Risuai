@@ -1,4 +1,21 @@
 export const languageGerman = {
+    "folderSettings": {
+        "title": "Ordnereinstellungen",
+        "defaultIcon": "Standardsymbol",
+        "upload": "Bild hochladen",
+        "background": "Hintergrundfarbe",
+        "close": "Schließen",
+        "save": "Speichern",
+        "saving": "Wird gespeichert…",
+        "imageError":
+            "Dieses Bild konnte nicht geöffnet werden. Wählen Sie eine PNG-, JPG- oder WebP-Datei.",
+        "saveError":
+            "Die Ordnereinstellungen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+        "missing": "Dieser Ordner existiert nicht mehr.",
+        "imageHint":
+            "PNG, JPG, WebP · Wählen Sie „Standardsymbol“, um das Bild zu entfernen.",
+    },
+
     "formating": {
         "main": "Haupt-Anweisung",
         "jailbreak": "Jailbreak Anweisung",

@@ -1,4 +1,19 @@
 export const languageVietnamese = {
+    "folderSettings": {
+        "title": "Cài đặt thư mục",
+        "defaultIcon": "Biểu tượng mặc định",
+        "upload": "Tải ảnh lên",
+        "background": "Màu nền",
+        "close": "Đóng",
+        "save": "Lưu",
+        "saving": "Đang lưu…",
+        "imageError":
+            "Không thể mở ảnh này. Vui lòng chọn tệp PNG, JPG hoặc WebP.",
+        "saveError": "Không thể lưu cài đặt thư mục. Vui lòng thử lại.",
+        "missing": "Thư mục này không còn tồn tại.",
+        "imageHint": "PNG, JPG, WebP · Chọn Biểu tượng mặc định để xóa ảnh.",
+    },
+
     "formating": {
         "main": "Lời nhắc chính",
         "jailbreak": "Lời nhắc bẻ khóa",

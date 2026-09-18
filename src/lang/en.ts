@@ -1,4 +1,19 @@
 export const languageEnglish = {
+    folderSettings: {
+        title: "Folder settings",
+        defaultIcon: "Default icon",
+        upload: "Upload image",
+        background: "Background color",
+        close: "Close",
+        save: "Save",
+        saving: "Saving…",
+        imageError:
+            "Could not open this image. Choose a PNG, JPG, or WebP file.",
+        saveError: "Could not save folder settings. Please try again.",
+        missing: "This folder no longer exists.",
+        imageHint: "PNG, JPG, WebP · Choose Default icon to remove the image.",
+    },
+
     formating: {
         main: "Main Prompt",
         jailbreak: "Jailbreak Prompt",

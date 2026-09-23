@@ -1,4 +1,20 @@
 export const languageKorean = {
+    folderSettings: {
+        title: "폴더 설정",
+        defaultIcon: "기본 아이콘",
+        upload: "이미지 업로드",
+        background: "배경 색상",
+        close: "닫기",
+        save: "저장",
+        saving: "저장 중…",
+        imageError:
+            "이미지를 열 수 없습니다. PNG, JPG, WebP 파일을 선택해주세요.",
+        saveError: "폴더 설정을 저장하지 못했습니다. 다시 시도해주세요.",
+        missing: "이 폴더가 더 이상 존재하지 않습니다.",
+        imageHint:
+            "PNG, JPG, WebP · 기본 아이콘을 선택하면 이미지가 제거됩니다.",
+    },
+
     "formating": {
         "main": "메인 프롬프트",
         "jailbreak": "탈옥 프롬프트",

@@ -1,4 +1,21 @@
 export const languageSpanish = {
+    "folderSettings": {
+        "title": "Configuración de carpeta",
+        "defaultIcon": "Icono predeterminado",
+        "upload": "Subir imagen",
+        "background": "Color de fondo",
+        "close": "Cerrar",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "imageError":
+            "No se pudo abrir esta imagen. Elige un archivo PNG, JPG o WebP.",
+        "saveError":
+            "No se pudo guardar la configuración de la carpeta. Inténtalo de nuevo.",
+        "missing": "Esta carpeta ya no existe.",
+        "imageHint":
+            "PNG, JPG, WebP · Elige Icono predeterminado para quitar la imagen.",
+    },
+
     "formating": {
         "main": "Prompt Principal",
         "jailbreak": "Prompt Jailbreak",

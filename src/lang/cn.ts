@@ -1,4 +1,18 @@
 export const languageChinese = {
+    "folderSettings": {
+        "title": "文件夹设置",
+        "defaultIcon": "默认图标",
+        "upload": "上传图片",
+        "background": "背景颜色",
+        "close": "关闭",
+        "save": "保存",
+        "saving": "正在保存…",
+        "imageError": "无法打开此图片。请选择 PNG、JPG 或 WebP 文件。",
+        "saveError": "无法保存文件夹设置。请重试。",
+        "missing": "此文件夹已不存在。",
+        "imageHint": "PNG、JPG、WebP · 选择“默认图标”可移除图片。",
+    },
+
     "formating": {
         "main": "主提示词",
         "jailbreak": "越狱提示词",

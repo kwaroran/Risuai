@@ -1,4 +1,18 @@
 export const languageChineseTraditional = {
+    "folderSettings": {
+        "title": "資料夾設定",
+        "defaultIcon": "預設圖示",
+        "upload": "上傳圖片",
+        "background": "背景顏色",
+        "close": "關閉",
+        "save": "儲存",
+        "saving": "儲存中…",
+        "imageError": "無法開啟此圖片。請選擇 PNG、JPG 或 WebP 檔案。",
+        "saveError": "無法儲存資料夾設定。請重試。",
+        "missing": "此資料夾已不存在。",
+        "imageHint": "PNG、JPG、WebP · 選擇「預設圖示」即可移除圖片。",
+    },
+
     "formating": {
         "main": "主要提示詞",
         "jailbreak": "越獄提示詞",

@@ -112,7 +112,7 @@ DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
 
 DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
     if (['IMG', 'SOURCE', 'VIDEO', 'AUDIO', 'STYLE'].includes(node.nodeName) && data.attrName === 'src') {
-        if (data.attrValue.startsWith('blob:')) {
+        if (data.attrValue.startsWith('blob:') || data.attrValue.startsWith('asset:')) {
             data.forceKeepAttr = true;
         }
     }

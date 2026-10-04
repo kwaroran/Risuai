@@ -278,7 +278,7 @@ export const languageChineseTraditional = {
             "- **Playground**：在 Playground 測試 Embedding",
         "keepSessionAlive":
             "維持分頁活動狀態，避免工作階段因閒置而失效。可能需要重新整理才會生效。\n\n" +
-            "- **透過音訊**：定期播放無聲音訊以維持工作階段。此方式在大多數瀏覽器中相容性最佳，也通常最有效。\n",
+            "- **透過音訊**：循環播放人耳聽不到的低頻音以維持工作階段。此方式在大多數瀏覽器中相容性最佳，也通常最有效。在 Android 上啟用時會顯示媒體通知，其他音樂 App 也可能會暫停。\n",
         "reSummarizationPrompt":
             "使用批次編輯將多個已選摘要合併成一個摘要時所用的提示詞。留空則使用預設提示詞",
         "hypaV3MemoryTokensRatio":

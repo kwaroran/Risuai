@@ -1906,11 +1906,13 @@ export async function fetchNative(url: string, arg: {
             async start(controller) {
                 try {
                     while (!resolved || nativeFetchData[fetchId].length > 0) {
-                        if (nativeFetchData[fetchId].length > 0) {
-                            const data = nativeFetchData[fetchId].shift()
+                        // Drain everything that arrived since the last tick and hand it over as one chunk,
+                        // so a busy renderer pays the per-chunk parse/render cost once per tick, not once per network chunk.
+                        const pending = nativeFetchData[fetchId].splice(0)
+                        const parts: Buffer[] = []
+                        for (const data of pending) {
                             if (data.type === 'chunk') {
-                                const chunk = Buffer.from(data.body, 'base64')
-                                controller.enqueue(chunk as unknown as Uint8Array)
+                                parts.push(Buffer.from(data.body, 'base64'))
                             }
                             if (data.type === 'headers') {
                                 resHeaders = data.body
@@ -1919,6 +1921,10 @@ export async function fetchNative(url: string, arg: {
                             if (data.type === 'end') {
                                 resolved = true
                             }
+                        }
+                        if (parts.length > 0) {
+                            const chunk = parts.length === 1 ? parts[0] : Buffer.concat(parts)
+                            controller.enqueue(chunk as unknown as Uint8Array)
                         }
                         await sleep(10)
                     }

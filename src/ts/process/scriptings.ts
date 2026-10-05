@@ -389,17 +389,24 @@ export async function runScripted(code:string, arg:{
                 }
             })
 
-            declareAPI('generateImage', async (id:string, value:string, negValue:string = '') => {
+            declareAPI('generateImage', async (id: string, value: string, negValue: string = '', options?: { prefix?: string }) => {
                 if(!ScriptingLowLevelIds.has(id)){
                     return
                 }
+
                 const gen = await generateAIImage(value, char as character, negValue, 'inlay')
                 if(!gen){
                     return 'Error: Image generation failed'
                 }
+
                 const imgHTML = new Image()
                 imgHTML.src = gen
-                const inlay = await writeInlayImage(imgHTML)
+
+                const prefix = typeof options?.prefix === 'string' ? options.prefix.replace(/[^\p{L}\p{M}\p{N}_-]/gu, '_') : undefined
+                // given the prefix, don't need full 36 characters
+                const inlayId = prefix ? `${prefix}-${v4().replaceAll('-', '').slice(0, 12)}` : undefined
+
+                const inlay = await writeInlayImage(imgHTML, { id: inlayId })
                 return `{{inlay::${inlay}}}`
             })
 

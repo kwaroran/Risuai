@@ -375,6 +375,8 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.orcarouterKey ??= ''
+    data.orcarouterRequestModel ??= 'orcarouter/auto'
     data.nanogptKey ??= ''
     data.nanogptRequestModel ??= ''
     data.nanogptRequestModelName ??= ''
@@ -956,6 +958,8 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    orcarouterKey:string
+    orcarouterRequestModel:string
     nanogptKey:string
     nanogptRequestModel:string
     nanogptRequestModelName:string
@@ -1624,6 +1628,7 @@ export interface botPreset{
     bias: [string, number][]
     proxyRequestModel?:string
     openrouterRequestModel?:string
+    orcarouterRequestModel?:string
     proxyKey?:string
     ooba: OobaSettings
     ainconfig: AINsettings
@@ -2090,6 +2095,7 @@ export function saveCurrentPreset(){
         ainconfig: safeStructuredClone(db.ainconfig),
         proxyRequestModel: db.proxyRequestModel,
         openrouterRequestModel: db.openrouterRequestModel,
+        orcarouterRequestModel: db.orcarouterRequestModel,
         NAISettings: safeStructuredClone(db.NAIsettings),
         promptTemplate: normalizePromptTemplate(db.promptTemplate) ?? null,
         NAIadventure: db.NAIadventure ?? false,
@@ -2201,6 +2207,7 @@ export function setPreset(db:Database, newPres: botPreset){
     db.ooba = safeStructuredClone(newPres.ooba ?? db.ooba)
     db.ainconfig = safeStructuredClone(newPres.ainconfig ?? db.ainconfig)
     db.openrouterRequestModel = newPres.openrouterRequestModel ?? db.openrouterRequestModel
+    db.orcarouterRequestModel = newPres.orcarouterRequestModel ?? db.orcarouterRequestModel
     db.proxyRequestModel = newPres.proxyRequestModel ?? db.proxyRequestModel
     db.NAIsettings = newPres.NAISettings ?? db.NAIsettings
     db.autoSuggestPrompt = newPres.autoSuggestPrompt ?? db.autoSuggestPrompt

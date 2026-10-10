@@ -10,6 +10,7 @@ import type { NAISettings } from '../process/models/nai';
 import { prebuiltNAIpresets, prebuiltPresets } from '../process/templates/templates';
 import { defaultColorScheme, type ColorScheme } from '../gui/colorscheme';
 import type { PromptItem, PromptSettings } from '../process/prompt';
+import type { MinimaxTTSConfig } from '../process/ttsMinimax';
 import type { OobaChatCompletionRequestParams } from '../model/ooba';
 import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../process/memory/hypav3'
 import { normalizeTranslatorPresetState, type TranslatorPreset } from '../translator/presets'
@@ -421,6 +422,7 @@ export function setDatabase(data:Database){
     data.gptVisionQuality ??= 'low'
     data.huggingfaceKey ??= ''
     data.fishSpeechKey ??= ''
+    data.minimaxTTSKey ??= ''
     data.presetRegex ??= []
     data.reverseProxyOobaArgs ??= {
         mode: 'instruct'
@@ -1005,6 +1007,7 @@ export interface Database{
     reverseProxyOobaArgs: OobaChatCompletionRequestParams
     huggingfaceKey:string
     fishSpeechKey:string
+    minimaxTTSKey:string
     allowAllExtentionFiles?:boolean
     translatorPrompt:string
     translatorMaxResponse:number
@@ -1474,6 +1477,8 @@ export interface character{
         /** Response format. Falls back to 'mp3'. */
         format?: 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm'
     }
+    /** Native MiniMax speech settings; see src/ts/process/ttsMinimax.ts for the fallback of each field. */
+    minimaxTTSConfig?: MinimaxTTSConfig
     virtualscript?:string
     scriptstate?:{[key:string]:string|number|boolean}
     depth_prompt?: { depth: number, prompt: string }
@@ -1576,6 +1581,7 @@ export interface groupChat{
     vits?: OnnxModelFiles
     gptSoVitsConfig?:any
     fishSpeechConfig?:any
+    minimaxTTSConfig?:any
     ttsReadOnlyQuoted?:boolean
     exampleMessage?:string
     systemPrompt?:string

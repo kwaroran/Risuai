@@ -351,6 +351,7 @@ export function setDatabase(data:Database){
     }
     data.globalscript ??= []
     data.sendWithEnter ??= true
+    data.useLegacyMacOSCtrlHotkeys ??= false
     data.autoSuggestPrompt ??= defaultAutoSuggestPrompt
     data.autoSuggestPrefix ??= ""
     data.OAIPrediction ??= ''
@@ -917,6 +918,7 @@ export interface Database{
     }
     globalscript: customscript[],
     sendWithEnter:boolean
+    useLegacyMacOSCtrlHotkeys:boolean
     fixedChatTextarea:boolean
     clickToEdit: boolean
     enableBlockPartialEdit: boolean

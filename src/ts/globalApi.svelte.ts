@@ -14,7 +14,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { open } from '@tauri-apps/plugin-shell'
 import streamSaver from 'streamsaver';
-import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat } from "./storage/database.svelte";
+import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat, appSubVer } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
@@ -25,7 +25,8 @@ import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { loadRisuAccountData } from "./drive/accounter";
-import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
+import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
+import { saveKV } from "./storage/saveKV";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -324,7 +325,8 @@ export async function saveDb() {
 
     let encoder = new RisuSaveEncoder()
     await encoder.init(getDatabase(), {
-        compression: forageStorage.isAccount
+        compression: forageStorage.isAccount,
+        kv: saveKV
     })
 
     $effect.root(() => {
@@ -407,20 +409,23 @@ export async function saveDb() {
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
     while (true) {
-        if (!changed) {
+        //SaveKV is not reactive: it reports its own changes
+        if (!changed && !saveKV.hasDirty()) {
             await sleep(500)
             continue
         }
 
         saving.state = true
         changed = false
+        let kvDirty: string[] = []
         try {
 
             if (requiresFullEncoderReload.state) {
                 encoder = new RisuSaveEncoder()
                 await encoder.init(getDatabase(), {
                     compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false
+                    skipRemoteSavingOnCharacters: false,
+                    kv: saveKV
                 })
                 requiresFullEncoderReload.state = false
             }
@@ -444,9 +449,12 @@ export async function saveDb() {
                 continue
             }
 
+            kvDirty = saveKV.takeDirty()
+            toSave.kv = kvDirty
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
+                saveKV.markDirty(kvDirty)
                 await sleep(1000)
                 continue
             }
@@ -472,6 +480,8 @@ export async function saveDb() {
             await saveDbKei()
             await sleep(500)
         } catch (error) {
+            //the KV blocks were not written; encode them again on the next attempt
+            saveKV.markDirty(kvDirty)
             savetrys += 1
             if (savetrys > 4) {
                 alertError(error)
@@ -834,7 +844,7 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
         addFetchLogInGlobalFetch(data, ok, url, arg, response.status);
         return { ok, data, headers: Object.fromEntries(response.headers), status: response.status };
     } catch (error) {
-
+        return { ok: false, data: `${error}`, headers: {}, status: 400 };
     }
 }
 
@@ -912,7 +922,7 @@ export async function getUncleanables(db: Database, uptype: 'basename' | 'pure' 
         for(let cha of db.characters){
             if(cha?.coldstorage){
                 const coldData = await getColdStorageItem(cha.coldstorage!)
-                if(coldData.character && coldData.character.chaId === cha.chaId){
+                if(coldData?.character && coldData.character.chaId === cha.chaId){
                     cha = coldData.character
                 }
             }
@@ -1078,28 +1088,28 @@ export function replaceDbResources(db: Database, replacer: { [key: string]: stri
  */
 export function checkCharOrder() {
     DBState.db.characterOrder = DBState.db.characterOrder ?? []
-    let ordered = []
+    const ordered = new Set<string>()
     for (let i = 0; i < DBState.db.characterOrder.length; i++) {
         const folder = DBState.db.characterOrder[i]
         if (typeof (folder) !== 'string' && folder) {
             for (const f of folder.data) {
-                ordered.push(f)
+                ordered.add(f)
             }
         }
         if (typeof (folder) === 'string') {
-            ordered.push(folder)
+            ordered.add(folder)
         }
     }
 
-    let charIdList: string[] = []
+    const charIdSet = new Set<string>()
 
     for (let i = 0; i < DBState.db.characters.length; i++) {
         const char = DBState.db.characters[i]
         const charId = char.chaId
         if (!char.trashTime) {
-            charIdList.push(charId)
+            charIdSet.add(charId)
         }
-        if (!ordered.includes(charId)) {
+        if (!ordered.has(charId)) {
             if (charId !== '§temp' && charId !== '§playground' && !char.trashTime) {
                 DBState.db.characterOrder.push(charId)
             }
@@ -1122,7 +1132,7 @@ export function checkCharOrder() {
             }
             for (let i2 = 0; i2 < data.data.length; i2++) {
                 const data2 = data.data[i2]
-                if (!charIdList.includes(data2)) {
+                if (!charIdSet.has(data2)) {
                     data.data.splice(i2, 1)
                     i2--;
                 }
@@ -1130,7 +1140,7 @@ export function checkCharOrder() {
             DBState.db.characterOrder[i] = data
         }
         else {
-            if (!charIdList.includes(data)) {
+            if (!charIdSet.has(data)) {
                 DBState.db.characterOrder.splice(i, 1)
                 i--;
             }
@@ -2074,9 +2084,9 @@ export async function loadInternalBackup() {
         await readFile('database/' + selectedBackup, { baseDir: BaseDirectory.AppData })
     ) : (await forageStorage.getItem(selectedBackup))
 
-    setDatabase(
-        await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
-    )
+    const decoded = await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
+    setDatabase(decoded.database)
+    saveKV.load(decoded.kv)
 
     alertNormal('Loaded backup')
 
@@ -2181,8 +2191,11 @@ export function getLanguageCodes() {
 
 export function getVersionString(): string {
     let versionString = appVer
-    if (window.location.hostname === 'nightly.risuai.xyz') {
-        versionString = 'Nightly Build'
+    if(appSubVer) {
+        versionString += '-' + appSubVer
+    }
+    if (import.meta.env.VITE_RISU_NIGHTLY_BUILD === 'TRUE') {
+        versionString = 'Nightly Build ' + import.meta.env.VITE_RISU_BUILD_TIME
     }
     if (window.location.hostname === 'stable.risuai.xyz') {
         versionString += ' (Stable)';

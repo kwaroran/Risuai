@@ -200,6 +200,7 @@ See `plugins.md` for comprehensive plugin development guide.
 - Multiple UI modes: Classic, WaifuLike, WaifuCut
 - Dynamic GUI switching based on viewport
 - No traditional router; uses conditional rendering in App.svelte
+- In-app drag-and-drop uses custom MIME types to avoid conflicting with file imports; see `src/ts/dragTypes.ts`
 
 ## Supported AI Providers
 

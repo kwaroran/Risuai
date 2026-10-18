@@ -32,6 +32,11 @@ export const languageEnglish = {
         requestLogRemovedDesc: "This request log removes when client is refreshed or reloaded.",
         coldStorageWriteFailed: "Cold storage write failed. Your chat data has been preserved.",
         coldStorageVerifyFailed: "Cold storage verification failed. Your chat data has been preserved.",
+        coldStorageRestoreFailed: "Cold storage data could not be loaded. The affected character's data may be permanently lost.",
+        coldStorageIncompleteBackupConfirm: (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Cold storage data for ${characterNames || "unknown characters"} is missing or invalid.${unresolvedCount > 0 ? ` ${unresolvedCount} item(s) could not be linked to a character.` : ""}\n\nIf you continue, this backup will be missing ${unavailableCount} cold storage item(s), and the affected character or chat data may not be recoverable from it.\n\nCreate the incomplete backup anyway?`,
+        coldStorageIncompleteRestoreConfirm: (characterNames: string, unavailableCount: number, unresolvedCount: number) =>
+            `Cold storage data for ${characterNames || "unknown characters"} could not be restored.${unresolvedCount > 0 ? ` ${unresolvedCount} item(s) could not be linked to a character.` : ""}\n\nIf you continue, ${unavailableCount} cold storage item(s) will remain unavailable, and the affected character or chat data may be permanently lost.\n\nContinue with the incomplete restore anyway?`,
     },
     showHelp: "Show Help",
     help: {
@@ -108,6 +113,11 @@ export const languageEnglish = {
             "SuperMemory Prompt decides what prompt should be sent to summarize. If you leave it blank, it will use the default prompt. leaving blank is recommended.\n\n" +
             "After it is all setup, you can able it in the setting of a character.",
         replaceGlobalNote: "If it's not blank, it replaces current global note to this.",
+        onboarding:
+            "Onboarding lets users pick options before a chat starts, like a short form. Each answer is saved to a chat variable, usable with `{{getvar::name}}` or triggers.\n\n" +
+            "Until the user finishes or skips it, the chat shows a banner that opens the onboarding. It can be reopened from the chat menu.\n\n" +
+            "**Form** mode builds choices and text questions. Multiple-choice answers are saved as a JSON array.\n\n" +
+            "**HTML** mode lets you write your own layout. It is sanitized like chat messages, and `<style>` is supported. Add `risu-change-var-name=\"varname\"` and `risu-change-var-value=\"value\"` to any element to set the variable when it is clicked; the clicked element gets the `selected` class. On `<input>`, `<select>` and `<textarea>`, the variable follows the input's value.",
         backgroundHTML:
             "A Markdown/HTML Data that would be injected to the background of chat screen.\n\n You can also use additional assets. for example, you can use `{{audio::<asset name}}` for background music." +
             "\n\n Additionaly, you can use these with additional assets:" +
@@ -124,6 +134,12 @@ export const languageEnglish = {
         openAIFixer: "OpenAI Fixer is a plugin that fixes some of the problems of OpenAI.",
         sayNothing: "If enabled, it will input 'say nothing' when no string inputed.",
         showUnrecommended: "If enabled, it will show unrecommended, deprecated settings. It is NOT RECOMMENDED to use these settings.",
+        streamingDisplayOptimizationMode:
+            "Reduces display lag when long responses are streamed with heavy post-processing, such as regex-based scripts. This can help on mobile or low-end devices.\n\n" +
+            "Off keeps the normal behavior, but post-processing runs on every token and can add significant overhead.\n\n" +
+            "Balanced lowers the load by trying post-processing only at short intervals, about every 0.125 seconds.\n\n" +
+            "Strong is similar to Balanced, but skips post-processing while streaming and runs it only once after the stream finishes.\n\n" +
+            "This is an experimental feature, and some features may behave unexpectedly because of it.",
         imageCompression: "If enabled, it will compress images when exporting character. if animated images doesn't works, try disabling this option.",
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
@@ -267,7 +283,7 @@ export const languageEnglish = {
             "- **Playground**: Embedding testing in Playground",
         keepSessionAlive:
             "Keeps the tab active and prevents the session from expiring due to inactivity in browsers. This may require refresh to take effect.\n\n" +
-            "- **Via Sound**: Plays a silent audio at regular intervals to keep the session alive. This method is known as most compatible and effective in most browsers.\n",
+            "- **Via Sound**: Loops an inaudible low-frequency tone to keep the session alive. This method is known as most compatible and effective in most browsers. On Android, a media notification is shown while it is active, and other music apps may pause.\n",
         reSummarizationPrompt:
             "The prompt used when merging multiple selected summaries into one via bulk edit. If blank, the default prompt is used.",
         hypaV3MemoryTokensRatio:
@@ -348,6 +364,15 @@ export const languageEnglish = {
         setupOpenRouter:
             "To use OpenRouter, you need to get an API key. \n1. Go to https://openrouter.ai/keys\n2. Click 'Create Key'\n3. Set key name whatever you want.\n4. Copy the key in the website\n5. Go back to Risuai\n6. Paste it, and click send button.",
         allDone: "All Done! Please wait a moment.",
+        welcomeTitleName: "What should I call you?",
+        welcomeTitleGuide: "Shall I guide you?",
+        welcomeTitleProvider: "Choose your AI provider",
+        welcomeTitleApiKey: "Paste your API key",
+        welcomeTitleChatLang: "Pick a chat language",
+        welcomeTitleMemory: "Memory or cost?",
+        welcomeTitleDone: "You're all set!",
+        welcomeChangeLater: "You can change all of these later in settings.",
+        welcomeContinue: "Continue",
         setupLaterMessage: "Welcome {username}! Do you want me to guide you to setup or do it yourself?",
         setupMessageOption1: "Guide me to setup",
         setupMessageOption1Desc: "Recommended for new users",
@@ -857,6 +882,10 @@ export const languageEnglish = {
     unrecommended: "Not Recommended",
     chatNotes: "Chat Notes",
     showUnrecommended: "Show Unrecommended Settings",
+    streamingDisplayOptimizationMode: "Streaming Display Optimization",
+    streamingDisplayOptimizationOff: "Off",
+    streamingDisplayOptimizationBalanced: "Balanced",
+    streamingDisplayOptimizationStrong: "Strong",
     altGreet: "Alternative First Messages",
     scripts: "Scripts",
     settings: "Settings",
@@ -932,6 +961,7 @@ export const languageEnglish = {
     logout: "Logout",
     loadDataFromAccount: "Load Data from Account",
     saveCurrentDataToAccount: "Save Current Data to Account",
+    cancelAccountSync: "Cancel Account Sync",
     chatAssumed: "",
     proxyAPIKey: "Key/Password",
     proxyRequestModel: "Request Model",
@@ -944,6 +974,7 @@ export const languageEnglish = {
     account: "Account",
     remove: "Remove",
     able: "Able",
+    close: "Close",
     assetWidth: "Asset Images Max Width",
     animationSpeed: "Animation Speed",
     screenshot: "Screenshot",
@@ -1000,6 +1031,14 @@ export const languageEnglish = {
     ifRandom: "If random",
     ifValue: "If Value",
     hideRealm: "Hide RisuRealm",
+    blockRealmCreator: "Block Creator",
+    blockRealmCreatorConfirm: "Block all RisuRealm content from {{creator}}?",
+    realmCreatorBlocked: "Content from this blocked RisuRealm creator is unavailable.",
+    realmCreatorBlockedSuccess: "Creator blocked.",
+    manageBlockedRealmCreators: "Manage Blocked Creators",
+    blockedRealmCreators: "Blocked RisuRealm Creators",
+    noBlockedRealmCreators: "No RisuRealm creators are blocked.",
+    unblockRealmCreator: "Unblock",
     hideAllImages: "Hide All Images",
     popularityLevel: "{} Popularity",
     colorScheme: "Color Scheme",
@@ -1173,6 +1212,30 @@ export const languageEnglish = {
     nickname: "Nickname",
     useRegexLorebook: "Use Regex",
     customPromptTemplateToggle: "Custom Toggles",
+    onboarding: "Onboarding",
+    onboardingEnable: "Enable Onboarding",
+    onboardingFloatingButton: "Show Floating Button",
+    onboardingAvailable: "This character has an onboarding",
+    onboardingAvailableDesc: "Choose a few options to set up this chat.",
+    onboardingSkip: "Skip",
+    onboardingDone: "Done",
+    onboardingModeForm: "Form",
+    onboardingModeHTML: "HTML",
+    onboardingTitle: "Title",
+    onboardingQuestion: "Question",
+    onboardingAddQuestion: "Add Question",
+    onboardingAddOption: "Add Option",
+    onboardingVarName: "Variable Name",
+    onboardingVarNameMissing: "Set a variable name, or this question will not be shown.",
+    onboardingTypeSingle: "Single Choice",
+    onboardingTypeMultiple: "Multiple Choice",
+    onboardingTypeText: "Text",
+    onboardingOptionLabel: "Label",
+    onboardingOptionValue: "Value (defaults to label)",
+    onboardingPlaceholder: "Placeholder",
+    onboardingRequired: "Required",
+    onboardingRequiredMissing: "This question is required.",
+    onboardingHTMLHint: "Use risu-change-var-name and risu-change-var-value on elements to set chat variables. Clicked elements get the .selected class.",
     defaultVariables: "Default Variables",
     hypaAllocatedTokens: "Allocated Tokens",
     hypaChunkSize: "Chunk Size",
@@ -1502,7 +1565,7 @@ export const languageEnglish = {
     claude1HourCaching: "Claude 1 Hour Caching",
     folderNameInput: "Please input the new folder name",
     folderRemoveLengthError: "To remove a folder, it must not contain any entries.",
-    personaNote: "Persona Note",
+    personaNotePlaceholder: "Put a unique identifier for this persona here. Example: \"Hunter persona\"",
     mcpAccessPrompt: '{{tool}} is trying to "{{action}}". Do you want to allow this?',
     rememberToolUsage: "Remember tool usage",
     simplifiedToolUse: "Simplified tool usage",
@@ -1587,6 +1650,8 @@ export const languageEnglish = {
     mainDomAccessConsent: "Plugin {} is requesting to access the main Document, which may expose sensitive information. Do you want to allow this?",
     replacerPermissionConsent: "Plugin {} is requesting permission to replace content in the chat, which may be used to manipulate the conversation. Do you want to allow this?",
     providerPermissionConsent: "Plugin {} is requesting permission to access the provider, which may allow it to make unauthorized API calls. Do you want to allow this?",
+    providerPermissionDenied: "Plugin provider permission denied by user.",
+    inlayPermissionConsent: "Plugin {} is requesting permission to access the inlay, which may allow it to read, write or edit the inlay content. Do you want to allow this?",
     sendChatConsent: "Plugin {} is requesting permission to send chat messages on your behalf, which will trigger AI responses. Do you want to allow this?",
     pluginV2Warning: "Plugin V2 and V2.1 is considered unsafe and will stop working in future versions. **Please do not use these versions of plugins.**. If you are the developer of this plugin, please update to V3 as soon as possible.",
     createFolderOnBranch: "Create Folder on Branch",
@@ -1692,6 +1757,7 @@ export const languageEnglish = {
     convertToModule: "Convert to Module",
     skipSavingAssetsOnWebSync: "Skip Saving Assets on Web Sync",
     applyAdditionalParamsToAll: "Apply Additional Parameters to All Models",
+    localToggles: "Local Toggles",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

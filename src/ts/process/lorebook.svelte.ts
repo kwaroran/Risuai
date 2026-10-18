@@ -4,6 +4,7 @@ import {selectedCharID} from '../stores.svelte'
 import { type Message, type loreBook } from "../storage/database.svelte";
 import { DBState } from '../stores.svelte';
 import { tokenize } from "../tokenizer";
+import { risuChatParser } from "../parser/parser.svelte";
 import { findCharacterbyId, pickHashRand, selectSingleFile } from "../util";
 import { alertError, alertNormal } from "../alert";
 import { language } from "../../lang";
@@ -142,28 +143,33 @@ export async function loadLoreBookV3Prompt(){
             }))    
 
         if(arg.regex){
+            const regexes: { regex: RegExp, source: string }[] = []
+            for(const regexString of arg.keys){
+                const parsed = regexString.match(/^\/([\s\S]*)\/([dgimsuvy]*)$/)
+                if(!parsed){
+                    return false
+                }
+                const [, pattern, flags] = parsed
+
+                try {
+                    regexes.push({
+                        regex: new RegExp(pattern, flags),
+                        source: regexString
+                    })
+                } catch (error) {
+                    return false
+                }
+            }
             for(const mText of mList){
-                for(const regexString of arg.keys){
-                    if(!regexString.startsWith('/')){
-                        return false
-                    }
-                    const regexFlag = regexString.split('/').pop()
-                    if(regexFlag){
-                        arg.keys[0] = regexString.replace('/'+regexFlag,'')
-                        try {
-                            const regex = new RegExp(arg.keys[0],regexFlag)
-                            const d = regex.test(mText.data)
-                            if(d){
-                                matchLog.push({
-                                    prompt: mText.prompt,
-                                    source: mText.source,
-                                    activated: regexString
-                                })
-                                return true
-                            }
-                        } catch (error) {
-                            return false
-                        }
+                for(const {regex, source} of regexes){
+                    regex.lastIndex = 0
+                    if(regex.test(mText.data)){
+                        matchLog.push({
+                            prompt: mText.prompt,
+                            source: mText.source,
+                            activated: source
+                        })
+                        return true
                     }
                 }
             }
@@ -248,8 +254,6 @@ export async function loadLoreBookV3Prompt(){
     let activatedIndexes:number[] = []
     let disabledUIPrompts:string[] = []
     let matchTimes = 0
-    let keepActivateAfterMatch = false
-    let dontActivateAfterMatch = false
     while(matching){
         matching = false
         for(let i=0;i<fullLore.length;i++){
@@ -280,6 +284,8 @@ export async function loadLoreBookV3Prompt(){
             }[] = []
             let fullWordMatching = fullWordMatchingSetting
             let dontSearchWhenRecursive = false
+            let keepActivateAfterMatch = false
+            let dontActivateAfterMatch = false
             
             if(fullLore[i].mode === 'child'){
                 activated = false
@@ -568,7 +574,11 @@ export async function loadLoreBookV3Prompt(){
                     prompt: content,
                     role: role,
                     order: order,
-                    tokens: await tokenize(content),
+                    // Count tokens against the CBS-evaluated text (e.g. {{#if}}, {{getglobalvar}})
+                    // so cutoff reflects what actually reaches the context, not the unevaluated source.
+                    // runVar is left false (matching the output path in index.svelte.ts), so this
+                    // evaluation has no side effects like setvar.
+                    tokens: await tokenize(risuChatParser(content, {chara: char})),
                     priority: priority,
                     source: fullLore[i].comment || `lorebook ${i}`,
                     inject: inject ?? null

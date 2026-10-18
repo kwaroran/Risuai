@@ -400,19 +400,25 @@ const rects = await element.getClientRects();
 
 #### Event Listeners
 
-Event listeners have security restrictions and return unique IDs:
+Event listeners have security restrictions and return unique IDs. Listeners receive events that reach the element via normal DOM propagation, while non-bubbling events such as scroll fire only on the element itself:
 
 ```javascript
 // Add event listener - returns ID for later removal
 const listenerId = await element.addEventListener('click', async (event) => {
   console.log('Element clicked!');
-
-  // Do something with the event
-  const target = event.target;
 }, { capture: false });
 
 // Remove event listener using the ID
 await element.removeEventListener('click', listenerId);
+```
+
+To listen document-wide, use the `SafeDocument` from `getRootDocument()`:
+
+```javascript
+const rootDoc = await Risuai.getRootDocument();
+const id = await rootDoc.addEventListener('keydown', async (event) => {
+  console.log('Key pressed anywhere!');
+});
 ```
 
 **Allowed Events (Unlimited):**
@@ -896,6 +902,29 @@ const imageData = await Risuai.readImage('asset-id');
 // Save assets
 const savedPath = await Risuai.saveAsset(assetData);
 ```
+
+#### Inlay Assets (user-attached images / audio / video)
+
+Inlay assets are files the **user attaches** to a chat message (e.g. drag-and-dropped images). Raw message text contains a placeholder of the form `{{inlayed::<uuid>}}` referencing the asset.
+
+```javascript
+// In a custom provider handler, recover the user-attached image:
+const charIdx = await Risuai.getCurrentCharacterIndex();
+const chatIdx = await Risuai.getCurrentChatIndex();
+const chat = await Risuai.getChatFromIndex(charIdx, chatIdx);
+const lastMsg = chat.message[chat.message.length - 1];
+
+const m = lastMsg.data.match(/\{\{inlayed::([a-f0-9-]+)\}\}/i);
+if (m) {
+  const inlay = await Risuai.readInlay(m[1]);
+  // inlay.data === "data:image/png;base64,iVBORw0..."
+  // inlay.ext  === "png"
+  // inlay.type === "image"
+  // ... forward to external multi-modal API (Anthropic / OpenAI / etc.)
+}
+```
+
+`readInlay(id)` returns `null` if no asset exists for the given UUID. Supported `type` values: `'image' | 'video' | 'audio' | 'signature'`.
 
 ### Theming
 

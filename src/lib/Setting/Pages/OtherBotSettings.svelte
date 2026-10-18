@@ -313,6 +313,8 @@
 
             <span class="text-textcolor">Model</span>
             <SelectInput className="mb-4" bind:value={DBState.db.NAIImgModel} >
+                <OptionInput value="nai-diffusion-5-full" >nai-diffusion-5-full</OptionInput>
+                <OptionInput value="nai-diffusion-5-curated" >nai-diffusion-5-curated</OptionInput>
                 <OptionInput value="nai-diffusion-4-5-full" >nai-diffusion-4-5-full</OptionInput>
                 <OptionInput value="nai-diffusion-4-5-curated" >nai-diffusion-4-5-curated</OptionInput>
                 <OptionInput value="nai-diffusion-4-full" >nai-diffusion-4-full</OptionInput>
@@ -1054,7 +1056,7 @@
         {:else if DBState.db.hypaV3}
             <span class="max-w-full mb-6 text-sm text-wrap wrap-break-word text-textcolor2">{language.hypaV3Settings.descriptionLabel}</span>
             <span class="text-textcolor">Preset</span>
-            <select class={"border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
+            <select class={"risu-select border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
                 bind:value={DBState.db.hypaV3PresetId}
             >
                 {#each DBState.db.hypaV3Presets as preset, i}

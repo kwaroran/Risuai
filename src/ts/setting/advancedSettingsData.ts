@@ -142,6 +142,23 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     { id: 'adv.autoCont', type: 'check', labelKey: 'autoContinueChat', bindKey: 'autoContinueChat', helpKey: 'autoContinueChat', classes: 'mt-4' },
     { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', classes: 'mt-4' },
+    {
+        id: 'adv.streamingDisplayOpt',
+        type: 'segmented',
+        labelKey: 'streamingDisplayOptimizationMode',
+        bindKey: 'streamingDisplayOptimizationMode',
+        helpKey: 'streamingDisplayOptimizationMode',
+        condition: (ctx) => ctx.db.useExperimental,
+        showExperimental: true,
+        classes: 'mt-4',
+        options: {
+            segmentOptions: [
+                { value: 'off', labelKey: 'streamingDisplayOptimizationOff' },
+                { value: 'balanced', labelKey: 'streamingDisplayOptimizationBalanced' },
+                { value: 'strong', labelKey: 'streamingDisplayOptimizationStrong' }
+            ]
+        }
+    },
     { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', classes: 'mt-4' },
     { id: 'adv.noWaitTrans', type: 'check', labelKey: 'noWaitForTranslate', bindKey: 'noWaitForTranslate', classes: 'mt-4' },
     { id: 'adv.newImgBeta', type: 'check', labelKey: 'newImageHandlingBeta', bindKey: 'newImageHandlingBeta', classes: 'mt-4' },
@@ -191,7 +208,6 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.openAIFlex', type: 'check', labelKey: 'openAIFlexProcessing', bindKey: 'openAIFlexProcessing', helpKey: 'openAIFlexProcessing', showExperimental: true, classes: 'mt-4' },
     { id: 'adv.claudeCache', type: 'check', labelKey: 'claude1HourCaching', bindKey: 'claude1HourCaching', classes: 'mt-4' },
     { id: 'adv.claudeBatch', type: 'check', labelKey: 'claudeBatching', bindKey: 'claudeBatching', showExperimental: true, classes: 'mt-4' },
-    { id: 'adv.personaNote', type: 'check', labelKey: 'personaNote', bindKey: 'personaNote', showExperimental: true, classes: 'mt-4' },
     { id: 'adv.toolUsage', type: 'check', labelKey: 'rememberToolUsage', bindKey: 'rememberToolUsage', classes: 'mt-4' },
     { id: 'adv.bookmark', type: 'check', labelKey: 'bookmark', bindKey: 'enableBookmark', classes: 'mt-4' },
     { id: 'adv.simpleTool', type: 'check', labelKey: 'simplifiedToolUse', bindKey: 'simplifiedToolUse', classes: 'mt-4' },

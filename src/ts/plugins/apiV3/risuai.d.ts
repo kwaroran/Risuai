@@ -100,6 +100,25 @@
 // ============================================================================
 
 /**
+ * Inlay asset shape returned by `risuai.readInlay`.
+ * `data` is a base64 data-URI string (e.g. `"data:image/png;base64,iVBORw0..."`).
+ */
+interface InlayAssetForPlugin {
+    /** Base64 data-URI string (`data:<mime>;base64,...`) */
+    data: string;
+    /** File extension without leading dot (e.g. `"png"`, `"webp"`, `"mp3"`) */
+    ext: string;
+    /** Original asset filename */
+    name: string;
+    /** Asset category */
+    type: 'image' | 'video' | 'audio' | 'signature';
+    /** Pixel height (for images/videos) */
+    height?: number;
+    /** Pixel width (for images/videos) */
+    width?: number;
+}
+
+/**
  * MCP tool definition
  */
 interface MCPToolDef {
@@ -250,6 +269,22 @@ type ScriptMode = 'display' | 'output' | 'input' | 'process';
 type ReplacerType = 'beforeRequest' | 'afterRequest';
 
 /**
+ * Argument passed to chat lifecycle listeners
+ */
+type ChatOutputListenerArg = {
+    /** Current character */
+    char: any;
+    /** Current chat */
+    chat: any;
+    /** Index of the character in the database. Use with `setCharacterToIndex`. */
+    characterIndex: number;
+    /** Index of the chat within the character. Use with `setChatToIndex`. */
+    chatIndex: number;
+    /** Current index of the generated message in `chat.message`, or -1 if it is no longer present */
+    messageIndex: number;
+};
+
+/**
  * Risuai Plugin definition
  */
 interface RisuPlugin {
@@ -328,28 +363,6 @@ interface Persona {
     id?: string;
     /** Persona note */
     note?: string;
-}
-
-/**
- * Options for getDatabase
- */
-interface GetDatabaseOptions {
-    /** Include only specific nested fields from array/object values.
-     * Keys are top-level DB keys, values are arrays of field names to include.
-     * If both include and exclude are specified for the same key, include takes priority.
-     */
-    include?: Record<string, string[]>;
-    /** Exclude specific nested fields from array/object values to avoid costly deep copies.
-     * Keys are top-level DB keys, values are arrays of field names to exclude.
-     */
-    exclude?: Record<string, string[]>;
-}
-
-interface SetDatabaseOptions {
-    /** Only write back these top-level keys. Other keys in the object are ignored. */
-    include?: string[];
-    /** Skip writing back these top-level keys. */
-    exclude?: string[];
 }
 
 /**
@@ -795,6 +808,7 @@ interface SafeElement {
      * - Keyboard: keydown, keyup, keypress
      *
      * listener function receives trimmed event object with common properties only.
+     * listeners receive events that reach the element via normal DOM propagation; for document-wide listening, use the SafeDocument from getRootDocument().
      * 
      * @example
      * ```typescript
@@ -814,9 +828,9 @@ interface SafeElement {
 
     /**
      * Removes an event listener using its ID
-     * @param type - Event type
+     * @param type - Event type (for compatibility; removal is resolved by ID)
      * @param id - Listener ID returned by addEventListener
-     * @param options - Event listener options
+     * @param options - Event listener options (for compatibility)
      */
     removeEventListener(
         type: string,
@@ -970,6 +984,11 @@ interface SafeMutationObserver {
      * @returns Promise that resolves when observer is set up
      */
     observe(element: SafeElement, options: MutationObserverInit): Promise<void>;
+
+    /**
+     * Stops observing all target elements for changes
+     */
+    disconnect(): Promise<void>;
 }
 
 // ============================================================================
@@ -1121,6 +1140,8 @@ interface SafeLocalStorage {
     removeItem(key: string): Promise<void>;
     clear(): Promise<void>;
     key(index: number): Promise<string | null>;
+    /** Gets all keys (only keys stored through safeLocalStorage) */
+    keys(): Promise<string[]>;
     length(): Promise<number>;
 }
 
@@ -1321,6 +1342,46 @@ interface RisuaiPluginAPI {
      * @returns Chat object or null if not found
      */
     getChatFromIndex(characterIndex: number, chatIndex: number): Promise<any|null>;
+
+    /**
+     * Parses Risu CBS macros using the currently selected character and active chat.
+     * Set processRegex to also run the editprocess script pipeline after CBS parsing.
+     * The editprocess pipeline can invoke plugin script handlers and action scripts,
+     * which may modify the active chat.
+     * @param text - Text containing CBS macros
+     * @param options - Parser context options
+     * @returns Parsed text
+     *
+     * @example
+     * ```typescript
+     * const text = await risuai.parseRisuChat('Hello, {{user}}', {
+     *   role: 'user',
+     *   processRegex: true,
+     * });
+     * ```
+     */
+    parseRisuChat(text: string, options?: {
+        /** Existing message index used by chat-aware CBS macros. Defaults to -1. */
+        messageIndex?: number;
+        /** Message role used by role-aware CBS macros. */
+        role?: string;
+        /**
+         * Run the editprocess script pipeline after CBS parsing.
+         * This can invoke plugin handlers and action scripts that modify the active chat.
+         */
+        processRegex?: boolean;
+        /** Enable chat variable writes from CBS macros. */
+        runVar?: boolean;
+        /** Remove unresolved variable macros. */
+        rmVar?: boolean;
+        /** Use tokenizer-accurate parsing behavior where supported. */
+        tokenizeAccurate?: boolean;
+        /** Additional CBS condition flags. */
+        cbsConditions?: {
+            firstmsg?: boolean;
+            chatRole?: string;
+        };
+    }): Promise<string>;
     
 
     /**
@@ -1409,7 +1470,6 @@ interface RisuaiPluginAPI {
     /**
      * Gets the database with limited access
      * @param includeOnly - Array of keys to include or 'all' for all allowed keys. defaults to 'all'.
-     * @param options - Options for filtering nested fields
      * @returns DatabaseSubset object (limited to allowed keys) or null if consent not given
      *
      * Allowed keys: characters, modules, enabledModules, moduleIntergration,
@@ -1419,69 +1479,29 @@ interface RisuaiPluginAPI {
      * customCSS, guiHTML, colorSchemeName, characterOrder, selectedPersona
      *
      * Use includeOnly to limit which keys to retrieve for better performance.
-     * Use options.exclude to skip heavy nested fields (e.g. chats, lorebook) from being deep-copied.
-     *
-     * Note: keys returned with field filtering are partial projections, tagged internally.
-     * When written back via setDatabase/setDatabaseLite they are merged into the live data
-     * (array elements matched by id) so the omitted fields (e.g. chats) are preserved instead
-     * of overwritten. This makes cheap partial updates safe.
-     *
+     * 
      * @example
      * ```typescript
-     * // Basic usage
      * const db = await risuai.getDatabase();
      * if(db) {
      *   console.log(db.characters);
      * }
-     *
-     * // Include only specific nested fields
-     * const db = await risuai.getDatabase(['characters'], {
-     *   include: { characters: ['chaId', 'name', 'chatPage', 'modules'] }
-     * });
-     *
-     * // Exclude heavy nested fields
-     * const db = await risuai.getDatabase(['characters', 'modules'], {
-     *   exclude: {
-     *     characters: ['chats', 'globalLore', 'emotionImages'],
-     *     modules: ['lorebook', 'cjs', 'regex', 'trigger', 'assets']
-     *   }
-     * });
      * ```
      */
-    getDatabase(includeOnly?:string[]|'all', options?: GetDatabaseOptions): Promise<DatabaseSubset|null>;
+    getDatabase(includeOnly:string[]|'all' = 'all'): Promise<DatabaseSubset|null>;
 
     /**
      * Sets the database (lightweight save)
-     * @param db - DatabaseSubset object to save
-     * @param options - Options to control which top-level keys to write back
-     *
-     * @example
-     * ```typescript
-     * // Write back only specific keys (use when db contains filtered data)
-     * await risuai.setDatabaseLite(db, { include: ['enabledModules'] });
-     *
-     * // Write back everything except specific keys
-     * await risuai.setDatabaseLite(db, { exclude: ['characters', 'modules'] });
-     * ```
-     * Keys that were read with field filtering (partial projections) are merged into the
-     * live data instead of replacing it: omitted fields (e.g. chats) are preserved and array
-     * elements are matched by their id (chaId for characters, id otherwise). This makes
-     * read-light → edit → write-light partial updates safe and cheap. Note: a field omitted
-     * at read time cannot be deleted through this path — re-fetch the key in full to remove
-     * nested fields. The partial tag lives on the object getDatabase returned, so pass that
-     * object back (optionally with include/exclude options); a wrapper rebuilt from scratch
-     * loses the tag and is replaced wholesale.
+     * The `plugins` property is ignored. Use setDatabase() to update plugins.
+     * @param db - DatabaseSubset object to save, excluding `plugins`
      */
-    setDatabaseLite(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
+    setDatabaseLite(db: Omit<DatabaseSubset, 'plugins'>): Promise<void>;
 
     /**
      * Sets the database (full save with sync)
      * @param db - DatabaseSubset object to save
-     * @param options - Options to control which top-level keys to write back
-     *
-     * Field-filtered (partial) keys are merged into the live data — see setDatabaseLite.
      */
-    setDatabase(db: DatabaseSubset, options?: SetDatabaseOptions): Promise<void>;
+    setDatabase(db: DatabaseSubset): Promise<void>;
 
     // ========== Color Scheme APIs ==========
 
@@ -1859,6 +1879,63 @@ interface RisuaiPluginAPI {
         func: Function
     ): Promise<void>;
 
+    // ========== Chat Listeners ==========
+
+    /**
+     * Adds a listener that fires after a model output has been processed and
+     * committed to the chat.
+     *
+     * The listener runs once per output event after streaming completes, after the
+     * existing Lua `output` trigger has finished, and after host-side output
+     * transformations such as inlay screen processing have been written to the chat.
+     * Listeners are awaited sequentially and receive the same event snapshot. A slow
+     * listener delays the remaining chat flow. To run background work without
+     * blocking, fire off an async function without awaiting it inside the listener.
+     *
+     * The listener receives plain snapshots of `char` and the committed chat,
+     * matching the convention of `getCharacterFromIndex` / `getChatFromIndex`.
+     * Mutations to those snapshots do not propagate back to the host. To persist
+     * changes from background work, use `characterIndex`, `chatIndex`, and
+     * `messageIndex` with APIs such as `setChatToIndex`. If you need to merge with
+     * changes saved by another listener, read the latest chat with `getChatFromIndex`
+     * before saving.
+     *
+     * The `characterIndex` and `chatIndex` are captured when the listener fires,
+     * so background work can locate the original chat even if the user navigates
+     * elsewhere. `messageIndex` is resolved against the provided chat snapshot and
+     * points to the model output message when it is still present. It may be -1 if a
+     * Lua output trigger or host-side output processing removed that message.
+     *
+     * Modes:
+     * - 'output': fires after an AI message is appended to or updated in the chat
+     *
+     * @param mode - Listener mode
+     * @param func - Listener function. Receives the current character, chat, and generated message index.
+     *
+     * @example
+     * ```typescript
+     * await risuai.addRisuChatListener('output', async ({ chat, messageIndex }) => {
+     *   const message = chat.message[messageIndex];
+     *   if (!message) return;
+     *   console.log('Model said:', message.data);
+     * });
+     * ```
+     */
+    addRisuChatListener(
+        mode: 'output',
+        func: (arg: ChatOutputListenerArg) => void | Promise<void>
+    ): Promise<void>;
+
+    /**
+     * Removes a chat listener.
+     * @param mode - Listener mode
+     * @param func - Listener function to remove
+     */
+    removeRisuChatListener(
+        mode: 'output',
+        func: (arg: ChatOutputListenerArg) => void | Promise<void>
+    ): Promise<void>;
+
     // ========== Body Interceptors ==========
 
     /**
@@ -1905,6 +1982,30 @@ interface RisuaiPluginAPI {
      * @returns Image data
      */
     readImage(path?: string): Promise<any>;
+
+    /**
+     * Reads an inlay asset (image / audio / video / signature) attached by the
+     * user in chat, by its UUID. The UUID can be extracted from raw message
+     * text via the `{{inlayed::<uuid>}}` placeholder
+     * (`getChatFromIndex(...).message[i].data`).
+     *
+     * Returns `null` if no asset exists for that UUID.
+     *
+     * @param id - Inlay UUID
+     * @returns Asset with `data` as a base64 data-URI string, or `null`
+     *
+     * @example
+     * ```typescript
+     * const m = rawMessageData.match(/\{\{inlayed::([a-f0-9-]+)\}\}/i);
+     * if (m) {
+     *     const inlay = await risuai.readInlay(m[1]);
+     *     // inlay.data === "data:image/png;base64,iVBORw0..."
+     *     // inlay.ext  === "png"
+     *     // inlay.type === "image"
+     * }
+     * ```
+     */
+    readInlay(id: string): Promise<InlayAssetForPlugin | null>;
 
     /**
      * Saves an asset

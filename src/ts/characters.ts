@@ -2,7 +2,7 @@ import { get, writable } from "svelte/store";
 import { saveImage, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex } from "./storage/database.svelte";
 import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
 import { language } from "../lang";
-import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
+import { checkNullish, findCharacterbyId, findCharacterIndexbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
 import { v4 as uuidv4, v4 } from 'uuid';
 import { getImageType } from "./media";
 import { DBState, MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
@@ -806,7 +806,7 @@ function dataURLtoBuffer(string:string){
     return Buffer.from(data, 'base64');
 }
 
-export async function removeChar(index:number,name:string, type:'normal'|'permanent'|'permanentForce' = 'normal'){
+export async function removeChar(identifier:string|number,name:string, type:'normal'|'permanent'|'permanentForce' = 'normal'){
     const db = getDatabase()
     if(type !== 'permanentForce'){
         const conf = await alertConfirm(language.removeConfirm + name)
@@ -819,6 +819,14 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
         }
     }
     let chars = db.characters
+    // Resolve identifier to actual index at the time of deletion to avoid
+    // race conditions when concurrent deletions shift the array.
+    const index = typeof identifier === 'string'
+        ? findCharacterIndexbyId(identifier)
+        : identifier
+    if (index === -1 || index >= chars.length) {
+        return
+    }
     if(type === 'normal'){
         chars[index].trashTime = Date.now()
     }
@@ -875,11 +883,11 @@ export async function changeChar(index: number, arg:{
     reseter();
     if(DBState.db.characters?.[index]?.coldstorage){
         const coldData = await getColdStorageItem(DBState.db.characters[index].coldstorage!)
-        if(coldData.character && coldData.character.chaId === DBState.db.characters[index].chaId){
+        if(coldData?.character && coldData.character.chaId === DBState.db.characters[index].chaId){
             DBState.db.characters[index] = coldData.character
         }
         else{
-            alertError(language.errors.coldStorageVerifyFailed)
+            alertError(language.errors.coldStorageRestoreFailed)
             return
         }
     }

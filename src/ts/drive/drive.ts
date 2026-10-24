@@ -29,9 +29,13 @@ import {
     type DriveV2Plan,
     type PackPiece,
     type PackPosition,
+    type PackSegment,
 } from "./drivePack";
 
 const driveStateKey = 'risuDriveState'
+
+//how many packs are uploaded or downloaded at the same time
+const DRIVE_PARALLEL = 2
 
 export async function checkDriver(type:'save'|'load'|'loadtauri'|'savetauri'|'reftoken'){
     const CLIENT_ID = '580075990041-l26k2d3c0nemmqiu3d3aag01npfrkn76.apps.googleusercontent.com';
@@ -361,16 +365,20 @@ async function backupDriveV2(ACCESS_TOKEN:string) {
     }
     let packed = 0
 
-    const segmenter = new DrivePackSegmenter(DRIVE_PACK_LIMIT, nextSeq, async (segment) => {
-        //entries skipped since the last save are listed before a pack can cover them
-        if(planChanged){
-            await savePlan()
+    //packs are uploaded DRIVE_PARALLEL at a time. If one fails, a later one may
+    //already be on Drive; resuming keeps only the unbroken chain from pack 1
+    const uploads = new Set<Promise<void>>()
+    let uploadError: unknown = null
+    const waitUploads = async (max:number) => {
+        while(uploads.size > (uploadError ? 0 : max)){
+            await Promise.race(uploads)
         }
+        if(uploadError){
+            throw uploadError
+        }
+    }
+    const uploadPack = async (segment:PackSegment) => {
         const name = packFileName(plan.id, segment.seq)
-        alertStore.set({
-            type: "wait",
-            msg: `Uploading Backup... (${packed} / ${total}, pack ${segment.seq})`
-        })
         await uploadLargeFile(ACCESS_TOKEN, name, segment.bytes, 'application/octet-stream', {
             rv: String(DRIVE_V2_VERSION),
             rb: plan.id,
@@ -385,6 +393,26 @@ async function backupDriveV2(ACCESS_TOKEN:string) {
         for(const index of segment.entries){
             markEntryPack(entryPacks, index, segment.seq)
         }
+    }
+
+    const segmenter = new DrivePackSegmenter(DRIVE_PACK_LIMIT, nextSeq, async (segment) => {
+        await waitUploads(DRIVE_PARALLEL - 1)
+        //entries skipped since the last save are listed before a pack can cover them
+        if(planChanged){
+            await savePlan()
+        }
+        alertStore.set({
+            type: "wait",
+            msg: `Uploading Backup... (${packed} / ${total}, pack ${segment.seq})`
+        })
+        const task: Promise<void> = uploadPack(segment).then(
+            () => { uploads.delete(task) },
+            (error) => {
+                uploadError ??= error
+                uploads.delete(task)
+            }
+        )
+        uploads.add(task)
     })
 
     for(let index = position.entry; index < plan.entries.length; index++){
@@ -409,6 +437,7 @@ async function backupDriveV2(ACCESS_TOKEN:string) {
         packed += 1
     }
     await segmenter.finish()
+    await waitUploads(0)
 
     const manifestEntries: Record<string, DrivePackRef> = {}
     const manifestPacks: Record<string, number> = {}
@@ -737,10 +766,13 @@ type DriveFile = {
 
 /**
  * Reads entries of a v2 backup. Recently used packs are kept in memory so
- * entries stored in the same pack are downloaded once.
+ * entries stored in the same pack are downloaded once. After `readAhead`,
+ * the next download is started while the current one is being used.
  */
 class DrivePackReader {
-    private cache = new Map<string, PackPiece[] | null>()
+    //pack names, or `l:` + the name of a file uploaded on its own
+    private cache = new Map<string, Promise<PackPiece[] | Uint8Array | null>>()
+    private nextKey = new Map<string, string>()
     private readonly filesByName: Map<string, DriveFile[]>
 
     constructor(
@@ -751,16 +783,36 @@ class DrivePackReader {
         this.filesByName = groupFilesByName(files)
     }
 
+    /** Sets the order the refs will be read in. */
+    readAhead(refs:DrivePackRef[]) {
+        const keys: string[] = []
+        for(const ref of refs){
+            if('l' in ref){
+                keys.push('l:' + ref.l)
+                continue
+            }
+            for(let seq = ref.s; seq <= ref.e; seq++){
+                const key = packFileName(ref.b, seq)
+                if(keys[keys.length - 1] !== key){
+                    keys.push(key)
+                }
+            }
+        }
+        this.nextKey = new Map()
+        for(let i = keys.length - 1; i > 0; i--){
+            this.nextKey.set(keys[i - 1], keys[i])
+        }
+    }
+
     async read(name:string, ref:DrivePackRef): Promise<Uint8Array | null> {
         if('l' in ref){
-            const file = pickFile(this.filesByName, ref.l)
-            return file ? await getFileData(this.accessToken, file.id) : null
+            return await this.load('l:' + ref.l) as Uint8Array | null
         }
         //pieces are copied as each pack is read, so a file spanning many packs
         //never keeps more than the cached packs in memory
         const assembler = new EntryAssembler()
         for(let seq = ref.s; seq <= ref.e; seq++){
-            const pack = await this.loadPack(packFileName(ref.b, seq))
+            const pack = await this.load(packFileName(ref.b, seq)) as PackPiece[] | null
             if(!pack){
                 return null
             }
@@ -773,33 +825,55 @@ class DrivePackReader {
         return assembler.value
     }
 
-    private async loadPack(name:string) {
-        if(this.cache.has(name)){
-            const cached = this.cache.get(name)
-            this.cache.delete(name)
-            this.cache.set(name, cached)
-            return cached
+    private load(key:string) {
+        let loading = this.cache.get(key)
+        if(loading){
+            this.cache.delete(key)
         }
-        const file = pickFile(this.filesByName, name, this.manifest.packs?.[name])
-            ?? pickFile(this.filesByName, name)
-        let pieces: PackPiece[] | null = null
-        if(file){
-            for(let attempt = 0; attempt < 2 && !pieces; attempt++){
-                try {
-                    pieces = parsePack(await getFileData(this.accessToken, file.id)).pieces
-                } catch (error) {
-                    if(error instanceof DriveAuthError){
-                        throw error
-                    }
-                    console.warn(`Failed to read backup pack ${name}:`, error)
-                }
-            }
+        else{
+            loading = this.fetch(key)
         }
-        this.cache.set(name, pieces)
-        while(this.cache.size > 2){
+        this.cache.set(key, loading)
+        const next = this.nextKey.get(key)
+        if(next && !this.cache.has(next)){
+            this.cache.set(next, this.fetch(next))
+        }
+        //the current and the next download
+        while(this.cache.size > DRIVE_PARALLEL){
             this.cache.delete(this.cache.keys().next().value)
         }
-        return pieces
+        return loading
+    }
+
+    private fetch(key:string) {
+        const loading = key.startsWith('l:') ? this.fetchFile(key.slice(2)) : this.fetchPack(key)
+        //a read-ahead that fails is reported when it is read, or never if it is dropped first
+        loading.catch(() => {})
+        return loading
+    }
+
+    private async fetchFile(name:string) {
+        const file = pickFile(this.filesByName, name)
+        return file ? await getFileData(this.accessToken, file.id) : null
+    }
+
+    private async fetchPack(name:string) {
+        const file = pickFile(this.filesByName, name, this.manifest.packs?.[name])
+            ?? pickFile(this.filesByName, name)
+        if(!file){
+            return null
+        }
+        for(let attempt = 0; attempt < 2; attempt++){
+            try {
+                return parsePack(await getFileData(this.accessToken, file.id)).pieces
+            } catch (error) {
+                if(error instanceof DriveAuthError){
+                    throw error
+                }
+                console.warn(`Failed to read backup pack ${name}:`, error)
+            }
+        }
+        return null
     }
 }
 
@@ -977,7 +1051,14 @@ async function loadDriveData(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise
             const file = files.find((driveFile) => names.has(driveFile.name))
             return file ? await getFileData(ACCESS_TOKEN, file.id) : null
         }
-        const coldStorageRestoreFailures = await restoreColdStorageFromDrive(readColdStorage, db, mode)
+        //v2: read cold storage in pack order too
+        const orderColdStorage = source.version === 2 ? (keys:string[]) => {
+            const withRef = keys.map((key) => ({ key, ref: source.manifest.entries[coldEntryName(getColdStorageBackupName(key))] }))
+            const found = withRef.filter((item) => item.ref).sort((a, b) => comparePackRefs(a.ref, b.ref))
+            source.reader.readAhead(found.map((item) => item.ref))
+            return [...found, ...withRef.filter((item) => !item.ref)].map((item) => item.key)
+        } : undefined
+        const coldStorageRestoreFailures = await restoreColdStorageFromDrive(readColdStorage, db, mode, orderColdStorage)
         if(coldStorageRestoreFailures.length > 0){
             if(mode === 'sync'){
                 alertError(`Sync failed. ${coldStorageRestoreFailures.length} cold storage item(s) could not be restored.`)
@@ -1005,6 +1086,7 @@ async function loadDriveData(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise
             }
             //read entries in pack order so each pack is downloaded once
             pending.sort((a, b) => comparePackRefs(a[1], b[1]))
+            source.reader.readAhead(pending.map(([, ref]) => ref))
             for(let i = 0; i < pending.length; i++){
                 const [images, ref] = pending[i]
                 alertStore.set({
@@ -1108,13 +1190,15 @@ function comparePackRefs(a:DrivePackRef, b:DrivePackRef) {
 async function restoreColdStorageFromDrive(
     readItem:(key:string) => Promise<Uint8Array | null>,
     db:Database,
-    mode:'backup'|'sync'
+    mode:'backup'|'sync',
+    order?:(keys:string[]) => string[]
 ) {
     const failures:string[] = []
     const restored = new Set<string>()
     const legacyPluginStorageKeys = new Set(listPluginStorageColdKeys(db))
 
     const restoreKeys = async (keys:string[], pluginStorageKeys:Set<string>) => {
+        keys = order ? order(keys) : keys
         for(let i=0;i<keys.length;i++){
             const key = keys[i]
             if(restored.has(key)){

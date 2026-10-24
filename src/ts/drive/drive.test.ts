@@ -133,8 +133,13 @@ class FakeDrive {
     //uploads that store the file and then lose the response, like a dropped connection
     lostUploadResponses = 0
     uploads = 0
-    //names of downloaded files, in order
-    downloads: string[] = []
+    //milliseconds spent on each pack upload or file download
+    latency = 0
+    //uploads of matching names get 401
+    rejectUpload: ((name: string) => boolean) | null = null
+    active = { upload: 0, download: 0 }
+    maxActive = { upload: 0, download: 0 }
+    downloads = new Map<string, number>()
     private nextId = 1
     private sessions = new Map<string, Omit<FakeFile, 'id' | 'data'>>()
 
@@ -165,6 +170,10 @@ class FakeDrive {
 
         if(url.host === 'upload.test'){
             const session = this.sessions.get(url.pathname)
+            await this.transfer('upload')
+            if(this.rejectUpload?.(session.name)){
+                return json({ error: { message: 'Invalid Credentials' } }, 401)
+            }
             const file = this.add(session.name, new Uint8Array(init.body as Uint8Array), session.appProperties)
             return json({ id: file.id })
         }
@@ -221,10 +230,21 @@ class FakeDrive {
             if(!file){
                 return json({ error: { message: 'not found' } }, 404)
             }
-            this.downloads.push(file.name)
+            this.downloads.set(file.name, (this.downloads.get(file.name) ?? 0) + 1)
+            await this.transfer('download')
             return new Response(file.data.slice(), { status: 200 })
         }
         throw new Error(`Unexpected request ${method} ${input}`)
+    }
+
+    private async transfer(kind: 'upload' | 'download') {
+        if(this.latency === 0){
+            return
+        }
+        this.active[kind] += 1
+        this.maxActive[kind] = Math.max(this.maxActive[kind], this.active[kind])
+        await new Promise((resolve) => setTimeout(resolve, this.latency))
+        this.active[kind] -= 1
     }
 }
 
@@ -525,6 +545,66 @@ describe('drive backup v2', () => {
         expect(drive.requests).toBe(1)
     })
 
+    it('uploads and downloads two packs at a time', async () => {
+        setupDevice({
+            'a.png': makeData(900, 1),
+            'b.mp4': makeData(3000, 2),
+            'c.png': makeData(900, 3),
+            'legacy.png': makeData(200, 5),
+        }, { chat1: { a: 1 }, chat2: { b: 2 } })
+        drive.add('legacy.png.bin', state.device.get('assets/legacy.png'))
+        drive.add('coldstorage_chat2.json', new TextEncoder().encode(JSON.stringify({ b: 2 })))
+        const original = snapshotDevice()
+        drive.latency = 5
+
+        await checkDriver('savetauri')
+        expect(state.errors).toEqual([])
+        expect(drive.maxActive.upload).toBe(2)
+
+        const restored = await restoreOnEmptyDevice()
+        expect(state.errors).toEqual([])
+        expect(drive.maxActive.download).toBe(2)
+        expectRestored(restored, original)
+        expect(state.restoredCold.get('chat1')).toEqual({ a: 1 })
+        expect(state.restoredCold.get('chat2')).toEqual({ b: 2 })
+        //read-ahead never downloads a pack twice
+        for(const [name, count] of drive.downloads){
+            if(name.endsWith('.risupack')){
+                expect(count, name).toBe(1)
+            }
+        }
+    })
+
+    it('drops packs uploaded after a failed one and resumes from it', async () => {
+        setupDevice({
+            'a.png': makeData(900, 1),
+            'b.png': makeData(900, 2),
+            'c.png': makeData(900, 3),
+            'd.png': makeData(900, 4),
+        })
+        const original = snapshotDevice()
+        drive.latency = 5
+        //pack 2 fails while pack 3 is being uploaded
+        drive.rejectUpload = (name) => name.endsWith('-00000002.risupack')
+
+        await checkDriver('savetauri')
+        expect(state.errors).toEqual(['expired'])
+        const firstRun = drive.named(/\.risupack$/)
+        expect(firstRun.map((pack) => pack.name.slice(-17)).sort()).toEqual(['00000001.risupack', '00000003.risupack'])
+        const orphan = firstRun.find((pack) => pack.name.endsWith('00000003.risupack'))
+
+        drive.rejectUpload = null
+        state.errors = []
+        await checkDriver('savetauri')
+        expect(state.errors).toEqual([])
+        expect(state.normals).toEqual(['Success'])
+        expect(drive.files.has(orphan.id)).toBe(false)
+        const names = drive.named(/\.risupack$/).map((pack) => pack.name)
+        expect(new Set(names).size).toBe(names.length)
+
+        expectRestored(await restoreOnEmptyDevice(), original)
+    })
+
     it('still restores v1 backups', async () => {
         const image = makeData(120, 7)
         drive.add('1700000000-database.risudat', new TextEncoder().encode(JSON.stringify({ name: 'old', assets: ['old.png'], coldKeys: [] })))
@@ -603,13 +683,13 @@ describe('drive backup v2', () => {
         expect(state.restoredCold.get('chat1')).toEqual({ n: 1 })
 
         drive.expireAfter = null
-        drive.downloads = []
+        drive.downloads.clear()
         state.errors = []
         await checkDriver('loadtauri')
         expect(state.errors).toEqual([])
         expect(state.restoredCold.get('chat2')).toEqual({ n: 2 })
-        expect(drive.downloads).not.toContain('coldstorage_chat1.json')
-        expect(drive.downloads).toContain('coldstorage_chat2.json')
+        expect(drive.downloads.has('coldstorage_chat1.json')).toBe(false)
+        expect(drive.downloads.has('coldstorage_chat2.json')).toBe(true)
     })
 })
 

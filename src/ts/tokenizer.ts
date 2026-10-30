@@ -115,7 +115,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
             case 'novellist':
                 result = await tokenizeWebTokenizers(data, 'novellist'); break;
             case 'llama3':
-                result = await tokenizeWebTokenizers(data, 'llama'); break;
+                result = await tokenizeWebTokenizers(data, 'llama3'); break;
             case 'gemma':
                 result = await gemmaTokenize(data); break;
             case 'cohere':
@@ -144,7 +144,7 @@ export async function encode(data:string):Promise<(number[]|Uint32Array|Int32Arr
             case 'novellist':
                 result = await tokenizeWebTokenizers(data, 'novellist'); break;
             case 'llama3':
-                result = await tokenizeWebTokenizers(data, 'llama'); break;
+                result = await tokenizeWebTokenizers(data, 'llama3'); break;
             case 'gemma':
                 result = await gemmaTokenize(data); break;
             case 'cohere':
@@ -258,7 +258,7 @@ async function gemmaTokenize(text:string) {
     if(!gemmaTokenizer){
         const {GemmaTokenizer} = await import('@huggingface/transformers')
         gemmaTokenizer = new GemmaTokenizer(
-            await (await fetch("/token/llama/llama3.json")
+            await (await fetch("/token/gemma/tokenizer.json")
         ).json(), {})
     }
     return gemmaTokenizer.encode(text)

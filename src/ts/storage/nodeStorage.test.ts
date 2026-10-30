@@ -105,3 +105,16 @@ describe('NodeStorage.setItem', () => {
         )
     })
 })
+
+describe('NodeStorage.createAuth', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('explains the secure context requirement when Web Crypto is unavailable', async () => {
+        vi.stubGlobal('crypto', {})
+        const storage = new NodeStorage()
+
+        await expect(storage.createAuth()).rejects.toThrow('is not a secure context')
+    })
+})

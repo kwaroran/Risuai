@@ -185,7 +185,7 @@
         if(!DBState.db.newImageHandlingBeta || !bodyRoot){
             return
         }
-        const imgs = bodyRoot.querySelectorAll('img:not([src^="data:"]):not([src^="http:"]):not([src^="https:"]):not([src^="blob:"]):not([src^="file:"]):not([src^="tauri:"]):not([noimage])') as NodeListOf<HTMLImageElement>
+        const imgs = bodyRoot.querySelectorAll('img:not([src^="data:"]):not([src^="http:"]):not([src^="https:"]):not([src^="blob:"]):not([src^="file:"]):not([src^="tauri:"]):not([src^="/sw/img/"]):not([noimage])') as NodeListOf<HTMLImageElement>
         
         if (imgs.length > 0) {
             const currentCharacter = getCurrentCharacter()

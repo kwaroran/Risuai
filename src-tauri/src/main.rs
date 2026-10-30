@@ -23,10 +23,11 @@ use oauth2::{
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::json;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::{path::Path, time::Duration};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
+use futures::future::{AbortHandle, Abortable};
 use tauri::path::BaseDirectory;
 use tauri::{Listener, Manager};
 use tauri::{AppHandle, Emitter};
@@ -429,8 +430,96 @@ fn run_py_server(handle: tauri::AppHandle, py_path: String) {
     return;
 }
 
+// How long streamed_fetch waits for the next data when no total timeout is given
+const STREAMED_FETCH_IDLE_TIMEOUT_SECS: u64 = 600;
+
+async fn with_idle_timeout<F: std::future::Future>(
+    idle_timeout: Option<Duration>,
+    future: F,
+) -> Result<F::Output, String> {
+    match idle_timeout {
+        Some(duration) => tokio::time::timeout(duration, future).await.map_err(|_| {
+            streamed_fetch_failure(format!("No data received for {} seconds", duration.as_secs()))
+        }),
+        None => Ok(future.await),
+    }
+}
+
+// The frontend JSON.parses this, so the message must be a quoted JSON string
+fn streamed_fetch_failure(body: impl std::fmt::Display) -> String {
+    json!({ "success": false, "body": body.to_string() }).to_string()
+}
+
+// Abort handles of in-flight streamed_fetch calls, keyed by fetch id
+static STREAMED_FETCH_ABORTS: LazyLock<Mutex<HashMap<String, AbortHandle>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+// Recently started fetch ids. When a page reloads mid-stream, Tauri's IPC script
+// resends the still pending invoke over postMessage, which would start the same
+// request a second time and orphan the first one.
+static STREAMED_FETCH_SEEN_IDS: LazyLock<Mutex<VecDeque<String>>> =
+    LazyLock::new(|| Mutex::new(VecDeque::new()));
+const STREAMED_FETCH_SEEN_IDS_LIMIT: usize = 1000;
+
 #[tauri::command]
 async fn streamed_fetch(
+    id: String,
+    url: String,
+    headers: String,
+    body: String,
+    app: AppHandle,
+    method: String,
+    timeout_secs: Option<u64>,
+) -> String {
+    {
+        let mut seen = STREAMED_FETCH_SEEN_IDS.lock().unwrap();
+        if seen.contains(&id) {
+            return r#"{"success":false,"body":"duplicate streamed_fetch id"}"#.to_string();
+        }
+        if seen.len() >= STREAMED_FETCH_SEEN_IDS_LIMIT {
+            seen.pop_front();
+        }
+        seen.push_back(id.clone());
+    }
+
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    STREAMED_FETCH_ABORTS
+        .lock()
+        .unwrap()
+        .insert(id.clone(), abort_handle);
+
+    // Dropping the inner future on abort also closes the upstream connection
+    let result = Abortable::new(
+        streamed_fetch_inner(id.clone(), url, headers, body, app, method, timeout_secs),
+        abort_registration,
+    )
+    .await;
+
+    STREAMED_FETCH_ABORTS.lock().unwrap().remove(&id);
+
+    match result {
+        Ok(res) => res,
+        Err(_) => r#"{"success":false,"body":"aborted"}"#.to_string(),
+    }
+}
+
+#[tauri::command]
+fn cancel_streamed_fetch(id: String) {
+    if let Some(handle) = STREAMED_FETCH_ABORTS.lock().unwrap().remove(&id) {
+        handle.abort();
+    }
+}
+
+// Called when the webview (re)loads: requests from a previous page load
+// have nobody left to read or cancel them
+#[tauri::command]
+fn cancel_all_streamed_fetch() {
+    for (_, handle) in STREAMED_FETCH_ABORTS.lock().unwrap().drain() {
+        handle.abort();
+    }
+}
+
+async fn streamed_fetch_inner(
     id: String,
     url: String,
     headers: String,
@@ -442,7 +531,7 @@ async fn streamed_fetch(
     //parse headers
     let headers_json: Value = match serde_json::from_str(&headers) {
         Ok(h) => h,
-        Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+        Err(e) => return streamed_fetch_failure(e),
     };
 
     let mut headers = HeaderMap::new();
@@ -450,11 +539,11 @@ async fn streamed_fetch(
         for (key, value) in obj {
             let header_name = match HeaderName::from_bytes(key.as_bytes()) {
                 Ok(name) => name,
-                Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                Err(e) => return streamed_fetch_failure(e),
             };
             let header_value = match HeaderValue::from_str(value.as_str().unwrap_or("")) {
                 Ok(value) => value,
-                Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                Err(e) => return streamed_fetch_failure(e),
             };
             headers.insert(header_name, header_value);
         }
@@ -463,7 +552,6 @@ async fn streamed_fetch(
     }
 
     let client = reqwest::Client::new();
-    let timeout_secs = timeout_secs.unwrap_or(240);
     let builder: reqwest::RequestBuilder;
     if method == "POST" {
 
@@ -472,14 +560,12 @@ async fn streamed_fetch(
         builder = client
         .post(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "GET" {
         builder = client
         .get(&url)
-        .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs));
+        .headers(headers);
     }
     else if method == "PUT" {
 
@@ -488,7 +574,6 @@ async fn streamed_fetch(
         builder = client
         .put(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "DELETE" {
@@ -498,18 +583,23 @@ async fn streamed_fetch(
         builder = client
         .delete(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else {
-        return format!(r#"{{"success":false, body:"Invalid method"}}"#);
+        return streamed_fetch_failure("Invalid method");
     }
 
+    // Local Network Timeout is a total limit, as on the Node server. Otherwise only
+    // give up when no data arrives for a while, so long generations are not cut off.
+    let (builder, idle_timeout) = match timeout_secs {
+        Some(secs) => (builder.timeout(Duration::from_secs(secs)), None),
+        None => (builder, Some(Duration::from_secs(STREAMED_FETCH_IDLE_TIMEOUT_SECS))),
+    };
 
-
-    let response = builder
-        .send()
-        .await;
+    let response = match with_idle_timeout(idle_timeout, builder.send()).await {
+        Ok(response) => response,
+        Err(e) => return e,
+    };
 
     match response {
         Ok(mut resp) => {
@@ -526,7 +616,10 @@ async fn streamed_fetch(
             )
             .unwrap();
             loop {
-                let byt = resp.chunk().await;
+                let byt = match with_idle_timeout(idle_timeout, resp.chunk()).await {
+                    Ok(byt) => byt,
+                    Err(e) => return e,
+                };
                 match byt {
                     Ok(chunk) => {
                         if chunk.is_none() {
@@ -545,11 +638,11 @@ async fn streamed_fetch(
                         match emited {
                             Ok(_) => {}
                             Err(e) => {
-                                return format!(r#"{{"success":false, body:{}}}"#, e.to_string())
+                                return streamed_fetch_failure(e)
                             }
                         }
                     }
-                    Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                    Err(e) => return streamed_fetch_failure(e),
                 }
             }
             app.emit(
@@ -559,7 +652,7 @@ async fn streamed_fetch(
             .unwrap();
             return "{\"success\":true}".to_string();
         }
-        Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+        Err(e) => return streamed_fetch_failure(e),
     }
 }
 
@@ -597,6 +690,8 @@ fn main() {
             run_py_server,
             install_py_dependencies,
             streamed_fetch,
+            cancel_streamed_fetch,
+            cancel_all_streamed_fetch,
             oauth_login
         ])
         .run(tauri::generate_context!())

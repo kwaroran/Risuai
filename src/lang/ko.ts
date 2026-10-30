@@ -722,6 +722,8 @@ export const languageKorean = {
     "requestretrys": "실패 시 재요청 횟수",
     "utilityBot": "유틸리티 봇",
     "ShowLog": "리퀘스트 로그 보기",
+    "clearImageCache": "이미지 캐시 비우기",
+    "clearImageCacheConfirm": "이미지 캐시를 비우고 새로고침할까요? 이미지가 깨져 보일 때 사용하세요. 데이터는 삭제되지 않으며, 이미지는 저장된 파일에서 다시 불러옵니다.",
     "waifuWidth2": "Waifu 캐릭터 크기",
     "sayNothing": "어떤 문자열도 입력되지 않을 시 'say nothing' 입력",
     "regexScript": "정규식 스크립트",

@@ -98,10 +98,22 @@ export async function downloadFile(name: string, dat: Uint8Array | ArrayBuffer |
 }
 
 let fileCache: {
-    origin: string[], res: (Uint8Array | 'loading' | 'done')[]
+    origin: (string | null)[], res: (Uint8Array | 'loading' | 'done' | 'failed')[]
 } = {
     origin: [],
     res: []
+}
+
+/**
+ * Lets getFileSrc try a file again after it was saved, if an earlier attempt failed.
+ * Re-importing a card writes the same hash path, which would otherwise stay blank until reload.
+ */
+function forgetFailedFile(loc: string) {
+    const ind = fileCache.origin.indexOf(loc)
+    if (ind !== -1 && fileCache.res[ind] === 'failed') {
+        // Unlink the slot instead of removing it, so the indexes of other entries stay the same
+        fileCache.origin[ind] = null
+    }
 }
 
 let pathCache: { [key: string]: string } = {}
@@ -138,59 +150,62 @@ export async function getFileSrc(loc: string) {
         if (usingSw) {
             const encoded = Buffer.from(loc, 'utf-8').toString('hex')
             let ind = fileCache.origin.indexOf(loc)
-            if (ind === -1) {
-                ind = fileCache.origin.length
-                fileCache.origin.push(loc)
-                fileCache.res.push('loading')
-                try {
-                    const hasCache: boolean = (await (await fetch("/sw/check/" + encoded)).json()).able
-                    if (hasCache) {
-                        fileCache.res[ind] = 'done'
-                        return "/sw/img/" + encoded
-                    }
-                    else {
-                        const f: Uint8Array = await forageStorage.getItem(loc) as unknown as Uint8Array
-                        await fetch("/sw/register/" + encoded, {
-                            method: "POST",
-                            body: f as any
-                        })
-                        fileCache.res[ind] = 'done'
-                        await sleep(10)
-                    }
-                    return "/sw/img/" + encoded
-                } catch (error) {
-
+            if (ind !== -1) {
+                while (fileCache.res[ind] === 'loading') {
+                    await sleep(10)
                 }
+                // a failed file stays failed until the page is reloaded
+                return fileCache.res[ind] === 'done' ? "/sw/img/" + encoded : ''
             }
-            else {
-                const f = fileCache.res[ind]
-                if (f === 'loading') {
-                    while (fileCache.res[ind] === 'loading') {
-                        await sleep(10)
+            ind = fileCache.origin.length
+            fileCache.origin.push(loc)
+            fileCache.res.push('loading')
+            try {
+                const hasCache: boolean = (await (await fetch("/sw/check/" + encoded)).json()).able
+                if (!hasCache) {
+                    const f: Uint8Array = await forageStorage.getItem(loc) as unknown as Uint8Array
+                    if (!f || f.byteLength === 0) {
+                        throw new Error(`File not found: ${loc}`)
                     }
+                    const registered = await fetch("/sw/register/" + encoded, {
+                        method: "POST",
+                        body: f as any
+                    })
+                    if (!registered.ok) {
+                        throw new Error(`Failed to register file: ${loc}`)
+                    }
+                    await sleep(10)
                 }
+                fileCache.res[ind] = 'done'
                 return "/sw/img/" + encoded
+            } catch (error) {
+                fileCache.res[ind] = 'failed'
+                throw error
             }
         }
         else {
             let ind = fileCache.origin.indexOf(loc)
-            if (ind === -1) {
-                ind = fileCache.origin.length
-                fileCache.origin.push(loc)
-                fileCache.res.push('loading')
+            if (ind !== -1) {
+                while (fileCache.res[ind] === 'loading') {
+                    await sleep(10)
+                }
+                // a failed file stays failed until the page is reloaded
+                const f = fileCache.res[ind]
+                return typeof f !== 'string' ? `data:image/png;base64,${Buffer.from(f).toString('base64')}` : ''
+            }
+            ind = fileCache.origin.length
+            fileCache.origin.push(loc)
+            fileCache.res.push('loading')
+            try {
                 const f: Uint8Array = await forageStorage.getItem(loc) as unknown as Uint8Array
+                if (!f || f.byteLength === 0) {
+                    throw new Error(`File not found: ${loc}`)
+                }
                 fileCache.res[ind] = f
                 return `data:image/png;base64,${Buffer.from(f).toString('base64')}`
-            }
-            else {
-                const f = fileCache.res[ind]
-                if (f === 'loading') {
-                    while (fileCache.res[ind] === 'loading') {
-                        await sleep(10)
-                    }
-                    return `data:image/png;base64,${Buffer.from(fileCache.res[ind]).toString('base64')}`
-                }
-                return `data:image/png;base64,${Buffer.from(f).toString('base64')}`
+            } catch (error) {
+                fileCache.res[ind] = 'failed'
+                throw error
             }
         }
     } catch (error) {
@@ -255,6 +270,7 @@ export async function saveAsset(data: Uint8Array, customId: string = '', fileNam
     else {
         let form = `assets/${id}.${fileExtension}`
         const replacer = await forageStorage.setItem(form, data)
+        forgetFailedFile(form)
         if (replacer) {
             return replacer
         }

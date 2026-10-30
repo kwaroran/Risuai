@@ -863,6 +863,8 @@ export const languageEnglish = {
     requestretrys: "Request Retrys when Fail",
     utilityBot: "Utility Bot",
     ShowLog: "Show Request Logs",
+    clearImageCache: "Clear Image Cache",
+    clearImageCacheConfirm: "Clear the image cache and reload? Use this when images show up broken. Your data is not deleted; images are loaded again from your saved files.",
     waifuWidth2: "Waifu Character Size",
     sayNothing: "Input 'say nothing' when no string inputed",
     regexScript: "Regex Script",

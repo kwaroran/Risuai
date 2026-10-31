@@ -1281,7 +1281,7 @@ app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
-    const filePaths = req.headers['file-path']?.split('$$') || []
+    const filePaths = (req.headers['file-path'] || '').split('$$')
 
     for(const filePath of filePaths){
         if (!filePath) {
@@ -1296,17 +1296,19 @@ app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
             });
             return;
         }
+    }
 
+    for(const filePath of filePaths){
         try {
-            await fs.rm(path.join(savePath, filePath));
-            res.send({
-                success: true,
-            });
+            await fs.rm(path.join(savePath, filePath), { force: true });
         } catch (error) {
             next(error);
+            return;
         }
     }
-    
+    res.send({
+        success: true,
+    });
 });
 
 app.get('/api/list', authenticatedRouteLimiter, async (req, res, next) => {

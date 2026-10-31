@@ -90,3 +90,37 @@ test('keeps explicit false as the generation stop signal', async () => {
   expect(result.res).toBe(false)
   expect(result.stopSending).toBe(true)
 })
+
+test('getCharacterFirstMessage returns alternate greetings by index', async () => {
+  const { DBState } = await import('../stores.svelte')
+  DBState.db = {
+    characters: [{ firstMessage: 'first', alternateGreetings: ['alt 0', 'alt 1'] }],
+  } as never
+
+  const run = async (call: string) =>
+    (await runScripted(`function onStart(id) return ${call} end`, {
+      char: {} as never,
+      chat: { message: [] } as never,
+      mode: 'start',
+    })).res
+
+  expect(await run('getCharacterFirstMessage(id)')).toBe('first')
+  expect(await run('getCharacterFirstMessage(id, -1)')).toBe('first')
+  expect(await run('getCharacterFirstMessage(id, 1)')).toBe('alt 1')
+  expect(await run('getCharacterFirstMessage(id, 5)')).toBe('')
+})
+
+test('getCharacterLastMessage falls back to the greeting selected in the chat', async () => {
+  const { getDatabase } = await import('../storage/database.svelte')
+  vi.mocked(getDatabase).mockReturnValue({
+    characters: [{ firstMessage: 'first', alternateGreetings: ['alt 0', 'alt 1'] }],
+  } as never)
+
+  const result = await runScripted('function onStart(id) return getCharacterLastMessage(id) end', {
+    char: {} as never,
+    chat: { message: [{ role: 'user', data: 'hi' }], fmIndex: 1 } as never,
+    mode: 'start',
+  })
+
+  expect(result.res).toBe('alt 1')
+})

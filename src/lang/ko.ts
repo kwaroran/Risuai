@@ -785,6 +785,7 @@ export const languageKorean = {
     "fixedChatTextarea": "채팅창 하단 고정",
     "clickToEdit": "클릭해서 수정하기",
     "enableBlockPartialEdit": "블록 부분 수정 활성화 (블록에 마우스를 올려 개별 수정)",
+    "longPressToPopupEditor": "길게 눌러 팝업 편집기 열기",
     "enableDragPartialEdit": "드래그 부분 수정 활성화 (텍스트 선택 후 수정)",
     "setNodePassword": "보안을 위해 비밀번호를 정해주세요",
     "nodeSetupLinkRequired": "이 서버에는 아직 비밀번호가 없습니다. 서버 로그에 출력된 설정 링크(#setup=... 포함)를 열어 비밀번호를 정해주세요.",

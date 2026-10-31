@@ -926,6 +926,7 @@ export const languageEnglish = {
     fixedChatTextarea: "Fixed at the bottom of the chat window(When unchecked, Shift + Enter changes to send a message.)",
     clickToEdit: "Click Text to Edit",
     enableBlockPartialEdit: "Enable Block Partial Edit (Hover to edit individual blocks)",
+    longPressToPopupEditor: "Long press to open Popup Editor",
     enableDragPartialEdit: "Enable Drag Partial Edit (Select text to edit)",
     setNodePassword: "Set your password to security",
     nodeSetupLinkRequired: "This server has no password yet. Open the setup link printed in the server log (it contains #setup=...) to set one.",

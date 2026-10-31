@@ -793,6 +793,7 @@ export const languageKorean = {
     "advanced": "고급",
     "askReRollAutoSuggestions": "자동 제안 다시 뽑기",
     "creatingSuggestions": "응답 제안 작성 중...",
+    "insertSuggestionToInput": "입력창에 넣기",
     "orderByOrder": "순서대로 말하기",
     "removeFromGroup": "정말로 {{char}}을 그룹에서 삭제시키겠습니까?",
     "talkness": "대화량",

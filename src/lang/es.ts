@@ -769,6 +769,7 @@ export const languageSpanish = {
     "advanced": "Avanzado",
     "askReRollAutoSuggestions": "Regenerar Auto Sugerencias",
     "creatingSuggestions": "Creando Sugerencias...",
+    "insertSuggestionToInput": "Insertar en el campo de texto",
     "orderByOrder": "Hablar por Orden",
     "removeFromGroup": "¿Realmente deseas eliminar a {{char}} del grupo?",
     "talkness": "Hablatividad",

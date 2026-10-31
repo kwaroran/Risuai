@@ -1215,6 +1215,8 @@ export const languageKorean = {
     "translatorPrompt": "번역 프롬프트",
     "translateBeforeHTMLFormatting": "HTML 포맷 전 번역",
     "retranslate": "다시 번역",
+    "truncated": "잘림",
+    "truncatedMessage": "이 응답은 자연히 끝나지 않고 토큰 제한으로 잘렸습니다. 메시지가 불완전할 수 있습니다.",
     "editTranslation": "번역 수정",
     "editTranslationSave": "번역 저장",
     "exportTranslationCache": "번역 캐시 내보내기",

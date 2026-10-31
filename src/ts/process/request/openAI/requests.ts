@@ -320,7 +320,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
                 const msg:OpenAIChatFull = (dat.choices[0].message)
                 return {
                     type: 'success',
-                    result: msg.content ?? ''
+                    result: msg.content ?? '',
+                    finishReason: dat.choices[0]?.finish_reason
                 }
             } catch (error) {                    
                 return {
@@ -870,10 +871,11 @@ export async function requestHTTPOpenAI(
             }            
                     
             const result = processTextResponse(dat) ?? ''
-            
+
             return {
                 type: 'success',
-                result: result
+                result: result,
+                finishReason: dat.choices?.[0]?.finish_reason
             }
             
         } catch (error) {                    
@@ -1026,6 +1028,9 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                     if(readed["__tool_calls"]){
                                         chunk["__tool_calls"] = readed["__tool_calls"]
                                     }
+                                    if(readed["__finish_reason"]){
+                                        chunk["__finish_reason"] = readed["__finish_reason"]
+                                    }
                                     control.enqueue(chunk)
                                 }
                                 else{
@@ -1050,6 +1055,9 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                         }
                                         readed["0"] = appendStreamingFragment(readed["0"], chunk)
                                     }
+                                }
+                                if(choice.finish_reason){
+                                    readed["__finish_reason"] = choice.finish_reason
                                 }
                                 // Check for tool calls in the delta
                                 if(choice?.delta?.tool_calls){
@@ -1122,6 +1130,9 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                     }
                     if(readed["__tool_calls"]){
                         chunk["__tool_calls"] = readed["__tool_calls"]
+                    }
+                    if(readed["__finish_reason"]){
+                        chunk["__finish_reason"] = readed["__finish_reason"]
                     }
                     control.enqueue(chunk)
                 }
@@ -1310,8 +1321,12 @@ function wrapToolStream(
                 }
                 
                 lastValue = value
-                
-                controller.enqueue({"0": (prefix ? prefix + '\n\n' : '') + content})
+
+                const chunk:StreamResponseChunk = {"0": (prefix ? prefix + '\n\n' : '') + content}
+                if(value?.['__finish_reason']){
+                    chunk['__finish_reason'] = value['__finish_reason']
+                }
+                controller.enqueue(chunk)
             }
         }
     })

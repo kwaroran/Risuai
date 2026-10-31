@@ -97,7 +97,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 }
                 else{
                     alertError(JSON.stringify(da.data))
-                    return ''
+                    return false
                 }
             }
             else if(da.ok){
@@ -366,7 +366,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 }
                 else{
                     alertError(Buffer.from(da.data).toString())
-                    return ''
+                    return false
                 }
             }
 
@@ -410,7 +410,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
             let res = da?.data?.data?.[0]?.b64_json
             if(!res){
                 alertError(JSON.stringify(da.data))
-                return ''
+                return false
             }
             return `data:image/png;base64,${res}`
         }
@@ -762,7 +762,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
             let res = da?.data?.data?.[0]?.b64_json
             if(!res){
                 alertError(JSON.stringify(da.data))
-                return ''
+                return false
             }
             return `data:image/png;base64,${res}`
         }

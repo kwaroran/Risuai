@@ -20,7 +20,7 @@ import { CharEmotion } from '../../../stores.svelte'
 import { processZip } from '../../processzip'
 import { generateAIImage } from './index'
 
-type Expectation = 'falseOnFailure' | 'falseOnInlayFailure' | 'storesOutsideInlay'
+type Expectation = 'falseOnFailure' | 'storesOutsideInlay'
 
 interface ProviderCase {
   db: Record<string, unknown>
@@ -105,7 +105,7 @@ const cases: Record<string, ProviderCase> = {
     image: 'data:image/png;base64,AAA',
     mockFailure: () => mockGlobalFetch({ data: { error: 'bad' }, ok: false }),
     mockSuccess: () => mockGlobalFetch({ data: { data: [{ b64_json: 'AAA' }] }, ok: true }),
-    todo: ['falseOnFailure', 'falseOnInlayFailure'],
+    todo: ['falseOnFailure'],
   },
   fal: {
     db: {
@@ -164,14 +164,12 @@ const cases: Record<string, ProviderCase> = {
       mockGlobalFetch({ data: bytes('zip'), ok: true })
       vi.mocked(processZip).mockResolvedValue('data:image/png;base64,ZIP')
     },
-    todo: ['falseOnInlayFailure'],
   },
   'openai-compat': {
     db: { openaiCompatImage: { key: 'compat-key', model: 'gpt-image-1', quality: '', size: '', url: 'https://compat.test/images' } },
     image: 'data:image/png;base64,AAA',
     mockFailure: () => mockGlobalFetch({ data: { error: 'bad' }, ok: false }),
     mockSuccess: () => mockGlobalFetch({ data: { data: [{ b64_json: 'AAA' }] }, ok: true }),
-    todo: ['falseOnInlayFailure'],
   },
   stability: {
     db: { stabilityKey: 'stab-key', stabilityModel: 'sd3-large' },
@@ -199,7 +197,6 @@ const cases: Record<string, ProviderCase> = {
     image: 'data:image/png;base64,AAA',
     mockFailure: () => mockGlobalFetch({ data: { error: 'bad' }, ok: false }),
     mockSuccess: () => mockGlobalFetch({ data: { images: ['AAA'] }, ok: true }),
-    todo: ['falseOnInlayFailure'],
   },
 }
 
@@ -245,7 +242,7 @@ describe.each(Object.entries(cases))('%s', (provider, { db, image, mockFailure, 
     expect(get(CharEmotion)[char.chaId]).toEqual([[image, image, NOW]])
   })
 
-  testUnlessTodo('falseOnInlayFailure')('returns false and alerts on failure in inlay mode', async () => {
+  test('returns false and alerts on failure in inlay mode', async () => {
     mockFailure()
 
     expect(await generateAIImage('a cat', char, 'blurry', 'inlay')).toBe(false)

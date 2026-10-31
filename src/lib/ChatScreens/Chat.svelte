@@ -25,6 +25,9 @@
     import PopupButton from "../UI/PopupButton.svelte";
     import PartialEditController from './PartialEditController.svelte';
     import { getLLMCache, setLLMCache } from "../../ts/translator/translator"
+    import { placeMessageActions, type MessageActionId } from "../../ts/messageActions"
+
+    const HOTKEY_ACTIONS:MessageActionId[] = ['translate', 'edit', 'copy', 'remove']
 
     let translating = $state(false)
     let editMode = $state(false)
@@ -266,6 +269,41 @@
 
 
     let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
+
+    function isActionAvailable(action:MessageActionId){
+        switch(action){
+            case 'translate':
+                return DBState.db.translator !== '' && !blankMessage && !isOptimizedStreamingMessage
+            case 'edit':
+                return idx > -1 && !isOptimizedStreamingMessage
+            case 'copy':
+                return DBState.db.useChatCopy && !blankMessage
+            case 'tts': {
+                const char = DBState.db.characters[selIdState.selId]
+                return idx > -1 && char.type !== 'group' && char.ttsMode !== 'none' && !!char.ttsMode
+            }
+            case 'remove':
+                return idx > -1 && !$ConnectionOpenStore
+            case 'bookmark':
+                return idx > -1 && DBState.db.enableBookmark
+            case 'branch':
+            case 'disable':
+            case 'cut':
+                return idx > -1
+        }
+    }
+
+    let actionPlacement = $derived(placeMessageActions({
+        saved: DBState.db.messageActions,
+        narrow: window.innerWidth < 640,
+        editing: editMode,
+    }))
+    let toolbarActions = $derived(actionPlacement.toolbar.filter(isActionAvailable))
+    let menuActions = $derived(actionPlacement.menu.filter(isActionAvailable))
+    // Hotkeys click buttons in the DOM, so these stay rendered even when they aren't shown.
+    let hotkeyOnlyActions = $derived([...actionPlacement.menu, ...actionPlacement.hidden].filter((action) => {
+        return HOTKEY_ACTIONS.includes(action) && isActionAvailable(action)
+    }))
     let displayMessage = $derived(isOptimizedStreamingMessage ? rawStreamingText : message)
     let renderRawStreaming = $derived(isOptimizedStreamingMessage && streamingOptimizationMode === 'strong')
 
@@ -599,23 +637,22 @@
         {:else}
             <span class="text-xs">{statusMessage}</span>
             <div class="flex items-center ml-2 gap-2">
-                {@render translationButton()}
-                {#if window.innerWidth >= 640}
-                    {@render majorIconButtonsBody(false)}
-                    {#if DBState.db.characters[selIdState.selId]}
-                        <PopupButton>
-                            {@render minorIconButtonsBody(true)}
-                        </PopupButton>
-                    {/if}
-                {:else}
-                    {#if DBState.db.characters[selIdState.selId]}
-                        <PopupButton>
-                            {@render majorIconButtonsBody(true)}
-                            {@render minorIconButtonsBody(true)}
-                        </PopupButton>
-                    {:else}
-                        {@render majorIconButtonsBody(false)}
-                    {/if}
+                {#each toolbarActions as action (action)}
+                    {@render messageAction(action, false)}
+                {/each}
+                {#if menuActions.length > 0 && DBState.db.characters[selIdState.selId]}
+                    <PopupButton>
+                        {#each menuActions as action (action)}
+                            {@render messageAction(action, true)}
+                        {/each}
+                    </PopupButton>
+                {/if}
+                {#if hotkeyOnlyActions.length > 0}
+                    <div class="hidden">
+                        {#each hotkeyOnlyActions as action (action)}
+                            {@render messageAction(action, false)}
+                        {/each}
+                    </div>
                 {/if}
                 {@render rerolls()}
 
@@ -624,9 +661,28 @@
     </div>
 {/snippet}
 
+{#snippet rerolls()}
+    {#if rerollIcon || altGreeting}
+        {#if DBState.db.swipe || altGreeting}
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
+                <ArrowLeft size={22}/>
+            </button>
+            {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
+                <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
+            {/if}
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+                <ArrowRight size={22}/>
+            </button>
+        {:else}
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+                <RefreshCcwIcon size={20}/>
+            </button>
+        {/if}
+    {/if}
+{/snippet}
 
-{#snippet majorIconButtonsBody(showNames:boolean)}
-    {#if DBState.db.useChatCopy && !blankMessage}
+{#snippet messageAction(action:MessageActionId, showNames:boolean)}
+    {#if action === 'copy'}
     <button class="flex items-center hover:text-blue-500 transition-colors button-icon-copy" onclick={async ()=>{
         const copyText = renderRawStreaming
             ? risuChatParser(rawStreamingText, {chara: name, chatID: idx, rmVar: true, visualize: true, cbsConditions: getCbsCondition()})
@@ -857,10 +913,8 @@
         {#if showNames}
             <span class="ml-1">{language.copy}</span>
         {/if}
-    </button>    
-{/if}
-{#if idx > -1}
-    {#if DBState.db.characters[selIdState.selId].type !== 'group' && DBState.db.characters[selIdState.selId].ttsMode !== 'none' && (DBState.db.characters[selIdState.selId].ttsMode)}
+    </button>
+    {:else if action === 'tts'}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-tts" onclick={()=>{
             return sayTTS(null, isOptimizedStreamingMessage ? rawStreamingText : message)
         }}>
@@ -869,8 +923,7 @@
                 <span class="ml-1">TTS</span>
             {/if}
         </button>
-    {/if}
-    {#if !$ConnectionOpenStore}
+    {:else if action === 'remove'}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-remove" onclick={(e) => rm(e, false)} use:longpress={(e) => rm(e, true)}>
             <TrashIcon size={20}/>
 
@@ -878,25 +931,19 @@
                 <span class="ml-1">{language.remove}</span>
             {/if}
         </button>
-    {/if}
-{/if}
-{/snippet}
-
-{#snippet translationButton(showNames = false)}
-    {#if DBState.db.translator !== '' && !blankMessage && !isOptimizedStreamingMessage}
+    {:else if action === 'translate'}
         <button
             class={"flex items-center transition-colors button-icon-translate " + (translationViewControlsDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:text-blue-500') + (translated ? ' text-blue-400' : '')}
             class:translating={translating}
             disabled={translationViewControlsDisabled}
             onclick={toggleTranslation}
         >
-            <LanguagesIcon />
+            <LanguagesIcon size={20}/>
             {#if showNames}
-                <span class="ml-1">{language.translate}</span>
+                <span class="ml-1">{language.hotkeyDesc.translate}</span>
             {/if}
         </button>
-    {/if}
-    {#if idx > -1 && !isOptimizedStreamingMessage}
+    {:else if action === 'edit'}
         <button
             class={"flex items-center transition-colors button-icon-edit " + (editMode ? 'text-blue-400 hover:text-blue-500' : originalEditControlDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-500')}
             disabled={originalEditControlDisabled}
@@ -908,32 +955,7 @@
                 <span class="ml-1">{language.edit}</span>
             {/if}
         </button>
-    {/if}
-{/snippet}
-
-{#snippet rerolls()}
-    {#if rerollIcon || altGreeting}
-        {#if DBState.db.swipe || altGreeting}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
-                <ArrowLeft size={22}/>
-            </button>
-            {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
-                <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
-            {/if}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
-                <ArrowRight size={22}/>
-            </button>
-        {:else}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
-                <RefreshCcwIcon size={20}/>
-            </button>
-        {/if}
-    {/if}
-{/snippet}
-
-{#snippet minorIconButtonsBody(showNames:boolean)}
-    
-    {#if DBState.db.enableBookmark}
+    {:else if action === 'bookmark'}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-bookmark {isBookmarked ? 'text-yellow-400' : ''}" onclick={async () => {
             await sleep(1)
             toggleBookmark()
@@ -943,8 +965,7 @@
                 <span class="ml-1">{language.bookmark}</span>
             {/if}
         </button>
-    {/if}
-
+    {:else if action === 'branch'}
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentChat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
@@ -981,7 +1002,7 @@
             <span class="ml-1">{language.branch}</span>
         {/if}
     </button>
-
+    {:else if action === 'disable'}
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentMessage = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx]
@@ -992,7 +1013,7 @@
             <span class="ml-1">{language.disableMessage}</span>
         {/if}
     </button>
-
+    {:else if action === 'cut'}
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentMessage = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx]
@@ -1003,6 +1024,7 @@
             <span class="ml-1">{language.disableAbove}</span>
         {/if}
     </button>
+    {/if}
 {/snippet}
 
 {#snippet senderIcon(options:{rounded?:boolean,styleFix?:string} = {})}

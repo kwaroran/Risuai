@@ -218,5 +218,6 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['pro', 'tools', 'accessibility'],
     },
     { type: 'custom', id: 'acc.customSidebarConfig', componentId: 'CustomSidebarConfig' },
+    { type: 'custom', id: 'acc.messageActions', componentId: 'MessageActionSettings', labelKey: 'messageActions', keywords: ['message', 'button', 'menu', 'toolbar', 'hide'] },
 
 ];

@@ -127,11 +127,14 @@ export async function importCharacterProcess<T extends boolean = false>(f:{
                 charXMode = v.success ? 'skippable' : 'signal'
             }
             else{
-                const rsp = new Response(f.data as any)
-                f.data = new Uint8Array(await rsp.arrayBuffer())
-                const v = await CharXSkippableChecker(f.data)
-                signal = v.hash
-                charXMode = v.success ? 'skippable' : 'signal'
+                try {
+                    const v = await CharXSkippableChecker(f.data)
+                    signal = v.hash
+                    charXMode = v.success ? 'skippable' : 'signal'
+                } catch (error) {
+                    // Only an upload shortcut, so import normally without it
+                    console.error(error)
+                }
             }
         }
         

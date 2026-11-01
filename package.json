@@ -61,6 +61,7 @@
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.2",
     "fflate": "^0.8.3",
+    "hash-wasm": "^4.12.0",
     "highlight.js": "^11.12.0",
     "html-to-image": "^1.11.13",
     "katex": "^0.16.47",

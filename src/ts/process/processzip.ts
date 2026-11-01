@@ -1,5 +1,6 @@
 import { AppendableBuffer, saveAsset, type LocalWriter, type VirtualWriter } from "../globalApi.svelte";
 import * as fflate from "fflate";
+import { createSHA256 } from "hash-wasm";
 import { asBuffer, Semaphore, sleep } from "../util";
 import { alertStore } from "../alert";
 import { hasher } from "../parser/parser.svelte";
@@ -11,6 +12,7 @@ const CHUNK_SIZE_BYTES = 1024 * 1024; // 1MB
 
 // Queue management constants
 const MAX_CONCURRENT_ASSET_SAVES = 10;
+const MAX_PENDING_ASSET_BYTES = 32 * 1024 * 1024; // 32MB
 
 // HTTP status code ranges
 const HTTP_STATUS_OK_MIN = 200;
@@ -175,6 +177,14 @@ export class CharXImporter{
     private errors: Error[] = []
     private onProgress?: (done: number, total: number) => void
 
+    // Bytes of assets queued for saving, and the parser waiting for them to drain
+    private pendingAssetBytes: number = 0
+    private resumeParsing?: () => void
+
+    // Parsing is held back by saving, so only the input size tells how far along it is
+    private inputBytes?: number
+    private savedAssetBytes: number = 0
+
     // Results: filename -> saved asset ID mapping
     assets:{[key:string]:string} = {}
 
@@ -202,7 +212,17 @@ export class CharXImporter{
 
         this.semaphore = new Semaphore(MAX_CONCURRENT_ASSET_SAVES)
         this.onProgress = (done, total) => {
-            if(this.alertInfo){
+            if(!this.alertInfo){
+                return
+            }
+            if(this.inputBytes){
+                alertStore.set({
+                    type: 'progress',
+                    msg: `Loading... (Saving Assets ${done})`,
+                    submsg: Math.min(this.savedAssetBytes / this.inputBytes * 100, 100).toFixed(2)
+                })
+            }
+            else{
                 alertStore.set({
                     type: 'wait',
                     msg: `Loading... (Saving Assets ${done}/${total})`
@@ -219,9 +239,11 @@ export class CharXImporter{
      * - Uint8Array: Automatically converted to stream
      * - File: Uses built-in stream() method
      *
+     * parse() pauses while too many asset bytes are waiting to be saved.
+     *
      * After parse() completes:
      * - cardData and moduleData are immediately available
-     * - Asset saving continues in the background
+     * - The last assets may still be saving in the background
      * - MUST call done() to wait for all assets to finish saving
      *
      * Usage:
@@ -235,6 +257,13 @@ export class CharXImporter{
     async parse(data:Uint8Array|File|ReadableStream<Uint8Array>){
         // Create completion promise at the start of parsing
         this.completionPromise = this.#awaitCompletion()
+
+        if(data instanceof File){
+            this.inputBytes = data.size
+        }
+        else if(data instanceof Uint8Array){
+            this.inputBytes = data.byteLength
+        }
 
         // Convert all input types to ReadableStream for uniform processing
         const stream = this.#toStream(data)
@@ -259,20 +288,38 @@ export class CharXImporter{
     async #feedChunk(data:Uint8Array, final:boolean = false){
         this.unzip.push(data, final)
 
+        // Saving is slower than unzipping, so wait or the whole archive queues up in memory
+        while(this.pendingAssetBytes > MAX_PENDING_ASSET_BYTES){
+            await new Promise<void>((resolve) => {
+                this.resumeParsing = resolve
+            })
+        }
+
         if(final){
-            await this.#finalize()
+            this.#finalize()
         }
     }
 
     /**
-     * Returns a promise that resolves when all assets have been processed.
+     * Returns a promise that resolves when all assets have been processed
+     * and the hash signal, if any, has been saved.
      * Must be called after parse() has been invoked.
      */
     async done(){
         if (!this.completionPromise) {
             throw new Error('parse() must be called before done()')
         }
-        return this.completionPromise
+        await this.completionPromise
+
+        // The signal tells the server every asset exists, so it must come after them
+        if(this.hashSignal){
+            try {
+                await saveAsset(new TextEncoder().encode(this.hashSignal))
+            } catch (error) {
+                // The assets are safe, the next import just cannot skip them
+                console.error(error)
+            }
+        }
     }
 
     #awaitCompletion(): Promise<void> {
@@ -390,6 +437,7 @@ export class CharXImporter{
      */
     async #processAssetQueue(asset:{id:string, data:Uint8Array}){
         this.totalEnqueued += 1
+        this.pendingAssetBytes += asset.data.byteLength
         let acquired = false
         try {
             await this.semaphore.acquire()
@@ -405,6 +453,9 @@ export class CharXImporter{
             if (acquired) {
                 this.semaphore.release()
             }
+            this.pendingAssetBytes -= asset.data.byteLength
+            this.savedAssetBytes += asset.data.byteLength
+            this.resumeParsing?.()
             this.totalCompleted += 1
             this.onProgress?.(this.totalCompleted, this.totalEnqueued)
             this.#checkCompletion()
@@ -413,25 +464,32 @@ export class CharXImporter{
 
     /**
      * Finalizes processing when all ZIP data has been pushed.
-     * Saves hash signal if needed and marks the queue as complete.
+     * Marks the queue as complete.
      */
-    async #finalize(){
-        // Save hash signal for server sync if needed
-        if(this.hashSignal){
-            await saveAsset(new TextEncoder().encode(this.hashSignal))
-        }
-
+    #finalize(){
         this.isFinalized = true
         this.#checkCompletion()
     }
 }
 
 
+async function hashFile(file:File){
+    const sha256 = await createSHA256()
+    const reader = file.stream().getReader()
+    while(true){
+        const {done, value} = await reader.read()
+        if(done){
+            return sha256.digest('hex')
+        }
+        sha256.update(value)
+    }
+}
+
 /**
  * Checks if a CharX file's assets already exist on the server.
  *
  * This optimization allows skipping asset uploads when importing from the hub:
- * 1. Hashes the entire file
+ * 1. Hashes the entire file, reading a File in chunks instead of loading it into memory
  * 2. Double-hashes the hash (for privacy/security)
  * 3. Checks if server has this hash registered
  *
@@ -439,8 +497,8 @@ export class CharXImporter{
  *
  * @returns {success: boolean, hash: string} - Whether assets exist on server, and the file hash
  */
-export async function CharXSkippableChecker(data:Uint8Array){
-    const hashed = await hasher(data)
+export async function CharXSkippableChecker(data:Uint8Array|File){
+    const hashed = data instanceof File ? await hashFile(data) : await hasher(data)
     const reHashed = await hasher(new TextEncoder().encode(hashed))
     const x = await fetch(hubURL + '/rs/assets/' + reHashed + '.png')
     return {

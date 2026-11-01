@@ -2,7 +2,7 @@ import { language } from "src/lang"
 import { alertClear, alertConfirm, alertError, alertModuleSelect, alertNormal, alertStore, alertWait } from "../alert"
 import { getCurrentCharacter, getCurrentChat, getDatabase, setCurrentCharacter, setDatabase, type customscript, type loreBook, type triggerscript } from "../storage/database.svelte"
 import { AppendableBuffer, downloadFile, forageStorage, LocalWriter, readImage, saveAsset, VirtualWriter } from "../globalApi.svelte"
-import { checkPersonaBinded, selectSingleFile, sleep } from "../util"
+import { checkPersonaBinded, selectFileByDom, sleep } from "../util"
 import { v4 } from "uuid"
 import { convertExternalLorebook } from "./lorebook.svelte"
 import { compressImage } from '../media'
@@ -122,38 +122,45 @@ export async function exportModuleLegacy(module:RisuModule, arg:{
     return apb.buffer
 }
 
-export async function readModule(buf:Buffer):Promise<RisuModule> {
+export async function readModule(source:Buffer|File):Promise<RisuModule> {
+    const readChunkBytes = 4 * 1024 * 1024
     let pos = 0
+    let chunk:Uint8Array = source instanceof File ? new Uint8Array(0) : source
+    let chunkStart = 0
 
-    const readLength = () => {
-        const len = buf.readUInt32LE(pos)
-        pos += 4
-        return len
-    }
-    const readByte = () => {
-        const byte = buf.readUInt8(pos)
-        pos += 1
-        return byte
-    }
-    const readData = (len:number) => {
-        const data = buf.subarray(pos, pos + len)
+    const readData = async (len:number) => {
+        if(source instanceof File && pos + len > chunkStart + chunk.length){
+            chunk = new Uint8Array(await source.slice(pos, pos + Math.max(len, readChunkBytes)).arrayBuffer())
+            chunkStart = pos
+        }
+        const data = chunk.subarray(pos - chunkStart, pos - chunkStart + len)
+        if(data.length < len){
+            throw new RangeError("Unexpected end of module data")
+        }
         pos += len
         return data
     }
+    const readByte = async () => {
+        return (await readData(1))[0]
+    }
+    const readLength = async () => {
+        const data = await readData(4)
+        return new DataView(data.buffer, data.byteOffset, 4).getUint32(0, true)
+    }
 
-    if(readByte() !== 111){
+    if(await readByte() !== 111){
         console.error("Invalid magic number")
         alertError(language.errors.noData)
         return
     }
-    if(readByte() !== 0){ //Version check
+    if(await readByte() !== 0){ //Version check
         console.error("Invalid version")
         alertError(language.errors.noData)
         return
     }
 
-    const mainLen = readLength()
-    const mainData = readData(mainLen)
+    const mainLen = await readLength()
+    const mainData = await readData(mainLen)
     const main:{
         type:'risuModule'
         module:RisuModule
@@ -175,26 +182,33 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
 
     type AssetTask = {
         index: number
-        data: Uint8Array
+        offset: number
+        length: number
+        data?: Uint8Array
     }
 
-    const runAssetTasks = async (tasks: AssetTask[]) => {
-        if (tasks.length === 0) {
-            return []
+    const readAssetData = async (task: AssetTask) => {
+        if (source instanceof File) {
+            return new Uint8Array(await source.slice(task.offset, task.offset + task.length).arrayBuffer())
         }
+        return source.subarray(task.offset, task.offset + task.length)
+    }
+
+    const runAssetTasks = async (tasks: AsyncIterable<AssetTask> | AssetTask[]) => {
         const inFlight = new Set<Promise<void>>()
         const failed: AssetTask[] = []
         const runTask = (task: AssetTask) => {
             const promise = (async () => {
                 try {
-                    const decoded = await decodeRPack(task.data)
+                    const decoded = await decodeRPack(task.data ?? await readAssetData(task))
                     if (!module.assets?.[task.index]) {
                         throw new Error(`Missing asset metadata for index ${task.index}`)
                     }
                     module.assets[task.index][1] = await saveAsset(decoded)
                     completed += 1
                 } catch (error) {
-                    failed.push(task)
+                    // Keep only the position, or the data pins its whole read chunk until the retry
+                    failed.push({ index: task.index, offset: task.offset, length: task.length })
                 } finally {
                     alertWait(`Loading... (Adding Assets ${completed} / ${totalAssets})`)
                 }
@@ -203,39 +217,44 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
             promise.finally(() => inFlight.delete(promise))
         }
 
-        for (const task of tasks) {
-            while (inFlight.size >= maxConcurrentAssetSaves) {
-                await Promise.race(inFlight)
+        try {
+            for await (const task of tasks) {
+                while (inFlight.size >= maxConcurrentAssetSaves) {
+                    await Promise.race(inFlight)
+                }
+                runTask(task)
             }
-            runTask(task)
+        } finally {
+            await Promise.all(inFlight)
         }
-
-        await Promise.all(inFlight)
         return failed
     }
 
-    const tasks: AssetTask[] = []
-    let i = 0
-    while(true){
-        const mark = readByte()
-        if(mark === 0){
-            break
+    let invalidMark = false
+    async function* readAssetTasks(): AsyncGenerator<AssetTask> {
+        let index = 0
+        while(true){
+            const mark = await readByte()
+            if(mark === 0){
+                return
+            }
+            if(mark !== 1){
+                invalidMark = true
+                return
+            }
+            const length = await readLength()
+            const offset = pos
+            yield {
+                index: index++,
+                offset,
+                length,
+                data: await readData(length)
+            }
         }
-        if(mark !== 1){
-            alertError(language.errors.noData)
-            return
-        }
-        const len = readLength()
-        const data = readData(len)
-        tasks.push({
-            index: i,
-            data
-        })
-        i++
     }
 
     try {
-        let failed = await runAssetTasks(tasks)
+        let failed = await runAssetTasks(readAssetTasks())
         let retryCount = 0
         while (failed.length > 0 && retryCount < maxRetries) {
             await sleep(retryDelayMs)
@@ -249,6 +268,11 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
         alertClear()
     }
 
+    if(invalidMark){
+        alertError(language.errors.noData)
+        return
+    }
+
     module.id = v4()
     delete module.mcp
     if(module.lowLevelAccess && !(await alertConfirm(language.lowLevelAccessConfirm))){
@@ -258,17 +282,15 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
 }
 
 export async function importModule(){
-    const f = await selectSingleFile(['json', 'lorebook', 'risum', 'charx'])
+    const f = (await selectFileByDom(['json', 'lorebook', 'risum', 'charx'], 'single'))?.[0]
     if(!f){
         return
     }
-    let fileData = f.data
     if(f.name.endsWith('.charx')){
         try {
-            const buf = Buffer.from(fileData)
             const char = await importCharacterProcess({
                 name: f.name,
-                data: buf,
+                data: f,
                 returnCharacter: true
             })
             if(!char || typeof char === 'number'){
@@ -286,8 +308,7 @@ export async function importModule(){
     }
     if(f.name.endsWith('.risum')){
         try {
-            const buf = Buffer.from(fileData)
-            const module = await readModule(buf)
+            const module = await readModule(f)
             DBState.db.modules.push(module)
         } catch (error) {
             console.error(error)
@@ -295,6 +316,7 @@ export async function importModule(){
         }
         return
     }
+    const fileData = new Uint8Array(await f.arrayBuffer())
     try {
         const importData = JSON.parse(Buffer.from(fileData).toString())
         if(importData.type === 'risuModule'){

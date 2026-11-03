@@ -1,6 +1,6 @@
 {
   "name": "hono-risuai-server",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.28.10",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"

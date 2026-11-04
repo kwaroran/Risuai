@@ -633,7 +633,7 @@ API v3.0 implements multiple security layers:
    element.style.color = 'red'
 
    // New (v3.0)
-   element.setStyle('color', 'red')
+   await element.setStyle('color', 'red')
    ```
 
 5. **Use async/await for all API calls:**

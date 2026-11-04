@@ -1212,17 +1212,19 @@ interface ProviderOptions {
 interface EmbeddingIndex {
     /**
      * Adds texts to the embedding index for later similarity search.
-     * Duplicate texts are automatically skipped. Embedding results are cached
-     * across all plugin instances.
+     * Texts already in this index, and duplicates within `texts`, are skipped.
+     * Embedding results are cached across all plugin instances.
+     * Checks the `embedding` permission on every call; does nothing if it is denied.
      * @param texts - Array of text strings to index
      */
     addText(texts: string[]): Promise<void>;
 
     /**
      * Searches the index for texts most similar to the query, returning scored results.
-     * The embedding model used is determined by the user's HypaMemory settings (default: 'auto').
+     * Uses the model chosen in {@link RisuaiPluginAPI.createEmbeddingIndex}.
+     * Checks the `embedding` permission on every call.
      * @param query - The query string to compare against indexed texts
-     * @returns Array of `[text, score]` tuples sorted by descending similarity
+     * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
      */
     similaritySearchScored(query: string): Promise<[string, number][]>;
 }
@@ -2168,7 +2170,7 @@ interface RisuaiPluginAPI {
      * Requires the `embedding` permission (reconfirmed every 3 days).
      *
      * @param query - The query string to search for
-     * @param documents - Array of document strings to index and search against
+     * @param documents - Array of document strings to index and search against (duplicates are indexed once)
      * @param options - Optional configuration
      * @param options.model - Embedding model to use (default: 'auto', uses user's HypaMemory setting)
      *   `'custom'` always uses the custom embedding server configured in the user's settings.

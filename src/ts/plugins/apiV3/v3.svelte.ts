@@ -468,17 +468,43 @@ type SafeMutationCallback = (mutations: SafeClassArray<SafeMutationRecord>) => v
 
 class EmbeddingIndex {
     #processer: HypaProcesser;
+    #checkPermission: () => Promise<boolean>;
+    // HypaProcesser.addText pushes cached vectors without checking what it already holds,
+    // so texts are deduplicated here before they reach it.
+    #indexedTexts = new Set<string>();
     __classType = 'REMOTE_REQUIRED' as const;
 
-    constructor(processer: HypaProcesser) {
+    constructor(processer: HypaProcesser, checkPermission: () => Promise<boolean>) {
         this.#processer = processer;
+        this.#checkPermission = checkPermission;
     }
 
     public async addText(texts: string[]) {
-        await this.#processer.addText(texts);
+        if(!await this.#checkPermission()){
+            return;
+        }
+        const newTexts = [...new Set(texts)].filter((text) => !this.#indexedTexts.has(text));
+        if(newTexts.length === 0){
+            return;
+        }
+        // Reserve before awaiting so concurrent calls with the same text do not both add it.
+        for(const text of newTexts){
+            this.#indexedTexts.add(text);
+        }
+        try {
+            await this.#processer.addText(newTexts);
+        } catch (error) {
+            for(const text of newTexts){
+                this.#indexedTexts.delete(text);
+            }
+            throw error;
+        }
     }
 
     public async similaritySearchScored(query: string): Promise<[string, number][]> {
+        if(!await this.#checkPermission()){
+            return [];
+        }
         return await this.#processer.similaritySearchScored(query);
     }
 }
@@ -1506,7 +1532,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return [];
             }
             const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
-            await processer.addText(documents);
+            await processer.addText([...new Set(documents)]);
             return await processer.similaritySearchScored(query);
         },
         createEmbeddingIndex: async (options?: {
@@ -1517,7 +1543,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 return null;
             }
             const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
-            return new EmbeddingIndex(processer);
+            return new EmbeddingIndex(processer, () => getPermission('embedding', 'periodically'));
         },
         saveSecretHeader: async (key: string, value: string|string[]) => {
             //TODO: Implement server-side secret storage with write-only access for plugins, to enhance security when handling sensitive information like API keys.

@@ -250,6 +250,7 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
     }
 
     module.id = v4()
+    delete module.mcp
     return module
 }
 
@@ -302,6 +303,7 @@ export async function importModule(){
                 return
             }
             importData.id = v4()
+            delete importData.mcp
 
             if(importData.lowLevelAccess){
                 const conf = await alertConfirm(language.lowLevelAccessConfirm)

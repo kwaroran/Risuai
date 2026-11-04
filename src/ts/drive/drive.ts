@@ -1,4 +1,4 @@
-import { alertError, alertInput, alertNormal, alertSelect, alertStore } from "../alert";
+import { alertConfirm, alertError, alertInput, alertNormal, alertSelect, alertStore } from "../alert";
 import { getDatabase, type Database } from "../storage/database.svelte";
 import { forageStorage, getUncleanables, openURL } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
@@ -11,13 +11,20 @@ import { decodeRisuSave, encodeRisuSave } from "../storage/risuSave";
 import { saveKV, saveKVSourceFromData, type SaveKVData } from "../storage/saveKV";
 import { collectColdStorageBackupPayloads, confirmIncompleteColdStorageOperation, getColdStorageBackupName, isValidColdStorageItem, listColdDataKeysFromDb, listPluginStorageColdKeys, pluginStorage, setColdStorageItem } from "../process/coldstorage.svelte";
 
+const driveStateKey = 'risuDriveState'
+
 export async function checkDriver(type:'save'|'load'|'loadtauri'|'savetauri'|'reftoken'){
     const CLIENT_ID = '580075990041-l26k2d3c0nemmqiu3d3aag01npfrkn76.apps.googleusercontent.com';
     const REDIRECT_URI = type === 'reftoken' ? 'https://sv.risuai.xyz/drive' : "https://risuai.xyz/"
     const SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata';
     const encodedRedirectUri = encodeURIComponent(REDIRECT_URI);
-    const authorizationUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodedRedirectUri}&scope=${SCOPE}&response_type=code&state=${type}`;
-    
+    let state:string = type
+    if(type === 'save' || type === 'load'){
+        state = `${type}.${crypto.randomUUID()}`
+        sessionStorage.setItem(driveStateKey, state)
+    }
+    const authorizationUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodedRedirectUri}&scope=${SCOPE}&response_type=code&state=${encodeURIComponent(state)}`;
+
 
     if(type === 'reftoken'){
         const authorizationUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodedRedirectUri}&scope=${SCOPE}&response_type=code&state=${"accesstauri"}&access_type=offline&prompt=consent`;
@@ -58,28 +65,42 @@ export async function checkDriverInit() {
     try {
         const loc = new URLSearchParams(location.search)
         const code = loc.get('code')
-    
+
         if(code){
+            const state = loc.get('state') ?? ''
+            const action = state.split('.')[0]
+            if(action === 'save' || action === 'load'){
+                const expectedState = sessionStorage.getItem(driveStateKey)
+                sessionStorage.removeItem(driveStateKey)
+                const currentURL = new URL(location.href)
+                currentURL.search = ''
+                window.history.replaceState({}, "", currentURL.href)
+                if(!expectedState || state !== expectedState){
+                    alertError(language.driveAuthInvalid)
+                    return false
+                }
+            }
             const res = await fetch(hubURL + `/drive/token?code=${encodeURIComponent(code)}`)
             if(res.status >= 200 && res.status < 300){
                 const json:{
                     access_token:string,
                     expires_in:number
                 } = await res.json()
-                const da = loc.get('state')
-                if(da === 'save'){
-                    await backupDrive(json.access_token)
+                if(action === 'save'){
+                    if(await alertConfirm(language.backupConfirm)){
+                        await backupDrive(json.access_token)
+                    }
                 }
-                else if(da === 'load'){
+                else if(action === 'load'){
                     await loadDrive(json.access_token, 'backup')
                 }
-                else if(da === 'savetauri' || da === 'loadtauri'){
+                else if(state === 'savetauri' || state === 'loadtauri'){
                     alertStore.set({
                         type: 'wait2',
                         msg: `Copy and paste this Auth Code: ${json.access_token}`
                     })
                 }
-                else if(da === 'accesstauri'){
+                else if(state === 'accesstauri'){
                     alertStore.set({
                         type: 'wait2',
                         msg: JSON.stringify(json)

@@ -252,16 +252,36 @@ export class NodeStorage{
             })).json()
 
             if(data.status === 'unset'){
+                const setupToken = new URLSearchParams(location.hash.slice(1)).get('setup')
+                if(!setupToken){
+                    alertError(language.nodeSetupLinkRequired)
+                    await waitAlert()
+                    throw language.nodeSetupLinkRequired
+                }
                 const input = await digestPassword(await alertInput(language.setNodePassword))
-                await fetch('/api/set_password',{
+                const s = await fetch('/api/set_password',{
                     method: "POST",
                     body:JSON.stringify({
-                        password: input 
+                        password: input,
+                        setupToken: setupToken
                     }),
                     headers: {
                         'content-type': 'application/json'
                     }
                 })
+                if(s.status < 200 || s.status >= 300){
+                    let message = `Password setup failed (${s.status})`
+                    try {
+                        const body = await s.json()
+                        if(body?.error){
+                            message = body.error
+                        }
+                    } catch {}
+                    alertError(message)
+                    await waitAlert()
+                    throw message
+                }
+                history.replaceState(null, '', location.pathname + location.search)
                 return await this.createAuth()
             }
             else if(data.status === 'incorrect'){

@@ -705,6 +705,7 @@ export const languageKorean = {
     "backupLoadConfirm2": "정말로, 정말로 백업을 불러오시겠습니까? 현재 데이터가 모두 사라집니다!",
     "pasteAuthCode": "팝업에서 Auth Code를 복사하여 붙여넣기 해 주세요:",
     "driveAuthInvalid": "이 페이지에서 시작하지 않은 Google Drive 로그인이라 무시했습니다. 설정에서 백업 저장/불러오기를 다시 시작해주세요.",
+    "dbWriteConsent": "플러그인 {}이(가) 캐릭터, 채팅, 모듈, 설정 등 데이터베이스를 수정할 권한을 요청하고 있습니다. 허용하시겠습니까?",
     "others": "기타",
     "presets": "프리셋",
     "imageGeneration": "이미지 생성",

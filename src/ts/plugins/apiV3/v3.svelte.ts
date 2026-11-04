@@ -1499,26 +1499,24 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
         },
         similaritySearchScored: async (query: string, documents: string[], options?: {
-            model?: string,
-            customEmbeddingUrl?: string
+            model?: string
         }) => {
             const conf = await getPermission('embedding', 'periodically');
             if(!conf){
                 return [];
             }
-            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto', options?.customEmbeddingUrl);
+            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
             await processer.addText(documents);
             return await processer.similaritySearchScored(query);
         },
         createEmbeddingIndex: async (options?: {
-            model?: string,
-            customEmbeddingUrl?: string
+            model?: string
         }) => {
             const conf = await getPermission('embedding', 'periodically');
             if(!conf){
                 return null;
             }
-            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto', options?.customEmbeddingUrl);
+            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
             return new EmbeddingIndex(processer);
         },
         saveSecretHeader: async (key: string, value: string|string[]) => {

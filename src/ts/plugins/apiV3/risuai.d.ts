@@ -2171,7 +2171,7 @@ interface RisuaiPluginAPI {
      * @param documents - Array of document strings to index and search against
      * @param options - Optional configuration
      * @param options.model - Embedding model to use (default: 'auto', uses user's HypaMemory setting)
-     * @param options.customEmbeddingUrl - Custom embedding server URL (only used when model is 'custom')
+     *   `'custom'` always uses the custom embedding server configured in the user's settings.
      * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
      *
      * @example
@@ -2186,7 +2186,6 @@ interface RisuaiPluginAPI {
      */
     similaritySearchScored(query: string, documents: string[], options?: {
         model?: string;
-        customEmbeddingUrl?: string;
     }): Promise<[string, number][]>;
 
     /**
@@ -2197,7 +2196,7 @@ interface RisuaiPluginAPI {
      *
      * @param options - Optional configuration
      * @param options.model - Embedding model to use (default: 'auto', uses user's HypaMemory setting)
-     * @param options.customEmbeddingUrl - Custom embedding server URL (only used when model is 'custom')
+     *   `'custom'` always uses the custom embedding server configured in the user's settings.
      * @returns An {@link EmbeddingIndex} instance, or null if permission denied
      *
      * @example
@@ -2216,7 +2215,6 @@ interface RisuaiPluginAPI {
      */
     createEmbeddingIndex(options?: {
         model?: string;
-        customEmbeddingUrl?: string;
     }): Promise<EmbeddingIndex | null>;
 }
 

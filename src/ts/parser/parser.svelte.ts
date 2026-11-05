@@ -149,7 +149,7 @@ export function risuEscape(text:string){
     })
 }
 
-function renderMarkdown(md:markdownit, data:string){
+function renderMarkdown(md:markdownit, data:string, inline = false){
     let quotes = ['“', '”', '‘', '’']
     if(DBState.db?.customQuotes){
         quotes = DBState.db.customQuotesData ?? quotes
@@ -176,7 +176,7 @@ function renderMarkdown(md:markdownit, data:string){
             return match
         }
     })
-    let text = risuUnescape(md.render(data.replace(/“|”/g, '"').replace(/‘|’/g, "'")))
+    let text = risuUnescape(md[inline ? 'renderInline' : 'render'](data.replace(/“|”/g, '"').replace(/‘|’/g, "'")))
 
     if(DBState.db?.unformatQuotes){
         text = text.replace(/\uE9b0/gu, quotes[0]).replace(/\uE9b1/gu, quotes[1])
@@ -1872,7 +1872,7 @@ export function applyMarkdownToNode(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent;
         if (text) {
-            let markdown = renderMarkdown(md, text);
+            let markdown = renderMarkdown(md, text, true);
             if (markdown !== text) {
                 const span = document.createElement('span');
                 span.innerHTML = markdown;

@@ -9,7 +9,7 @@ import { sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { decodeRisuSave, encodeRisuSave } from "../storage/risuSave";
 import { saveKV, saveKVSourceFromData, type SaveKVData } from "../storage/saveKV";
-import { collectColdStorageBackupPayloads, confirmIncompleteColdStorageOperation, getColdStorageBackupName, isValidColdStorageItem, listColdDataKeysFromDb, listPluginStorageColdKeys, pluginStorage, setColdStorageItem } from "../process/coldstorage.svelte";
+import { collectColdStorageBackupPayloads, confirmIncompleteColdStorageOperation, getColdStorageBackupName, getColdStorageItem, isValidColdStorageItem, listColdDataKeysFromDb, listPluginStorageColdKeys, pluginStorage, setColdStorageItem } from "../process/coldstorage.svelte";
 
 const driveStateKey = 'risuDriveState'
 
@@ -86,13 +86,19 @@ export async function checkDriverInit() {
                     access_token:string,
                     expires_in:number
                 } = await res.json()
+                //after a failed backup or restore the URL is already cleared,
+                //so return false and let the app finish loading for the user to rerun it
                 if(action === 'save'){
                     if(await alertConfirm(language.backupConfirm)){
-                        await backupDrive(json.access_token)
+                        if(!await backupDrive(json.access_token)){
+                            return false
+                        }
                     }
                 }
                 else if(action === 'load'){
-                    await loadDrive(json.access_token, 'backup')
+                    if(await loadDrive(json.access_token, 'backup') === 'failed'){
+                        return false
+                    }
                 }
                 else if(state === 'savetauri' || state === 'loadtauri'){
                     alertStore.set({
@@ -137,7 +143,24 @@ export function syncDrive() {
 }
 
 
-async function backupDrive(ACCESS_TOKEN:string) {
+/** Returns false if the backup failed; the error is already shown to the user. */
+async function backupDrive(ACCESS_TOKEN:string):Promise<boolean> {
+    try {
+        await backupDriveData(ACCESS_TOKEN)
+        return true
+    } catch (error) {
+        console.error(error)
+        if(error instanceof DriveAuthError){
+            alertError(language.driveTokenExpiredBackup)
+        }
+        else{
+            alertError(language.driveBackupInterrupted(error instanceof Error ? error.message : `${error}`))
+        }
+        return false
+    }
+}
+
+async function backupDriveData(ACCESS_TOKEN:string) {
     alertStore.set({
         type: "wait",
         msg: "Uploading Backup..."
@@ -225,7 +248,23 @@ type DriveFile = {
     id: string
 }
 
-async function loadDrive(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise<void|"noSync"> {
+async function loadDrive(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise<void|"noSync"|"failed"> {
+    if(mode === 'sync'){
+        return await loadDriveData(ACCESS_TOKEN, mode)
+    }
+    try {
+        return await loadDriveData(ACCESS_TOKEN, mode)
+    } catch (error) {
+        if(error instanceof DriveAuthError){
+            console.error(error)
+            alertError(language.driveTokenExpiredRestore)
+            return 'failed'
+        }
+        throw error
+    }
+}
+
+async function loadDriveData(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise<void|"noSync"> {
     if(mode === 'backup'){
         alertStore.set({
             type: "wait",
@@ -431,6 +470,13 @@ async function restoreColdStorageFromDrive(
                 continue
             }
             restored.add(key)
+            //a cold storage key is never rewritten with other data, so an item already on this
+            //device is the same one; skipping it lets a rerun after an interrupted restore continue.
+            //null still downloads, since a missing item also reads as null
+            const existing = await getColdStorageItem(key)
+            if(existing !== null && isValidColdStorageItem(existing, pluginStorageKeys.has(key))){
+                continue
+            }
             const names = new Set([
                 getColdStorageBackupName(key),
                 `coldstorage/${key}.json`,
@@ -458,6 +504,9 @@ async function restoreColdStorageFromDrive(
                     failures.push(key)
                 }
             } catch (error) {
+                if(error instanceof DriveAuthError){
+                    throw error
+                }
                 console.error(`Failed to restore cold storage item ${key}:`, error)
                 failures.push(key)
             }
@@ -494,26 +543,116 @@ function newFormatKeys(name:string) {
     return n + '.bin'
 }
 
-async function getFilesInFolder(ACCESS_TOKEN:string, nextPageToken=''): Promise<DriveFile[]> {
-    const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=300` + nextPageToken;
-    
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-        },
-    });
-    
-    if (response.ok) {
-        const data = await response.json();
-        if(data.nextPageToken){
-            return (data.files as DriveFile[]).concat(await getFilesInFolder(ACCESS_TOKEN, `&pageToken=${data.nextPageToken}`))
-        }
-        return data.files as DriveFile[];
-    } else {
-        throw(`Error: ${response.status}`);
+/** Thrown when Google rejects the access token, usually because it expired. */
+class DriveAuthError extends Error {
+    constructor(message = 'Google Drive access token expired') {
+        super(message)
+        this.name = 'DriveAuthError'
     }
+}
+
+class DriveRequestError extends Error {
+    constructor(readonly status:number, message:string) {
+        super(message)
+        this.name = 'DriveRequestError'
+    }
+}
+
+function retryDelay(attempt:number) {
+    return Math.min(32000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 1000)
+}
+
+/**
+ * Whether a failed response is worth retrying. 429 and rate limit 403 mean
+ * Google turned the request away; a 5xx may come after the request took
+ * effect, so it is only retried when the request is safe to repeat.
+ */
+async function isRetryableResponse(response:Response, repeatable:boolean) {
+    if(response.status === 429){
+        return true
+    }
+    if(response.status >= 500){
+        return repeatable
+    }
+    if(response.status === 403){
+        const text = await response.clone().text().catch(() => '')
+        //reason is userRateLimitExceeded or rateLimitExceeded, message "User rate limit exceeded."
+        return /rate ?limit ?exceeded/i.test(text)
+    }
+    return false
+}
+
+async function driveRequestError(response:Response) {
+    const text = await response.text().catch(() => '')
+    let message = text
+    try {
+        message = JSON.parse(text)?.error?.message ?? text
+    } catch {
+        //not JSON, keep the raw text
+    }
+    return new DriveRequestError(response.status, `Google Drive request failed (${response.status}): ${message}`)
+}
+
+/**
+ * fetch for the Drive API. Retries rate limits with exponential backoff, and
+ * also network errors and server errors when the request is repeatable.
+ * Throws DriveAuthError on 401.
+ *
+ * Set repeatable to false for requests that must not run twice, like
+ * creating a file: a network error or 5xx there may come after Drive already
+ * created it, and sending it again would make a second copy.
+ */
+async function driveFetch(
+    ACCESS_TOKEN:string,
+    url:string,
+    init:Omit<RequestInit, 'headers'> & { headers?: Record<string, string> } = {},
+    { retries = 4, repeatable = true }: { retries?: number, repeatable?: boolean } = {}
+): Promise<Response> {
+    for(let attempt = 0;; attempt++){
+        let response: Response
+        try {
+            response = await fetch(url, {
+                ...init,
+                headers: {
+                    Authorization: `Bearer ${ACCESS_TOKEN}`,
+                    ...init.headers,
+                },
+            })
+        } catch (error) {
+            if(!repeatable || attempt >= retries){
+                throw error
+            }
+            console.warn(`Drive request failed, retrying (${attempt + 1} / ${retries}):`, error)
+            await sleep(retryDelay(attempt))
+            continue
+        }
+        if(response.ok){
+            return response
+        }
+        if(response.status === 401){
+            throw new DriveAuthError()
+        }
+        if(attempt < retries && await isRetryableResponse(response, repeatable)){
+            console.warn(`Drive request returned ${response.status}, retrying (${attempt + 1} / ${retries})`)
+            await sleep(retryDelay(attempt))
+            continue
+        }
+        throw await driveRequestError(response)
+    }
+}
+
+async function getFilesInFolder(ACCESS_TOKEN:string): Promise<DriveFile[]> {
+    const fields = encodeURIComponent('nextPageToken,files(id,name,mimeType)')
+    const files: DriveFile[] = []
+    let pageToken = ''
+    do {
+        const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=1000&fields=${fields}`
+            + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '')
+        const data = await (await driveFetch(ACCESS_TOKEN, url)).json()
+        files.push(...(data.files as DriveFile[] ?? []))
+        pageToken = data.nextPageToken ?? ''
+    } while(pageToken)
+    return files
 }
 
 async function createFileInFolder(accessToken:string, fileName:string, content:Uint8Array, mimeType = 'application/octet-stream') {
@@ -522,33 +661,27 @@ async function createFileInFolder(accessToken:string, fileName:string, content:U
       mimeType: mimeType,
       parents: ["appDataFolder"],
     };
-  
+
     const body = new FormData();
     body.append(
       "metadata",
       new Blob([JSON.stringify(metadata)], { type: "application/json" })
     );
     body.append("file", new Blob([content as any], { type: mimeType }));
-  
-    const response = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+
+    const response = await driveFetch(
+      accessToken,
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
         body: body,
-      }
+      },
+      //an interrupted upload may still have created the file; a rerun of the
+      //backup skips files that already exist, so fail instead of uploading again
+      { repeatable: false }
     );
-  
-    const result = await response.json();
-  
-    if (response.ok) {
-      return result;
-    } else {
-      console.error("Error creating file:", result);
-      throw new Error(result.error.message);
-    }
+
+    return await response.json() as { id: string };
 }
   
 const baseNameRegex = /\\/g
@@ -560,20 +693,6 @@ function getBasename(data:string){
 
 async function getFileData(ACCESS_TOKEN:string,fileId:string) {
     const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-  
-    const request = {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`
-      }
-    };
-  
-    const response = await fetch(url, request);
-  
-    if (response.ok) {
-      const data = new Uint8Array(await response.arrayBuffer());
-      return data;
-    } else {
-        throw "Error in response when reading files in folder"
-    }
-  }
+    const response = await driveFetch(ACCESS_TOKEN, url)
+    return new Uint8Array(await response.arrayBuffer());
+}

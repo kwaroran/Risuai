@@ -37,6 +37,7 @@ import {
     type AfterTTSResult,
     type TTSHookFn,
 } from "src/ts/process/ttsHooks";
+import { HypaProcesser } from "src/ts/process/memory/hypamemory";
 import isEqual from "lodash/isEqual";
 
 /*
@@ -465,6 +466,59 @@ class SafeMutationRecord{
 
 type SafeMutationCallback = (mutations: SafeClassArray<SafeMutationRecord>) => void;
 
+class EmbeddingIndex {
+    #processer: HypaProcesser;
+    #checkPermission: () => Promise<boolean>;
+    // HypaProcesser.addText pushes cached vectors without checking what it already holds,
+    // and can push them before it fails. Texts are deduplicated here, and stay reserved
+    // once their vectors are in the index.
+    #indexedTexts = new Set<string>();
+    __classType = 'REMOTE_REQUIRED' as const;
+
+    constructor(processer: HypaProcesser, checkPermission: () => Promise<boolean>) {
+        this.#processer = processer;
+        this.#checkPermission = checkPermission;
+    }
+
+    public async addText(texts: string[]) {
+        if(!await this.#checkPermission()){
+            return;
+        }
+        if(!Array.isArray(texts) || !texts.every((text) => typeof text === 'string')){
+            throw new Error("texts must be an array of strings");
+        }
+        const newTexts = [...new Set(texts)].filter((text) => !this.#indexedTexts.has(text));
+        if(newTexts.length === 0){
+            return;
+        }
+        // Reserve before awaiting so concurrent calls with the same text do not both add it.
+        for(const text of newTexts){
+            this.#indexedTexts.add(text);
+        }
+        try {
+            await this.#processer.addText(newTexts);
+        } catch (error) {
+            const indexed = new Set(this.#processer.vectors.map((vector) => vector.content));
+            for(const text of newTexts){
+                if(!indexed.has(text)){
+                    this.#indexedTexts.delete(text);
+                }
+            }
+            throw error;
+        }
+    }
+
+    public async similaritySearchScored(query: string): Promise<[string, number][]> {
+        if(!await this.#checkPermission()){
+            return [];
+        }
+        if(typeof query !== 'string'){
+            throw new Error("query must be a string");
+        }
+        return await this.#processer.similaritySearchScored(query);
+    }
+}
+
 class SafeMutationObserver {
     #observer: MutationObserver;
     __classType = 'REMOTE_REQUIRED' as const;
@@ -605,6 +659,7 @@ const permissionConsentTexts: Record<PluginPermission, () => string> = {
     replacer: () => language.replacerPermissionConsent,
     provider: () => language.providerPermissionConsent,
     sendChat: () => language.sendChatConsent,
+    embedding: () => language.embeddingConsent,
     inlay: () => language.inlayPermissionConsent,
 }
 
@@ -1478,6 +1533,29 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     channel: channelName
                 });
             }
+        },
+        similaritySearchScored: async (query: string, documents: string[]) => {
+            const conf = await getPermission('embedding', 'periodically');
+            if(!conf){
+                return [];
+            }
+            if(typeof query !== 'string'){
+                throw new Error("query must be a string");
+            }
+            if(!Array.isArray(documents) || !documents.every((text) => typeof text === 'string')){
+                throw new Error("documents must be an array of strings");
+            }
+            const processer = new HypaProcesser();
+            await processer.addText([...new Set(documents)]);
+            return await processer.similaritySearchScored(query);
+        },
+        createEmbeddingIndex: async () => {
+            const conf = await getPermission('embedding', 'periodically');
+            if(!conf){
+                return null;
+            }
+            const processer = new HypaProcesser();
+            return new EmbeddingIndex(processer, () => getPermission('embedding', 'periodically'));
         },
         saveSecretHeader: async (key: string, value: string|string[]) => {
             //TODO: Implement server-side secret storage with write-only access for plugins, to enhance security when handling sensitive information like API keys.

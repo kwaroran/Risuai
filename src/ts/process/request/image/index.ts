@@ -1,13 +1,14 @@
-import { get } from "svelte/store"
-import { getDatabase, type character } from "../storage/database.svelte"
-import { requestChatData } from "./request/request"
-import { alertError } from "../alert"
-import { fetchNative, globalFetch, readImage } from "../globalApi.svelte"
-import { CharEmotion } from "../stores.svelte"
-import type { OpenAIChat } from "./index.svelte"
-import { processZip } from "./processzip"
-import { keiServerURL } from "../kei/kei"
 import random from "lodash/random"
+import { get } from "svelte/store"
+import { alertError } from "../../../alert"
+import { fetchNative, globalFetch, readImage } from "../../../globalApi.svelte"
+import { getDatabase, type character } from "../../../storage/database.svelte"
+import { CharEmotion } from "../../../stores.svelte"
+import { keiServerURL } from "../../../kei/kei"
+import type { OpenAIChat } from "../../index.svelte"
+import { processZip } from "../../processzip"
+import { requestChatData } from "../request"
+import { applyImageOrientation, type ImageOrientation } from "./applyImageOrientation"
 
 export async function stableDiff(currentChar:character,prompt:string){
     let db = getDatabase()
@@ -96,7 +97,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 }
                 else{
                     alertError(JSON.stringify(da.data))
-                    return ''
+                    return false
                 }
             }
             else if(da.ok){
@@ -365,7 +366,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
                 }
                 else{
                     alertError(Buffer.from(da.data).toString())
-                    return ''
+                    return false
                 }
             }
 
@@ -409,7 +410,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
             let res = da?.data?.data?.[0]?.b64_json
             if(!res){
                 alertError(JSON.stringify(da.data))
-                return ''
+                return false
             }
             return `data:image/png;base64,${res}`
         }
@@ -761,7 +762,7 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
             let res = da?.data?.data?.[0]?.b64_json
             if(!res){
                 alertError(JSON.stringify(da.data))
-                return ''
+                return false
             }
             return `data:image/png;base64,${res}`
         }
@@ -949,32 +950,6 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
     return ''
 }
 
-export type ImageOrientation = 'landscape' | 'portrait'
-
 export interface ImageGenerationOptions {
     orientation?: ImageOrientation
-}
-
-/**
- * Places the longer edge on the width for landscape and on the height for portrait.
- */
-export function applyImageOrientation(width: number, height: number, orientation?: ImageOrientation) {
-    if (!orientation) {
-        return { height, width }
-    }
-
-    const longerEdge = Math.max(height, width)
-    const shorterEdge = Math.min(height, width)
-
-    if (orientation === 'landscape') {
-        return {
-            height: shorterEdge,
-            width: longerEdge,
-        }
-    }
-
-    return {
-        height: longerEdge,
-        width: shorterEdge,
-    }
 }

@@ -343,7 +343,7 @@ Use dedicated methods for standard attributes:
 
 ```javascript
 // For links, use createAnchorElement
-const link = rootDoc.createAnchorElement('https://example.com');
+const link = await rootDoc.createAnchorElement('https://example.com');
 
 // For styles, use style methods
 await element.setStyle('color', 'red');
@@ -1179,7 +1179,9 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
+
+`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 
 ### Fetch Logs
 
@@ -1403,10 +1405,10 @@ Add clear comments and metadata:
     }, async () => {
         const char = await Risuai.getCharacter();
 
-        const rootDoc = Risuai.getRootDocument();
-        const body = rootDoc.querySelector('body');
+        const rootDoc = await Risuai.getRootDocument();
+        const body = await rootDoc.querySelector('body');
 
-        const infoBox = rootDoc.createElement('div');
+        const infoBox = await rootDoc.createElement('div');
         await infoBox.setStyle('position', 'fixed');
         await infoBox.setStyle('top', '50%');
         await infoBox.setStyle('left', '50%');
@@ -1609,7 +1611,7 @@ await element.setInnerHTML('<script>alert("XSS")</script>');
 // Result: empty element (script removed)
 
 // Use event listeners instead
-const button = rootDoc.createElement('button');
+const button = await rootDoc.createElement('button');
 await button.setTextContent('Click Me');
 await button.addEventListener('click', async () => {
   console.log('Button clicked!');
@@ -1622,15 +1624,15 @@ await button.addEventListener('click', async () => {
 
 ```javascript
 // L Wrong - these are separate contexts
-const rootDoc = Risuai.getRootDocument();
-rootDoc.querySelector('#my-iframe-element'); // Won't find it
+const rootDoc = await Risuai.getRootDocument();
+await rootDoc.querySelector('#my-iframe-element'); // Won't find it
 
 //  Correct - access each separately
 // Your iframe's DOM:
 document.getElementById('my-iframe-element');
 
 // Risuai's main DOM:
-const rootDoc = Risuai.getRootDocument();
+const rootDoc = await Risuai.getRootDocument();
 await rootDoc.querySelector('.Risuai-element');
 ```
 

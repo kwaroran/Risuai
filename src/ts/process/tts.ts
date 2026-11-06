@@ -254,7 +254,7 @@ export async function sayTTS(character:character,text:string) {
                     if(character.hfTTS.language !== 'en'){
                         text = await runTranslator(text, false, 'en', character.hfTTS.language)
                     }
-                    const response = await fetch(`https://api-inference.huggingface.co/models/${character.hfTTS.model}`, {
+                    const response = await fetch(`https://router.huggingface.co/hf-inference/models/${character.hfTTS.model}`, {
                         method: 'POST',
                         headers: {
                             "Authorization": "Bearer " + db.huggingfaceKey,

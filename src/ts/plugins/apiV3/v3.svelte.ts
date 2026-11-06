@@ -470,7 +470,8 @@ class EmbeddingIndex {
     #processer: HypaProcesser;
     #checkPermission: () => Promise<boolean>;
     // HypaProcesser.addText pushes cached vectors without checking what it already holds,
-    // so texts are deduplicated here before they reach it.
+    // and can push them before it fails. Texts are deduplicated here, and stay reserved
+    // once their vectors are in the index.
     #indexedTexts = new Set<string>();
     __classType = 'REMOTE_REQUIRED' as const;
 
@@ -483,6 +484,9 @@ class EmbeddingIndex {
         if(!await this.#checkPermission()){
             return;
         }
+        if(!Array.isArray(texts) || !texts.every((text) => typeof text === 'string')){
+            throw new Error("texts must be an array of strings");
+        }
         const newTexts = [...new Set(texts)].filter((text) => !this.#indexedTexts.has(text));
         if(newTexts.length === 0){
             return;
@@ -494,8 +498,6 @@ class EmbeddingIndex {
         try {
             await this.#processer.addText(newTexts);
         } catch (error) {
-            // HypaProcesser.addText may have already pushed cached vectors before failing.
-            // Keep those reserved so a retry does not add them twice.
             const indexed = new Set(this.#processer.vectors.map((vector) => vector.content));
             for(const text of newTexts){
                 if(!indexed.has(text)){
@@ -509,6 +511,9 @@ class EmbeddingIndex {
     public async similaritySearchScored(query: string): Promise<[string, number][]> {
         if(!await this.#checkPermission()){
             return [];
+        }
+        if(typeof query !== 'string'){
+            throw new Error("query must be a string");
         }
         return await this.#processer.similaritySearchScored(query);
     }
@@ -1533,6 +1538,12 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             const conf = await getPermission('embedding', 'periodically');
             if(!conf){
                 return [];
+            }
+            if(typeof query !== 'string'){
+                throw new Error("query must be a string");
+            }
+            if(!Array.isArray(documents) || !documents.every((text) => typeof text === 'string')){
+                throw new Error("documents must be an array of strings");
             }
             const processer = new HypaProcesser();
             await processer.addText([...new Set(documents)]);

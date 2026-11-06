@@ -1213,9 +1213,10 @@ interface EmbeddingIndex {
     /**
      * Adds texts to the embedding index for later similarity search.
      * Texts already in this index, and duplicates within `texts`, are skipped.
-     * Embedding results are cached across all plugin instances.
+     * Embeddings share a cache with the app's other embedding features.
      * Checks the `embedding` permission on every call; does nothing if it is denied.
      * @param texts - Array of text strings to index
+     * @throws Error if `texts` is not an array of strings
      */
     addText(texts: string[]): Promise<void>;
 
@@ -1225,6 +1226,7 @@ interface EmbeddingIndex {
      * Checks the `embedding` permission on every call.
      * @param query - The query string to compare against indexed texts
      * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
+     * @throws Error if `query` is not a string
      */
     similaritySearchScored(query: string): Promise<[string, number][]>;
 }
@@ -2163,9 +2165,11 @@ interface RisuaiPluginAPI {
 
     /**
      * Performs a one-shot similarity search: indexes the given documents,
-     * then searches for the most similar ones to the query. Stateless —
-     * documents are re-embedded on every call. For repeated queries against
-     * the same document set, use {@link createEmbeddingIndex} instead.
+     * then searches for the most similar ones to the query. Documents are not
+     * kept between calls; their embeddings are cached, but each call loads them
+     * again. For repeated queries against the same document set, use
+     * {@link createEmbeddingIndex} instead.
+     *
      * Uses the user's embedding model setting, like Lua `similarity`.
      *
      * Requires the `embedding` permission (reconfirmed every 3 days).
@@ -2173,6 +2177,7 @@ interface RisuaiPluginAPI {
      * @param query - The query string to search for
      * @param documents - Array of document strings to index and search against (duplicates are indexed once)
      * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
+     * @throws Error if `query` is not a string or `documents` is not an array of strings
      *
      * @example
      * ```typescript

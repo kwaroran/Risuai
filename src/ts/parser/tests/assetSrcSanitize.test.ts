@@ -1,6 +1,15 @@
+// @vitest-environment jsdom
+// DOMPurify does not support happy-dom. Since 3.4.8 it reads tag names through
+// the Node.prototype.nodeName getter, which returns '' on happy-dom elements, so
+// every element is stripped (https://github.com/capricorn86/happy-dom/issues/2182).
 import { describe, it, expect, vi } from 'vitest'
 import { writable } from 'svelte/store'
 import { ParseMarkdown, trimMarkdown } from '../parser.svelte'
+
+// jsdom has no matchMedia, which platform.ts calls at import time
+vi.hoisted(() => {
+    window.matchMedia ??= ((query: string) => ({ matches: false, media: query })) as any
+})
 
 //#region module mocks
 

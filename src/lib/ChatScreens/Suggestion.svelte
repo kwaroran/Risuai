@@ -6,13 +6,14 @@
     import { selectedCharID } from "../../ts/stores.svelte";
     import { isTauri } from 'src/ts/platform';
     import { translate } from "src/ts/translator/translator";
-    import { CopyIcon, LanguagesIcon, RefreshCcwIcon } from "@lucide/svelte";
+    import { CornerDownLeft, LanguagesIcon, RefreshCcwIcon } from "@lucide/svelte";
     import { alertConfirm } from "src/ts/alert";
     import { language } from "src/lang";
     import { getUserName, replacePlaceholders } from "../../ts/util";
     import { onDestroy } from 'svelte';
     import { ParseMarkdown } from "src/ts/parser/parser.svelte";
     import {defaultAutoSuggestPrompt} from "../../ts/storage/defaultPrompts.js";
+    import { tooltip } from "src/ts/gui/tooltip";
 
     interface Props {
         send: () => any;
@@ -157,15 +158,15 @@
     $effect.pre(() => {translateSuggest(toggleTranslate, suggestMessages)});
 </script>
 
-<div class="ml-4 flex flex-wrap">
+<div class="mx-4 mb-2 flex min-w-0 flex-col gap-2">
     {#if progress}
-        <div class="flex bg-textcolor2 p-2 rounded-lg items-center">
+        <div class="flex self-start bg-textcolor2 p-2 rounded-lg items-center">
             <div class="loadmove mx-2"></div>
             <div>{language.creatingSuggestions}</div>
         </div>        
     {:else if !$doingChat}
-        {#if DBState.db.translator !== ''}
-            <div class="flex mr-2 mb-2">
+        <div class="flex gap-2">
+            {#if DBState.db.translator !== ''}
                 <button class={"bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-sm " + (toggleTranslate ? 'text-green-500' : 'text-textcolor')}
                     onclick={() => {
                         toggleTranslate = !toggleTranslate
@@ -173,11 +174,7 @@
                 >
                     <LanguagesIcon/>
                 </button>
-            </div>    
-        {/if}
-        
-
-        <div class="flex mr-2 mb-2">
+            {/if}
             <button class="bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-sm text-textcolor"
                 onclick={() => {
                     alertConfirm(language.askReRollAutoSuggestions).then((result) => {
@@ -193,8 +190,8 @@
             </button>
         </div>
         {#each suggestMessages??[] as suggest, i}
-            <div class="flex mr-2 mb-2">
-                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-sm" onclick={() => {
+            <div class="flex w-full min-w-0 gap-1">
+                <button class="suggestion-text min-w-0 flex-1 bg-textcolor2 hover:bg-darkbutton text-textcolor text-left font-normal wrap-anywhere py-2 px-4 rounded-sm" onclick={() => {
                     suggestMessages = []
                     messageInput(suggest)
                     send()
@@ -203,10 +200,10 @@
                     {@html md}
                 {/await}
                 </button>
-                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-sm ml-1" onclick={() => {
+                <button class="shrink-0 bg-textcolor2 hover:bg-darkbutton text-textcolor py-2 px-4 rounded-sm" use:tooltip={language.insertSuggestionToInput} aria-label={language.insertSuggestionToInput} onclick={() => {
                     messageInput(suggest)
                 }}>
-                    <CopyIcon/>
+                    <CornerDownLeft aria-hidden="true"/>
                 </button>
             </div>
         {/each}

@@ -769,6 +769,7 @@ export const languageVietnamese = {
     "advanced": "Trình độ cao",
     "askReRollAutoSuggestions": "Đề xuất tự động cuộn lại",
     "creatingSuggestions": "Đang tạo đề xuất...",
+    "insertSuggestionToInput": "Điền vào ô nhập liệu",
     "orderByOrder": "Nói chuyện theo thứ tự",
     "removeFromGroup": "Bạn có thực sự muốn xóa {{char}} khỏi nhóm không?",
     "talkness": "tính nói nhiều",

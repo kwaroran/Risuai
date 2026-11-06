@@ -176,9 +176,6 @@ importers:
       postcss-selector-parser:
         specifier: ^7.1.7
         version: 7.1.7
-      pyodide:
-        specifier: ^0.27.8
-        version: 0.27.8
       rfdc:
         specifier: ^1.4.1
         version: 1.4.1
@@ -2632,10 +2629,6 @@ packages:
   pure-rand@8.4.2:
     resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
 
-  pyodide@0.27.8:
-    resolution: {integrity: sha512-XDy8yQAloO0fSaJ6F5aQad0IqcBKvU4MgGjN3LrjOPW6J4xHT5PBiBzCnApxjuerWl33BiyuPQG1uIHHAQnkkg==}
-    engines: {node: '>=18.0.0'}
-
   qs@6.16.2:
     resolution: {integrity: sha512-VYdnB5S7/0IeXzBacUtwNAaM6d7Y/PgYnNC7bJCI6meqA/OgnsQbZMtVW8Dt2D1PHgbHGtYmhSoEIgvt7xZ2ZA==}
     engines: {node: '>=0.6'}
@@ -5041,13 +5034,6 @@ snapshots:
   punycode@2.3.1: {}
 
   pure-rand@8.4.2: {}
-
-  pyodide@0.27.8:
-    dependencies:
-      ws: 8.22.1
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   qs@6.16.2:
     dependencies:

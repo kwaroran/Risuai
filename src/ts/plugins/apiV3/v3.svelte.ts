@@ -1519,6 +1519,8 @@ export async function executePluginV3(plugin:RisuPlugin){
 
     const iframe = document.createElement('iframe');
     iframe.style.display = "none";
+    // Shown in the DevTools console context selector instead of "about:srcdoc"
+    iframe.name = plugin.name;
     document.body.appendChild(iframe);
     const host = new SandboxHost(makeRisuaiAPIV3(iframe, plugin));
     v3PluginInstances.push({

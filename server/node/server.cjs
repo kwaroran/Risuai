@@ -123,7 +123,7 @@ const loginRouteLimiter = rateLimit({
     message: { error: 'Too many attempts. Please wait and try again later.' }
 });
 function isHex(str) {
-    return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
+    return hexRegex.test(str.toUpperCase().trim());
 }
 
 async function hashJSON(json){

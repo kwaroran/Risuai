@@ -14,9 +14,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "src-python/*"
-    ],
     "targets": ["deb", "rpm", "appimage", "nsis", "app", "dmg"],
     "createUpdaterArtifacts": true,
     "fileAssociations": [
@@ -29,7 +26,7 @@
   },
   "productName": "RisuAI",
   "mainBinaryName": "RisuAI",
-  "version": "2026.10.292",
+  "version": "2026.10.294",
   "identifier": "co.aiclient.risu",
   "plugins": {
     "updater": {

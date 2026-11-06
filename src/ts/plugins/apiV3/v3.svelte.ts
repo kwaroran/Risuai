@@ -37,7 +37,7 @@ import {
     type AfterTTSResult,
     type TTSHookFn,
 } from "src/ts/process/ttsHooks";
-import { HypaProcesser, type HypaModel } from "src/ts/process/memory/hypamemory";
+import { HypaProcesser } from "src/ts/process/memory/hypamemory";
 import isEqual from "lodash/isEqual";
 
 /*
@@ -494,8 +494,13 @@ class EmbeddingIndex {
         try {
             await this.#processer.addText(newTexts);
         } catch (error) {
+            // HypaProcesser.addText may have already pushed cached vectors before failing.
+            // Keep those reserved so a retry does not add them twice.
+            const indexed = new Set(this.#processer.vectors.map((vector) => vector.content));
             for(const text of newTexts){
-                this.#indexedTexts.delete(text);
+                if(!indexed.has(text)){
+                    this.#indexedTexts.delete(text);
+                }
             }
             throw error;
         }
@@ -1524,25 +1529,21 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 });
             }
         },
-        similaritySearchScored: async (query: string, documents: string[], options?: {
-            model?: string
-        }) => {
+        similaritySearchScored: async (query: string, documents: string[]) => {
             const conf = await getPermission('embedding', 'periodically');
             if(!conf){
                 return [];
             }
-            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
+            const processer = new HypaProcesser();
             await processer.addText([...new Set(documents)]);
             return await processer.similaritySearchScored(query);
         },
-        createEmbeddingIndex: async (options?: {
-            model?: string
-        }) => {
+        createEmbeddingIndex: async () => {
             const conf = await getPermission('embedding', 'periodically');
             if(!conf){
                 return null;
             }
-            const processer = new HypaProcesser((options?.model || 'auto') as HypaModel | 'auto');
+            const processer = new HypaProcesser();
             return new EmbeddingIndex(processer, () => getPermission('embedding', 'periodically'));
         },
         saveSecretHeader: async (key: string, value: string|string[]) => {

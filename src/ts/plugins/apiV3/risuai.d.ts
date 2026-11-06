@@ -1221,7 +1221,7 @@ interface EmbeddingIndex {
 
     /**
      * Searches the index for texts most similar to the query, returning scored results.
-     * Uses the model chosen in {@link RisuaiPluginAPI.createEmbeddingIndex}.
+     * Uses the user's embedding model from when the index was created.
      * Checks the `embedding` permission on every call.
      * @param query - The query string to compare against indexed texts
      * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
@@ -2166,14 +2166,12 @@ interface RisuaiPluginAPI {
      * then searches for the most similar ones to the query. Stateless —
      * documents are re-embedded on every call. For repeated queries against
      * the same document set, use {@link createEmbeddingIndex} instead.
+     * Uses the user's embedding model setting, like Lua `similarity`.
      *
      * Requires the `embedding` permission (reconfirmed every 3 days).
      *
      * @param query - The query string to search for
      * @param documents - Array of document strings to index and search against (duplicates are indexed once)
-     * @param options - Optional configuration
-     * @param options.model - Embedding model to use (default: 'auto', uses user's HypaMemory setting)
-     *   `'custom'` always uses the custom embedding server configured in the user's settings.
      * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
      *
      * @example
@@ -2186,19 +2184,16 @@ interface RisuaiPluginAPI {
      * // results: [['A fluffy kitten...', 0.85], ['A small cat...', 0.82], ['A large dog...', 0.45]]
      * ```
      */
-    similaritySearchScored(query: string, documents: string[], options?: {
-        model?: string;
-    }): Promise<[string, number][]>;
+    similaritySearchScored(query: string, documents: string[]): Promise<[string, number][]>;
 
     /**
      * Creates a stateful embedding index that persists across multiple calls.
      * Use this when you need to add documents once and search many times.
      *
+     * Uses the user's embedding model setting at the time it is created.
+     *
      * Requires the `embedding` permission (reconfirmed every 3 days).
      *
-     * @param options - Optional configuration
-     * @param options.model - Embedding model to use (default: 'auto', uses user's HypaMemory setting)
-     *   `'custom'` always uses the custom embedding server configured in the user's settings.
      * @returns An {@link EmbeddingIndex} instance, or null if permission denied
      *
      * @example
@@ -2215,9 +2210,7 @@ interface RisuaiPluginAPI {
      * const results = await index.similaritySearchScored('cute cat');
      * ```
      */
-    createEmbeddingIndex(options?: {
-        model?: string;
-    }): Promise<EmbeddingIndex | null>;
+    createEmbeddingIndex(): Promise<EmbeddingIndex | null>;
 }
 
 // ============================================================================

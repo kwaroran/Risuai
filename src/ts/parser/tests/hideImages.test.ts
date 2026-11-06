@@ -1,7 +1,16 @@
+// @vitest-environment jsdom
+// DOMPurify 3.4.8+ strips every element on happy-dom, see assetSrcSanitize.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import { writable } from 'svelte/store'
 import { ParseMarkdown, trimMarkdown } from '../parser.svelte'
+
+// jsdom has no matchMedia, which platform.ts calls at import time
+vi.hoisted(() => {
+    window.matchMedia ??= ((query: string) => ({ matches: false, media: query })) as any
+})
+
 import { applyHiddenImageTheme, hiddenImageDataUri, hiddenImageSrc, hideCssImageUrls, hideStyleSheetImages, renderHiddenImageSvg } from '../hideImages'
+import { DBState } from '../../stores.svelte'
 
 //#region module mocks
 
@@ -45,7 +54,8 @@ vi.mock(import('../../stores.svelte'), () => {
 
 //#endregion
 
-const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html').body
+// The explicit <body> keeps a leading <style> in the body, as in trimMarkdownStyle.test.ts
+const parse = (html: string) => new DOMParser().parseFromString(`<body>${html}`, 'text/html').body
 const placeholderUrl = `url("${hiddenImageSrc}")`
 const leaked = 'https://example.com/leak.png'
 
@@ -70,6 +80,29 @@ describe('hideStyleSheetImages', () => {
         const out = hideStyleSheetImages(`@font-face{font-family:x;src:url(x.woff2)}.a{cursor:url(c.png),auto;background:url(${leaked})}`)
         expect(out).toContain('url(x.woff2)')
         expect(out).toContain('url(c.png)')
+        expect(out).not.toContain(leaked)
+    })
+
+    it('keeps fonts and imports when the sheet does not parse', () => {
+        // the missing '}' makes css.parse throw, so the text fallback runs
+        const out = hideStyleSheetImages(`@import url("a.css");@font-face{font-family:x;src:url(x.woff2)}.a{background:url(${leaked})`)
+        expect(out).toContain('@import url("a.css");')
+        expect(out).toContain('src:url(x.woff2)')
+        expect(out).not.toContain(leaked)
+    })
+
+    it('does not let braces, quotes or comments inside an unquoted url shield urls in the fallback', () => {
+        const preludes = ['@import url(a{.css);', '@import url(a"b.css);', '@import url(a/*.css);', '@font-face{src:url(a}b.woff)}']
+        for(const prelude of preludes){
+            const out = hideStyleSheetImages(`${prelude}.a{background:url(${leaked})}.b{content:"}";color:blue`)
+            expect(out.startsWith(prelude)).toBe(true)
+            expect(out).not.toContain(leaked)
+        }
+    })
+
+    it('does not let a quoted @import shield urls in the fallback', () => {
+        const out = hideStyleSheetImages(`.a{content:"@import";background:url(${leaked})`)
+        expect(out).toContain('content:"@import"')
         expect(out).not.toContain(leaked)
     })
 
@@ -112,6 +145,15 @@ describe('ParseMarkdown with hideAllImages', () => {
         expect(body.innerHTML).not.toContain(leaked)
     })
 
+    it('keeps the plain placeholder path in pretranslate output', async () => {
+        // pretranslate output is the translation input and cache key
+        const out = await ParseMarkdown(`<img src="${leaked}">`, null, 'pretranslate')
+        expect(parse(out).querySelector('img').getAttribute('src')).toBe(hiddenImageSrc)
+        expect(out).not.toContain('data:image/svg+xml')
+        // the display pass themes it
+        expect(parse(trimMarkdown(out)).querySelector('img').getAttribute('src')).toBe(hiddenImageDataUri())
+    })
+
     it('replaces svg images and video posters', async () => {
         const body = await render(`<svg><image href="${leaked}" width="10" height="10"></image></svg><video poster="${leaked}"></video>`)
         expect(body.innerHTML).not.toContain(leaked)
@@ -147,15 +189,58 @@ describe('hidden image theming', () => {
         expect(svg).toContain('fill="#21222c"')
     })
 
-    it('swaps every placeholder path in attributes and style text', () => {
-        const html = `<img src="${hiddenImageSrc}"><div style="background:url(&quot;${hiddenImageSrc}&quot;)"></div><style>.a{background:url("${hiddenImageSrc}")}</style>`
-        const out = applyHiddenImageTheme(html, { darkbg: '#abcdef' })
-        expect(out).not.toContain(hiddenImageSrc)
-        const body = parse(out)
-        const src = body.querySelector('img').getAttribute('src')
+    it('leaves links and text that only contain the path alone', () => {
+        const cases = [
+            `<a href="https://cdn.example${hiddenImageSrc}">https://cdn.example${hiddenImageSrc}</a>`,
+            `<p>${hiddenImageSrc}</p>`,
+            `<p>url("${hiddenImageSrc}") src="${hiddenImageSrc}"</p>`,
+            `<a href="https://x.example/?image=&quot;${hiddenImageSrc}&quot;">x</a>`,
+        ]
+        for(const html of cases){
+            const out = trimMarkdown(html)
+            expect(out).not.toContain('data:image/svg+xml')
+            expect(parse(out).innerHTML).toBe(parse(trimMarkdown(html, undefined, { themeHiddenImages: false })).innerHTML)
+        }
+    })
+
+    it('themes every css url form that references the placeholder', () => {
+        const forms = [
+            `url('${hiddenImageSrc}')`,
+            `url(${hiddenImageSrc})`,
+            `URL( "${hiddenImageSrc}" )`,
+        ]
+        for(const form of forms){
+            const attr = form.replaceAll('"', '&quot;')
+            const body = parse(trimMarkdown(`<div style="background:${attr}"></div><style>.a{background:${form}}</style>`))
+            expect(body.querySelector('div').getAttribute('style')).toContain(hiddenImageDataUri())
+            expect(body.querySelector('style').textContent).toContain(hiddenImageDataUri())
+            expect(body.innerHTML).not.toContain(`${hiddenImageSrc}`)
+        }
+    })
+
+    it('does not theme anything while hideAllImages is off', () => {
+        DBState.db.hideAllImages = false
+        try {
+            const out = trimMarkdown(`<p>${hiddenImageSrc}</p><img src="${hiddenImageSrc}">`)
+            expect(out).not.toContain('data:image/svg+xml')
+            const body = parse(out)
+            expect(body.querySelector('p').textContent).toBe(hiddenImageSrc)
+            expect(body.querySelector('img').getAttribute('src')).toBe(hiddenImageSrc)
+        } finally {
+            DBState.db.hideAllImages = true
+        }
+    })
+
+    it('swaps the placeholder in image attributes, style attributes and style text', () => {
+        const root = parse(`<img src="${hiddenImageSrc}"><video poster="${hiddenImageSrc}"></video><svg><image href="${hiddenImageSrc}"></image></svg><div style="background:url(&quot;${hiddenImageSrc}&quot;)"></div><style>.a{background:url("${hiddenImageSrc}")}</style>`)
+        applyHiddenImageTheme(root, { darkbg: '#abcdef' })
+        expect(root.innerHTML).not.toContain(hiddenImageSrc)
+        const src = root.querySelector('img').getAttribute('src')
         expect(src.startsWith('data:image/svg+xml,')).toBe(true)
         expect(decodeURIComponent(src)).toContain('#abcdef')
-        expect(body.querySelector('div').getAttribute('style')).toContain(src)
-        expect(body.querySelector('style').textContent).toContain(src)
+        expect(root.querySelector('video').getAttribute('poster')).toBe(src)
+        expect(root.querySelector('image').getAttribute('href')).toBe(src)
+        expect(root.querySelector('div').getAttribute('style')).toContain(src)
+        expect(root.querySelector('style').textContent).toContain(src)
     })
 })

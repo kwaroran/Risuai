@@ -72,14 +72,6 @@ export function hiddenImageDataUri(colors?:HiddenImageColors){
     return cachedDataUri
 }
 
-/** Swaps the placeholder path in rendered HTML for one drawn in `colors`. */
-export function applyHiddenImageTheme(html:string, colors?:HiddenImageColors){
-    if(!html.includes(hiddenImageSrc)){
-        return html
-    }
-    return html.replaceAll(hiddenImageSrc, hiddenImageDataUri(colors))
-}
-
 // 1x1 transparent gif used as a spacer, not real content
 const transparentGifPrefix = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP'
 
@@ -160,6 +152,70 @@ export function hideCssImageUrls(value:string){
     return out + value.slice(last)
 }
 
+/** Points every url() in `cssText` that references the placeholder at `uri`. */
+function themeCssHiddenImages(cssText:string, uri:string){
+    const regex = /(?<![\w-])url\(/gi
+    let out = ''
+    let last = 0
+    let match:RegExpExecArray | null
+    while((match = regex.exec(cssText))){
+        const open = match.index + match[0].length
+        let close = findClosingParen(cssText, open)
+        if(close === -1){
+            close = cssText.length
+        }
+        regex.lastIndex = close + 1
+        const arg = cssText.slice(open, close).trim().replace(/^(['"])(.*)\1$/s, '$2').trim()
+        if(arg !== hiddenImageSrc){
+            continue
+        }
+        out += cssText.slice(last, match.index) + `url("${uri}")`
+        last = close + 1
+    }
+    return out + cssText.slice(last)
+}
+
+// attributes hideAttributeImage, hideElementImages and asset parsing point at the placeholder
+const hiddenImageAttributes = new Set(['src', 'poster', 'background'])
+const hiddenImageHrefTags = new Set(['image', 'feimage'])
+
+/**
+ * Swaps placeholder references under `root` for a copy drawn in `colors`.
+ * Works on the DOM, so only image attributes, style attributes and <style>
+ * text are touched; text and links that merely mention the path stay as they
+ * are. Display-only: the data URI is large and follows the color scheme, so
+ * it must stay out of anything stored or compared, like translation cache keys.
+ */
+export function applyHiddenImageTheme(root:ParentNode, colors?:HiddenImageColors){
+    let uri = ''
+    const getUri = () => uri ||= hiddenImageDataUri(colors)
+    for(const el of Array.from(root.querySelectorAll('*'))){
+        const tag = el.localName.toLowerCase()
+        if(tag === 'style'){
+            const text = el.textContent ?? ''
+            if(text.includes(hiddenImageSrc)){
+                el.textContent = themeCssHiddenImages(text, getUri())
+            }
+            continue
+        }
+        for(const attr of Array.from(el.attributes)){
+            if(!attr.value.includes(hiddenImageSrc)){
+                continue
+            }
+            const name = attr.name.toLowerCase()
+            if(name === 'style'){
+                attr.value = themeCssHiddenImages(attr.value, getUri())
+            }
+            else if(attr.value.trim() === hiddenImageSrc && (
+                hiddenImageAttributes.has(name)
+                || ((name === 'href' || name === 'xlink:href') && hiddenImageHrefTags.has(tag))
+            )){
+                attr.value = getUri()
+            }
+        }
+    }
+}
+
 type CssWalkNode = {
     type: string
     property?: string
@@ -205,7 +261,142 @@ export function hideStyleSheetImages(text:string){
         return css.stringify(ast, { indent: '', compress: true })
     } catch {
         // Unparsable CSS is still applied by the browser as far as it can be,
-        // so fall back to replacing every url outright.
-        return hideCssImageUrls(text)
+        // so fall back to replacing urls outright, outside fonts and imports.
+        return hideUnparsedStyleSheetImages(text)
     }
+}
+
+/**
+ * If a CSS string, comment or unquoted url() token starts at `i`, returns the
+ * index just past it, otherwise -1. Follows the CSS tokenizer where it matters
+ * for the scans below: an unquoted url ends only at ')', so quotes, braces and
+ * '/*' inside it mean nothing, and a string ends at an unescaped newline. A
+ * stray character therefore cannot shift the scan out of step with what the
+ * browser reads.
+ */
+function skipCssToken(text:string, i:number){
+    const c = text[i]
+    if(c === '"' || c === "'"){
+        for(let j = i + 1; j < text.length; j++){
+            const d = text[j]
+            if(d === '\\'){
+                j++
+            }
+            else if(d === c){
+                return j + 1
+            }
+            else if(d === '\n' || d === '\r' || d === '\f'){
+                return j
+            }
+        }
+        return text.length
+    }
+    if(c === '/' && text[i + 1] === '*'){
+        const end = text.indexOf('*/', i + 2)
+        return end === -1 ? text.length : end + 2
+    }
+    if((c === 'u' || c === 'U') && /^url\(/i.test(text.slice(i, i + 4)) && !/[\w-]/.test(text[i - 1] ?? '')){
+        let j = i + 4
+        while(j < text.length && /\s/.test(text[j])){
+            j++
+        }
+        if(text[j] === '"' || text[j] === "'"){
+            // url("...") is a function with a string argument, scanned as usual
+            return -1
+        }
+        for(; j < text.length; j++){
+            if(text[j] === '\\'){
+                j++
+            }
+            else if(text[j] === ')'){
+                return j + 1
+            }
+        }
+        return text.length
+    }
+    return -1
+}
+
+/**
+ * Index just past the at-rule whose prelude starts at `start`: past its ';'
+ * for statements like @import, past its closing '}' for blocks like
+ * @font-face, or at the '}' of an enclosing block. Braces and ';' inside
+ * parentheses belong to that parenthesized block, as in the CSS parser. CSS
+ * closes whatever is left open at the end of input, so an unterminated rule
+ * runs to the end, and the browser reads all of it as part of that rule too.
+ */
+function findAtRuleEnd(text:string, start:number){
+    let braces = 0
+    let parens = 0
+    for(let i = start; i < text.length; i++){
+        const c = text[i]
+        if(c === '\\'){
+            i++
+            continue
+        }
+        const next = skipCssToken(text, i)
+        if(next !== -1){
+            i = next - 1
+            continue
+        }
+        if(c === '('){
+            parens++
+        }
+        else if(c === ')'){
+            parens = Math.max(0, parens - 1)
+        }
+        else if(parens > 0){
+            continue
+        }
+        else if(c === '{'){
+            braces++
+        }
+        else if(c === '}'){
+            if(braces === 0){
+                return i
+            }
+            if(--braces === 0){
+                return i + 1
+            }
+        }
+        else if(c === ';' && braces === 0){
+            return i + 1
+        }
+    }
+    return text.length
+}
+
+const preservedAtRuleRegex = /^@(?:import|font-face)(?![\w-])/i
+
+/**
+ * hideCssImageUrls over a stylesheet css.parse rejected, keeping @import and
+ * @font-face rules as they are, the same way the parsed path does. At-rules
+ * are only recognized outside strings, comments and urls, so a quoted
+ * "@import" cannot shield the urls after it.
+ */
+function hideUnparsedStyleSheetImages(text:string){
+    let out = ''
+    let last = 0
+    for(let i = 0; i < text.length; i++){
+        const c = text[i]
+        if(c === '\\'){
+            i++
+            continue
+        }
+        const next = skipCssToken(text, i)
+        if(next !== -1){
+            i = next - 1
+            continue
+        }
+        if(c === '@'){
+            const match = preservedAtRuleRegex.exec(text.slice(i, i + 11))
+            if(match){
+                const end = findAtRuleEnd(text, i + match[0].length)
+                out += hideCssImageUrls(text.slice(last, i)) + text.slice(i, end)
+                last = end
+                i = end - 1
+            }
+        }
+    }
+    return out + hideCssImageUrls(text.slice(last))
 }

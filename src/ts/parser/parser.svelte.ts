@@ -818,7 +818,9 @@ export async function ParseMarkdown(
             return data
         }
     }
-    return trimMarkdown(data)
+    // pretranslate output is the LLM translation input and its cache key, so it
+    // keeps the short placeholder path. The display pass themes it afterwards.
+    return trimMarkdown(data, trimPurifyConfig, { themeHiddenImages: mode !== 'pretranslate' })
 }
 
 const trimPurifyConfig = {
@@ -847,18 +849,25 @@ export async function parseOnboardingHTML(data:string, char:character){
     return trimMarkdown(data, onboardingPurifyConfig)
 }
 
-export function trimMarkdown(data:string, purifyConfig:typeof trimPurifyConfig = trimPurifyConfig){
+export function trimMarkdown(
+    data:string,
+    purifyConfig:typeof trimPurifyConfig = trimPurifyConfig,
+    { themeHiddenImages: theme = true }:{ themeHiddenImages?:boolean } = {},
+){
+    // Placeholders are themed on the DOM, so only real image references change
+    const themeImages = theme && !!DBState.db?.hideAllImages
 
     if(!data){
         return ''
     }
     
-    // Without a <risu-style> there is nothing to decode, so the plain string
-    // result is already final. Note the tag itself is not trusted input:
-    // risu-style is in ADD_TAGS, so cards, model output and user scripts can
-    // author one directly. Only its position in the parsed tree is relied on.
-    if(!data.includes('<risu-style')){
-        return applyHiddenImageTheme(DOMPurify.sanitize(data, purifyConfig), DBState.db?.colorScheme)
+    // Without a <risu-style> to decode or placeholders to theme there is no DOM
+    // work left, so the plain string result is already final. Note the tag
+    // itself is not trusted input: risu-style is in ADD_TAGS, so cards, model
+    // output and user scripts can author one directly. Only its position in the
+    // parsed tree is relied on.
+    if(!data.includes('<risu-style') && !themeImages){
+        return DOMPurify.sanitize(data, purifyConfig)
     }
 
     // Decoded CSS must never be handed back to the HTML sanitizer as <style>
@@ -893,7 +902,11 @@ export function trimMarkdown(data:string, purifyConfig:typeof trimPurifyConfig =
         el.replaceWith(style)
     }
 
-    return applyHiddenImageTheme(root.innerHTML, DBState.db?.colorScheme)
+    if(themeImages){
+        applyHiddenImageTheme(root, DBState.db.colorScheme)
+    }
+
+    return root.innerHTML
 }
 
 const metaCodes = [

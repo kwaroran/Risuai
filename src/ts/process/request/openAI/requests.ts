@@ -7,6 +7,7 @@ import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
 import { isNodeServer, isTauri } from "src/ts/platform"
 import { simplifySchema } from "src/ts/util"
+import { addOpenRouterAttribution, isOpenRouterUrl } from "src/ts/network/openRouterHeaders"
 
 import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
 import { applyChatTemplate } from "../../templates/chatTemplate"
@@ -552,9 +553,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(arg.modelInfo?.keyIdentifier){
         headers["Authorization"] = "Bearer " + db.OaiCompAPIKeys[arg.modelInfo.keyIdentifier]
     }
-    if(aiModel === 'openrouter'){
-        headers["X-Title"] = 'RisuAI'
-        headers["HTTP-Referer"] = 'https://risuai.xyz'
+    if(aiModel === 'openrouter' || isOpenRouterUrl(replacerURL)){
+        addOpenRouterAttribution(headers)
     }
     if(aiModel === 'nanogpt' && db.nanogptProvider){
         headers["X-Provider"] = db.nanogptProvider

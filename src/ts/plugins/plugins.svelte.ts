@@ -5,6 +5,7 @@ import { alertConfirm, alertError, alertPluginConfirm } from "../alert";
 import { selectSingleFile, sleep } from "../util";
 import type { OpenAIChat } from "../process/index.svelte";
 import { fetchNative, globalFetch, readImage, saveAsset, toGetter } from "../globalApi.svelte";
+import { withOpenRouterAttribution } from "../network/openRouterHeaders";
 import { DBState, hotReloading, pluginAlertModalStore, selectedCharID } from "../stores.svelte";
 import type { ScriptMode } from "../process/scripts";
 import { checkCodeSafety } from "./pluginSafety";
@@ -495,8 +496,8 @@ export const allowedDbKeys = [
 
 export const getV2PluginAPIs = () => {
     return {
-        risuFetch: globalFetch,
-        nativeFetch: fetchNative,
+        risuFetch: (url: string, arg?: Parameters<typeof globalFetch>[1]) => globalFetch(url, withOpenRouterAttribution(url, arg)),
+        nativeFetch: (url: string, arg: Parameters<typeof fetchNative>[1]) => fetchNative(url, withOpenRouterAttribution(url, arg)),
         getArg: (arg: string) => {
             const db = getDatabase()
             const [name, realArg] = arg.split('::')

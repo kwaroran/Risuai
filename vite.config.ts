@@ -14,6 +14,11 @@ export default defineConfig(({command, mode}) => {
           if (warning.code.startsWith("a11y-")) return;
           handler(warning);
         },
+        compilerOptions: {
+          experimental: {
+            async: true
+          }
+        }
       }),
       tailwindcss(),
       wasm(),

@@ -281,7 +281,7 @@ describe('OpenAI Responses API helpers', () => {
                     }))
                     expect(result.type).toBe('fail')
                     const [url, request] = mocks.fetchNative.mock.calls.at(-1)!
-                    expect(url).toBe(model === 'MiniMax-M3.1-Flash' ? endpoint.replace('api.minimaxi.com', 'api.minimax.cn') : endpoint)
+                    expect(url).toBe(endpoint)
                     expect(request.headers[anthropic ? 'x-api-key' : 'Authorization']).toBe(anthropic ? 'fixture-key' : 'Bearer fixture-key')
                     expect(typeof request.body).toBe('string')
                     const body = JSON.parse(request.body)

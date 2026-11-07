@@ -99,9 +99,7 @@ function makeMiniMaxModels(): LLMModel[] {
         ],
         parameters: ['temperature', 'top_p'],
         tokenizer: LLMTokenizer.Unknown,
-        endpoint: model.id === 'MiniMax-M3.1-Flash'
-            ? endpoint.endpoint.replace('api.minimaxi.com', 'api.minimax.cn')
-            : endpoint.endpoint,
+        endpoint: endpoint.endpoint,
         keyIdentifier: 'minimax',
         recommended: model.id !== 'MiniMax-M2.7'
     })))

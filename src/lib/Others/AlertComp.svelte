@@ -28,6 +28,7 @@
     import { translateStackTrace } from "../../ts/sourcemap";
     import { getDetailedOSLabel, getFallbackOSLabel, getRisuEnvironmentLabel } from "src/ts/platform";
     import versionData from "../../../version.json";
+    import { isMessageFromWindow } from "src/ts/security/trustedMessage";
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
@@ -73,6 +74,7 @@
     let expandedLogs: Set<number> = $state(new Set())
     let allExpanded = $state(false)
     let copiedKey: string | null = $state(null)
+    let loginIframe: HTMLIFrameElement | null = $state(null)
 
     // Register JSON language for syntax highlighting
     if (!hljs.getLanguage('json')) {
@@ -176,8 +178,8 @@
 </script>
 
 <svelte:window onmessage={async (e) => {
-    if(e.origin.startsWith("https://sv.risuai.xyz") || e.origin.startsWith("https://nightly.sv.risuai.xyz") || e.origin.startsWith("http://127.0.0.1") || e.origin === window.location.origin){
-        if(e.data.msg?.data?.vaild && $alertStore.type === 'login'){
+    if($alertStore.type === 'login' && isMessageFromWindow(e, loginIframe?.contentWindow, hubURL + '/hub/login')){
+        if(e.data?.msg?.data?.vaild){
             $alertStore = {
                 type: 'none',
                 msg: JSON.stringify(e.data.msg)
@@ -377,7 +379,7 @@
                 {/if}
             {:else if $alertStore.type === 'login'}
                 <div class="fixed top-0 left-0 bg-black/50 w-full h-full flex justify-center items-center">
-                    <iframe src={hubURL + '/hub/login'} title="login" class="w-full h-full">
+                    <iframe bind:this={loginIframe} src={hubURL + '/hub/login'} title="login" class="w-full h-full">
                     </iframe>
                 </div>
             {:else if $alertStore.type === 'selectChar'}

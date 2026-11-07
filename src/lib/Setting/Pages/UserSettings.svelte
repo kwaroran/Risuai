@@ -15,28 +15,31 @@
     import { exportAsDataset } from "src/ts/storage/exportAsDataset";
     import { loginToSionyw, testSionywLogin } from "src/ts/sionyw";
     import { cleanColdStorage } from "src/ts/process/coldstorage.svelte";
+    import { isMessageFromWindow } from "src/ts/security/trustedMessage";
     let openIframe = $state(false)
     let openIframeURL = $state('')
-    let popup:Window = null
+    let loginIframe: HTMLIFrameElement | null = $state(null)
+    let popup: Window | null = null
 </script>
 
 <svelte:window onmessage={async (e) => {
-    if(e.origin.startsWith("https://nightly.sv.risuai.xyz") || e.origin.startsWith("https://sv.risuai.xyz") || e.origin.startsWith("http://127.0.0.1") || e.origin === window.location.origin){
-        if(e.data.msg?.type === 'drive'){
-            await loadRisuAccountData()
-            DBState.db.account.data.refresh_token = e.data.msg.data.refresh_token
-            DBState.db.account.data.access_token = e.data.msg.data.access_token
-            DBState.db.account.data.expires_in = (e.data.msg.data.expires_in * 700) + Date.now()
-            await saveRisuAccountData()
-            popup.close()
-        }
-        else if(e.data.msg?.data.vaild){
-            openIframe = false
-            DBState.db.account = {
-                id: e.data.msg.id,
-                token: e.data.msg.token,
-                data: e.data.msg.data
-            }
+    const message = e.data?.msg
+    const fromLoginIframe = openIframe && isMessageFromWindow(e, loginIframe?.contentWindow, openIframeURL)
+    if(message?.type === 'drive'){
+        if(!fromLoginIframe && !isMessageFromWindow(e, popup, hubURL + '/hub/login')) return
+        await loadRisuAccountData()
+        DBState.db.account.data.refresh_token = message.data.refresh_token
+        DBState.db.account.data.access_token = message.data.access_token
+        DBState.db.account.data.expires_in = (message.data.expires_in * 700) + Date.now()
+        await saveRisuAccountData()
+        popup?.close()
+    }
+    else if(message?.data?.vaild && fromLoginIframe){
+        openIframe = false
+        DBState.db.account = {
+            id: message.id,
+            token: message.token,
+            data: message.data
         }
     }
 }}></svelte:window>
@@ -188,7 +191,7 @@
 </div>
 {#if openIframe}
     <div class="fixed top-0 left-0 bg-black/50 w-full h-full flex justify-center items-center">
-        <iframe src={openIframeURL} title="login" class="w-full h-full">
+        <iframe bind:this={loginIframe} src={openIframeURL} title="login" class="w-full h-full">
         </iframe>
     </div>
 {/if}

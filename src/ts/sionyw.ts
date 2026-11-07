@@ -5,6 +5,7 @@ import { readFile, BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "src/ts/platform"
 import * as client from 'openid-client'
 import { getKeypairStore, saveKeypairStore } from "./util";
+import { isMessageFromWindow } from "./security/trustedMessage";
 
 let accessToken = ''
 let refreshToken = ''
@@ -258,7 +259,7 @@ async function loginToSionywSPAVersion(){
     const xWind = window.open(authUrl, '_blank')
     xWind?.focus()
     const msgEventCallback = async (event:MessageEvent) => {
-        if(event.origin.startsWith('https://account.sionyw.com')){
+        if(isMessageFromWindow(event, xWind, 'https://account.sionyw.com')){
             let response:{
                 code:string,
             } = event.data

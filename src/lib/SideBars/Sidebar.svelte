@@ -1021,7 +1021,6 @@
   .sidebar-motion-panel {
     width: var(--sidebar-total-size);
     min-width: var(--sidebar-total-size);
-    transform: translateX(0);
   }
 
   .sidebar-layout-slot.sidebar-edit-mode {
@@ -1116,7 +1115,6 @@
     inset: 0 auto 0 0;
     z-index: 1;
     overflow: hidden;
-    transform: translateX(0);
   }
 
   .dynamic-sidebar-slot.risu-sidebar-slot {

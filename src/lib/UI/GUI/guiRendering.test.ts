@@ -11,6 +11,7 @@ import OptionalInput from './OptionalInput.svelte'
 import SegmentedControl from './SegmentedControl.svelte'
 import SelectInput from './SelectInput.svelte'
 import SliderInput from './SliderInput.svelte'
+import SwitchInput from './SwitchInput.svelte'
 import TextInput from './TextInput.svelte'
 
 type GuiComponent = Parameters<typeof mount>[0]
@@ -217,6 +218,60 @@ describe('GUI rendering without a browser session', () => {
 
         expect(booleanButtons[0].classList.contains('text-textcolor2')).toBe(false)
         expect(booleanButtons[1].classList.contains('text-textcolor2')).toBe(true)
+    })
+
+    it('renders switch state, labelling, and disabled behavior', async () => {
+        const onSwitchChange = vi.fn()
+
+        const toggle = renderGui(SwitchInput, {
+            check: false,
+            id: 'render-switch',
+            name: 'Render switch',
+            onChange: onSwitchChange,
+        })
+        const disabledToggle = renderGui(SwitchInput, {
+            check: true,
+            disabled: true,
+        })
+
+        const switchInput = toggle.getBySelector<HTMLInputElement>('input[role="switch"]')
+        const knob = toggle.getBySelector<HTMLElement>('.rs-switch-knob')
+        expect(switchInput.id).toBe('render-switch')
+        expect(switchInput.getAttribute('aria-label')).toBe('Render switch')
+        expect(switchInput.checked).toBe(false)
+        expect(knob.classList.contains('translate-x-0')).toBe(true)
+
+        switchInput.click()
+        await tick()
+
+        expect(onSwitchChange).toHaveBeenCalledWith(true)
+        expect(switchInput.checked).toBe(true)
+        expect(knob.classList.contains('translate-x-5')).toBe(true)
+
+        const disabledInput = disabledToggle.getBySelector<HTMLInputElement>('input[role="switch"]')
+        expect(disabledInput.hasAttribute('aria-label')).toBe(false)
+        expect(disabledInput.disabled).toBe(true)
+        expect(disabledInput.checked).toBe(true)
+    })
+
+    it('accepts an undefined bound check, as unset settings pass', async () => {
+        let bound: boolean | undefined = undefined
+        const toggle = renderGui(SwitchInput, {
+            get check() {
+                return bound
+            },
+            set check(value: boolean | undefined) {
+                bound = value
+            },
+        })
+
+        const switchInput = toggle.getBySelector<HTMLInputElement>('input[role="switch"]')
+        expect(switchInput.checked).toBe(false)
+
+        switchInput.click()
+        await tick()
+
+        expect(bound).toBe(true)
     })
 
     it('renders select, option, and segmented selection controls', async () => {

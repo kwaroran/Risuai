@@ -122,7 +122,10 @@ export async function exportModuleLegacy(module:RisuModule, arg:{
     return apb.buffer
 }
 
-export async function readModule(buf:Buffer):Promise<RisuModule> {
+export async function readModule(buf:Buffer, arg:{
+    confirmLowLevelAccess?:boolean
+} = {}):Promise<RisuModule> {
+    const confirmLowLevelAccess = arg.confirmLowLevelAccess ?? true
     let pos = 0
 
     const readLength = () => {
@@ -251,7 +254,7 @@ export async function readModule(buf:Buffer):Promise<RisuModule> {
 
     module.id = v4()
     delete module.mcp
-    if(module.lowLevelAccess && !(await alertConfirm(language.lowLevelAccessConfirm))){
+    if(confirmLowLevelAccess && module.lowLevelAccess && !(await alertConfirm(language.lowLevelAccessConfirm))){
         module.lowLevelAccess = false
     }
     return module

@@ -1262,7 +1262,8 @@ app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
         }
         else{
             res.setHeader('Content-Type','application/octet-stream');
-            res.sendFile(path.join(savePath, filePath));
+            // Pass savePath as root: Express 5 rejects absolute paths that contain dot-directories (e.g. ~/.local/...)
+            res.sendFile(filePath, { root: savePath });
         }
     } catch (error) {
         next(error);

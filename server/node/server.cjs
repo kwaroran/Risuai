@@ -133,8 +133,11 @@ async function hashJSON(json){
 }
 
 function isAuthorizedRequest(req) {
-    const authHeader = normalizeAuthHeader(req.headers['risu-auth']);
-    return !!authHeader && authHeader.trim() === password.trim();
+    const expected = password.trim();
+    if (!expected) {
+        return false;
+    }
+    return normalizeAuthHeader(req.headers['risu-auth']).trim() === expected;
 }
 
 function normalizeAuthHeader(authHeader) {

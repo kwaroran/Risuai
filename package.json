@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --sourcemap",
-    "tauribuild": "vite build",
+    "tauribuild": "vite build --sourcemap",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",

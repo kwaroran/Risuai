@@ -68,6 +68,27 @@ describe('translateStackTrace', () => {
         expect(destroy).toHaveBeenCalledTimes(1)
     })
 
+    it('translates WebKit frames served from the tauri:// origin', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({})
+        })
+        originalPositionFor.mockReturnValue({
+            source: 'src/ts/storage/database.svelte.ts',
+            line: 42,
+            column: 7,
+            name: null
+        })
+
+        const result = await translateStackTrace('Lu@tauri://localhost/assets/database.svelte-DMRraYc0.js:2:132744')
+
+        expect(result).toEqual({
+            stackTrace: '    at src/ts/storage/database.svelte.ts:42:7',
+            didTranslate: true
+        })
+        expect(fetchMock).toHaveBeenCalledWith('tauri://localhost/assets/database.svelte-DMRraYc0.js.map', expect.any(Object))
+    })
+
     it('falls back to the original stack trace when sourcemap fetch fails', async () => {
         fetchMock.mockResolvedValue({
             ok: false,

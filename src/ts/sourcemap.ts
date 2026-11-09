@@ -32,7 +32,8 @@ export async function translateStackTrace(stackTrace: string): Promise<StackTrac
 
     // Step 1: Collect all unique mapUrls from stack trace
     const urlsToFetch = new Set<string>();
-    const linePattern = /(http[s]?:\/\/[^\s)]+\.js):(\d+):(\d+)/;
+    // tauri:// is the asset origin of the macOS and Linux desktop builds
+    const linePattern = /((?:https?|tauri):\/\/[^\s)]+\.js):(\d+):(\d+)/;
     
     for (const line of stackLines) {
         const match = line.match(linePattern);

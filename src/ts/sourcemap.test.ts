@@ -26,7 +26,7 @@ vi.mock('source-map', () => ({
     SourceMapConsumer: MockSourceMapConsumer
 }))
 
-import { translateStackTrace } from './sourcemap'
+import { getStackWithHeader, translateStackTrace } from './sourcemap'
 
 describe('translateStackTrace', () => {
     const fetchMock = vi.fn()
@@ -116,5 +116,36 @@ describe('translateStackTrace', () => {
             stackTrace,
             didTranslate: false
         })
+    })
+})
+
+describe('getStackWithHeader', () => {
+    function errorWithStack(stack: string): TypeError {
+        const error = new TypeError("undefined is not an object (evaluating 't[t.length-1].role')")
+        error.stack = stack
+        return error
+    }
+
+    it('adds the name and message line to a WebKit stack', () => {
+        const error = errorWithStack('se@tauri://localhost/assets/index-D1M_1Cp_.js:130:14045')
+
+        expect(getStackWithHeader(error)).toBe(
+            "TypeError: undefined is not an object (evaluating 't[t.length-1].role')\n" +
+            'se@tauri://localhost/assets/index-D1M_1Cp_.js:130:14045'
+        )
+    })
+
+    it('keeps a V8 stack that already starts with the message line', () => {
+        const stack = "TypeError: undefined is not an object (evaluating 't[t.length-1].role')\n" +
+            '    at se (http://localhost:4173/assets/index-abc123.js:10:15)'
+
+        expect(getStackWithHeader(errorWithStack(stack))).toBe(stack)
+    })
+
+    it('uses only the name when the message is empty', () => {
+        const error = new Error()
+        error.stack = 'se@tauri://localhost/assets/index-D1M_1Cp_.js:130:14045'
+
+        expect(getStackWithHeader(error)).toBe('Error\nse@tauri://localhost/assets/index-D1M_1Cp_.js:130:14045')
     })
 })

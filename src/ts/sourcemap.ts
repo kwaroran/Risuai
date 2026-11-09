@@ -14,6 +14,23 @@ export interface StackTraceTranslationResult {
     didTranslate: boolean;
 }
 
+/**
+ * Returns the error's stack with a "Name: message" first line.
+ * V8 already starts Error.stack with that line, but WebKit (Tauri on macOS and Linux)
+ * keeps only the frames, so the line is added there.
+ */
+export function getStackWithHeader(error: Error): string | undefined {
+    const stack = error.stack
+    if (!stack) {
+        return stack
+    }
+    const header = error.message ? `${error.name}: ${error.message}` : error.name
+    if (stack.startsWith(header)) {
+        return stack
+    }
+    return `${header}\n${stack}`
+}
+
 export async function translateStackTrace(stackTrace: string): Promise<StackTraceTranslationResult> {
     if (!stackTrace) {
         return {

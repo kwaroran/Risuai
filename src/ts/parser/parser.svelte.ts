@@ -107,6 +107,10 @@ DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
             data.attrValue = ''
             break
         }
+        case 'rel':{
+            data.attrValue = 'noopener noreferrer'
+            break
+        }
     }
 })
 

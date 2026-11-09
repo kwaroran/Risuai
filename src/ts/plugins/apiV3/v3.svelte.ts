@@ -658,6 +658,26 @@ const urlBlacklist = [
     'sionyw.com',
 ]
 
+const assertPluginUrlAllowed = (url: string) => {
+    if(typeof url !== 'string'){
+        throw new Error('Invalid URL');
+    }
+    const hostnames: string[] = [];
+    for(const base of [undefined, location.href]){
+        try {
+            hostnames.push(new URL(url, base).hostname.toLowerCase().replace(/\.+$/, ''));
+        } catch {}
+    }
+    if(hostnames.length === 0){
+        throw new Error('Invalid URL');
+    }
+    for(const blocked of urlBlacklist){
+        if(hostnames.some((hostname) => hostname === blocked || hostname.endsWith('.' + blocked))){
+            throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+        }
+    }
+}
+
 const authorizationHeaders = [
     'x-api-key',
     'authorization',
@@ -683,11 +703,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         //Old APIs from v2.1
         risuFetch: (url, options) => {
             console.error(`[DEPRECATION WARNING] risuFetch is deprecated and will be removed in future versions. Please use nativeFetch instead.`)
-            for(const blocked of urlBlacklist){
-                if(url.toLowerCase().includes(blocked)){
-                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
-                }
-            }
+            assertPluginUrlAllowed(url);
 
             //scan headers
             const headers = options?.headers || {};
@@ -699,11 +715,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return oldApis.risuFetch(url, options);
         },
         nativeFetch: (url, options) => {
-            for(const blocked of urlBlacklist){
-                if(url.toLowerCase().includes(blocked)){
-                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
-                }
-            }
+            assertPluginUrlAllowed(url);
 
             //scan headers
             const headers = options?.headers || {};

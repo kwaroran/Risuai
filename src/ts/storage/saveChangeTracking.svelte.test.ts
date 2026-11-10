@@ -177,14 +177,40 @@ describe('registerSaveChangeTracking', () => {
         expect(runs).toBe(0)
     })
 
-    it('does nothing for the character effects when no character is selected', () => {
+    it('deselecting the character schedules a save without marking anything dirty', () => {
         resetTracker()
         state.selected = -1
         flushSync()
+        expect(runs).toBe(1)
         expect(tracker.character).toEqual([])
+        expect(tracker.chat).toEqual([])
+        expect(tracker.allChats).toEqual([])
+    })
+
+    it('deleting a non-selected character and then deselecting schedules a save', () => {
+        state.selected = 1
+        flushSync()
+        resetTracker()
+        state.db.characters.splice(0, 1)
+        state.selected = -1
+        flushSync()
+        expect(runs).toBeGreaterThan(0)
+    })
+
+    it('does nothing for the character effects when no character is selected', () => {
+        state.selected = -1
+        flushSync()
+        resetTracker()
         state.db.theme = 'light'
         flushSync()
         expect(runs).toBe(1)
         expect(tracker.character).toEqual([])
+        state.db.characters[0].name = 'A2'
+        state.db.characters[0].chats[1].message[0].data = 'edited'
+        flushSync()
+        expect(runs).toBe(1)
+        expect(tracker.character).toEqual([])
+        expect(tracker.chat).toEqual([])
+        expect(tracker.allChats).toEqual([])
     })
 })

@@ -12,6 +12,9 @@ import type { toSaveType } from "./risuSave"
  * (c) the chats array of the selected character and every chat except the current one: marks all chats dirty
  * (d) the current chat and reloadKeys: marks only the current chat dirty
  * Every effect marks the selected character dirty and calls onChange, as the single effect did before.
+ * When the selection changes to no character, (b) still calls onChange (only (b), so a deselect
+ * schedules one save, not three), as the single effect did: deleting a non-selected character ends
+ * by deselecting, and the full-encoder-reload flag it sets is only picked up by a save.
  */
 /**
  * Own string keys of a $state proxy. Unlike for...in / Object.keys, this does not read the value
@@ -73,6 +76,8 @@ export function registerSaveChangeTracking(arg: {
     $effect(() => {
         const character = getDb()?.characters?.[getSelectedIndex()]
         if (!character) {
+            // Nothing to mark dirty, but the selection changed to no character: still schedule a save
+            onChange()
             return
         }
         for (const key of ownKeys(character)) {

@@ -109,11 +109,11 @@ const KV_BLOCK_PREFIX = 'kv:'
  *   A legacy CHARACTER_WITHOUT_CHAT block with a `chats` array is still read as a full character.
  *   An object in `chats` is also not iterable for older clients, which makes them fail to load
  *   the save (and fall back to backups) instead of silently loading characters without chats.
- * - one CHAT block per chat, named `chat:<chaId>:<chatId>`, holding
+ * - one CHAT block per chat, named `chat-<chaId>-<chatId>`, holding
  *   `{ "v": 1, "chaId": ..., "chatId": ..., "chat": {...} }`. The decoder only uses the payload.
  */
 const SPLIT_CHATS_KEY = '__risuSplitChats'
-const CHAT_BLOCK_PREFIX = 'chat:'
+const CHAT_BLOCK_PREFIX = 'chat-'
 const MAX_BLOCK_NAME_BYTES = 255
 const RESERVED_BLOCK_NAMES = new Set(['root', 'preset', 'modules', 'loadouts', 'plugins', 'pluginStorage', 'config'])
 
@@ -129,7 +129,7 @@ function utf8Length(str:string){
 }
 
 function chatBlockName(chaId:string, chatId:string){
-    return `${CHAT_BLOCK_PREFIX}${chaId}:${chatId}`
+    return `${CHAT_BLOCK_PREFIX}${chaId}-${chatId}`
 }
 
 /** returns the recorded chat order of a split character, or null if the character holds its chats itself */

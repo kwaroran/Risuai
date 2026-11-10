@@ -252,7 +252,7 @@ export const languageEnglish = {
             "Put the API workflow of comfy UI. you can get your API workflow in comfy UI by pressing the 'Workflow > Export (API)' button. you must also put {{risu_prompt}} in you workflow text. The {{risu_prompt}} will be replaced with the prompt provided by the Risu.",
         automaticCachePoint: "Automatically creates cache point after the chat ends, if the caching point doesn't exist.",
         splitChatSaving:
-            "Saves each chat as a separate part of the save file, so only the chats that changed are saved again. This makes saving faster for characters with many or long chats. Older versions of RisuAI cannot read save files written with this option: turn it off and wait for the next save before opening the data with an older version. Not used with account storage.",
+            "Saves each chat as a separate part of the save file, so only the chats that changed are saved again. This makes saving faster for characters with many or long chats. Older versions of RisuAI cannot read save files written with this option: turn it off and wait for the next save before opening the data with an older version. Not used with account storage, and has no effect while Remote Saving is on.",
         experimentalChatCompressionDesc:
             "Compresses the unused chat data and saves in seperate file. This greatly reduces the size of the chat data, and greatly improves the performance, however its experimental and can be unstable, causing issues in backup feature and more.",
         promptInfoInsideChatDesc:

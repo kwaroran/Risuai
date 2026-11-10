@@ -416,7 +416,7 @@ describe('per-character fallback to the legacy block', () => {
 
     it('a chaId that collides with a chat block name', async () => {
         const db = makeDatabase()
-        db.characters.push(makeCharacter('chat:cha-a:chat-a1', [makeChat('x-1', 'x', [])]))
+        db.characters.push(makeCharacter('chat-cha-a-chat-a1', [makeChat('x-1', 'x', [])]))
         await expectLegacyFallback(db, 'cha-a')
     })
 
@@ -448,7 +448,7 @@ describe('per-character fallback to the legacy block', () => {
 
     it('a chat block name of exactly 255 bytes is split, 256 bytes is legacy', async () => {
         const db = makeDatabase()
-        //'chat:' + 240 + ':' + 'chat-long' = 255 bytes
+        //'chat-' + 240 + '-' + 'chat-long' = 255 bytes
         db.characters[3].chaId = 'c'.repeat(240)
         db.characters[3].chats = [makeChat('chat-long', 'long', [])]
         let file = (await makeSplitEncoder(db)).encode()
@@ -477,7 +477,7 @@ describe('incremental set', () => {
         const after = blockMap(file)
 
         const changed = [...after.keys()].filter((name) => !before.has(name) || !equalBytes(before.get(name).raw, after.get(name).raw))
-        expect(changed).toEqual(['chat:cha-a:chat-a3'])
+        expect(changed).toEqual(['chat-cha-a-chat-a3'])
         expect([...before.keys()]).toEqual([...after.keys()])
 
         const decoded = await decode(file)
@@ -509,7 +509,7 @@ describe('incremental set', () => {
         db.characters[0].chats.push(makeChat('chat-a4', 'New', makeMessages(4, 'a4')))
         await encoder.set(db, emptyToSave({ character: ['cha-a'], chat: [['cha-a', 'chat-a2']] }))
         const file = encoder.encode()
-        expect(blockMap(file).has('chat:cha-a:chat-a4')).toBe(true)
+        expect(blockMap(file).has('chat-cha-a-chat-a4')).toBe(true)
         expectNoStaleBlocks(file, db)
         expect(await decode(file)).toEqual(db)
     })
@@ -517,12 +517,12 @@ describe('incremental set', () => {
     it('deleting a chat removes its block and it is not resurrected from the block cache', async () => {
         const db = makeDatabase()
         const encoder = await makeSplitEncoder(db, { cache: true })
-        expect(mocks.cache.has('risuSaveBlock_chat:cha-a:chat-a1')).toBe(true)
+        expect(mocks.cache.has('risuSaveBlock_chat-cha-a-chat-a1')).toBe(true)
         db.characters[0].chats.splice(0, 1)
         db.characters[0].chatPage = 0
         await encoder.set(db, emptyToSave({ character: ['cha-a'], chat: [['cha-a', 'chat-a2']] }))
         const file = encoder.encode()
-        expect(blockMap(file).has('chat:cha-a:chat-a1')).toBe(false)
+        expect(blockMap(file).has('chat-cha-a-chat-a1')).toBe(false)
         expectNoStaleBlocks(file, db)
         const decoded = await decode(file)
         expect(decoded).toEqual(db)
@@ -585,7 +585,7 @@ describe('incremental set', () => {
         await encoder.set(db, emptyToSave({ character: ['cha-a'], chat: [['cha-a', 'chat-a2']] }))
         file = encoder.encode()
         expect(blockMap(file).get('cha-a').type).toBe(TYPE.CHARACTER_WITHOUT_CHAT)
-        expect(chatBlocksOf(file, 'cha-a').map((b) => b.name)).toEqual(['chat:cha-a:chat-a2', 'chat:cha-a:chat-a3', 'chat:cha-a:chat-a4'])
+        expect(chatBlocksOf(file, 'cha-a').map((b) => b.name)).toEqual(['chat-cha-a-chat-a2', 'chat-cha-a-chat-a3', 'chat-cha-a-chat-a4'])
         expectNoStaleBlocks(file, db)
         expect(await decode(file)).toEqual(db)
 
@@ -654,7 +654,7 @@ describe('decoder robustness', () => {
     it('inserts a placeholder for a missing chat block', async () => {
         const db = makeDatabase()
         const file = (await makeSplitEncoder(db)).encode()
-        const kept = parseBlocks(file).filter((b) => b.name !== 'chat:cha-a:chat-a2').map((b) => b.raw)
+        const kept = parseBlocks(file).filter((b) => b.name !== 'chat-cha-a-chat-a2').map((b) => b.raw)
         const decoded = await decode(assembleBlocks(kept))
         const chats = decoded.characters[0].chats
         expect(chats.map((c: any) => c.id)).toEqual(['chat-a1', 'chat-a2', 'chat-a3'])
@@ -668,7 +668,7 @@ describe('decoder robustness', () => {
     it('loads a missing chat block from the block cache when the directory lists it', async () => {
         const db = makeDatabase()
         const file = (await makeSplitEncoder(db, { cache: true })).encode()
-        const kept = parseBlocks(file).filter((b) => b.name !== 'chat:cha-b:chat-b1').map((b) => b.raw)
+        const kept = parseBlocks(file).filter((b) => b.name !== 'chat-cha-b-chat-b1').map((b) => b.raw)
         expect(await decode(assembleBlocks(kept))).toEqual(db)
     })
 
@@ -696,7 +696,7 @@ describe('decoder robustness', () => {
             compression: false,
             data: JSON.stringify({ v: 1, chaId: 'nobody', chatId: 'chat-x', chat: makeChat('chat-x', 'x', []) }),
             type: TYPE.CHAT,
-            name: 'chat:nobody:chat-x',
+            name: 'chat-nobody-chat-x',
             cache: false,
         })
         const decoded = await decode(assembleBlocks([...parseBlocks(encoder.encode()).map((b) => b.raw), extra]))

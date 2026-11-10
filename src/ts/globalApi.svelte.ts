@@ -27,6 +27,7 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { loadRisuAccountData } from "./drive/accounter";
 import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
 import { saveKV } from "./storage/saveKV";
+import { registerSaveChangeTracking } from "./storage/saveChangeTracking.svelte";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -316,6 +317,7 @@ export async function saveDb() {
     const changeTracker: toSaveType = {
         character: [],
         chat: [],
+        allChats: [],
         botPreset: false,
         modules: false,
         loadouts: false,
@@ -323,7 +325,40 @@ export async function saveDb() {
         pluginCustomStorage: false
     }
 
-    let encoder = new RisuSaveEncoder()
+    //experimental: save each chat as its own block. Never with account storage.
+    const wantsSplitChats = () => {
+        try {
+            return !!getDatabase()?.splitChatSaving && !forageStorage.isAccount
+        } catch (error) {
+            return false
+        }
+    }
+
+    /** puts the dirty state of a save attempt that did not complete back into the tracker */
+    const restoreDirty = (pending: toSaveType) => {
+        for (const chaId of pending.character) {
+            if (!changeTracker.character.includes(chaId)) {
+                changeTracker.character.push(chaId)
+            }
+        }
+        for (const [chaId, chatId] of pending.chat) {
+            if (!changeTracker.chat.some((v) => v[0] === chaId && v[1] === chatId)) {
+                changeTracker.chat.push([chaId, chatId])
+            }
+        }
+        for (const chaId of pending.allChats ?? []) {
+            if (!changeTracker.allChats.includes(chaId)) {
+                changeTracker.allChats.push(chaId)
+            }
+        }
+        changeTracker.botPreset ||= pending.botPreset
+        changeTracker.modules ||= pending.modules
+        changeTracker.loadouts ||= pending.loadouts
+        changeTracker.plugins ||= pending.plugins
+        changeTracker.pluginCustomStorage ||= pending.pluginCustomStorage
+    }
+
+    let encoder = new RisuSaveEncoder({ splitChats: wantsSplitChats() })
     await encoder.init(getDatabase(), {
         compression: forageStorage.isAccount,
         kv: saveKV
@@ -375,33 +410,12 @@ export async function saveDb() {
             changeTracker.pluginCustomStorage = true
             saveTimeoutExecute()
         })
-        $effect(() => {
-            for (const key in DBState.db) {
-                if (
-                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
-                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
-                ) {
-                    $state.snapshot(DBState.db[key])
-                }
-            }
-            if (DBState?.db?.characters?.[selIdState]) {
-                for (const key in DBState.db.characters[selIdState]) {
-                    if (key !== 'chats') {
-                        $state.snapshot(DBState.db.characters[selIdState][key])
-                    }
-                }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
-                if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
-                    changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
-                }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
-                }
-            }
-            saveTimeoutExecute()
+
+        registerSaveChangeTracking({
+            tracker: changeTracker,
+            getDb: () => DBState.db,
+            getSelectedIndex: () => selIdState,
+            onChange: saveTimeoutExecute
         })
     })
 
@@ -418,10 +432,15 @@ export async function saveDb() {
         saving.state = true
         changed = false
         let kvDirty: string[] = []
+        let toSave: toSaveType | null = null
         try {
 
+            if (encoder.splitChats !== wantsSplitChats()) {
+                //the split chat setting was toggled: rebuild every block in the new format
+                requiresFullEncoderReload.state = true
+            }
             if (requiresFullEncoderReload.state) {
-                encoder = new RisuSaveEncoder()
+                encoder = new RisuSaveEncoder({ splitChats: wantsSplitChats() })
                 await encoder.init(getDatabase(), {
                     compression: forageStorage.isAccount,
                     skipRemoteSavingOnCharacters: false,
@@ -430,13 +449,17 @@ export async function saveDb() {
                 requiresFullEncoderReload.state = false
             }
 
-            let toSave = safeStructuredClone(changeTracker)
+            toSave = safeStructuredClone(changeTracker)
+            // the current character and the current chat stay dirty, so they are always re-encoded
             changeTracker.character = changeTracker.character.length === 0 ? [] : [changeTracker.character[0]]
             changeTracker.chat = changeTracker.chat.length === 0 ? [] : [changeTracker.chat[0]]
+            changeTracker.allChats = []
             changeTracker.botPreset = false
             changeTracker.modules = false
             if (gotChannel) {
                 //Data is saved in other tab
+                restoreDirty(toSave)
+                toSave = null
                 await sleep(1000)
                 continue
             }
@@ -445,16 +468,21 @@ export async function saveDb() {
             }
             let db = getDatabase()
             if (!db.characters) {
+                restoreDirty(toSave)
+                toSave = null
                 await sleep(1000)
                 continue
             }
 
             kvDirty = saveKV.takeDirty()
             toSave.kv = kvDirty
-            await encoder.set(db, toSave)
+            // the encoder consumes its argument; keep toSave intact in case this attempt fails
+            await encoder.set(db, safeStructuredClone(toSave))
             const encoded = encoder.encode()
             if (!encoded) {
                 saveKV.markDirty(kvDirty)
+                restoreDirty(toSave)
+                toSave = null
                 await sleep(1000)
                 continue
             }
@@ -477,11 +505,17 @@ export async function saveDb() {
                 await getDbBackups()
             }
             savetrys = 0
+            toSave = null
             await saveDbKei()
             await sleep(500)
         } catch (error) {
             //the KV blocks were not written; encode them again on the next attempt
             saveKV.markDirty(kvDirty)
+            //same for characters and chats that were dirty
+            if (toSave) {
+                restoreDirty(toSave)
+                toSave = null
+            }
             savetrys += 1
             if (savetrys > 4) {
                 alertError(error)

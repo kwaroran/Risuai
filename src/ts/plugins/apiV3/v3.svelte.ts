@@ -470,7 +470,13 @@ class SafeMutationObserver {
     __classType = 'REMOTE_REQUIRED' as const;
     constructor(callback: SafeMutationCallback) {
         this.#observer = new MutationObserver((mutations) => {
-            const safeMutations: SafeMutationRecordObject[] = mutations.map(mutation => {
+            const safeMutations: SafeMutationRecordObject[] = mutations.flatMap(mutation => {
+                const target = mutation.target.nodeType === Node.ELEMENT_NODE
+                    ? mutation.target
+                    : mutation.target.parentElement;
+                if(!target){
+                    return [];
+                }
 
                 const elementMapHelper = (nodeList: NodeList): SafeElement[] => {
                     const elements: SafeElement[] = [];
@@ -482,13 +488,13 @@ class SafeMutationObserver {
                     return elements;
                 }
 
-                return {
+                return [{
                     type: mutation.type,
-                    target: new SafeElement(mutation.target as HTMLElement),
+                    target: new SafeElement(target as HTMLElement),
                     addedNodes: elementMapHelper(mutation.addedNodes),
                     removedNodes: elementMapHelper(mutation.removedNodes)
-                    
-                }
+
+                }]
             })
 
             const safeClassed = new SafeClassArray<SafeMutationRecord>([]);

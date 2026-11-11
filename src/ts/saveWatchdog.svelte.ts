@@ -242,45 +242,39 @@ function notify(kind: StallKind, detail: string) {
             effectError: text.effectError,
         }
 
+        //Same classes as the alerts in AlertComp.svelte and Button.svelte, so it follows the theme.
+        //Shown at the top instead of as a modal: the app stays usable while saving is checked.
         banner?.remove()
         banner = document.createElement('div')
         banner.setAttribute('role', 'alert')
-        banner.style.cssText = [
-            'position:fixed', 'top:12px', 'left:50%', 'transform:translateX(-50%)',
-            'z-index:2147483647', 'max-width:min(560px,calc(100vw - 24px))', 'box-sizing:border-box',
-            'padding:12px 14px', 'border-radius:8px', 'font-size:14px', 'line-height:1.45',
-            'font-family:system-ui,sans-serif', 'box-shadow:0 8px 24px rgba(0,0,0,.45)',
-            'background:var(--risu-theme-darkbg,#21222c)', 'color:var(--risu-theme-textcolor,#f8f8f2)',
-            'border:1px solid var(--risu-theme-draculared,#ff5555)',
-        ].join(';')
+        banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-1100 w-full max-w-xl px-2 pointer-events-none'
 
-        const title = document.createElement('div')
+        const panel = document.createElement('div')
+        panel.className = 'bg-darkbg text-textcolor border border-darkborderc p-4 rounded-md shadow-lg flex flex-col wrap-anywhere pointer-events-auto'
+
+        const title = document.createElement('h2')
         title.textContent = text.title
-        title.style.cssText = 'font-weight:600;color:var(--risu-theme-draculared,#ff5555);margin-bottom:4px'
+        title.className = 'text-red-700 text-lg mt-0 mb-2'
 
-        const body = document.createElement('div')
+        const body = document.createElement('span')
         body.textContent = messages[kind] + (detail ? ` (${detail})` : '')
-        body.style.cssText = 'overflow-wrap:anywhere'
+        body.className = 'text-gray-300 whitespace-pre-wrap'
 
-        const advice = document.createElement('div')
+        const advice = document.createElement('span')
         advice.textContent = text.advice
-        advice.style.cssText = 'margin-top:4px;color:var(--risu-theme-textcolor2,#bbb)'
+        advice.className = 'text-gray-500 text-sm mt-2'
 
-        bannerStatus = document.createElement('div')
-        bannerStatus.style.cssText = 'margin-top:4px;color:var(--risu-theme-textcolor2,#bbb)'
+        bannerStatus = document.createElement('span')
+        bannerStatus.className = 'text-gray-500 text-sm'
 
         const buttons = document.createElement('div')
-        buttons.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px'
+        buttons.className = 'flex gap-2 w-full'
 
         const makeButton = (label: string, onClick: () => void) => {
             const button = document.createElement('button')
             button.type = 'button'
             button.textContent = label
-            button.style.cssText = [
-                'padding:4px 12px', 'border-radius:6px', 'cursor:pointer', 'font:inherit',
-                'background:var(--risu-theme-darkbutton,#44475a)', 'color:inherit',
-                'border:1px solid var(--risu-theme-darkborderc,#6272a4)',
-            ].join(';')
+            button.className = 'mt-4 grow bg-darkbutton hover:bg-selected focus:ring-selected border-darkborderc border text-textcolor rounded-md shadow-xs focus:outline-hidden focus:ring-2 transition-colors duration-200 px-4 py-2 text-md'
             button.addEventListener('click', onClick)
             buttons.appendChild(button)
         }
@@ -295,7 +289,8 @@ function notify(kind: StallKind, detail: string) {
             bannerStatus = null
         })
 
-        banner.append(title, body, advice, bannerStatus, buttons)
+        panel.append(title, body, advice, bannerStatus, buttons)
+        banner.appendChild(panel)
         document.body.appendChild(banner)
         updateStatus()
     } catch (error) {

@@ -1,4 +1,7 @@
 import { language } from "src/lang"
+import { get } from "svelte/store"
+import { alertStore } from "./stores.svelte"
+import type { alertData } from "./alert"
 
 /**
  * Save watchdog.
@@ -10,9 +13,9 @@ import { language } from "src/lang"
  *  2. The save loop itself, which can hang on a storage write that never settles
  *     (Tauri FS, IndexedDB/OPFS, or the node server over the network).
  *
- * The watchdog deliberately uses nothing reactive for its own work: a plain
- * timer for checks and plain DOM for the notice, so it keeps working when
- * rendering ({#if} blocks, alerts) is what broke.
+ * The watchdog uses nothing reactive for its own checks, only a plain timer.
+ * The notice is a normal error alert; if the alert cannot be rendered because
+ * rendering ({#if} blocks) is what broke, it falls back to plain DOM.
  */
 
 type StallKind = 'tracker' | 'reactivity' | 'loop' | 'effectError'
@@ -201,46 +204,112 @@ function errorText(error: unknown) {
 }
 
 let banner: HTMLDivElement | null = null
-let bannerStatus: HTMLDivElement | null = null
+let bannerStatus: HTMLElement | null = null
 
 function formatTime(time: number) {
     return new Date(time).toLocaleTimeString()
 }
 
-function updateStatus() {
-    if (!bannerStatus) {
-        return
-    }
+function statusText() {
     const text = language.saveWatchdog
     if (lastForced && lastSuccess >= lastForced) {
-        bannerStatus.textContent = text.saved.replace('{}', formatTime(lastSuccess))
+        return text.saved.replace('{}', formatTime(lastSuccess))
     }
-    else if (lastForced) {
-        bannerStatus.textContent = text.saving
+    if (lastForced) {
+        return text.saving
     }
-    else {
-        bannerStatus.textContent = lastSuccess
-            ? text.lastSaved.replace('{}', formatTime(lastSuccess))
-            : ''
+    return lastSuccess ? text.lastSaved.replace('{}', formatTime(lastSuccess)) : ''
+}
+
+function updateStatus() {
+    if (bannerStatus) {
+        bannerStatus.textContent = statusText()
+    }
+    //keep the open alert current, e.g. once the requested save completes
+    if (shownAlert && get(alertStore) === shownAlert) {
+        shownAlert = { ...shownAlert, submsg: alertSubmsg() }
+        alertStore.set(shownAlert)
     }
 }
 
+let shownAlert: alertData | null = null
+let notifyRun = 0
+
+function alertSubmsg() {
+    return [language.saveWatchdog.advice, statusText()].filter(Boolean).join('\n')
+}
+
+function sleepPlain(ms: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
 /**
- * Shows the notice with plain DOM, since Svelte rendering may be what is broken.
+ * Shows the notice as a normal error alert.
+ * Returns false when the alert could not be shown, so the caller can fall back.
  */
+async function showAlert(message: string) {
+    const run = ++notifyRun
+    //Do not replace an alert the user is looking at, such as the error that caused this.
+    //If rendering is dead that alert may never be closed, so do not wait for it then.
+    while (get(alertStore).type !== 'none' && get(alertStore) !== shownAlert) {
+        if (probeDead) {
+            return false
+        }
+        await sleepPlain(200)
+        if (run !== notifyRun) {
+            return true
+        }
+    }
+    const title = language.saveWatchdog.title
+    shownAlert = {
+        type: 'error',
+        msg: `${title}\n\n${message}`,
+        submsg: alertSubmsg(),
+    }
+    alertStore.set(shownAlert)
+
+    //the store accepted it, but did it reach the screen?
+    await sleepPlain(1500)
+    if (run !== notifyRun || get(alertStore) !== shownAlert) {
+        return true
+    }
+    if (document.body.textContent?.includes(title)) {
+        return true
+    }
+    alertStore.set({ type: 'none', msg: '' })
+    shownAlert = null
+    return false
+}
+
 function notify(kind: StallKind, detail: string) {
+    if (kind === 'loop') {
+        //nothing was forced for this one; show the last save that did succeed
+        lastForced = 0
+    }
+    const text = language.saveWatchdog
+    const messages: Record<StallKind, string> = {
+        tracker: text.tracker,
+        reactivity: text.reactivity,
+        loop: text.loop,
+        effectError: text.effectError,
+    }
+    const message = messages[kind] + (detail ? ` (${detail})` : '')
+    showAlert(message).then((shown) => {
+        if (!shown) {
+            showBanner(message)
+        }
+    }).catch((error) => {
+        console.error('[SaveWatchdog] failed to show alert', error)
+        showBanner(message)
+    })
+}
+
+/**
+ * Fallback notice built with plain DOM, for when Svelte rendering is what is broken.
+ */
+function showBanner(message: string) {
     try {
-        if (kind === 'loop') {
-            //nothing was forced for this one; show the last save that did succeed
-            lastForced = 0
-        }
         const text = language.saveWatchdog
-        const messages: Record<StallKind, string> = {
-            tracker: text.tracker,
-            reactivity: text.reactivity,
-            loop: text.loop,
-            effectError: text.effectError,
-        }
 
         //Same classes as the alerts in AlertComp.svelte and Button.svelte, so it follows the theme.
         //Shown at the top instead of as a modal: the app stays usable while saving is checked.
@@ -257,7 +326,7 @@ function notify(kind: StallKind, detail: string) {
         title.className = 'text-red-700 text-lg mt-0 mb-2'
 
         const body = document.createElement('span')
-        body.textContent = messages[kind] + (detail ? ` (${detail})` : '')
+        body.textContent = message
         body.className = 'text-gray-300 whitespace-pre-wrap'
 
         const advice = document.createElement('span')

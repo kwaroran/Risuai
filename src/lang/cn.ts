@@ -769,6 +769,7 @@ export const languageChinese = {
     "advanced": "高级",
     "askReRollAutoSuggestions": "自动滚动建议",
     "creatingSuggestions": "正在产生建议⋯",
+    "insertSuggestionToInput": "填入输入框",
     "orderByOrder": "按顺序对话",
     "removeFromGroup": "确定要将 {{char}} 移出群组吗？",
     "talkness": "健谈度",

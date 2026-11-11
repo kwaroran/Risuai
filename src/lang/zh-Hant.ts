@@ -926,6 +926,7 @@ export const languageChineseTraditional = {
     "advanced": "進階",
     "askReRollAutoSuggestions": "重新產生自動建議",
     "creatingSuggestions": "正在產生建議...",
+    "insertSuggestionToInput": "填入輸入框",
     "orderByOrder": "依順序發言",
     "removeFromGroup": "確定要將 {{char}} 從群組中移除嗎？",
     "talkness": "發言頻率",

@@ -93,6 +93,13 @@ export class NodeStorage{
     }
 
     async createAuth(){
+        // Browsers only expose crypto.subtle in secure contexts (HTTPS or localhost)
+        if(!globalThis.crypto?.subtle){
+            throw new Error(
+                `Web Crypto API is not available because ${location.origin} is not a secure context. ` +
+                `Open the node server through HTTPS or http://localhost instead of a plain HTTP address.`
+            )
+        }
         const keyPair = await this.getKeyPair()
         const date = Math.floor(Date.now() / 1000)
         

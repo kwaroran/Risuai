@@ -49,7 +49,7 @@ vi.mock('./files/inlays', () => ({ getInlayAsset: vi.fn(), writeInlayImage: vi.f
 vi.mock('./lorebook.svelte', () => ({ loadLoreBookV3Prompt: vi.fn() }))
 vi.mock('./memory/hypamemory', () => ({ HypaProcesser: vi.fn() }))
 vi.mock('./request/request', () => ({ requestChatData: vi.fn() }))
-vi.mock('./stableDiff', () => ({ generateAIImage: vi.fn() }))
+vi.mock('./request/image', () => ({ generateAIImage: vi.fn() }))
 
 let runScripted: typeof import('./scriptings').runScripted
 

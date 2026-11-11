@@ -19,8 +19,6 @@ tiktoken-rs = "0.4.0"
 base64 = "0.21.0"
 reqwest = { version = "0.11.16", features = ["json"] }
 darling = "0.20.3"
-zip = "0.6.6"
-tar = "0.4.40"
 eventsource-client = "0.12.2"
 futures = "0.3.30"
 url = "2.2"

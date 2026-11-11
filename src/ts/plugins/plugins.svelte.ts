@@ -770,7 +770,18 @@ export const getV2PluginAPIs = () => {
             for (const key of Object.keys(newDb)) {
                 if (key === 'plugins') {
                     console.warn('[WARN] Plugin attempted to access plugin directly. this would be blocked in future versions. Instead, use the provided APIs to manage plugins. Attempting to handle plugin installation via plugin for new plugins in the provided database object.')
-                    newDb[key] = await handlePluginInstallViaPlugin(newDb.plugins)
+                    const approvedPlugins = await handlePluginInstallViaPlugin(newDb.plugins)
+                    const mergedPlugins = [...(db.plugins ?? [])]
+                    for (const approved of approvedPlugins) {
+                        const index = mergedPlugins.findIndex((plugin) => plugin.name === approved.name)
+                        if (index !== -1) {
+                            mergedPlugins[index] = approved
+                        }
+                        else {
+                            mergedPlugins.push(approved)
+                        }
+                    }
+                    newDb[key] = mergedPlugins
                 }
                 
                 if (key === 'pluginCustomStorage') {
@@ -960,7 +971,9 @@ export async function handlePluginInstallViaPlugin(plugins: RisuPlugin[]){
                 console.warn(`Plugin "${plugin.name}" has version "${plugin.version}", which is not supported for installation via plugin. Only API version 3.0 plugins can be installed via plugin. Skipping installation of this plugin.`)
                 continue
             }
-            const confirmation = await alertConfirm(language.confirmInstallPluginViaPlugin.replace('{plugin}', plugin.name))
+            const replacing = DBState.db.plugins.some((p: RisuPlugin) => p.name === plugin.name)
+            const message = replacing ? language.confirmReplacePluginViaPlugin : language.confirmInstallPluginViaPlugin
+            const confirmation = await alertConfirm(message.replace('{plugin}', plugin.name))
             if(confirmation){
                 trimmedPlugins.push(plugin)
             }

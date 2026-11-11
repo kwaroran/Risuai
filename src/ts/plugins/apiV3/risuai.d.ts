@@ -966,6 +966,8 @@ interface SafeMutationRecord {
     getTarget(): Promise<SafeElement>;
     /** Added nodes in mutation */
     getAddedNodes(): Promise<SafeClassArray<SafeElement>>;
+    /** Removed nodes in mutation */
+    getRemovedNodes(): Promise<SafeClassArray<SafeElement>>;
 }
 
 /**
@@ -1492,13 +1494,17 @@ interface RisuaiPluginAPI {
 
     /**
      * Sets the database (lightweight save)
-     * The `plugins` property is ignored. Use setDatabase() to update plugins.
+     * The `plugins` property is ignored.
+     * Requires the `dbWrite` permission; the write is skipped if the user declines.
      * @param db - DatabaseSubset object to save, excluding `plugins`
      */
     setDatabaseLite(db: Omit<DatabaseSubset, 'plugins'>): Promise<void>;
 
     /**
      * Sets the database (full save with sync)
+     * In `plugins`, only API 3.0 plugins that are new or whose script changed are applied,
+     * each after the user confirms. Removing, reordering, enabling or disabling plugins is ignored.
+     * Requires the `dbWrite` permission; the write is skipped if the user declines.
      * @param db - DatabaseSubset object to save
      */
     setDatabase(db: DatabaseSubset): Promise<void>;
@@ -1764,8 +1770,8 @@ interface RisuaiPluginAPI {
      * ```typescript
      * await risuai.addTTSPreprocessor(async (ctx) => {
      *   if (ctx.ttsMode !== 'openai') return;
-     *   return { text: ctx.text.replace(/\*(.*?)\*/g, '') };
-     * });
+     *   return { text: ctx.text.replace(/[*](.*?)[*]/g, '') };
+     * };
      * ```
      */
     addTTSPreprocessor(
@@ -2056,7 +2062,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Requests permission for a specific action
-     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'mainDom')
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom')
      * @returns True if permission granted, false otherwise
      */
     requestPluginPermission(permission: string): Promise<boolean>;

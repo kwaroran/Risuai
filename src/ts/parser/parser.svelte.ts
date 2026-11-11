@@ -107,6 +107,10 @@ DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
             data.attrValue = ''
             break
         }
+        case 'rel':{
+            data.attrValue = 'noopener noreferrer'
+            break
+        }
     }
 })
 
@@ -778,7 +782,7 @@ export async function ParseMarkdown(
 
 const trimPurifyConfig = {
     ADD_TAGS: ["iframe", "style", "risu-style", "x-em", 'annotation', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'msqrt'],
-    ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "scrolling", "risu-ctrl" ,"risu-btn", 'risu-trigger', 'risu-mark', 'risu-id', 'x-hl-lang', 'x-hl-text'],
+    ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "scrolling", "risu-btn", "risu-ctrl", 'risu-form', 'risu-trigger', 'risu-mark', 'risu-id', 'x-hl-lang', 'x-hl-text'],
 }
 
 // Onboarding HTML can bind clicks/inputs to chat variables, so it gets the
@@ -1874,7 +1878,7 @@ export function applyMarkdownToNode(node: Node) {
         if (text) {
             let markdown = renderMarkdown(md, text);
             if (markdown !== text) {
-                const span = document.createElement('span');
+                const span = node.ownerDocument.createElement('span');
                 span.innerHTML = markdown;
                 
                 // inherit inline style from the parent node

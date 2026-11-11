@@ -3,7 +3,13 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
-    svelte(),
+    svelte({
+      compilerOptions: {
+        experimental: {
+          async: true
+        }
+      }
+    }),
   ],
   resolve: {
     alias: {

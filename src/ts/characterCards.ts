@@ -28,8 +28,15 @@ const NIGHTLY_HUB_URL = 'https://nightly.sv.risuai.xyz'
 export const hubURL = isNodeServer
     ? '/hub-proxy'
     : (import.meta.env.VITE_RISU_NIGHTLY_BUILD === 'TRUE' || localStorage.getItem('hub') === 'nightly')
-    ? NIGHTLY_HUB_URL 
+    ? NIGHTLY_HUB_URL
     : EXTERNAL_HUB_URL;
+
+export function isTrustedHubOrigin(origin: string) {
+    if (origin === EXTERNAL_HUB_URL || origin === NIGHTLY_HUB_URL || origin === window.location.origin) {
+        return true;
+    }
+    return import.meta.env.DEV && (origin === 'http://127.0.0.1' || origin.startsWith('http://127.0.0.1:'));
+}
 
 export async function importCharacter() {
     try {
@@ -486,6 +493,7 @@ export async function characterURLImport() {
         const data = hash.replace('#import_module=', '')
         const importData = JSON.parse(Buffer.from(decodeURIComponent(data), 'base64').toString('utf-8'))
         importData.id = v4()
+        delete importData.mcp
 
         if(importData.lowLevelAccess){
             const conf = await alertConfirm(language.lowLevelAccessConfirm)

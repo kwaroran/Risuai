@@ -104,6 +104,10 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                             throw new Error('stdio MCPs are only supported in Local Version');
                         }
 
+                        if(isTauri){
+                            throw new Error('stdio MCPs are temporally blocked');
+                        }
+
                         const { Command } = await import('@tauri-apps/plugin-shell');
                         const listeners = new Set<(message: JsonRPC) => void | Promise<void>>();
                         const cmd = Command.create(command, args, {

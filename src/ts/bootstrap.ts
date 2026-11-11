@@ -44,6 +44,7 @@ import {
     checkCharOrder
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
+import { saveWatchdog } from "./saveWatchdog.svelte";
 import { registerModelDynamic } from "./model/modellist";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
@@ -256,7 +257,7 @@ export async function loadData() {
             startObserveDom()
             assignIds()
             registerModelDynamic()
-            saveDb()
+            saveDb().catch((error) => saveWatchdog.loopDied(error))
             moduleUpdate()
             cleanChunks()
             alertTOS().then((a) => {

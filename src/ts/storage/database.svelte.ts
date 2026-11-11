@@ -4,7 +4,7 @@ import { changeLanguage, language } from '../../lang';
 import type { RisuPlugin } from '../plugins/plugins.svelte';
 import type {triggerscript as triggerscriptMain} from '../process/triggers';
 import { downloadFile, saveAsset as saveImageGlobal } from '../globalApi.svelte';
-import { defaultAutoSuggestPrompt, defaultJailbreak, defaultMainPrompt } from './defaultPrompts';
+import { defaultAutoSuggestPrompt, defaultJailbreak, defaultMainPrompt, legacyAutoSuggestPrompt } from './defaultPrompts';
 import { alertNormal } from '../alert';
 import type { NAISettings } from '../process/models/nai';
 import { prebuiltNAIpresets, prebuiltPresets } from '../process/templates/templates';
@@ -352,6 +352,9 @@ export function setDatabase(data:Database){
     data.globalscript ??= []
     data.sendWithEnter ??= true
     data.autoSuggestPrompt ??= defaultAutoSuggestPrompt
+    if(data.autoSuggestPrompt === legacyAutoSuggestPrompt){
+        data.autoSuggestPrompt = defaultAutoSuggestPrompt
+    }
     data.autoSuggestPrefix ??= ""
     data.OAIPrediction ??= ''
     data.autoSuggestClean ??= true
@@ -489,6 +492,9 @@ export function setDatabase(data:Database){
     }
     if (data.botPresets) {
         for (const preset of data.botPresets) {
+            if(preset.autoSuggestPrompt === legacyAutoSuggestPrompt){
+                preset.autoSuggestPrompt = defaultAutoSuggestPrompt
+            }
             if(Array.isArray(preset.promptTemplate)){
                 preset.promptTemplate = normalizePromptTemplate(preset.promptTemplate)
             }

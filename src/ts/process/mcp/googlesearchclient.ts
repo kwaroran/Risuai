@@ -28,12 +28,27 @@ interface ImageSearchArgs {
 interface GoogleSearchCredentials {
     apiKey: string;
     searchEngineId: string;
+    baseUrl?: string;
+}
+
+export const DEFAULT_GOOGLE_SEARCH_BASE_URL = "https://customsearch.googleapis.com/customsearch/v1";
+
+export function resolveGoogleSearchBaseUrl(baseUrl?: string): string {
+    const trimmed = baseUrl?.trim();
+    if (!trimmed) {
+        return DEFAULT_GOOGLE_SEARCH_BASE_URL;
+    }
+    if (!/^https?:\/\//i.test(trimmed)) {
+        throw new Error('Custom Search API address must start with http:// or https://');
+    }
+    return trimmed;
 }
 
 export class GoogleSearchClient extends MCPClientLike {
     private initialized: boolean = false;
     private API_KEY = "";
     private SEARCH_ENGINE_ID = "";
+    private BASE_URL = DEFAULT_GOOGLE_SEARCH_BASE_URL;
     private credentialsStorage = localforage.createInstance({
         name: 'google-search-credentials',
         storeName: 'credentials'
@@ -60,6 +75,7 @@ export class GoogleSearchClient extends MCPClientLike {
         if (storedCredentials && storedCredentials.apiKey && storedCredentials.searchEngineId) {
             this.API_KEY = storedCredentials.apiKey;
             this.SEARCH_ENGINE_ID = storedCredentials.searchEngineId;
+            this.BASE_URL = resolveGoogleSearchBaseUrl(storedCredentials.baseUrl);
             return;
         }
 
@@ -73,15 +89,21 @@ export class GoogleSearchClient extends MCPClientLike {
             throw new Error('Google Custom Search Engine ID is required');
         }
 
+        const baseUrl = resolveGoogleSearchBaseUrl(
+            await alertInput('Custom Search API address (keep the default to use Google):', [], DEFAULT_GOOGLE_SEARCH_BASE_URL)
+        );
+
         const credentials: GoogleSearchCredentials = {
             apiKey: apiKey.trim(),
-            searchEngineId: searchEngineId.trim()
+            searchEngineId: searchEngineId.trim(),
+            baseUrl: baseUrl
         };
 
         await this.credentialsStorage.setItem('google-search-creds', credentials);
         
         this.API_KEY = credentials.apiKey;
         this.SEARCH_ENGINE_ID = credentials.searchEngineId;
+        this.BASE_URL = baseUrl;
     }
 
     async getToolList(): Promise<MCPTool[]> {
@@ -141,14 +163,13 @@ export class GoogleSearchClient extends MCPClientLike {
     }
 
     private buildSearchUrl(query: string, extraParams: Record<string, string>): string {
-        const baseUrl = "https://customsearch.googleapis.com/customsearch/v1";
         const params = new URLSearchParams({
             key: this.API_KEY,
             cx: this.SEARCH_ENGINE_ID,
             q: query.trim(),
             ...extraParams
         });
-        return `${baseUrl}?${params.toString()}`;
+        return `${this.BASE_URL}?${params.toString()}`;
     }
 
     private async performWebSearch(args: WebSearchArgs): Promise<RPCToolCallContent[]> {
@@ -284,5 +305,6 @@ export class GoogleSearchClient extends MCPClientLike {
         this.initialized = false;
         this.API_KEY = "";
         this.SEARCH_ENGINE_ID = "";
+        this.BASE_URL = DEFAULT_GOOGLE_SEARCH_BASE_URL;
     }
 }

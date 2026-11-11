@@ -235,8 +235,14 @@ function updateStatus() {
 let shownAlert: alertData | null = null
 let notifyRun = 0
 
+let stuckNotice = false
+
+function adviceText() {
+    return stuckNotice ? language.saveWatchdog.stuckAdvice : language.saveWatchdog.advice
+}
+
 function alertSubmsg() {
-    return [language.saveWatchdog.advice, statusText()].filter(Boolean).join('\n')
+    return [adviceText(), statusText()].filter(Boolean).join(' ')
 }
 
 function sleepPlain(ms: number) {
@@ -286,14 +292,19 @@ function notify(kind: StallKind, detail: string) {
         //nothing was forced for this one; show the last save that did succeed
         lastForced = 0
     }
+    if (detail) {
+        //kept out of the notice, which is written for users
+        console.error(`[SaveWatchdog] ${kind}: ${detail}`)
+    }
+    stuckNotice = kind === 'loop'
     const text = language.saveWatchdog
     const messages: Record<StallKind, string> = {
-        tracker: text.tracker,
-        reactivity: text.reactivity,
-        loop: text.loop,
-        effectError: text.effectError,
+        tracker: text.notSaved,
+        effectError: text.notSaved,
+        reactivity: text.appError,
+        loop: text.stuck,
     }
-    const message = messages[kind] + (detail ? ` (${detail})` : '')
+    const message = messages[kind]
     showAlert(message).then((shown) => {
         if (!shown) {
             showBanner(message)
@@ -330,7 +341,7 @@ function showBanner(message: string) {
         body.className = 'text-gray-300 whitespace-pre-wrap'
 
         const advice = document.createElement('span')
-        advice.textContent = text.advice
+        advice.textContent = adviceText()
         advice.className = 'text-gray-500 text-sm mt-2'
 
         bannerStatus = document.createElement('span')

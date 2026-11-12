@@ -16,6 +16,10 @@
       logoIcon: "source" | "globe" | "mail" | "paper-airplane";
     };
 
+    // The home screen only previews the hub: a fixed number of cards, so the space can be
+    // reserved before the list arrives. "Get More" opens the full list.
+    const realmPreviewCount = 6
+
     const relatedLinkIconClass =
       "h-40 w-40 md:h-44 md:w-44 origin-right -rotate-12 opacity-[0.12] transition-all duration-500 group-hover:scale-105 group-hover:opacity-[0.22]";
 
@@ -63,11 +67,25 @@
                   page: 0,
                   nsfw: false,
                   sort: 'recommended'
-              }) then charas}
+              })}
+              <!-- Skeleton cards with the same box as RisuHubIcon, so nothing moves when the list arrives -->
+              <div class="w-full flex gap-4 p-2 flex-wrap justify-center" aria-hidden="true">
+                  {#each { length: realmPreviewCount } as _}
+                      <div class="bg-darkbg rounded-lg p-4 flex gap-2 lg:w-96 w-full h-28 sm:h-36 animate-pulse motion-reduce:animate-none">
+                          <div class="w-20 min-w-20 h-20 sm:h-28 sm:w-28 rounded-md bg-textcolor/10"></div>
+                          <div class="flex flex-col grow min-w-0 gap-2 pt-1">
+                              <div class="h-5 w-1/2 rounded-md bg-textcolor/10"></div>
+                              <div class="h-3 w-4/5 rounded-md bg-textcolor/10"></div>
+                              <div class="h-3 w-1/3 rounded-md bg-textcolor/10"></div>
+                          </div>
+                      </div>
+                  {/each}
+              </div>
+            {:then charas}
             {#if charas.length > 0}
               {@html hubAdditionalHTML}
               <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-                  {#each charas as chara}
+                  {#each charas.slice(0, realmPreviewCount) as chara}
                       <RisuHubIcon onClick={() => {
                         $OpenRealmStore = true
                         if(DBState.db.realmDirectOpen){

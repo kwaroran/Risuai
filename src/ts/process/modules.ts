@@ -316,9 +316,8 @@ export async function importModule(){
         }
         return
     }
-    const fileData = new Uint8Array(await f.arrayBuffer())
     try {
-        const importData = JSON.parse(Buffer.from(fileData).toString())
+        const importData = JSON.parse(await f.text())
         if(importData.type === 'risuModule'){
             if(
                 (!importData.name)

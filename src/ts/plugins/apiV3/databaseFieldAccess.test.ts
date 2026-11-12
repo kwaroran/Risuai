@@ -25,6 +25,29 @@ function makeColdStoredCharacter(chaId: string, name: string) {
     }
 }
 
+const patchOptions = {
+    allowedKeys: ['characters', 'modules', 'enabledModules', 'personas', 'plugins', 'pluginCustomStorage', 'temperature', 'seperateModels'],
+    readOnlyPaths: [['plugins'], ['pluginCustomStorage', '_coldpluginIndex']],
+}
+
+function applyPatch(db: Record<string, any>, operations: unknown) {
+    return applyDatabasePatch(db, operations, patchOptions)
+}
+
+function makeDb() {
+    return {
+        characters: [makeCharacter('a', 'Alice'), makeCharacter('b', 'Bob')] as Record<string, any>[],
+        modules: [{ id: 'm1', name: 'Mod', lorebook: [{ key: 'k', content: 'c' }] }],
+        enabledModules: ['m1'],
+        personas: [{ name: 'Me', personaPrompt: 'long', icon: '' }],
+        plugins: [{ name: 'p', script: 'code', enabled: true }],
+        pluginCustomStorage: { mine: 'value', _coldpluginIndex: 'index' } as Record<string, any>,
+        temperature: 80 as unknown,
+        seperateModels: { memory: 'm', emotion: 'e', translate: 't', otherAx: 'o' },
+        account: { token: 't' },
+    }
+}
+
 describe('projectDbValue', () => {
     it('returns the original value when no filter targets the key', () => {
         const characters = [makeCharacter('a', 'Alice')]
@@ -202,214 +225,255 @@ describe('dropFieldFilteredKeys', () => {
 })
 
 describe('applyDatabasePatch', () => {
-    it('writes only the provided fields and keeps the rest', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
+    it('sets one nested field and leaves everything else untouched', () => {
+        const db = makeDb()
         const chats = db.characters[0].chats
 
-        applyDatabasePatch(db, { characters: [{ chaId: 'a', modules: ['m1'] }] })
+        const result = applyPatch(db, [{ op: 'replace', path: ['characters', 0, 'name'], value: 'Alicia' }])
 
-        expect(db.characters[0].modules).toEqual(['m1'])
-        expect(db.characters[0].name).toBe('Alice')
+        expect(result).toEqual({ characterIds: ['a'] })
         expect(db.characters[0].chats).toBe(chats)
+        expect(db).toEqual({ ...makeDb(), characters: [{ ...makeCharacter('a', 'Alice'), name: 'Alicia' }, makeCharacter('b', 'Bob')] })
     })
 
-    it('leaves entries absent from the patch untouched, including ones added after the read', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-        const projected = projectDbValue('characters', db.characters, {
-            include: { characters: ['name'] },
-        }).value as Record<string, any>[]
-        db.characters.push(makeCharacter('b', 'Bob'))
-        projected[0].name = 'Alicia'
+    it('replaces a top-level value', () => {
+        const db = makeDb()
 
-        applyDatabasePatch(db, { characters: projected })
+        const result = applyPatch(db, [{ op: 'replace', path: ['temperature'], value: 70 }])
 
-        expect(db.characters.map((character) => character.name)).toEqual(['Alicia', 'Bob'])
-        expect(db.characters[0].chats).toHaveLength(1)
+        expect(result).toEqual({ characterIds: [] })
+        expect(db).toEqual({ ...makeDb(), temperature: 70 })
     })
 
-    it('writes and reports only the entries that changed when a filtered read is passed back as-is', () => {
-        const db = { characters: [makeCharacter('a', 'Alice'), makeCharacter('b', 'Bob')] }
-        const untouchedModules = db.characters[1].modules
-        const projected = structuredClone(projectDbValue('characters', db.characters, {
-            include: { characters: ['name', 'modules'] },
-        }).value) as Record<string, any>[]
-        projected[0].modules.push('m1')
+    it('writes at any depth inside objects and arrays', () => {
+        const db = makeDb()
 
-        const result = applyDatabasePatch(db, { characters: projected })
+        applyPatch(db, [
+            { op: 'replace', path: ['seperateModels', 'memory'], value: 'new' },
+            { op: 'replace', path: ['modules', 0, 'lorebook', 0, 'key'], value: 'changed' },
+            { op: 'replace', path: ['enabledModules', 0], value: 'm2' },
+        ])
 
-        expect(result.patched).toEqual([{ key: 'characters', id: 'a' }])
-        expect(db.characters[0].modules).toEqual(['m1'])
-        expect(db.characters[1].modules).toBe(untouchedModules)
+        expect(db.seperateModels).toEqual({ memory: 'new', emotion: 'e', translate: 't', otherAx: 'o' })
+        expect(db.modules[0].lorebook).toEqual([{ key: 'changed', content: 'c' }])
+        expect(db.enabledModules).toEqual(['m2'])
     })
 
-    it('reports nothing when every sent field already matches', () => {
-        const db = { modules: [{ id: 'm1', name: 'Same', lorebook: [{ key: 'k' }] }] }
-        const lorebook = db.modules[0].lorebook
+    it('creates a field that is missing on an existing object', () => {
+        const db = makeDb()
 
-        const result = applyDatabasePatch(db, { modules: structuredClone(db.modules) })
+        applyPatch(db, [{ op: 'replace', path: ['characters', 1, 'custom'], value: { enabled: true } }])
 
-        expect(result).toEqual({ patched: [], missing: [], coldStored: [] })
-        expect(db.modules[0].lorebook).toBe(lorebook)
+        expect(db.characters[1]).toEqual({ ...makeCharacter('b', 'Bob'), custom: { enabled: true } })
     })
 
-    it('skips and reports entries that no longer exist instead of creating them', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
+    it('reports the old and the new character id when a whole character is replaced', () => {
+        const db = makeDb()
 
-        const result = applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Alicia' }, { chaId: 'gone', name: 'Ghost' }],
-        })
+        const result = applyPatch(db, [{ op: 'replace', path: ['characters', 0], value: makeCharacter('z', 'Zed') }])
 
-        expect(result.patched).toEqual([{ key: 'characters', id: 'a' }])
-        expect(result.missing).toEqual([{ key: 'characters', id: 'gone' }])
-        expect(db.characters).toHaveLength(1)
+        expect(result.characterIds.sort()).toEqual(['a', 'z'])
+        expect(db.characters[0]).toEqual(makeCharacter('z', 'Zed'))
     })
 
-    it('ignores the field-filter tag so getDatabase results can be passed back directly', () => {
-        const db = { modules: [{ id: 'm1', name: 'Old', lorebook: [{ key: 'k' }] }] }
+    it('reports every old and new character id when the whole list is replaced', () => {
+        const db = makeDb()
 
-        applyDatabasePatch(db, {
-            modules: [{ id: 'm1', name: 'New' }],
-            [FIELD_FILTERED_KEYS_TAG]: ['modules'],
-        })
+        const result = applyPatch(db, [{ op: 'replace', path: ['characters'], value: [makeCharacter('b', 'Bob'), makeCharacter('c', 'Cy')] }])
 
-        expect(db.modules[0]).toEqual({ id: 'm1', name: 'New', lorebook: [{ key: 'k' }] })
-    })
-
-    it('rejects unsupported keys before applying anything', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')], plugins: [] }
-
-        expect(() => applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed' }],
-            plugins: [{ name: 'p', enabled: false }],
-        })).toThrow('does not support "plugins"')
-        expect(db.characters[0].name).toBe('Alice')
-    })
-
-    it('rejects entries without an identity field', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-
-        expect(() => applyDatabasePatch(db, { characters: [{ name: 'Nameless' }] })).toThrow('"chaId"')
-        expect(db.characters[0].name).toBe('Alice')
-    })
-
-    it('rejects ids that are not strings before applying anything', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-
-        expect(() => applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed' }, { chaId: 1 }],
-        })).toThrow('"chaId"')
-        expect(() => applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed' }, { chaId: { toString: null } }],
-        })).toThrow('"chaId"')
-        expect(db.characters[0].name).toBe('Alice')
-    })
-
-    it('applies nothing when comparing a later field throws', () => {
-        const db = { characters: [{ ...makeCharacter('a', 'Alice'), custom: { value: 1 } }] }
-        const custom = Object.defineProperty({}, 'value', {
-            enumerable: true,
-            get() {
-                throw new Error('unreadable')
-            },
-        })
-
-        expect(() => applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed', custom }],
-        })).toThrow('unreadable')
-        expect(db.characters[0].name).toBe('Alice')
-    })
-
-    it('lets the last entry win when an id is sent twice', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-
-        const result = applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed' }, { chaId: 'a', name: 'Alice' }],
-        })
-
-        expect(db.characters[0].name).toBe('Alice')
-        expect(result.patched).toEqual([{ key: 'characters', id: 'a' }])
-    })
-
-    it('stops validating at the first invalid entry instead of walking the whole array', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-        let indexReads = 0
-        const entries = new Proxy(new Array(1000), {
-            get(target, property, receiver) {
-                if (typeof property === 'string' && /^\d+$/.test(property)) {
-                    indexReads += 1
-                }
-                return Reflect.get(target, property, receiver)
-            },
-        })
-
-        expect(() => applyDatabasePatch(db, { characters: entries })).toThrow('"chaId"')
-        expect(indexReads).toBe(1)
-    })
-
-    it('skips and reports a cold-stored character instead of writing to its placeholder', () => {
-        const db = { characters: [makeColdStoredCharacter('a', 'Alice')] }
-        const placeholder = structuredClone(db.characters[0])
-
-        const result = applyDatabasePatch(db, { characters: [{ chaId: 'a', modules: ['m1'] }] })
-
-        expect(result).toEqual({ patched: [], missing: [], coldStored: [{ key: 'characters', id: 'a' }] })
-        expect(db.characters[0]).toEqual(placeholder)
+        expect(result.characterIds.sort()).toEqual(['a', 'b', 'c'])
     })
 
     it.each([
-        { include: { characters: ['name', 'chatPage'] } },
-        { exclude: { characters: ['chats'] } },
-    ])('skips an entry read from a placeholder once the character has been restored: %o', (filter) => {
-        const db: { characters: Record<string, any>[] } = { characters: [makeColdStoredCharacter('a', 'Alice')] }
-        const stale = structuredClone(projectDbValue('characters', db.characters, filter).value)
-        db.characters[0] = { ...makeCharacter('a', 'Alice'), chatPage: 3 }
+        ['a parent that does not exist', ['characters', 5, 'name']],
+        ['a field of a value that is not an object', ['temperature', 'unit']],
+        ['an array index that does not exist', ['enabledModules', 1]],
+        ['a field name used on an array', ['characters', 'name']],
+        ['a numeric string used as an array index', ['characters', '0', 'name']],
+    ])('rejects %s before applying anything', (_label, path) => {
+        const db = makeDb()
 
-        const result = applyDatabasePatch(db, { characters: stale })
-
-        expect(result).toEqual({ patched: [], missing: [], coldStored: [{ key: 'characters', id: 'a' }] })
-        expect(db.characters[0]).toEqual({ ...makeCharacter('a', 'Alice'), chatPage: 3 })
-    })
-
-    it('reports nothing for a cold-stored character passed back unchanged', () => {
-        const db = { characters: [makeColdStoredCharacter('a', 'Alice')] }
-        const projected = structuredClone(projectDbValue('characters', db.characters, {
-            include: { characters: ['name'] },
-        }).value)
-
-        expect(applyDatabasePatch(db, { characters: projected })).toEqual({ patched: [], missing: [], coldStored: [] })
-    })
-
-    it('ignores keys whose value is undefined', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')], modules: [{ id: 'm1', name: 'Old' }] }
-
-        const result = applyDatabasePatch(db, { characters: undefined, modules: [{ id: 'm1', name: 'New' }] })
-
-        expect(result.patched).toEqual([{ key: 'modules', id: 'm1' }])
-        expect(db.modules[0].name).toBe('New')
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['seperateModels', 'memory'], value: 'new' },
+            { op: 'replace', path, value: 'x' },
+        ])).toThrow('cannot find')
+        expect(db).toEqual(makeDb())
     })
 
     it.each([
-        ['a BigInt', { count: BigInt(1) }],
-        ['a circular reference', (() => {
-            const value: Record<string, any> = {}
-            value.self = value
-            return value
-        })()],
-    ])('rejects a value JSON cannot store before applying anything: %s', (_label, custom) => {
-        const db = { characters: [makeCharacter('a', 'Alice'), makeCharacter('b', 'Bob')] }
+        ['something that is not an array', { op: 'replace', path: ['temperature'], value: 1 }],
+        ['an operation that is not an object', ['replace']],
+        ['a missing path', [{ op: 'replace', value: 1 }]],
+        ['an empty path', [{ op: 'replace', path: [], value: 1 }]],
+        ['a negative index', [{ op: 'replace', path: ['characters', -1, 'name'], value: 'x' }]],
+        ['a fractional index', [{ op: 'replace', path: ['characters', 0.5, 'name'], value: 'x' }]],
+        ['a __proto__ segment', [{ op: 'replace', path: ['characters', 0, '__proto__'], value: { injected: true } }]],
+        ['a constructor segment', [{ op: 'replace', path: ['characters', 0, 'constructor', 'prototype'], value: 1 }]],
+        ['a path with a hole', [{ op: 'replace', path: structuredClone(['characters', , 'name']), value: 'x' }]],
+        ['an unknown op', [{ op: 'remove', path: ['temperature'] }]],
+        ['a replace without a value', [{ op: 'replace', path: ['temperature'] }]],
+        ['a BigInt value', [{ op: 'replace', path: ['temperature'], value: BigInt(1) }]],
+        ['a hole in the operations', structuredClone([{ op: 'replace', path: ['temperature'], value: 1 }, , ])],
+    ])('rejects %s before applying anything', (_label, operations) => {
+        const db = makeDb()
 
-        expect(() => applyDatabasePatch(db, {
-            characters: [{ chaId: 'a', name: 'Changed' }, { chaId: 'b', custom }],
-        })).toThrow('JSON')
-        expect(db.characters[0].name).toBe('Alice')
-        expect(db.characters[1]).not.toHaveProperty('custom')
+        expect(() => applyPatch(db, operations)).toThrow('patchDatabase')
+        expect(db).toEqual(makeDb())
+        expect(Object.getPrototypeOf(db.characters[0])).toBe(Object.prototype)
     })
 
-    it('rejects sparse arrays before applying anything', () => {
-        const db = { characters: [makeCharacter('a', 'Alice')] }
-        const sparse = structuredClone([{ chaId: 'a', name: 'Changed' }, , ])
+    it('rejects keys outside the allowed list before applying anything', () => {
+        const db = makeDb()
 
-        expect(() => applyDatabasePatch(db, { characters: sparse })).toThrow('"chaId"')
-        expect(db.characters[0].name).toBe('Alice')
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['temperature'], value: 90 },
+            { op: 'replace', path: ['account', 'token'], value: 'stolen' },
+        ])).toThrow('does not support "account"')
+        expect(db).toEqual(makeDb())
+    })
+
+    it.each([
+        ['a read-only key', ['plugins']],
+        ['anything inside a read-only key', ['plugins', 0, 'enabled']],
+        ['a read-only field', ['pluginCustomStorage', '_coldpluginIndex']],
+        ['a key that holds a read-only field', ['pluginCustomStorage']],
+    ])('refuses to write %s before applying anything', (_label, path) => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['temperature'], value: 90 },
+            { op: 'replace', path, value: {} },
+        ])).toThrow('read-only')
+        expect(db).toEqual(makeDb())
+    })
+
+    it('refuses to create a field whose name every object inherits, before applying anything', () => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['temperature'], value: 90 },
+            { op: 'replace', path: ['pluginCustomStorage', 'toString'], value: 'x' },
+        ])).toThrow('cannot create')
+        expect(db).toEqual(makeDb())
+    })
+
+    it('replaces a field with an inherited name when the object already has it', () => {
+        const db = { ...makeDb(), pluginCustomStorage: { toString: 'old' } as Record<string, any> }
+
+        applyPatch(db, [{ op: 'replace', path: ['pluginCustomStorage', 'toString'], value: 'new' }])
+
+        expect(db.pluginCustomStorage).toEqual({ toString: 'new' })
+    })
+
+    it('writes a field next to a read-only one', () => {
+        const db = makeDb()
+
+        applyPatch(db, [{ op: 'replace', path: ['pluginCustomStorage', 'mine'], value: 'changed' }])
+
+        expect(db.pluginCustomStorage).toEqual({ mine: 'changed', _coldpluginIndex: 'index' })
+    })
+
+    it('applies nothing when a test fails', () => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['characters', 0, 'name'], value: 'Alicia' },
+            { op: 'test', path: ['characters', 0, 'chaId'], value: 'someone-else' },
+        ])).toThrow('test failed at "characters.0.chaId"')
+        expect(db).toEqual(makeDb())
+    })
+
+    it('checks tests against the database as it was before the patch', () => {
+        const db = makeDb()
+
+        applyPatch(db, [
+            { op: 'replace', path: ['characters', 0, 'name'], value: 'Alicia' },
+            { op: 'test', path: ['characters', 0, 'name'], value: 'Alice' },
+            { op: 'test', path: ['characters', 0, 'chats'], value: makeCharacter('a', 'Alice').chats },
+        ])
+
+        expect(db.characters[0].name).toBe('Alicia')
+    })
+
+    it('lets a test require that a field is missing', () => {
+        const db = { ...makeDb(), characters: [makeCharacter('a', 'Alice'), makeColdStoredCharacter('b', 'Bob')] }
+        const guardedRename = (index: number) => [
+            { op: 'test', path: ['characters', index, 'coldstorage'], value: undefined },
+            { op: 'replace', path: ['characters', index, 'name'], value: 'Renamed' },
+        ]
+
+        applyPatch(db, guardedRename(0))
+
+        expect(db.characters[0].name).toBe('Renamed')
+        expect(() => applyPatch(db, guardedRename(1))).toThrow('test failed')
+        expect(db.characters[1]).toEqual(makeColdStoredCharacter('b', 'Bob'))
+    })
+
+    it('lets a test on the replaced value stop a patch computed from a placeholder after the character was restored', () => {
+        const db = { ...makeDb(), characters: [makeColdStoredCharacter('a', 'Alice')] as Record<string, any>[] }
+        const read = structuredClone(db.characters[0])
+        db.characters[0] = { ...makeCharacter('a', 'Alice'), modules: ['keep'] }
+
+        expect(() => applyPatch(db, [
+            { op: 'test', path: ['characters', 0, 'chaId'], value: read.chaId },
+            { op: 'test', path: ['characters', 0, 'modules'], value: read.modules },
+            { op: 'replace', path: ['characters', 0, 'modules'], value: [...(read.modules ?? []), 'm1'] },
+        ])).toThrow('test failed at "characters.0.modules"')
+        expect(db.characters[0].modules).toEqual(['keep'])
+    })
+
+    it('rejects a test whose path cannot be followed instead of treating it as missing', () => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'test', path: ['characters', '0', 'coldstorage'], value: undefined },
+            { op: 'replace', path: ['temperature'], value: 70 },
+        ])).toThrow('cannot find')
+        expect(db).toEqual(makeDb())
+    })
+
+    it('does not let a test read fields inherited from the prototype', () => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'test', path: ['characters', 0, 'toString'], value: undefined },
+            { op: 'replace', path: ['temperature'], value: 70 },
+        ])).not.toThrow()
+        expect(db.temperature).toBe(70)
+    })
+
+    it('lets a test read a read-only key', () => {
+        const db = makeDb()
+
+        applyPatch(db, [
+            { op: 'test', path: ['plugins', 0, 'name'], value: 'p' },
+            { op: 'replace', path: ['temperature'], value: 70 },
+        ])
+
+        expect(db.temperature).toBe(70)
+    })
+
+    it.each([
+        ['the same place twice', ['characters', 0, 'name'], ['characters', 0, 'name']],
+        ['a place inside another write', ['characters', 0], ['characters', 0, 'name']],
+        ['a place that holds another write', ['characters', 0, 'name'], ['characters']],
+    ])('rejects writing %s before applying anything', (_label, first, second) => {
+        const db = makeDb()
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: first, value: [] },
+            { op: 'replace', path: second, value: [] },
+        ])).toThrow('already writes there')
+        expect(db).toEqual(makeDb())
+    })
+
+    it('does not reach through a value that is neither a plain object nor an array', () => {
+        const db = { ...makeDb(), temperature: new Map() }
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['enabledModules'], value: [] },
+            { op: 'replace', path: ['temperature', 'size'], value: 1 },
+        ])).toThrow('cannot find')
+        expect(db.enabledModules).toEqual(['m1'])
     })
 })

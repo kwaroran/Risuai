@@ -2,43 +2,45 @@ import isEqual from "lodash/isEqual";
 
 export const FIELD_FILTERED_KEYS_TAG = '__partialKeys'
 
-export const patchableDbKeys = {
+const entryIdFields = {
     characters: 'chaId',
     modules: 'id',
 } as const
 
-type PatchableDbKey = keyof typeof patchableDbKeys
+type EntryListKey = keyof typeof entryIdFields
 
-const coldStorageMarkers: Partial<Record<PatchableDbKey, string>> = {
+const coldStorageMarkers: Partial<Record<EntryListKey, string>> = {
     characters: 'coldstorage',
 }
+
+const unsafePathSegments = ['__proto__', 'constructor', 'prototype']
 
 export interface DbFieldFilter {
     include?: Record<string, string[]>
     exclude?: Record<string, string[]>
 }
 
-export interface PatchTarget {
-    key: PatchableDbKey
-    id: string
-}
+export type DbPath = (string | number)[]
 
-export interface DatabasePatchResult {
-    patched: PatchTarget[]
-    missing: PatchTarget[]
-    coldStored: PatchTarget[]
+export interface DatabasePatchOptions {
+    allowedKeys: readonly string[]
+    readOnlyPaths: readonly DbPath[]
 }
 
 function isPlainRecord(value: unknown): value is Record<string, any> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isEntryId(value: unknown): value is string {
-    return typeof value === 'string'
+function isPlainObject(value: unknown): value is Record<string, any> {
+    if (typeof value !== 'object' || value === null) {
+        return false
+    }
+    const prototype = Object.getPrototypeOf(value)
+    return prototype === Object.prototype || prototype === null
 }
 
-function isPatchableDbKey(key: string): key is PatchableDbKey {
-    return Object.hasOwn(patchableDbKeys, key)
+function isEntryListKey(key: string): key is EntryListKey {
+    return Object.hasOwn(entryIdFields, key)
 }
 
 function isJsonSerializable(value: unknown): boolean {
@@ -50,9 +52,9 @@ function isJsonSerializable(value: unknown): boolean {
     }
 }
 
-function alwaysKeptFields(key: PatchableDbKey): string[] {
+function alwaysKeptFields(key: EntryListKey): string[] {
     const coldStorageMarker = coldStorageMarkers[key]
-    return coldStorageMarker ? [patchableDbKeys[key], coldStorageMarker] : [patchableDbKeys[key]]
+    return coldStorageMarker ? [entryIdFields[key], coldStorageMarker] : [entryIdFields[key]]
 }
 
 function fieldListFor(filter: unknown, kind: keyof DbFieldFilter, key: string): string[] | undefined {
@@ -107,7 +109,7 @@ export function projectDbValue(key: string, value: unknown, filter: unknown): { 
         return picked
     }
 
-    const keptFields = isPatchableDbKey(key) ? alwaysKeptFields(key) : []
+    const keptFields = isEntryListKey(key) ? alwaysKeptFields(key) : []
     const projected = Array.isArray(value)
         ? value.map((item) => isPlainRecord(item) ? pickFields(item, keptFields) : item)
         : pickFields(value as Record<string, any>)
@@ -129,84 +131,120 @@ export function dropFieldFilteredKeys(newDb: any): { db: any, dropped: string[] 
     return { db, dropped }
 }
 
-export function applyDatabasePatch(db: Record<string, any>, patch: unknown): DatabasePatchResult {
-    if (!isPlainRecord(patch)) {
-        throw new Error('patchDatabase expects an object')
+function isDbPath(value: unknown): value is DbPath {
+    if (!Array.isArray(value) || value.length === 0) {
+        return false
+    }
+    for (let index = 0; index < value.length; index++) {
+        const segment = value[index]
+        const isIndex = typeof segment === 'number' && Number.isInteger(segment) && segment >= 0
+        const isField = typeof segment === 'string' && !unsafePathSegments.includes(segment)
+        if (!isIndex && !isField) {
+            return false
+        }
+    }
+    return true
+}
+
+function describePath(path: DbPath): string {
+    return path.join('.')
+}
+
+function startsWith(path: DbPath, prefix: DbPath): boolean {
+    return prefix.length <= path.length && prefix.every((segment, index) => String(segment) === String(path[index]))
+}
+
+function overlaps(first: DbPath, second: DbPath): boolean {
+    return startsWith(first, second) || startsWith(second, first)
+}
+
+function hasMember(container: unknown, segment: string | number): container is Record<string | number, any> {
+    if (Array.isArray(container)) {
+        return typeof segment === 'number' && segment < container.length
+    }
+    return isPlainObject(container) && Object.hasOwn(container, segment)
+}
+
+function parentOf(db: Record<string, any>, path: DbPath): Record<string | number, any> {
+    const notFound = new Error(`patchDatabase cannot find "${describePath(path)}"`)
+    let parent: unknown = db
+    for (const segment of path.slice(0, -1)) {
+        if (!hasMember(parent, segment)) {
+            throw notFound
+        }
+        parent = parent[segment]
+    }
+    const canHoldLastSegment = Array.isArray(parent) ? hasMember(parent, path[path.length - 1]) : isPlainObject(parent)
+    if (!canHoldLastSegment) {
+        throw notFound
+    }
+    return parent as Record<string | number, any>
+}
+
+export function applyDatabasePatch(db: Record<string, any>, operations: unknown, options: DatabasePatchOptions): { characterIds: string[] } {
+    if (!Array.isArray(operations)) {
+        throw new Error('patchDatabase expects an array of operations')
     }
 
-    const targets: [PatchableDbKey, Record<string, any>[]][] = []
-    for (const [key, entries] of Object.entries(patch)) {
-        if (key === FIELD_FILTERED_KEYS_TAG || entries === undefined) {
+    const writes: { path: DbPath, parent: Record<string | number, any>, value: unknown }[] = []
+    for (let index = 0; index < operations.length; index++) {
+        const operation = operations[index]
+        if (!isPlainObject(operation) || !isDbPath(operation.path)) {
+            throw new Error(`patchDatabase operation ${index} needs a "path" made of field names and array indexes`)
+        }
+        const path: DbPath = operation.path
+        if (typeof path[0] !== 'string' || !options.allowedKeys.includes(path[0])) {
+            throw new Error(`patchDatabase does not support "${path[0]}"`)
+        }
+        if (operation.op === 'test') {
+            const parent = parentOf(db, path)
+            const lastSegment = path[path.length - 1]
+            const current = hasMember(parent, lastSegment) ? parent[lastSegment] : undefined
+            if (!isEqual(current, operation.value)) {
+                throw new Error(`patchDatabase test failed at "${describePath(path)}"`)
+            }
             continue
         }
-        if (!isPatchableDbKey(key)) {
-            throw new Error(`patchDatabase does not support "${key}". Supported keys: ${Object.keys(patchableDbKeys).join(', ')}`)
+        if (operation.op !== 'replace') {
+            throw new Error(`patchDatabase operation ${index} needs "op" to be "replace" or "test"`)
         }
-        const idField = patchableDbKeys[key]
-        const invalidEntries = new Error(`patchDatabase expects "${key}" to be an array of objects with "${idField}"`)
-        if (!Array.isArray(entries)) {
-            throw invalidEntries
+        if (operation.value === undefined || !isJsonSerializable(operation.value)) {
+            throw new Error(`patchDatabase cannot write "${describePath(path)}": it needs a value that can be encoded as JSON`)
         }
-        for (let index = 0; index < entries.length; index++) {
-            const entry = entries[index]
-            if (!isPlainRecord(entry) || !isEntryId(entry[idField])) {
-                throw invalidEntries
-            }
+        const readOnlyPath = options.readOnlyPaths.find((readOnly) => overlaps(path, readOnly))
+        if (readOnlyPath) {
+            throw new Error(`patchDatabase cannot write "${describePath(path)}": "${describePath(readOnlyPath)}" is read-only`)
         }
-        targets.push([key, entries])
+        if (writes.some((write) => overlaps(path, write.path))) {
+            throw new Error(`patchDatabase cannot write "${describePath(path)}": another operation in the same patch already writes there`)
+        }
+        const parent = parentOf(db, path)
+        const lastSegment = path[path.length - 1]
+        if (!hasMember(parent, lastSegment) && lastSegment in parent) {
+            throw new Error(`patchDatabase cannot create "${describePath(path)}": every object already inherits a member with that name`)
+        }
+        writes.push({ path, parent, value: operation.value })
     }
 
-    const patched: PatchTarget[] = []
-    const missing: PatchTarget[] = []
-    const coldStored: PatchTarget[] = []
-    const pendingWrites = new Map<Record<string, any>, Map<string, unknown>>()
-    for (const [key, entries] of targets) {
-        const idField = patchableDbKeys[key]
-        const coldStorageMarker = coldStorageMarkers[key]
-        const liveById = new Map<unknown, Record<string, any>>()
-        for (const liveItem of db[key] ?? []) {
-            if (isPlainRecord(liveItem) && liveItem[idField] != null && !liveById.has(liveItem[idField])) {
-                liveById.set(liveItem[idField], liveItem)
-            }
-        }
-
-        for (const entry of entries) {
-            const liveItem = liveById.get(entry[idField])
-            if (!liveItem) {
-                missing.push({ key, id: entry[idField] })
+    const characterIds = new Set<string>()
+    const collectWrittenCharacterIds = () => {
+        for (const { path } of writes) {
+            if (path[0] !== 'characters') {
                 continue
             }
-            const isColdStored = Boolean(coldStorageMarker && (liveItem[coldStorageMarker] || entry[coldStorageMarker]))
-            let fields = pendingWrites.get(liveItem)
-            for (const field of Object.keys(entry)) {
-                if (field === idField) {
-                    continue
+            const written = path.length === 1 ? db.characters : [db.characters?.[path[1]]]
+            for (const character of Array.isArray(written) ? written : []) {
+                if (isPlainObject(character) && typeof character[entryIdFields.characters] === 'string') {
+                    characterIds.add(character[entryIdFields.characters])
                 }
-                const current = fields?.has(field) ? fields.get(field) : liveItem[field]
-                if (isEqual(current, entry[field])) {
-                    continue
-                }
-                if (isColdStored) {
-                    coldStored.push({ key, id: entry[idField] })
-                    break
-                }
-                if (!isJsonSerializable(entry[field])) {
-                    throw new Error(`patchDatabase cannot write "${field}" of ${key} "${entry[idField]}": the value cannot be encoded as JSON`)
-                }
-                if (!fields) {
-                    fields = new Map()
-                    pendingWrites.set(liveItem, fields)
-                    patched.push({ key, id: entry[idField] })
-                }
-                fields.set(field, entry[field])
             }
         }
     }
 
-    for (const [liveItem, fields] of pendingWrites) {
-        for (const [field, value] of fields) {
-            liveItem[field] = value
-        }
+    collectWrittenCharacterIds()
+    for (const { path, parent, value } of writes) {
+        parent[path[path.length - 1]] = value
     }
-    return { patched, missing, coldStored }
+    collectWrittenCharacterIds()
+    return { characterIds: [...characterIds] }
 }

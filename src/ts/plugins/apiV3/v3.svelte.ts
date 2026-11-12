@@ -1,7 +1,7 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
-import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, projectDbValue, type DatabasePatchResult, type DbFieldFilter } from "./databaseFieldAccess";
+import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, projectDbValue, type DbFieldFilter, type DbPath } from "./databaseFieldAccess";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -16,6 +16,7 @@ import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
 import { pluginStorage } from "src/ts/process/coldstorage.svelte";
+import { PLUGIN_STORAGE_INDEX_KEY, PLUGIN_STORAGE_LEGACY_MAP_KEY } from "src/ts/process/pluginStorageStore";
 import { getInlayAsset } from "src/ts/process/files/inlays";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher, risuChatParser, type CbsConditions } from "src/ts/parser/parser.svelte";
@@ -685,6 +686,12 @@ const authorizationHeaders = [
     'proxy-authorization',
 ]
 
+const patchReadOnlyPaths: DbPath[] = [
+    ['plugins'],
+    ['pluginCustomStorage', PLUGIN_STORAGE_INDEX_KEY],
+    ['pluginCustomStorage', PLUGIN_STORAGE_LEGACY_MAP_KEY],
+]
+
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
@@ -855,20 +862,17 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return liteDB;
         },
-        patchDatabase: (patch: any) => runWithPluginPermission<DatabasePatchResult | null>(
+        patchDatabase: (operations: any) => runWithPluginPermission(
             () => getPermission('dbWrite', 'periodically'),
             async () => {
-                const result = applyDatabasePatch(DBState.db, patch);
-                markCharactersForSave(result.patched.filter((target) => target.key === 'characters').map((target) => target.id));
-                for(const { key, id } of result.missing){
-                    console.warn(`Plugin "${plugin.name}" attempted to patch ${key} "${id}", which no longer exists. The entry was skipped.`);
-                }
-                for(const { key, id } of result.coldStored){
-                    console.warn(`Plugin "${plugin.name}" attempted to patch ${key} "${id}", which is in cold storage or was read while it was. The entry was skipped.`);
-                }
-                return result;
+                const { characterIds } = applyDatabasePatch(DBState.db, operations, {
+                    allowedKeys: allowedDbKeys,
+                    readOnlyPaths: patchReadOnlyPaths,
+                });
+                markCharactersForSave(characterIds);
+                return true;
             },
-            null
+            false
         ),
 
         installPlugin: handlePluginInstallViaPlugin,

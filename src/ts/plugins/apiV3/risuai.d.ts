@@ -436,37 +436,27 @@ interface GetDatabaseOptions {
 }
 
 /**
- * Partial update for patchDatabase. Entries are matched by their id field
- * (`chaId` for characters, `id` for modules), and only the fields present are written.
+ * One step of a patchDatabase call. `path` is the chain of keys and array indexes you would
+ * use on a getDatabase result: `db.characters[3].name` is `['characters', 3, 'name']`.
+ * Array indexes are numbers, field names are strings.
+ * - `replace` sets the value at `path`. Everything before the last step must already exist.
+ *   On an object the field is created if it is missing; in an array the index must exist.
+ * - `test` checks that the value at `path` equals `value` (a missing last field counts as
+ *   `undefined`). If it does not, the whole patch is aborted and nothing is written.
  */
-interface DatabasePatch {
-    characters?: ({ chaId: string } & Record<string, any>)[];
-    modules?: ({ id: string } & Partial<RisuModule>)[];
-}
-
-interface DatabasePatchTarget {
-    key: 'characters' | 'modules';
-    id: string;
-}
-
-/**
- * Result of patchDatabase
- */
-interface DatabasePatchResult {
-    /** Entries that had at least one field written */
-    patched: DatabasePatchTarget[];
-    /** Entries skipped because nothing with that id exists anymore */
-    missing: DatabasePatchTarget[];
-    /** Characters skipped because they are in cold storage, or because the entry was read while they were */
-    coldStored: DatabasePatchTarget[];
-}
+type DatabasePatchOperation =
+    | { op: 'replace'; path: (string | number)[]; value: any }
+    | { op: 'test'; path: (string | number)[]; value?: any };
 
 /**
  * DatabaseSubset as returned by getDatabase when field filters are passed. Items only hold the
  * fields the filter kept, so every field is optional except the ids, which are always kept.
  */
-type FieldFilteredDatabaseSubset = DatabasePatch & {
-    [K in Exclude<keyof DatabaseSubset, keyof DatabasePatch>]?: DatabaseSubset[K] extends (infer Item)[] | undefined ? Partial<Item>[] : Partial<DatabaseSubset[K]>;
+type FieldFilteredDatabaseSubset = {
+    characters?: ({ chaId: string } & Record<string, any>)[];
+    modules?: ({ id: string } & Partial<RisuModule>)[];
+} & {
+    [K in Exclude<keyof DatabaseSubset, 'characters' | 'modules'>]?: DatabaseSubset[K] extends (infer Item)[] | undefined ? Partial<Item>[] : Partial<DatabaseSubset[K]>;
 } & {
     /** Keys the filter removed fields from. setDatabase and setDatabaseLite ignore the keys listed here */
     __partialKeys?: string[];
@@ -1551,9 +1541,8 @@ interface RisuaiPluginAPI {
      * Gets the database with field filters, to skip heavy nested fields (e.g. chats, lorebook)
      * inside the returned keys.
      *
-     * Filtered keys hold partial data. The only safe way to write them back is patchDatabase,
-     * which supports `characters` and `modules`. Any other key can be filtered for reading but
-     * cannot be written back; read it without a filter if you need to write it.
+     * Filtered keys hold partial data. Do not send them back whole: to change something in a
+     * filtered key, write that one value with patchDatabase.
      *
      * setDatabase and setDatabaseLite ignore filtered keys when you pass back the object
      * getDatabase returned (or a spread of it). A key is filtered when the filter removed at
@@ -1581,36 +1570,51 @@ interface RisuaiPluginAPI {
     getDatabase(includeOnly:string[]|'all', options: GetDatabaseOptions): Promise<FieldFilteredDatabaseSubset|null>;
 
     /**
-     * Writes only the given fields of existing characters or modules, leaving every other
-     * field and entry untouched. Entries are matched by `chaId` (characters) or `id` (modules);
-     * entries that no longer exist are skipped. It cannot add or remove entries.
-     * A field-filtered getDatabase result can be passed back as-is if it only holds characters
-     * and/or modules: fields equal to the current value are skipped, so only entries that
-     * changed are written and saved. A field that differs overwrites the current value, even if
-     * it was changed elsewhere after you read it. Read right before you patch, and prefer
-     * sending only the entries and fields you changed.
-     * Characters in cold storage are placeholders: `coldstorage` is set and most other fields
-     * are missing until the user opens the character. They are skipped, and so is any entry
-     * that has `coldstorage` set.
-     * @param patch - Entries to update. Throws if it contains other keys, an entry lacks its id,
-     * or a value to write cannot be encoded as JSON (a BigInt or a circular reference).
-     * Nothing is written when it throws.
-     * @returns What happened to each entry, or null if the user declines the `dbWrite` permission
+     * Writes single values inside the database without sending the rest of it.
+     * Each operation names a `path`, the same chain of keys and array indexes you would use on
+     * a getDatabase result, and the value to put there. The first step of a path is one of the
+     * allowed database keys (the same list as getDatabase).
+     *
+     * - `{ op: 'replace', path, value }` sets the value. Everything before the last step of
+     *   the path must already exist. On an object the field is created if it is missing; in an
+     *   array the index must exist.
+     * - `{ op: 'test', path, value }` checks the current value and aborts the patch if it is
+     *   different. Entries can be added, removed or reordered between your read and your patch,
+     *   and values can change too, so test the entry's id and the value you are about to
+     *   replace against what you read. The patch then fails instead of overwriting something
+     *   newer.
+     *
+     * Every operation is checked before anything is written, and tests are checked against
+     * the database as it is before the patch. If an operation is invalid or a test fails, the
+     * call throws and nothing is written.
+     * It cannot write `plugins` or the internal fields of `pluginCustomStorage`. One patch cannot write the same place twice, or a place inside
+     * another place it writes. It cannot create a field named like a member every object
+     * already has, such as `toString`. A value must be encodable as JSON (no BigInt or
+     * circular reference).
+     * A character in cold storage is a placeholder (`coldstorage` is set): it does not hold
+     * the real values, and a value written into it is lost when the user opens the character.
+     * Skip characters whose `coldstorage` is set when you read them.
+     * @param operations - Operations to check and apply
+     * @returns true if the patch was applied, false if the user declines the `dbWrite` permission
      *
      * @example
      * ```typescript
      * const db = await risuai.getDatabase(['characters'], {
      *   include: { characters: ['modules'] }
      * });
-     * const character = db.characters[0];
+     * const index = 0;
+     * const character = db.characters[index];
      * if (!character.coldstorage) {
-     *   await risuai.patchDatabase({
-     *     characters: [{ chaId: character.chaId, modules: [...(character.modules ?? []), moduleId] }]
-     *   });
+     *   await risuai.patchDatabase([
+     *     { op: 'test', path: ['characters', index, 'chaId'], value: character.chaId },
+     *     { op: 'test', path: ['characters', index, 'modules'], value: character.modules },
+     *     { op: 'replace', path: ['characters', index, 'modules'], value: [...(character.modules ?? []), moduleId] },
+     *     { op: 'replace', path: ['temperature'], value: 70 }
+     *   ]);
      * }
      * ```
      */
-    patchDatabase(patch: DatabasePatch): Promise<DatabasePatchResult|null>;
+    patchDatabase(operations: DatabasePatchOperation[]): Promise<boolean>;
 
     /**
      * Sets the database (lightweight save)

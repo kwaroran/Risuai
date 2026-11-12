@@ -3,6 +3,7 @@ import {
     applyDatabasePatch,
     dropFieldFilteredKeys,
     FIELD_FILTERED_KEYS_TAG,
+    patchReadsDatabase,
     projectDbValue,
 } from './databaseFieldAccess'
 
@@ -221,6 +222,18 @@ describe('dropFieldFilteredKeys', () => {
         expect(result.db).toEqual({ enabledModules: ['m1'] })
         expect(result.dropped).toEqual(['characters'])
         expect(newDb.characters).toHaveLength(1)
+    })
+})
+
+describe('patchReadsDatabase', () => {
+    it.each([
+        ['a patch with a test', true, [{ op: 'replace', path: ['temperature'], value: 1 }, { op: 'test', path: ['temperature'], value: 1 }]],
+        ['a patch with only replaces', false, [{ op: 'replace', path: ['temperature'], value: 1 }]],
+        ['an empty patch', false, []],
+        ['something that is not a patch', false, { op: 'test' }],
+        ['entries that are not operations', false, ['test', null]],
+    ])('%s is reported as %j', (_label, expected, operations) => {
+        expect(patchReadsDatabase(operations)).toBe(expected)
     })
 })
 
@@ -465,6 +478,41 @@ describe('applyDatabasePatch', () => {
             { op: 'replace', path: second, value: [] },
         ])).toThrow('already writes there')
         expect(db).toEqual(makeDb())
+    })
+
+    it('tells apart places whose paths only look alike when joined', () => {
+        const db = { ...makeDb(), pluginCustomStorage: { a: { b: 1 }, 'a/b': 1, 'a"/"b': 1, '': { x: 1 }, x: 1 } as Record<string, any> }
+
+        applyPatch(db, [
+            { op: 'replace', path: ['pluginCustomStorage', 'a', 'b'], value: 2 },
+            { op: 'replace', path: ['pluginCustomStorage', 'a/b'], value: 2 },
+            { op: 'replace', path: ['pluginCustomStorage', 'a"/"b'], value: 2 },
+            { op: 'replace', path: ['pluginCustomStorage', '', 'x'], value: 2 },
+            { op: 'replace', path: ['pluginCustomStorage', 'x'], value: 2 },
+        ])
+
+        expect(db.pluginCustomStorage).toEqual({ a: { b: 2 }, 'a/b': 2, 'a"/"b': 2, '': { x: 2 }, x: 2 })
+    })
+
+    it('treats a number and the same digits as a field name as one place', () => {
+        const db = { ...makeDb(), pluginCustomStorage: { 0: 'zero' } as Record<string, any> }
+
+        expect(() => applyPatch(db, [
+            { op: 'replace', path: ['pluginCustomStorage', 0], value: 'a' },
+            { op: 'replace', path: ['pluginCustomStorage', '0'], value: 'b' },
+        ])).toThrow('already writes there')
+        expect(db.pluginCustomStorage).toEqual({ 0: 'zero' })
+    })
+
+    it('applies a patch with thousands of writes', () => {
+        const entries = Array.from({ length: 20000 }, (_unused, index) => ({ key: `k${index}`, content: 'c' }))
+        const db = { ...makeDb(), modules: [{ id: 'm1', name: 'Mod', lorebook: entries }] }
+
+        applyPatch(db, entries.map((_entry, index) => {
+            return { op: 'replace', path: ['modules', 0, 'lorebook', index, 'content'], value: 'changed' }
+        }))
+
+        expect(db.modules[0].lorebook.every((entry) => entry.content === 'changed')).toBe(true)
     })
 
     it('does not reach through a value that is neither a plain object nor an array', () => {

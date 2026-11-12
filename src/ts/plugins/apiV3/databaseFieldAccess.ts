@@ -158,6 +158,16 @@ function overlaps(first: DbPath, second: DbPath): boolean {
     return startsWith(first, second) || startsWith(second, first)
 }
 
+function prefixKeys(path: DbPath): string[] {
+    const keys: string[] = []
+    let key = ''
+    for (const segment of path) {
+        key += `${JSON.stringify(String(segment))}/`
+        keys.push(key)
+    }
+    return keys
+}
+
 function hasMember(container: unknown, segment: string | number): container is Record<string | number, any> {
     if (Array.isArray(container)) {
         return typeof segment === 'number' && segment < container.length
@@ -181,12 +191,18 @@ function parentOf(db: Record<string, any>, path: DbPath): Record<string | number
     return parent as Record<string | number, any>
 }
 
+export function patchReadsDatabase(operations: unknown): boolean {
+    return Array.isArray(operations) && operations.some((operation) => isPlainObject(operation) && operation.op === 'test')
+}
+
 export function applyDatabasePatch(db: Record<string, any>, operations: unknown, options: DatabasePatchOptions): { characterIds: string[] } {
     if (!Array.isArray(operations)) {
         throw new Error('patchDatabase expects an array of operations')
     }
 
     const writes: { path: DbPath, parent: Record<string | number, any>, value: unknown }[] = []
+    const writtenKeys = new Set<string>()
+    const keysHoldingAWrite = new Set<string>()
     for (let index = 0; index < operations.length; index++) {
         const operation = operations[index]
         if (!isPlainObject(operation) || !isDbPath(operation.path)) {
@@ -215,7 +231,9 @@ export function applyDatabasePatch(db: Record<string, any>, operations: unknown,
         if (readOnlyPath) {
             throw new Error(`patchDatabase cannot write "${describePath(path)}": "${describePath(readOnlyPath)}" is read-only`)
         }
-        if (writes.some((write) => overlaps(path, write.path))) {
+        const keys = prefixKeys(path)
+        const ownKey = keys[keys.length - 1]
+        if (keysHoldingAWrite.has(ownKey) || keys.some((key) => writtenKeys.has(key))) {
             throw new Error(`patchDatabase cannot write "${describePath(path)}": another operation in the same patch already writes there`)
         }
         const parent = parentOf(db, path)
@@ -224,6 +242,10 @@ export function applyDatabasePatch(db: Record<string, any>, operations: unknown,
             throw new Error(`patchDatabase cannot create "${describePath(path)}": every object already inherits a member with that name`)
         }
         writes.push({ path, parent, value: operation.value })
+        writtenKeys.add(ownKey)
+        for (const key of keys.slice(0, -1)) {
+            keysHoldingAWrite.add(key)
+        }
     }
 
     const characterIds = new Set<string>()

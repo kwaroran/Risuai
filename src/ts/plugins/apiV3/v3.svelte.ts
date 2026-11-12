@@ -1,7 +1,7 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
-import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, projectDbValue, type DbFieldFilter, type DbPath } from "./databaseFieldAccess";
+import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, patchReadsDatabase, projectDbValue, type DbFieldFilter, type DbPath } from "./databaseFieldAccess";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -862,18 +862,24 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return liteDB;
         },
-        patchDatabase: (operations: any) => runWithPluginPermission(
-            () => getPermission('dbWrite', 'periodically'),
-            async () => {
-                const { characterIds } = applyDatabasePatch(DBState.db, operations, {
-                    allowedKeys: allowedDbKeys,
-                    readOnlyPaths: patchReadOnlyPaths,
-                });
-                markCharactersForSave(characterIds);
-                return true;
-            },
-            false
-        ),
+        patchDatabase: async (operations: any) => {
+            if(patchReadsDatabase(operations) && !(await getPermission('db', 'periodically'))){
+                return false;
+            }
+            return runWithPluginPermission(
+                () => getPermission('dbWrite', 'periodically'),
+                async () => {
+                    DBState.db.pluginCustomStorage ??= {};
+                    const { characterIds } = applyDatabasePatch(DBState.db, operations, {
+                        allowedKeys: allowedDbKeys,
+                        readOnlyPaths: patchReadOnlyPaths,
+                    });
+                    markCharactersForSave(characterIds);
+                    return true;
+                },
+                false
+            );
+        },
 
         installPlugin: handlePluginInstallViaPlugin,
 

@@ -1594,8 +1594,14 @@ interface RisuaiPluginAPI {
      * A character in cold storage is a placeholder (`coldstorage` is set): it does not hold
      * the real values, and a value written into it is lost when the user opens the character.
      * Skip characters whose `coldstorage` is set when you read them.
+     * A chat can be a placeholder too: its first message then starts with
+     * `'\uEF01COLDSTORAGE\uEF01'`, and its `message`, `hypaV2Data`, `hypaV3Data`, `scriptstate`
+     * and `localLore` are replaced when the chat is opened. Do not write those fields of such
+     * a chat.
      * @param operations - Operations to check and apply
-     * @returns true if the patch was applied, false if the user declines the `dbWrite` permission
+     * @returns true if the patch was applied, false if the user declines a permission it needs:
+     * `dbWrite` always, and `db` as well when the patch contains a `test`, because a test reads
+     * the database
      *
      * @example
      * ```typescript

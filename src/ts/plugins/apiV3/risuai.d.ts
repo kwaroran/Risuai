@@ -421,6 +421,57 @@ interface DatabaseSubset {
     colorSchemeName?: string;
 }
 
+/**
+ * Field filters for getDatabase. Keys are top-level database keys, values are field names
+ * of each array item (or of the object itself for non-array values).
+ * If both include and exclude are set for the same key, include wins.
+ * A filter that is not an array of field names makes getDatabase throw instead of returning
+ * that key unfiltered.
+ */
+interface GetDatabaseOptions {
+    /** Return only these fields. An empty list returns only the id (`chaId` for characters, `id` for modules), plus `coldstorage` on characters in cold storage */
+    include?: Record<string, string[]>;
+    /** Return every field except these */
+    exclude?: Record<string, string[]>;
+}
+
+/**
+ * Partial update for patchDatabase. Entries are matched by their id field
+ * (`chaId` for characters, `id` for modules), and only the fields present are written.
+ */
+interface DatabasePatch {
+    characters?: ({ chaId: string } & Record<string, any>)[];
+    modules?: ({ id: string } & Partial<RisuModule>)[];
+}
+
+interface DatabasePatchTarget {
+    key: 'characters' | 'modules';
+    id: string;
+}
+
+/**
+ * Result of patchDatabase
+ */
+interface DatabasePatchResult {
+    /** Entries that had at least one field written */
+    patched: DatabasePatchTarget[];
+    /** Entries skipped because nothing with that id exists anymore */
+    missing: DatabasePatchTarget[];
+    /** Characters skipped because they are in cold storage, or because the entry was read while they were */
+    coldStored: DatabasePatchTarget[];
+}
+
+/**
+ * DatabaseSubset as returned by getDatabase when field filters are passed. Items only hold the
+ * fields the filter kept, so every field is optional except the ids, which are always kept.
+ */
+type FieldFilteredDatabaseSubset = DatabasePatch & {
+    [K in Exclude<keyof DatabaseSubset, keyof DatabasePatch>]?: DatabaseSubset[K] extends (infer Item)[] | undefined ? Partial<Item>[] : Partial<DatabaseSubset[K]>;
+} & {
+    /** Keys the filter removed fields from. setDatabase and setDatabaseLite ignore the keys listed here */
+    __partialKeys?: string[];
+};
+
 // ============================================================================
 // Color Scheme & Text Theme Types
 // ============================================================================
@@ -1302,6 +1353,8 @@ interface RisuaiPluginAPI {
 
     /**
      * Sets the current character
+     * Replaces the whole character. Never pass a character read with getDatabase field
+     * filtering: the fields that were filtered out would be deleted. Use patchDatabase() for those.
      * @param character - Character object to set
      *
      * @example
@@ -1332,6 +1385,8 @@ interface RisuaiPluginAPI {
 
     /**
      * Saves a character at a specific index
+     * Replaces the whole character. Never pass a character read with getDatabase field
+     * filtering: the fields that were filtered out would be deleted. Use patchDatabase() for those.
      * @param index - Character index
      * @param character - Character object to save
      */
@@ -1493,8 +1548,74 @@ interface RisuaiPluginAPI {
     getDatabase(includeOnly:string[]|'all' = 'all'): Promise<DatabaseSubset|null>;
 
     /**
+     * Gets the database with field filters, to skip heavy nested fields (e.g. chats, lorebook)
+     * inside the returned keys.
+     *
+     * Filtered keys hold partial data. The only safe way to write them back is patchDatabase,
+     * which supports `characters` and `modules`. Any other key can be filtered for reading but
+     * cannot be written back; read it without a filter if you need to write it.
+     *
+     * setDatabase and setDatabaseLite ignore filtered keys when you pass back the object
+     * getDatabase returned (or a spread of it). A key is filtered when the filter removed at
+     * least one field from it. The returned object lists those keys in `__partialKeys`, and they
+     * stay ignored even if you assign full data to them afterwards.
+     * That protection is lost once the filtered data leaves that object: building a new object,
+     * e.g. `setDatabase({ characters: db.characters })`, or copying filtered items into an
+     * unfiltered getDatabase result. The partial data then replaces the full data, and
+     * everything you did not read (chats, lorebooks, other plugins' storage) is deleted.
+     * setCharacter and setCharacterToIndex have no protection at all: a filtered character
+     * passed to them replaces the whole character.
+     *
+     * @param includeOnly - Array of keys to include or 'all' for all allowed keys
+     * @param options - Field filters applied to the returned keys
+     * @returns The requested keys with filtered items, or null if consent not given
+     *
+     * @example
+     * ```typescript
+     * // Character list without chats (chaId is always kept)
+     * const lite = await risuai.getDatabase(['characters'], {
+     *   include: { characters: ['name', 'modules'] }
+     * });
+     * ```
+     */
+    getDatabase(includeOnly:string[]|'all', options: GetDatabaseOptions): Promise<FieldFilteredDatabaseSubset|null>;
+
+    /**
+     * Writes only the given fields of existing characters or modules, leaving every other
+     * field and entry untouched. Entries are matched by `chaId` (characters) or `id` (modules);
+     * entries that no longer exist are skipped. It cannot add or remove entries.
+     * A field-filtered getDatabase result can be passed back as-is if it only holds characters
+     * and/or modules: fields equal to the current value are skipped, so only entries that
+     * changed are written and saved. A field that differs overwrites the current value, even if
+     * it was changed elsewhere after you read it. Read right before you patch, and prefer
+     * sending only the entries and fields you changed.
+     * Characters in cold storage are placeholders: `coldstorage` is set and most other fields
+     * are missing until the user opens the character. They are skipped, and so is any entry
+     * that has `coldstorage` set.
+     * @param patch - Entries to update. Throws if it contains other keys, an entry lacks its id,
+     * or a value to write cannot be encoded as JSON (a BigInt or a circular reference).
+     * Nothing is written when it throws.
+     * @returns What happened to each entry, or null if the user declines the `dbWrite` permission
+     *
+     * @example
+     * ```typescript
+     * const db = await risuai.getDatabase(['characters'], {
+     *   include: { characters: ['modules'] }
+     * });
+     * const character = db.characters[0];
+     * if (!character.coldstorage) {
+     *   await risuai.patchDatabase({
+     *     characters: [{ chaId: character.chaId, modules: [...(character.modules ?? []), moduleId] }]
+     *   });
+     * }
+     * ```
+     */
+    patchDatabase(patch: DatabasePatch): Promise<DatabasePatchResult|null>;
+
+    /**
      * Sets the database (lightweight save)
      * The `plugins` property is ignored.
+     * Keys read with getDatabase field filtering are ignored. Use patchDatabase() for those.
      * Requires the `dbWrite` permission; the write is skipped if the user declines.
      * @param db - DatabaseSubset object to save, excluding `plugins`
      */
@@ -1504,6 +1625,7 @@ interface RisuaiPluginAPI {
      * Sets the database (full save with sync)
      * In `plugins`, only API 3.0 plugins that are new or whose script changed are applied,
      * each after the user confirms. Removing, reordering, enabling or disabling plugins is ignored.
+     * Keys read with getDatabase field filtering are ignored. Use patchDatabase() for those.
      * Requires the `dbWrite` permission; the write is skipped if the user declines.
      * @param db - DatabaseSubset object to save
      */

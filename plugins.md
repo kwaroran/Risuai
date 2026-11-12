@@ -745,6 +745,35 @@ await Risuai.setDatabaseLite(db);
 
 `getDatabase()` returns `null` if the user has not granted database access consent.
 
+**Partial reads and writes:** characters carry every chat and modules carry their lorebooks, so reading them whole can be expensive. Filter fields on read and write back only what changed:
+
+```javascript
+const db = await Risuai.getDatabase(['characters'], {
+    include: { characters: ['name', 'modules'] } // or exclude: { characters: ['chats'] }
+});
+
+const character = db.characters[0];
+if (!character.coldstorage) {
+    await Risuai.patchDatabase({
+        characters: [{ chaId: character.chaId, modules: [...(character.modules ?? []), moduleId] }]
+    });
+}
+```
+
+- `chaId` (characters) and `id` (modules) are always kept so entries can be matched. An empty `include` list returns only those ids, plus `coldstorage` on characters in cold storage.
+- Each filter is an array of field names. `getDatabase()` throws on anything else, such as a single string, instead of returning the key unfiltered.
+- `patchDatabase()` supports `characters` and `modules`, and writes only the fields you send. Fields equal to the current value are skipped, so only the entries you changed are written and saved. A field that differs overwrites the current value, even if it was changed elsewhere after you read it. It cannot add or remove entries; use `setDatabase()` with full data for that.
+- Read right before you patch, and send only the entries and fields you changed rather than everything you read. Anything else you send that is older than the current value overwrites it.
+- Characters the user has not opened for a while may be in cold storage. They are returned as placeholders: `coldstorage` is set (it is always kept, like `chaId`) and most other fields are missing until the user opens the character. `patchDatabase()` skips them, and skips any entry you send that has `coldstorage` set. Check `coldstorage` before computing a new value from a character's fields, as the example does.
+- `patchDatabase()` resolves to `{ patched, missing, coldStored }`, each a list of `{ key, id }`: the entries that were written, the entries whose id no longer exists, and the characters skipped for cold storage. It resolves to `null` if the user declines the `dbWrite` permission. It throws, without writing anything, if the patch is malformed or a value to write cannot be encoded as JSON (a BigInt or a circular reference). Values that JSON encodes differently, such as `Map`, `Set` or `Date`, are accepted but do not survive a reload.
+
+**Filtered data is partial.** The only safe way to write it back is `patchDatabase()`:
+
+- Only `characters` and `modules` can be written back. Other keys (`personas`, `plugins`, `pluginCustomStorage`, `characterOrder`, ...) can be filtered for reading, but `patchDatabase()` rejects them. Read a key without a filter if you need to write it.
+- `setDatabase()` and `setDatabaseLite()` ignore filtered keys when you pass back the object `getDatabase()` returned, or a spread of it. A key is filtered when the filter removed at least one field from it. The returned object lists those keys in `__partialKeys`, and they stay ignored even if you assign full data to them afterwards.
+- That protection is lost once the filtered data leaves that object: building a new object (`setDatabase({ characters: db.characters })`) or copying filtered items into an unfiltered `getDatabase()` result. The partial data then replaces the full data, and everything you did not read (chats, lorebooks, other plugins' storage) is deleted.
+- `setCharacter()` and `setCharacterToIndex()` have no protection at all: a filtered character passed to them replaces the whole character.
+
 **Allowed database keys:**
 - `characters`
 - `modules`
@@ -789,6 +818,8 @@ character.customField = 'new value';
 await Risuai.setCharacter(character);
 ```
 
+`setCharacter()` replaces the whole character. Pass it only a character from `getCharacter()`, never one read with `getDatabase()` field filtering: the fields that were filtered out would be deleted. Use `patchDatabase()` for those.
+
 **Legacy names** (still work, but prefer new names):
 - `Risuai.getChar()` : Use `Risuai.getCharacter()`
 - `Risuai.setChar()` : Use `Risuai.setCharacter()`
@@ -818,6 +849,8 @@ const chat = await Risuai.getChatFromIndex(charIndex, chatIndex);
 // Save a modified chat back
 await Risuai.setChatToIndex(charIndex, chatIndex, chat);
 ```
+
+`setCharacterToIndex()` replaces the whole character. Pass it only a character from `getCharacterFromIndex()`, never one read with `getDatabase()` field filtering: the fields that were filtered out would be deleted. Use `patchDatabase()` for those.
 
 ## Advanced Features
 
@@ -1181,7 +1214,7 @@ if (granted) {
 
 **Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
 
-`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
+`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `patchDatabase`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 
 ### Fetch Logs
 

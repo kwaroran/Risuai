@@ -1,6 +1,7 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
+import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, projectDbValue, type DatabasePatchResult, type DbFieldFilter } from "./databaseFieldAccess";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -9,7 +10,7 @@ import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
-import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
+import { checkCharOrder, forageStorage, getFetchLogs, markCharactersForSave } from "src/ts/globalApi.svelte";
 import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type ColorScheme } from "src/ts/gui/colorscheme";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
@@ -691,6 +692,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
     const getPermission = async (permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
         return getPluginPermission(plugin.name, await getPluginScriptHash(), permissionDesc, reconfirm)
     }
+    const withoutFieldFilteredKeys = (newDb: any, apiName: string) => {
+        const { db, dropped } = dropFieldFilteredKeys(newDb)
+        for(const key of dropped){
+            console.warn(`Plugin "${plugin.name}" attempted to write field-filtered "${key}" using ${apiName}. The change was ignored. Use patchDatabase for partial updates.`);
+        }
+        return db
+    }
     const withDbWrite = <A extends any[]>(write: (...args: A) => unknown) => {
         return (...args: A) => runWithPluginPermission(
             () => getPermission('dbWrite', 'periodically'),
@@ -799,6 +807,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         removeRisuChatListener: oldApis.removeRisuChatListener,
         setDatabaseLite: withDbWrite((newDb: any) => {
+            newDb = withoutFieldFilteredKeys(newDb, 'setDatabaseLite');
             if(newDb && Object.hasOwn(newDb, 'plugins')){
                 if(import.meta.env.DEV && !isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
                     console.warn(`Plugin "${plugin.name}" attempted to modify the plugin list using setDatabaseLite. The change was ignored.`);
@@ -811,7 +820,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
             return oldApis.setDatabaseLite(newDb);
         }),
-        setDatabase: withDbWrite(oldApis.setDatabase),
+        setDatabase: withDbWrite((newDb: any) => oldApis.setDatabase(withoutFieldFilteredKeys(newDb, 'setDatabase'))),
         loadPlugins: oldApis.loadPlugins,
         readImage: oldApis.readImage,
         readInlay: async (id: string) => {
@@ -823,21 +832,44 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
-        getDatabase: async (includeOnly:string[]|'all' = 'all') => {
+        getDatabase: async (includeOnly:string[]|'all' = 'all', options?: DbFieldFilter) => {
             const conf = await getPermission('db', 'periodically');
             if(!conf){
                 return null;
             }
             const db = DBState.db
             let liteDB = {}
+            const fieldFilteredKeys: string[] = []
             for(const key of allowedDbKeys){
                 if(includeOnly !== 'all' && !includeOnly.includes(key)){
                     continue;
                 }
-                (liteDB as any)[key] = $state.snapshot((db as any)[key]);
+                const projected = projectDbValue(key, (db as any)[key], options);
+                if(projected.filtered){
+                    fieldFilteredKeys.push(key);
+                }
+                (liteDB as any)[key] = $state.snapshot(projected.value);
+            }
+            if(fieldFilteredKeys.length > 0){
+                (liteDB as any)[FIELD_FILTERED_KEYS_TAG] = fieldFilteredKeys;
             }
             return liteDB;
         },
+        patchDatabase: (patch: any) => runWithPluginPermission<DatabasePatchResult | null>(
+            () => getPermission('dbWrite', 'periodically'),
+            async () => {
+                const result = applyDatabasePatch(DBState.db, patch);
+                markCharactersForSave(result.patched.filter((target) => target.key === 'characters').map((target) => target.id));
+                for(const { key, id } of result.missing){
+                    console.warn(`Plugin "${plugin.name}" attempted to patch ${key} "${id}", which no longer exists. The entry was skipped.`);
+                }
+                for(const { key, id } of result.coldStored){
+                    console.warn(`Plugin "${plugin.name}" attempted to patch ${key} "${id}", which is in cold storage or was read while it was. The entry was skipped.`);
+                }
+                return result;
+            },
+            null
+        ),
 
         installPlugin: handlePluginInstallViaPlugin,
 

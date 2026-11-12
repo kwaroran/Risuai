@@ -819,6 +819,22 @@ const chat = await Risuai.getChatFromIndex(charIndex, chatIndex);
 await Risuai.setChatToIndex(charIndex, chatIndex, chat);
 ```
 
+### Refreshing Modules
+
+The app keeps a cached list of the active modules and some state derived from them. After changing modules through the database, call these so the change takes effect right away:
+
+```javascript
+// After replacing a module object (for example with setDatabase or setDatabaseLite)
+await Risuai.refreshModules();
+await Risuai.moduleUpdate();
+
+// After only changing which modules are active
+await Risuai.moduleUpdate();
+```
+
+- `refreshModules()` drops the cached list of active modules, so it is rebuilt from the database the next time it is needed. The cache is only rebuilt by itself when the ids of the active modules change, so a module object replaced under the same id keeps being used until then.
+- `moduleUpdate()` recomputes what the app derives from the active modules: whether chat icons are hidden, the background embedding, and a GUI reload when the set of active modules changed. Call `refreshModules()` first when you replaced a module object, otherwise it reads the cached one.
+
 ## Advanced Features
 
 ### Network Requests

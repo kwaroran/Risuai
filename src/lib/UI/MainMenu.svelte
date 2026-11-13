@@ -5,9 +5,10 @@
     import { ArrowLeft, ArrowRight, FolderCodeIcon, GlobeIcon, MailIcon, Send } from "@lucide/svelte";
     import { getVersionString, openURL } from "src/ts/globalApi.svelte";
     import { language } from "src/lang";
-    import { getRisuHub, hubAdditionalHTML } from "src/ts/characterCards";
+    import { getRisuHub, hubAdditionalHTML, type hubType } from "src/ts/characterCards";
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import RisuHubIconSkeleton from "./Realm/RealmHubIconSkeleton.svelte";
+    import RealmBannerSkeleton from "./Realm/RealmBannerSkeleton.svelte";
     import Title from "./Title.svelte";
 
     type RelatedLink = {
@@ -20,6 +21,35 @@
     // The home screen only previews the hub: a fixed number of cards, so the space can be
     // reserved before the list arrives. "Get More" opens the full list.
     const realmPreviewCount = 6
+
+    // The preview and the full list behind "Get More" start from the same request, so it is
+    // made once and shared. It is asked again when it gets old or the blocked creators change,
+    // and a failed load is never kept.
+    const realmListMaxAge = 5 * 60 * 1000
+    let realmList: { key: string, time: number, promise: Promise<hubType[]> } | null = null
+
+    function loadRealmList(){
+        const key = JSON.stringify(DBState.db.blockedRealmCreators ?? [])
+        if(!realmList || realmList.key !== key || Date.now() - realmList.time > realmListMaxAge){
+            const entry = {
+                key,
+                time: Date.now(),
+                promise: getRisuHub({
+                    search: '',
+                    page: 0,
+                    nsfw: false,
+                    sort: 'recommended'
+                })
+            }
+            entry.promise.then((charas) => {
+                if(charas.length === 0 && realmList === entry){
+                    realmList = null
+                }
+            })
+            realmList = entry
+        }
+        return realmList.promise
+    }
 
     const relatedLinkIconClass =
       "h-40 w-40 md:h-44 md:w-44 origin-right -rotate-12 opacity-[0.12] transition-all duration-500 group-hover:scale-105 group-hover:opacity-[0.22]";
@@ -63,12 +93,8 @@
         $OpenRealmStore = true
       }}>Get More</button></h1>
           {#if !DBState.db.hideRealm}
-            {#await getRisuHub({
-                  search: '',
-                  page: 0,
-                  nsfw: false,
-                  sort: 'recommended'
-              })}
+            {#await loadRealmList()}
+              <RealmBannerSkeleton />
               <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
                   <RisuHubIconSkeleton count={realmPreviewCount} />
               </div>
@@ -129,7 +155,7 @@
             <ArrowLeft/>
           </button>
         </div>
-        <Hub />
+        <Hub initialList={loadRealmList()} />
       {/if}
   </div>
 </div>

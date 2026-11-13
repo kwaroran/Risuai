@@ -1,13 +1,22 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import { downloadRisuHub, getRisuHub, hubAdditionalHTML, type hubType } from "src/ts/characterCards";
     import { ArrowLeft, ArrowRight, MenuIcon, SearchIcon, XIcon } from "@lucide/svelte";
     import { alertInput } from "src/ts/alert";
     import { language } from "src/lang";
     import RisuHubIcon from "./RealmHubIcon.svelte";
     import RisuHubIconSkeleton from "./RealmHubIconSkeleton.svelte";
+    import RealmBannerSkeleton from "./RealmBannerSkeleton.svelte";
     import { MobileGUI, RealmInitialOpenChar } from "src/ts/stores.svelte";
     import RealmPopUp from "./RealmPopUp.svelte";
     import RealmBlockedCreators from "./RealmBlockedCreators.svelte";
+
+    interface Props {
+        // The default list (recommended, first page, no search), when the caller already asked for it
+        initialList?: Promise<hubType[]>
+    }
+
+    let { initialList }: Props = $props()
 
     let openedData:null|hubType = $state(null)
 
@@ -25,21 +34,27 @@
     const initialPlaceholderCount = 60
     let loading = $state(true)
     let latestRequest = 0
+    // hubAdditionalHTML is a plain variable that getRisuHub fills in, so it is copied after each load
+    let additionalHTML = $state(hubAdditionalHTML)
 
-    async function getHub(){
+    async function getHub(known?:Promise<hubType[]>){
         const request = ++latestRequest
         loading = true
-        const result = await getRisuHub({
-            search: search,
-            page: page,
-            nsfw: nsfw,
-            sort: sort
-        })
+        let result = known ? await known : []
+        if(result.length === 0){
+            result = await getRisuHub({
+                search: search,
+                page: page,
+                nsfw: nsfw,
+                sort: sort
+            })
+        }
         // A newer search, sort or page change is already on its way; drop this answer
         if(request !== latestRequest){
             return
         }
         charas = result
+        additionalHTML = hubAdditionalHTML
         loading = false
     }
 
@@ -53,7 +68,7 @@
         return getHub()
     }
 
-    getHub()
+    getHub(untrack(() => initialList))
 
 
 
@@ -157,7 +172,11 @@
         </button>
     </div>
 {/if}
-{@html hubAdditionalHTML}
+{#if additionalHTML}
+    {@html additionalHTML}
+{:else if loading}
+    <RealmBannerSkeleton />
+{/if}
 <div class="w-full flex gap-4 p-2 flex-wrap justify-center" aria-busy={loading}>
     {#if loading}
         <!-- Keep the height of the list being replaced so the page controls below stay put -->

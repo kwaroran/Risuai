@@ -1167,6 +1167,48 @@ Force a reload of all plugins (use sparingly):
 await Risuai.loadPlugins();
 ```
 
+### Managing Installed Plugins
+
+`Risuai.pluginManagement` lists and manages the installed plugins: it enables or disables a plugin, sets the plugin order, removes a plugin and sets its arguments. It requires the `'pluginManage'` permission, which is requested automatically on the first call.
+
+```javascript
+// List the installed plugins in the plugin order.
+// Each entry has name, displayName, version (API version) and enabled.
+const plugins = await Risuai.pluginManagement.list();
+
+// Enable or disable
+await Risuai.pluginManagement.setEnabled('Some Plugin', false);
+
+// Set an argument the target plugin declares with //@arg
+await Risuai.pluginManagement.setArgument('Some Plugin', 'api_key', 'value');
+
+// Set the order. Pass the name of every installed plugin.
+if (plugins) {
+  const names = plugins.map((plugin) => plugin.name).reverse();
+  await Risuai.pluginManagement.setOrder(names);
+}
+
+// Remove
+await Risuai.pluginManagement.remove('Another Plugin');
+```
+
+- `list` resolves to one entry per installed plugin, or to `null` when the user declined the permission. The entries do not include plugin scripts or arguments.
+- `pluginManagement.setArgument` sets an argument of any installed plugin, selected by name. For the calling plugin's own arguments, `Risuai.setArgument(key, value)` needs no permission.
+- `setEnabled`, `setOrder`, `remove` and `setArgument` resolve to `false` when the user declined the permission or the change could not be applied (for example, the plugin is not installed). `setEnabled`, `setOrder` and `setArgument` resolve to `true` also when nothing had to change.
+- Once the permission is granted, an argument of the wrong type (for example a name that is not a string) makes the call reject with an error.
+- Changes are written to the database. Enabling, disabling, reordering and removing apply to the running plugins only after `Risuai.loadPlugins()`, which reloads every plugin, including the caller. A new argument value is returned by the target plugin's next `getArgument` call without a reload.
+- Call `Risuai.loadPlugins()` in response to a user action such as a button click. A plugin that calls it every time it starts is restarted by each reload, so the reloading never stops.
+- When plugins load, API 2.1 plugins are started first, then API 3.0 plugins in the plugin order. Plugins start up asynchronously, so a plugin can finish starting before one that was started earlier.
+- Plugins are identified by name. If several installed plugins share a name, a call applies to all of them, and `setOrder` takes that name once per plugin.
+
+To check that the host supports this API before using it:
+
+```javascript
+if (typeof Risuai.pluginManagement?.setEnabled === 'function') {
+  // available
+}
+```
+
 ### Permissions
 
 Some APIs require explicit user consent. Use `requestPluginPermission` to prompt the user:
@@ -1179,9 +1221,11 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'pluginManage'`, `'mainDom'`, `'replacer'`
 
 `'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
+
+`'pluginManage'` is requested automatically by every `pluginManagement` method. If the user declines, `list` resolves to `null` and the other methods resolve to `false`.
 
 ### Fetch Logs
 

@@ -4,6 +4,7 @@
     import { alertInput } from "src/ts/alert";
     import { language } from "src/lang";
     import RisuHubIcon from "./RealmHubIcon.svelte";
+    import RisuHubIconSkeleton from "./RealmHubIconSkeleton.svelte";
     import { MobileGUI, RealmInitialOpenChar } from "src/ts/stores.svelte";
     import RealmPopUp from "./RealmPopUp.svelte";
     import RealmBlockedCreators from "./RealmBlockedCreators.svelte";
@@ -20,13 +21,26 @@
     let blockedCreatorsOpen = $state(false)
     let nsfw = $state(false)
 
+    // Placeholder count for the first load: the default (recommended) list has this many cards
+    const initialPlaceholderCount = 60
+    let loading = $state(true)
+    let latestRequest = 0
+
     async function getHub(){
-        charas = await getRisuHub({
+        const request = ++latestRequest
+        loading = true
+        const result = await getRisuHub({
             search: search,
             page: page,
             nsfw: nsfw,
             sort: sort
         })
+        // A newer search, sort or page change is already on its way; drop this answer
+        if(request !== latestRequest){
+            return
+        }
+        charas = result
+        loading = false
     }
 
     function changeSort(type:string) {
@@ -144,12 +158,17 @@
     </div>
 {/if}
 {@html hubAdditionalHTML}
-<div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-    {#key charas}
-        {#each charas as chara}
-            <RisuHubIcon onClick={() =>{openedData = chara}} chara={chara} />
-        {/each}
-    {/key}
+<div class="w-full flex gap-4 p-2 flex-wrap justify-center" aria-busy={loading}>
+    {#if loading}
+        <!-- Keep the height of the list being replaced so the page controls below stay put -->
+        <RisuHubIconSkeleton count={charas.length || initialPlaceholderCount} />
+    {:else}
+        {#key charas}
+            {#each charas as chara}
+                <RisuHubIcon onClick={() =>{openedData = chara}} chara={chara} />
+            {/each}
+        {/key}
+    {/if}
 </div>
 {#if sort !== 'random' && sort !== 'recommended'}
     <div class="w-full flex justify-center">

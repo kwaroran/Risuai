@@ -27,6 +27,9 @@ vi.mock('localforage', () => ({
                 mocks.cache.set(key, value)
                 return value
             },
+            removeItem: async (key: string) => {
+                mocks.cache.delete(key)
+            },
         }),
     },
 }))
@@ -527,6 +530,48 @@ describe('incremental set', () => {
         const decoded = await decode(file)
         expect(decoded).toEqual(db)
         expect(decoded.characters[0].chats.map((c: any) => c.id)).toEqual(['chat-a2', 'chat-a3'])
+        //the cache entry of the deleted chat is reclaimed, the others stay
+        expect(mocks.cache.has('risuSaveBlock_chat-cha-a-chat-a1')).toBe(false)
+        expect(mocks.cache.has('risuSaveBlock_chat-cha-a-chat-a2')).toBe(true)
+        expect(mocks.cache.has('risuSaveBlock_chat-cha-a-chat-a3')).toBe(true)
+    })
+
+    it('deleting a character or saving it as legacy reclaims its cached chat blocks', async () => {
+        const db = makeDatabase()
+        const encoder = await makeSplitEncoder(db, { cache: true })
+        const cachedChats = (chaId: string) => [...mocks.cache.keys()].filter((k) => k.startsWith(`risuSaveBlock_chat-${chaId}-`))
+        expect(cachedChats('cha-a').length).toBeGreaterThan(0)
+        expect(cachedChats('cha-b').length).toBeGreaterThan(0)
+
+        //cha-a: legacy (chat without id); the legacy block itself stays cached
+        db.characters[0].chats.push(makeChat(undefined, 'no id', []))
+        //cha-b: deleted
+        db.characters.splice(1, 1)
+        await encoder.set(db, emptyToSave({ character: ['cha-a', 'cha-b'], chat: [['cha-a', 'chat-a1']] }))
+        expect(cachedChats('cha-a')).toEqual([])
+        expect(cachedChats('cha-b')).toEqual([])
+        expect(mocks.cache.get('risuSaveBlock_cha-a').type).toBe(TYPE.CHARACTER_WITH_CHAT)
+        expect(await decode(encoder.encode())).toEqual(db)
+    })
+
+    it('a failing cache removal does not fail the save and is retried', async () => {
+        const db = makeDatabase()
+        const encoder = await makeSplitEncoder(db, { cache: true })
+        db.characters[0].chats.splice(0, 1)
+        db.characters[0].chatPage = 0
+        const failing = vi.fn(() => { throw new Error('quota') })
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        //the localforage mock's removeItem deletes from this map
+        const originalDelete = mocks.cache.delete.bind(mocks.cache)
+        mocks.cache.delete = failing as any
+        await encoder.set(db, emptyToSave({ character: ['cha-a'], chat: [['cha-a', 'chat-a2']] }))
+        expect(failing).toHaveBeenCalled()
+        expect(errorSpy).toHaveBeenCalled()
+        expect(await decode(encoder.encode())).toEqual(db)
+
+        mocks.cache.delete = originalDelete
+        await encoder.set(db, emptyToSave({ character: ['cha-a'], chat: [['cha-a', 'chat-a2']] }))
+        expect(mocks.cache.has('risuSaveBlock_chat-cha-a-chat-a1')).toBe(false)
     })
 
     it('reordering chats only changes the character block', async () => {

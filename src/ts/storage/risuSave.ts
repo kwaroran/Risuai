@@ -199,6 +199,8 @@ export class RisuSaveEncoder {
     private splitChatBlocks: Map<string, Map<string, string>> = new Map();
     /** chat block name -> chaId of the character that owns it */
     private chatBlockOwner: Map<string, string> = new Map();
+    /** names of dropped chat blocks whose block cache entry is not removed yet */
+    private staleChatCache: Set<string> = new Set();
 
     constructor(options: { remote?: boolean, cache?: boolean, splitChats?: boolean } = {}){
         this.allowRemote = options.remote ?? true;
@@ -387,6 +389,7 @@ export class RisuSaveEncoder {
             type: RisuSaveType.ROOT,
             name: 'root'
         });
+        await this.removeStaleChatCache();
     }
 
     encode(arg:{
@@ -571,6 +574,7 @@ export class RisuSaveEncoder {
             if(!currentNames.has(name) && this.chatBlockOwner.get(name) === chaId){
                 delete this.blocks[name];
                 this.chatBlockOwner.delete(name);
+                this.staleChatCache.add(name);
             }
         }
         this.splitChatBlocks.set(chaId, current);
@@ -586,9 +590,35 @@ export class RisuSaveEncoder {
             if(this.chatBlockOwner.get(name) === chaId){
                 delete this.blocks[name];
                 this.chatBlockOwner.delete(name);
+                this.staleChatCache.add(name);
             }
         }
         this.splitChatBlocks.delete(chaId);
+    }
+
+    /**
+     * Removes the block cache entries of dropped chat blocks, so deleted chats do not pile up in IndexedDB.
+     * A name that is in use again (by a re-created chat or a character block) keeps its fresh entry.
+     * Best effort: a failure here must not fail the save, and the entry is retried on the next set.
+     */
+    private async removeStaleChatCache(){
+        if(!this.cacheBlocks){
+            //nothing was cached by this encoder (exports)
+            this.staleChatCache.clear();
+            return;
+        }
+        for(const name of [...this.staleChatCache]){
+            if(this.blocks[name] !== undefined){
+                this.staleChatCache.delete(name);
+                continue;
+            }
+            try {
+                await risuSaveCacheForage.removeItem(`risuSaveBlock_${name}`);
+                this.staleChatCache.delete(name);
+            } catch (error) {
+                console.error(`Error removing cached chat block ${name}:`, error);
+            }
+        }
     }
 
     /**

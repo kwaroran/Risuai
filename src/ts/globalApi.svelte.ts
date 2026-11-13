@@ -325,11 +325,7 @@ export async function saveDb() {
         pluginCustomStorage: false
     }
 
-    let encoder = new RisuSaveEncoder()
-    await encoder.init(getDatabase(), {
-        compression: forageStorage.isAccount,
-        kv: saveKV
-    })
+    let encoder: RisuSaveEncoder
 
     let stopTracking: (() => void) | null = null
 
@@ -446,6 +442,15 @@ export async function saveDb() {
         }
     })
 
+    //The first init already reads storage and writes the cache, so it can hang too:
+    //the watchdog has to be running before it.
+    saveWatchdog.beat('init')
+    encoder = new RisuSaveEncoder()
+    await encoder.init(getDatabase(), {
+        compression: forageStorage.isAccount,
+        kv: saveKV
+    })
+
     let savetrys = 0
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
@@ -459,18 +464,26 @@ export async function saveDb() {
 
         saving.state = true
         changed = false
+        //forced save requests made from here on are left for the next save
+        const forcedRequest = saveWatchdog.saveStarted()
         let kvDirty: string[] = []
         try {
 
             if (requiresFullEncoderReload.state) {
                 saveWatchdog.beat('reload')
-                encoder = new RisuSaveEncoder()
-                await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false,
-                    kv: saveKV
-                })
+                //Cleared before the await, so a reload requested meanwhile is not lost
                 requiresFullEncoderReload.state = false
+                try {
+                    encoder = new RisuSaveEncoder()
+                    await encoder.init(getDatabase(), {
+                        compression: forageStorage.isAccount,
+                        skipRemoteSavingOnCharacters: false,
+                        kv: saveKV
+                    })
+                } catch (error) {
+                    requiresFullEncoderReload.state = true
+                    throw error
+                }
             }
 
             let toSave = safeStructuredClone(changeTracker)
@@ -523,7 +536,7 @@ export async function saveDb() {
                 await getDbBackups()
             }
             savetrys = 0
-            saveWatchdog.saveSucceeded()
+            saveWatchdog.saveSucceeded(forcedRequest)
             await saveDbKei()
             await sleep(500)
         } catch (error) {

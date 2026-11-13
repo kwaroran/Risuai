@@ -32,6 +32,8 @@ interface WatchdogHooks {
 const TICK_MS = 5000
 const LOOP_STALL_MS = 90000
 const RECOVER_COOLDOWN_MS = 30000
+/** How long to wait for an alert that is already open before using the DOM notice instead. */
+const ALERT_WAIT_MS = 10000
 
 let hooks: WatchdogHooks | null = null
 let started = false
@@ -59,8 +61,13 @@ let stopProbe: (() => void) | null = null
 
 let lastTick = 0
 let lastRecover = 0
-let lastForced = 0
 let loopNotified = false
+
+//Forced saves are numbered. A request counts as done only when a save that
+//started after it finishes, not when any save that was already running does.
+let forceRequested = 0
+let forceDone = 0
+let showForced = false
 
 function startProbe() {
     stopProbe?.()
@@ -92,7 +99,8 @@ function recover(force: boolean) {
     }
     try {
         hooks.forceSave()
-        lastForced = now
+        forceRequested += 1
+        showForced = true
     } catch (error) {
         console.error('[SaveWatchdog] failed to force save', error)
     }
@@ -212,11 +220,8 @@ function formatTime(time: number) {
 
 function statusText() {
     const text = language.saveWatchdog
-    if (lastForced && lastSuccess >= lastForced) {
-        return text.saved.replace('{}', formatTime(lastSuccess))
-    }
-    if (lastForced) {
-        return text.saving
+    if (showForced && forceRequested) {
+        return forceDone >= forceRequested ? text.saved.replace('{}', formatTime(lastSuccess)) : text.saving
     }
     return lastSuccess ? text.lastSaved.replace('{}', formatTime(lastSuccess)) : ''
 }
@@ -256,9 +261,11 @@ function sleepPlain(ms: number) {
 async function showAlert(message: string) {
     const run = ++notifyRun
     //Do not replace an alert the user is looking at, such as the error that caused this.
-    //If rendering is dead that alert may never be closed, so do not wait for it then.
+    //That alert may never be closed if it did not render, which the probe cannot always
+    //tell, so stop waiting after a while and let the caller show the DOM notice instead.
+    const waitUntil = Date.now() + ALERT_WAIT_MS
     while (get(alertStore).type !== 'none' && get(alertStore) !== shownAlert) {
-        if (probeDead) {
+        if (probeDead || Date.now() >= waitUntil) {
             return false
         }
         await sleepPlain(200)
@@ -290,7 +297,7 @@ async function showAlert(message: string) {
 function notify(kind: StallKind, detail: string) {
     if (kind === 'loop') {
         //nothing was forced for this one; show the last save that did succeed
-        lastForced = 0
+        showForced = false
     }
     if (detail) {
         //kept out of the notice, which is written for users
@@ -403,8 +410,16 @@ export const saveWatchdog = {
         lastBeat = Date.now()
         loopStage = stage
     },
-    saveSucceeded() {
+    /**
+     * Called by the save loop when it starts a save, before it reads the database.
+     * Returns the forced save request this save covers; pass it to saveSucceeded.
+     */
+    saveStarted() {
+        return forceRequested
+    },
+    saveSucceeded(covers: number) {
         lastSuccess = Date.now()
+        forceDone = Math.max(forceDone, covers)
         updateStatus()
     },
     /** Called by the change tracking effect every time it runs. */

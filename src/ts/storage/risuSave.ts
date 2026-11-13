@@ -65,8 +65,15 @@ export async function encodeRisuSaveCompressionStream(data:any) {
 }
 
 export type toSaveType = {
+    /** chaIds whose blocks must be re-encoded (an id that is no longer in the database means the character was deleted) */
     character: string[];
+    /**
+     * [chaId, chatId] pairs of chats that changed. Only used when chats are saved as separate blocks.
+     * A dirty character without any entry here (and not in allChats) has all of its chats re-encoded.
+     */
     chat: [string, string][];
+    /** chaIds whose chats must all be re-encoded. Only used when chats are saved as separate blocks. */
+    allChats?: string[];
     botPreset: boolean;
     modules: boolean;
     loadouts: boolean;
@@ -95,6 +102,72 @@ enum RisuSaveType {
 
 const KV_BLOCK_PREFIX = 'kv:'
 
+/**
+ * Split chat storage (opt-in, see RisuSaveEncoder's splitChats option):
+ * - a CHARACTER_WITHOUT_CHAT block named after the chaId holds the character JSON, but its `chats`
+ *   property is replaced with `{ "__risuSplitChats": 1, "ids": [chatId, ...] }` (the chat order).
+ *   A legacy CHARACTER_WITHOUT_CHAT block with a `chats` array is still read as a full character.
+ *   An object in `chats` is also not iterable for older clients, which makes them fail to load
+ *   the save (and fall back to backups) instead of silently loading characters without chats.
+ * - one CHAT block per chat, named `chat-<chaId>-<chatId>`, holding
+ *   `{ "v": 1, "chaId": ..., "chatId": ..., "chat": {...} }`. The decoder only uses the payload.
+ */
+const SPLIT_CHATS_KEY = '__risuSplitChats'
+const CHAT_BLOCK_PREFIX = 'chat-'
+const MAX_BLOCK_NAME_BYTES = 255
+const RESERVED_BLOCK_NAMES = new Set(['root', 'preset', 'modules', 'loadouts', 'plugins', 'pluginStorage', 'config'])
+
+type ChatBlockPayload = {
+    v: number
+    chaId: string
+    chatId: string
+    chat: any
+}
+
+function utf8Length(str:string){
+    return new TextEncoder().encode(str).length
+}
+
+function chatBlockName(chaId:string, chatId:string){
+    return `${CHAT_BLOCK_PREFIX}${chaId}-${chatId}`
+}
+
+/** returns the recorded chat order of a split character, or null if the character holds its chats itself */
+function getSplitChatIds(character:any):string[]|null{
+    const chats = character?.chats
+    if(!chats || typeof chats !== 'object' || Array.isArray(chats) || !(SPLIT_CHATS_KEY in chats)){
+        return null
+    }
+    if(!Array.isArray(chats.ids)){
+        return []
+    }
+    return chats.ids.filter((id:unknown) => typeof id === 'string')
+}
+
+function makeMissingChatPlaceholder(chatId:string){
+    return {
+        id: chatId,
+        name: 'Chat (failed to load)',
+        note: '',
+        localLore: [],
+        message: [{
+            time: Date.now(),
+            data: `[Chat data could not be loaded. Chat ID: ${chatId}. It may still be recoverable from a backup.]`,
+            role: 'char'
+        }]
+    }
+}
+
+type CharacterEncodeContext = {
+    /** every chaId in the database */
+    chaIds: Set<string>
+    /** chaIds used by more than one character */
+    duplicateChaIds: Set<string>
+}
+
+/** 'all', or the ids of the chats that changed */
+type DirtyChats = 'all' | Set<string>
+
 type EncodeBlockArg = {
     compression:boolean
     data:string
@@ -120,10 +193,19 @@ export class RisuSaveEncoder {
     private allowRemote: boolean;
     /** false: do not write blocks to the local block cache (exports must not touch the live save's cache) */
     private cacheBlocks: boolean;
+    /** true: save each chat of a character as its own block (older clients cannot read this) */
+    readonly splitChats: boolean;
+    /** chaId -> (chatId -> chat block name) for characters currently saved as split blocks */
+    private splitChatBlocks: Map<string, Map<string, string>> = new Map();
+    /** chat block name -> chaId of the character that owns it */
+    private chatBlockOwner: Map<string, string> = new Map();
+    /** names of dropped chat blocks whose block cache entry is not removed yet */
+    private staleChatCache: Set<string> = new Set();
 
-    constructor(options: { remote?: boolean, cache?: boolean } = {}){
+    constructor(options: { remote?: boolean, cache?: boolean, splitChats?: boolean } = {}){
         this.allowRemote = options.remote ?? true;
         this.cacheBlocks = options.cache ?? true;
+        this.splitChats = options.splitChats ?? false;
     }
 
     async init(data:Database,arg:{
@@ -181,16 +263,9 @@ export class RisuSaveEncoder {
             type: RisuSaveType.PLUGIN_STORAGE,
             name: 'pluginStorage'
         });
+        const context = this.makeCharacterContext(data);
         for( const character of data.characters ?? []) {
-            this.blocks[character.chaId] = await this.encodeBlock({
-                compression,
-                data: JSON.stringify(character),
-                type: RisuSaveType.CHARACTER_WITH_CHAT,
-                name: character.chaId,
-                skipRemoteSaving: skipRemoteSavingOnCharacters
-            }, {
-                remote: 'prefer'
-            });
+            await this.encodeCharacter(character, context, 'all', skipRemoteSavingOnCharacters);
         }
         for(const ns of kv?.namespaces() ?? []){
             await this.encodeKVBlock(ns);
@@ -217,30 +292,32 @@ export class RisuSaveEncoder {
             }
         }
 
+        const context = this.makeCharacterContext(data);
+        await this.releaseCollidingChatBlocks(data, context);
+
+        const dirtyChats = new Map<string, Set<string>>();
+        for(const [chaId, chatId] of toSave.chat ?? []){
+            if(!dirtyChats.has(chaId)){
+                dirtyChats.set(chaId, new Set());
+            }
+            dirtyChats.get(chaId).add(chatId);
+        }
+        const allChatsDirty = new Set(toSave.allChats ?? []);
+
         const savedId = new Set<string>();
         for(const character of data.characters) {
             const index = toSave.character.indexOf(character.chaId);
             if (index !== -1) {
-                this.blocks[character.chaId] = await this.encodeBlock({
-                    compression: this.compression,
-                    data: JSON.stringify(character),
-                    type: RisuSaveType.CHARACTER_WITH_CHAT,
-                    name: character.chaId
-                }, {
-                    remote: 'prefer'
-                });
+                //no chat information for a dirty character: treat every chat as dirty
+                const dirty:DirtyChats = (allChatsDirty.has(character.chaId) || !dirtyChats.has(character.chaId))
+                    ? 'all'
+                    : dirtyChats.get(character.chaId);
+                await this.encodeCharacter(character, context, dirty);
                 savedId.add(character.chaId);
                 toSave.character.splice(index, 1);
             }
             else if(!this.blocks[character.chaId]){
-                this.blocks[character.chaId] = await this.encodeBlock({
-                    compression: this.compression,
-                    data: JSON.stringify(character),
-                    type: RisuSaveType.CHARACTER_WITH_CHAT,
-                    name: character.chaId
-                }, {
-                    remote: 'prefer'
-                });
+                await this.encodeCharacter(character, context, 'all');
                 savedId.add(character.chaId);
             }
         }
@@ -249,7 +326,10 @@ export class RisuSaveEncoder {
             //probably deleted characters
             for(const chaId of toSave.character){
                 if(!savedId.has(chaId)){
-                    delete this.blocks[chaId];
+                    if(!this.chatBlockOwner.has(chaId)){
+                        delete this.blocks[chaId];
+                    }
+                    this.removeChatBlocks(chaId);
                 }
             }
         }
@@ -309,6 +389,7 @@ export class RisuSaveEncoder {
             type: RisuSaveType.ROOT,
             name: 'root'
         });
+        await this.removeStaleChatCache();
     }
 
     encode(arg:{
@@ -350,9 +431,225 @@ export class RisuSaveEncoder {
         });
     }
 
-    async encodeBlock(arg:EncodeBlockArg, option:EncodeBlockOption = { remote: 'none' }){
-        if(
-            this.allowRemote &&
+    private makeCharacterContext(data:Database):CharacterEncodeContext{
+        const chaIds = new Set<string>();
+        const duplicateChaIds = new Set<string>();
+        for(const character of data.characters ?? []){
+            const chaId = character?.chaId;
+            if(chaIds.has(chaId)){
+                duplicateChaIds.add(chaId);
+            }
+            chaIds.add(chaId);
+        }
+        return { chaIds, duplicateChaIds };
+    }
+
+    /**
+     * Returns the chat ids and block names to save the character as split blocks,
+     * or null if this character must be saved as a single legacy block.
+     */
+    private planSplitCharacter(character:Database['characters'][number], context:CharacterEncodeContext){
+        if(!this.splitChats){
+            return null;
+        }
+        const chaId = character?.chaId;
+        if(typeof chaId !== 'string' || chaId === '' || context.duplicateChaIds.has(chaId)){
+            return null;
+        }
+        if(utf8Length(chaId) > MAX_BLOCK_NAME_BYTES || !Array.isArray(character.chats)){
+            return null;
+        }
+        //remote characters are kept in the legacy format for now
+        if(this.shouldEncodeRemote({ remote: 'prefer' })){
+            return null;
+        }
+        const chatIds:string[] = [];
+        const names:string[] = [];
+        //chat references are taken now: the array may change while blocks are encoded (awaits in between)
+        const chats = [...character.chats];
+        const seen = new Set<string>();
+        for(const chat of chats){
+            const chatId = chat?.id;
+            if(!chat || typeof chat !== 'object' || typeof chatId !== 'string' || chatId === '' || seen.has(chatId)){
+                return null;
+            }
+            seen.add(chatId);
+            const name = chatBlockName(chaId, chatId);
+            if(
+                utf8Length(name) > MAX_BLOCK_NAME_BYTES ||
+                RESERVED_BLOCK_NAMES.has(name) ||
+                name.startsWith(KV_BLOCK_PREFIX) ||
+                context.chaIds.has(name)
+            ){
+                return null;
+            }
+            const owner = this.chatBlockOwner.get(name);
+            if(owner !== undefined ? owner !== chaId : this.blocks[name] !== undefined){
+                return null;
+            }
+            chatIds.push(chatId);
+            names.push(name);
+        }
+        return { chaId, chatIds, names, chats };
+    }
+
+    /** character JSON with `chats` replaced by the split marker and chat order, keeping the key order */
+    private serializeSplitCharacter(character:Database['characters'][number], chatIds:string[]){
+        const obj:Record<string, any> = {};
+        for(const key of Object.keys(character)){
+            obj[key] = key === 'chats' ? { [SPLIT_CHATS_KEY]: 1, ids: chatIds } : (character as Record<string, any>)[key];
+        }
+        return JSON.stringify(obj);
+    }
+
+    /**
+     * Encodes a character either as split blocks or as a single legacy block, and removes blocks it no longer needs.
+     * Blocks are only replaced after everything was encoded, so a failure leaves the previous blocks in place.
+     */
+    private async encodeCharacter(character:Database['characters'][number], context:CharacterEncodeContext, dirty:DirtyChats, skipRemoteSaving?:boolean){
+        const plan = this.planSplitCharacter(character, context);
+        if(!plan){
+            const block = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(character),
+                type: RisuSaveType.CHARACTER_WITH_CHAT,
+                name: character.chaId,
+                skipRemoteSaving
+            }, {
+                remote: 'prefer'
+            });
+            this.blocks[character.chaId] = block;
+            this.removeChatBlocks(character.chaId);
+            return;
+        }
+
+        const { chaId, chatIds, names, chats } = plan;
+        const previous = this.splitChatBlocks.get(chaId);
+        const encodedChats:[string, Uint8Array][] = [];
+        for(let i = 0; i < chatIds.length; i++){
+            const name = names[i];
+            const needsEncode = dirty === 'all' ||
+                dirty.has(chatIds[i]) ||
+                !previous?.has(chatIds[i]) ||
+                this.blocks[name] === undefined;
+            if(!needsEncode){
+                continue;
+            }
+            const payload:ChatBlockPayload = {
+                v: 1,
+                chaId,
+                chatId: chatIds[i],
+                chat: chats[i]
+            };
+            encodedChats.push([name, await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(payload),
+                type: RisuSaveType.CHAT,
+                name
+            }, {
+                remote: 'none'
+            })]);
+        }
+        const characterBlock = await this.encodeBlock({
+            compression: this.compression,
+            data: this.serializeSplitCharacter(character, chatIds),
+            type: RisuSaveType.CHARACTER_WITHOUT_CHAT,
+            name: chaId
+        }, {
+            remote: 'none'
+        });
+
+        //commit
+        this.blocks[chaId] = characterBlock;
+        const current = new Map<string, string>();
+        for(let i = 0; i < chatIds.length; i++){
+            current.set(chatIds[i], names[i]);
+            this.chatBlockOwner.set(names[i], chaId);
+        }
+        for(const [name, block] of encodedChats){
+            this.blocks[name] = block;
+        }
+        const currentNames = new Set(names);
+        for(const name of previous?.values() ?? []){
+            if(!currentNames.has(name) && this.chatBlockOwner.get(name) === chaId){
+                delete this.blocks[name];
+                this.chatBlockOwner.delete(name);
+                this.staleChatCache.add(name);
+            }
+        }
+        this.splitChatBlocks.set(chaId, current);
+    }
+
+    /** removes every chat block of a character (it was deleted or is saved as a legacy block now) */
+    private removeChatBlocks(chaId:string){
+        const previous = this.splitChatBlocks.get(chaId);
+        if(!previous){
+            return;
+        }
+        for(const name of previous.values()){
+            if(this.chatBlockOwner.get(name) === chaId){
+                delete this.blocks[name];
+                this.chatBlockOwner.delete(name);
+                this.staleChatCache.add(name);
+            }
+        }
+        this.splitChatBlocks.delete(chaId);
+    }
+
+    /**
+     * Removes the block cache entries of dropped chat blocks, so deleted chats do not pile up in IndexedDB.
+     * A name that is in use again (by a re-created chat or a character block) keeps its fresh entry.
+     * Best effort: a failure here must not fail the save, and the entry is retried on the next set.
+     */
+    private async removeStaleChatCache(){
+        if(!this.cacheBlocks){
+            //nothing was cached by this encoder (exports)
+            this.staleChatCache.clear();
+            return;
+        }
+        for(const name of [...this.staleChatCache]){
+            if(this.blocks[name] !== undefined){
+                this.staleChatCache.delete(name);
+                continue;
+            }
+            try {
+                await risuSaveCacheForage.removeItem(`risuSaveBlock_${name}`);
+                this.staleChatCache.delete(name);
+            } catch (error) {
+                console.error(`Error removing cached chat block ${name}:`, error);
+            }
+        }
+    }
+
+    /**
+     * A character whose chaId equals an existing chat block name would overwrite that block.
+     * Save the owner of such a block as a legacy block first (its plan now fails on the collision).
+     */
+    private async releaseCollidingChatBlocks(data:Database, context:CharacterEncodeContext){
+        for(const chaId of context.chaIds){
+            const owner = this.chatBlockOwner.get(chaId);
+            if(owner === undefined){
+                continue;
+            }
+            const ownerCharacter = data.characters.find((c) => c?.chaId === owner);
+            if(ownerCharacter && !context.duplicateChaIds.has(owner)){
+                await this.encodeCharacter(ownerCharacter, context, 'all');
+            }
+            if(this.chatBlockOwner.get(chaId) === owner){
+                //owner is not in the database anymore; drop only the colliding block
+                delete this.blocks[chaId];
+                this.chatBlockOwner.delete(chaId);
+                for(const [chatId, name] of this.splitChatBlocks.get(owner) ?? []){
+                    if(name === chaId){
+                        this.splitChatBlocks.get(owner).delete(chatId);
+                    }
+                }
+            }
+        }
+    }
+
+    private shouldEncodeRemote(option:EncodeBlockOption){
+        return this.allowRemote &&
             (
                 option.remote === 'force' ||
                 (
@@ -363,8 +660,11 @@ export class RisuSaveEncoder {
                     )
                 ) &&
                 !disableRemoteSaving()
-            )
-        ){
+            );
+    }
+
+    async encodeBlock(arg:EncodeBlockArg, option:EncodeBlockOption = { remote: 'none' }){
+        if(this.shouldEncodeRemote(option)){
             return await this.encodeRemoteBlock(arg);
         }
         return await this.encodeRawBlock(arg);
@@ -510,6 +810,9 @@ export class RisuSaveDecoder {
         }
         console.log('blocks',this.blocks)
         let directory: string[] = []
+        /** characters saved with CHARACTER_WITHOUT_CHAT + CHAT blocks, in block order */
+        const splitCharacters: { character: any, chatIds: string[] }[] = []
+        const chatRecords: ChatBlockPayload[] = []
         for(let i = 0; i < this.blocks.length; i++){
             const key = i;
             try {
@@ -555,8 +858,27 @@ export class RisuSaveDecoder {
                     case RisuSaveType.CHARACTER_WITHOUT_CHAT:{
                         db.characters ??= [];
                         const character = JSON.parse(this.blocks[key].content);
+                        //a CHARACTER_WITHOUT_CHAT block with a chats array is a legacy full character
+                        const chatIds = this.blocks[key].type === RisuSaveType.CHARACTER_WITHOUT_CHAT ? getSplitChatIds(character) : null;
+                        if(chatIds){
+                            //chats are attached after all blocks are read
+                            character.chats = [];
+                            splitCharacters.push({ character, chatIds });
+                        }
                         db.characters.push(character);
                         break
+                    }
+                    case RisuSaveType.CHAT:{
+                        const payload:ChatBlockPayload = JSON.parse(this.blocks[key].content);
+                        if(
+                            !payload || typeof payload.chaId !== 'string' || typeof payload.chatId !== 'string' ||
+                            !payload.chat || typeof payload.chat !== 'object' || Array.isArray(payload.chat)
+                        ){
+                            console.warn(`Invalid chat block ${this.blocks[key].name}, ignoring.`);
+                            break;
+                        }
+                        chatRecords.push(payload);
+                        break;
                     }
                     case RisuSaveType.BOTPRESET:{
                         db.botPresets = JSON.parse(this.blocks[key].content);
@@ -648,6 +970,7 @@ export class RisuSaveDecoder {
                 }
             }
         }
+        attachSplitChats(db, splitCharacters, chatRecords)
         //to fix botpreset bugs
         if(!Array.isArray(db.botPresets) || db.botPresets.length === 0){
             db.botPresets = [presetTemplate]
@@ -655,6 +978,83 @@ export class RisuSaveDecoder {
         }
         console.log('Decoded RisuSave data', db);
         return { database: db, kv };
+    }
+}
+
+/**
+ * Attaches decoded CHAT blocks to their split characters, in the recorded order.
+ * Missing chats become placeholders, unlisted chats of an existing character are appended,
+ * chats of a character that does not exist are dropped.
+ */
+function attachSplitChats(db:Database, splitCharacters:{ character: any, chatIds: string[] }[], chatRecords:ChatBlockPayload[]){
+    if(splitCharacters.length === 0 && chatRecords.length === 0){
+        return
+    }
+    const recordsByCharacter = new Map<string, ChatBlockPayload[]>()
+    for(const record of chatRecords){
+        if(!recordsByCharacter.has(record.chaId)){
+            recordsByCharacter.set(record.chaId, [])
+        }
+        recordsByCharacter.get(record.chaId).push(record)
+    }
+    const used = new Set<ChatBlockPayload>()
+    const takeChat = (record:ChatBlockPayload) => {
+        if(used.has(record)){
+            //only possible with duplicated chaIds; give each character its own copy
+            return JSON.parse(JSON.stringify(record.chat))
+        }
+        used.add(record)
+        return record.chat
+    }
+
+    for(const { character, chatIds } of splitCharacters){
+        const records = recordsByCharacter.get(character.chaId) ?? []
+        const takenHere = new Set<ChatBlockPayload>()
+        const chats:any[] = []
+        for(const chatId of chatIds){
+            const record = records.find((r) => r.chatId === chatId && !takenHere.has(r))
+            if(record){
+                takenHere.add(record)
+                const chat = takeChat(record)
+                chat.id ??= chatId
+                chats.push(chat)
+            }
+            else{
+                console.error(`Chat block ${chatId} of character ${character.chaId} is missing, inserting a placeholder.`)
+                chats.push(makeMissingChatPlaceholder(chatId))
+            }
+        }
+        character.chats = chats
+    }
+
+    //chat blocks that are not in the order list of their character
+    for(const record of chatRecords){
+        if(used.has(record)){
+            continue
+        }
+        const parent = (db.characters ?? []).find((c) => c?.chaId === record.chaId)
+        if(!parent){
+            console.warn(`Discarding chat ${record.chatId}: character ${record.chaId} does not exist.`)
+            continue
+        }
+        if(!Array.isArray(parent.chats)){
+            parent.chats = []
+        }
+        if(parent.chats.some((c) => c?.id === record.chatId)){
+            //a legacy character already holding this chat
+            continue
+        }
+        console.warn(`Recovering chat ${record.chatId} of character ${record.chaId} that is not in its chat list.`)
+        used.add(record)
+        record.chat.id ??= record.chatId
+        parent.chats.push(record.chat)
+    }
+
+    for(const { character } of splitCharacters){
+        const page = character.chatPage
+        if(character.chats.length > 0 && !(Number.isInteger(page) && page >= 0 && page < character.chats.length)){
+            character.chatPage = 0
+        }
     }
 }
 

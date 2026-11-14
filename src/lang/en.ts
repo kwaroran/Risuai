@@ -1656,6 +1656,8 @@ export const languageEnglish = {
     providerPermissionDenied: "Plugin provider permission denied by user.",
     inlayPermissionConsent: "Plugin {} is requesting permission to access the inlay, which may allow it to read, write or edit the inlay content. Do you want to allow this?",
     sendChatConsent: "Plugin {} is requesting permission to send chat messages on your behalf, which will trigger AI responses. Do you want to allow this?",
+    mcpRegisterConsent: "Plugin {} is requesting permission to provide tools that the AI can call ({mcp}), which may expose chat content to the plugin and influence AI responses. If allowed, its MCP module is added and enabled unless it already exists. Do you want to allow this?",
+    mcpAccessConsent: "Plugin {} is requesting permission to use your enabled MCP modules, which lets it see their tools and run them with any input. Do you want to allow this?",
     pluginV2Warning: "Plugin V2 and V2.1 is considered unsafe and will stop working in future versions. **Please do not use these versions of plugins.**. If you are the developer of this plugin, please update to V3 as soon as possible.",
     createFolderOnBranch: "Create Folder on Branch",
     hamburgerButtonBottom: "Move Menu Button to Bottom of Sidebar",

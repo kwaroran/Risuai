@@ -156,7 +156,8 @@ export async function importCharacterProcess<T extends boolean = false>(f:{
         }
         let lorebook:loreBook[] = null
         if(importer.moduleData){
-            const md = await readModule(Buffer.from(importer.moduleData))
+            // Asked once from the card after assets are saved; asking here gets hidden by the asset progress alert
+            const md = await readModule(Buffer.from(importer.moduleData), {confirmLowLevelAccess: false})
             card.data.extensions ??= {}
             card.data.extensions.risuai ??= {}
             card.data.extensions.risuai.triggerscript = md.trigger ?? []

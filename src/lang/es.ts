@@ -1164,6 +1164,8 @@ export const languageSpanish = {
     "translatorPrompt": "Prompt de Traducción",
     "translateBeforeHTMLFormatting": "Traducir Antes del Formateo HTML",
     "retranslate": "Retraducir",
+    "truncated": "Truncado",
+    "truncatedMessage": "Esta respuesta fue cortada por el límite de tokens en lugar de terminar de forma natural. El mensaje puede estar incompleto.",
     "editTranslation": "Editar traducción",
     "editTranslationSave": "Guardar traducción",
     "exportTranslationCache": "Exportar caché de traducción",

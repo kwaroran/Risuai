@@ -1164,6 +1164,8 @@ export const languageVietnamese = {
     "translatorPrompt": "Lời nhắc dịch",
     "translateBeforeHTMLFormatting": "Dịch trước khi định dạng HTML",
     "retranslate": "Dịch lại",
+    "truncated": "Bị cắt cụt",
+    "truncatedMessage": "Phản hồi này đã bị cắt cụt do đạt giới hạn token thay vì kết thúc tự nhiên. Nội dung có thể không đầy đủ.",
     "editTranslation": "Chỉnh sửa bản dịch",
     "editTranslationSave": "Lưu bản dịch",
     "exportTranslationCache": "Xuất bộ nhớ đệm dịch",

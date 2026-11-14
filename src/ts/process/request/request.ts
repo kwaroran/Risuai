@@ -74,6 +74,7 @@ export type requestDataResponse = {
     },
     failByServerError?: boolean
     model?: string
+    finishReason?: string
 }|{
     type: "streaming",
     result: ReadableStream<StreamResponseChunk>,
@@ -91,6 +92,15 @@ export type requestDataResponse = {
 }
 
 export interface StreamResponseChunk{[key:string]:string}
+
+/**
+ * Stop reasons that mean the generation was cut off by a limit
+ * instead of finishing naturally (OpenAI: length, Anthropic: max_tokens,
+ * Google: MAX_TOKENS).
+ */
+export function isTruncatedFinishReason(reason?: string): boolean {
+    return reason === 'length' || reason === 'max_tokens' || reason === 'MAX_TOKENS'
+}
 
 type OllamaThinkMode = boolean | 'low' | 'medium' | 'high'
 

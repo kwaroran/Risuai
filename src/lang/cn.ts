@@ -1164,6 +1164,8 @@ export const languageChinese = {
     "translatorPrompt": "翻译提示词",
     "translateBeforeHTMLFormatting": "於 HTML 格式化前翻译",
     "retranslate": "重新翻译",
+    "truncated": "已截断",
+    "truncatedMessage": "该回复因达到令牌上限而被截断，未自然结束，内容可能不完整。",
     "editTranslation": "编辑翻译",
     "editTranslationSave": "保存翻译",
     "exportTranslationCache": "导出翻译缓存",

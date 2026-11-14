@@ -446,6 +446,16 @@
 
 {#snippet genInfo()}
     <div class="flex flex-col items-end">
+        {#if messageGenerationInfo?.truncated}
+            <div class="text-sm p-1 text-draculared border-darkborderc float-end mr-2 my-1 rounded-md flex justify-center items-center"
+                    title={language.truncatedMessage}
+            >
+                <Scissors size={20} />
+                <span class="ml-1">
+                    {language.truncated}
+                </span>
+            </div>
+        {/if}
         {#if messageGenerationInfo && (DBState.db.requestInfoInsideChat || aiLawApplies())}
             <button class="text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1
                     hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center" 

@@ -5,15 +5,6 @@ const requestBodyLimitLabel = '100 MiB';
 if (process.env.TRUST_PROXY) {
     app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 }
-// Express 4 does not catch rejected promises from async handlers; forward them to next()
-for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
-    const register = app[method].bind(app);
-    app[method] = (path, ...handlers) => register(path, ...handlers.map((handler) =>
-        typeof handler === 'function' && handler.length < 4
-            ? (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
-            : handler
-    ));
-}
 const http = require('http');
 const path = require('path');
 const net = require('net');
@@ -804,7 +795,8 @@ const reverseProxyFunc = async (req, res, next) => {
         originalResponse = await fetch(urlParam, {
             method: req.method,
             headers: header,
-            body: JSON.stringify(req.body),
+            // Express 5 leaves req.body undefined when no body parser matched; keep Express 4's '{}' payload
+            body: JSON.stringify(req.body ?? {}),
             signal: timeout.signal
         });
         // get response body as stream
@@ -1080,11 +1072,11 @@ async function hubProxyFunc(req, res) {
 
 app.get('/proxy', authenticatedRouteLimiter, reverseProxyFunc_get);
 app.get('/proxy2', authenticatedRouteLimiter, reverseProxyFunc_get);
-app.get('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
+app.get('/hub-proxy{/*path}', authenticatedRouteLimiter, hubProxyFunc);
 
 app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
-app.post('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
+app.post('/hub-proxy{/*path}', authenticatedRouteLimiter, hubProxyFunc);
 app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
     if (!await checkAuth(req, res)) {
         return;
@@ -1251,7 +1243,8 @@ app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
         }
         else{
             res.setHeader('Content-Type','application/octet-stream');
-            res.sendFile(path.join(savePath, filePath));
+            // Pass savePath as root: Express 5 rejects absolute paths that contain dot-directories (e.g. ~/.local/...)
+            res.sendFile(filePath, { root: savePath });
         }
     } catch (error) {
         next(error);

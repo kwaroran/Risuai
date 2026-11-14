@@ -699,10 +699,14 @@ export async function runScripted(code:string, arg:{
                 DBState.db.characters[selectedChar] = char
             })
 
-            declareAPI('getCharacterFirstMessage', (id:string) => {
+            declareAPI('getCharacterFirstMessage', (id:string, index?:number) => {
                 const selectedChar = get(selectedCharID)
                 const char = DBState.db.characters[selectedChar]
-                return char.firstMessage
+                // index: -1 for the first message, 0.. for alternate greetings
+                if(index === undefined || index === null || index === -1){
+                    return char.firstMessage
+                }
+                return char.alternateGreetings?.[index] ?? ''
             })
 
             declareAPI('setCharacterFirstMessage', (id:string, data:string) => {
@@ -1007,7 +1011,8 @@ export async function runScripted(code:string, arg:{
                     pointer--
                 }
 
-                return selchar.firstMessage
+                const fmIndex = chat.fmIndex ?? -1
+                return fmIndex === -1 ? selchar.firstMessage : (selchar.alternateGreetings?.[fmIndex] ?? '')
             })
 
             declareAPI('getUserLastMessage', (id: string) => {
@@ -1025,44 +1030,6 @@ export async function runScripted(code:string, arg:{
                     pointer--
                 }
 
-                return ''
-            })
-
-            declareAPI('getCharacterLastMessage', (id: string) => {
-                const chat = ScriptingEngineState.chat
-                if (!chat) {
-                    return ''
-                }
-
-                const db = getDatabase()
-                const selchar = db.characters[get(selectedCharID)]
-
-                let pointer = chat.message.length - 1
-                while (pointer >= 0) {
-                    if (chat.message[pointer].role === 'char') {
-                        const messageData = chat.message[pointer].data
-                        return messageData
-                    }
-                    pointer--
-                }
-
-                return selchar.firstMessage
-            })
-
-            declareAPI('getUserLastMessage', (id: string) => {
-                const chat = ScriptingEngineState.chat
-                if (!chat) {
-                    return ''
-                }
-
-                let pointer = chat.message.length - 1
-                while (pointer >= 0) {
-                    if (chat.message[pointer].role === 'user') {
-                        const messageData = chat.message[pointer].data
-                        return messageData
-                    }
-                    pointer--
-                }
                 return ''
             })
 

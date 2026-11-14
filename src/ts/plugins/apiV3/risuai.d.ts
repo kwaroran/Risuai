@@ -1205,6 +1205,32 @@ interface ProviderOptions {
     tokenizerFunc?: (content: string) => number[] | Promise<number[]>;
 }
 
+/**
+ * Embedding index for vector similarity search.
+ * Created via {@link RisuaiPluginAPI.createEmbeddingIndex}.
+ */
+interface EmbeddingIndex {
+    /**
+     * Adds texts to the embedding index for later similarity search.
+     * Texts already in this index, and duplicates within `texts`, are skipped.
+     * Embeddings share a cache with the app's other embedding features.
+     * Checks the `embedding` permission on every call; does nothing if it is denied.
+     * @param texts - Array of text strings to index
+     * @throws Error if `texts` is not an array of strings
+     */
+    addText(texts: string[]): Promise<void>;
+
+    /**
+     * Searches the index for texts most similar to the query, returning scored results.
+     * Uses the user's embedding model from when the index was created.
+     * Checks the `embedding` permission on every call.
+     * @param query - The query string to compare against indexed texts
+     * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
+     * @throws Error if `query` is not a string
+     */
+    similaritySearchScored(query: string): Promise<[string, number][]>;
+}
+
 // ============================================================================
 // Risuai Global API
 // ============================================================================
@@ -2134,6 +2160,62 @@ interface RisuaiPluginAPI {
      * @param message - The chat message to send, if string is a blank message, it will trigger the send action without adding a new message.
      */
     sendChat(message: string): Promise<void>;
+
+    // ========== Embedding / Similarity Search ==========
+
+    /**
+     * Performs a one-shot similarity search: indexes the given documents,
+     * then searches for the most similar ones to the query. Documents are not
+     * kept between calls; their embeddings are cached, but each call loads them
+     * again. For repeated queries against the same document set, use
+     * {@link createEmbeddingIndex} instead.
+     *
+     * Uses the user's embedding model setting, like Lua `similarity`.
+     *
+     * Requires the `embedding` permission (reconfirmed every 3 days).
+     *
+     * @param query - The query string to search for
+     * @param documents - Array of document strings to index and search against (duplicates are indexed once)
+     * @returns Array of `[text, score]` tuples sorted by descending similarity, or empty array if permission denied
+     * @throws Error if `query` is not a string or `documents` is not an array of strings
+     *
+     * @example
+     * ```typescript
+     * const results = await risuai.similaritySearchScored('cute cat', [
+     *   'A fluffy kitten playing with yarn',
+     *   'A large dog running in the park',
+     *   'A small cat sleeping on a windowsill'
+     * ]);
+     * // results: [['A fluffy kitten...', 0.85], ['A small cat...', 0.82], ['A large dog...', 0.45]]
+     * ```
+     */
+    similaritySearchScored(query: string, documents: string[]): Promise<[string, number][]>;
+
+    /**
+     * Creates a stateful embedding index that persists across multiple calls.
+     * Use this when you need to add documents once and search many times.
+     *
+     * Uses the user's embedding model setting at the time it is created.
+     *
+     * Requires the `embedding` permission (reconfirmed every 3 days).
+     *
+     * @returns An {@link EmbeddingIndex} instance, or null if permission denied
+     *
+     * @example
+     * ```typescript
+     * const index = await risuai.createEmbeddingIndex();
+     * if (!index) return; // permission denied
+     *
+     * await index.addText([
+     *   'A fluffy kitten playing with yarn',
+     *   'A large dog running in the park',
+     *   'A small cat sleeping on a windowsill'
+     * ]);
+     *
+     * const results = await index.similaritySearchScored('cute cat');
+     * ```
+     */
+    createEmbeddingIndex(): Promise<EmbeddingIndex | null>;
 }
 
 // ============================================================================

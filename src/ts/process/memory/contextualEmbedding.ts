@@ -1,6 +1,7 @@
 import { globalFetch } from "src/ts/globalApi.svelte";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { contextHash, type VectorArray } from "./hypamemory";
+import { getEmbeddingTokenCounter, MAX_EMBEDDING_TOKENS_PER_REQUEST } from "./embeddingBatch";
 
 export interface ContextualEmbeddingProvider {
   readonly modelId: string;
@@ -41,7 +42,12 @@ class VoyageContext3Provider implements ContextualEmbeddingProvider {
 
   async embedDocumentGroups(groups: string[][]): Promise<VectorArray[][]> {
     const apiKey = this.getApiKey();
-    const batches = this.batchGroups(groups);
+    const countTokens = getEmbeddingTokenCounter('voyageContext3');
+    const tokenCounts = await Promise.all(groups.map(async group => {
+      const counts = await Promise.all(group.map(text => countTokens(text)));
+      return counts.reduce((sum, count) => sum + count, 0);
+    }));
+    const batches = this.batchGroups(groups, tokenCounts);
     const allResults: VectorArray[][] = new Array(groups.length);
 
     let groupOffset = 0;
@@ -105,23 +111,28 @@ class VoyageContext3Provider implements ContextualEmbeddingProvider {
     return `|voyageContext3${ctxPart}`;
   }
 
-  private batchGroups(groups: string[][]): string[][][] {
+  private batchGroups(groups: string[][], tokenCounts: number[]): string[][][] {
     const batches: string[][][] = [];
     let currentBatch: string[][] = [];
     let currentChunkCount = 0;
+    let currentTokenCount = 0;
 
-    for (const group of groups) {
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i];
       if (
         currentBatch.length > 0 &&
         (currentBatch.length + 1 > MAX_INPUTS_PER_REQUEST ||
-         currentChunkCount + group.length > MAX_CHUNKS_PER_REQUEST)
+         currentChunkCount + group.length > MAX_CHUNKS_PER_REQUEST ||
+         currentTokenCount + tokenCounts[i] > MAX_EMBEDDING_TOKENS_PER_REQUEST)
       ) {
         batches.push(currentBatch);
         currentBatch = [];
         currentChunkCount = 0;
+        currentTokenCount = 0;
       }
       currentBatch.push(group);
       currentChunkCount += group.length;
+      currentTokenCount += tokenCounts[i];
     }
 
     if (currentBatch.length > 0) {

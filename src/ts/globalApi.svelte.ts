@@ -27,6 +27,7 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { loadRisuAccountData } from "./drive/accounter";
 import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
 import { saveKV } from "./storage/saveKV";
+import { saveWatchdog } from "./saveWatchdog.svelte";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -324,92 +325,137 @@ export async function saveDb() {
         pluginCustomStorage: false
     }
 
-    let encoder = new RisuSaveEncoder()
+    let encoder: RisuSaveEncoder
+
+    let stopTracking: (() => void) | null = null
+
+    //Recreated by the watchdog when the effects stop responding
+    function startTracking() {
+        stopTracking?.()
+        let unsubscribe: (() => void) | null = null
+        const destroyRoot = $effect.root(() => {
+
+            let selIdState = $state(0)
+
+            const debounceTime = 500; // 500 milliseconds
+            let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+            unsubscribe = selectedCharID.subscribe((v) => {
+                selIdState = v
+            })
+
+            function saveTimeoutExecute() {
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                }
+                saveTimeout = setTimeout(() => {
+                    changed = true;
+                }, debounceTime);
+            }
+
+            //An uncaught error in an effect aborts the whole flush and can leave
+            //other effects permanently unscheduled, so nothing may escape from here.
+            function trackEffect(name: string, track: () => void) {
+                $effect(() => {
+                    try {
+                        track()
+                    } catch (error) {
+                        saveWatchdog.effectError(name, error)
+                    }
+                    saveTimeoutExecute()
+                })
+            }
+
+            trackEffect('botPreset', () => {
+                DBState.db.botPresetsId
+                DBState.db.botPresets.length
+                changeTracker.botPreset = true
+            })
+            trackEffect('modules', () => {
+                $state.snapshot(DBState.db.modules)
+                changeTracker.modules = true
+            })
+            trackEffect('loadouts', () => {
+                $state.snapshot(DBState.db.loadouts)
+                changeTracker.loadouts = true
+            })
+            trackEffect('plugins', () => {
+                $state.snapshot(DBState.db.plugins)
+                changeTracker.plugins = true
+            })
+            trackEffect('pluginCustomStorage', () => {
+                $state.snapshot(DBState.db.pluginCustomStorage)
+                changeTracker.pluginCustomStorage = true
+            })
+            trackEffect('database', () => {
+                saveWatchdog.trackerRan()
+                for (const key in DBState.db) {
+                    if (
+                        key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                        key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                    ) {
+                        $state.snapshot(DBState.db[key])
+                    }
+                }
+                if (DBState?.db?.characters?.[selIdState]) {
+                    for (const key in DBState.db.characters[selIdState]) {
+                        if (key !== 'chats') {
+                            $state.snapshot(DBState.db.characters[selIdState][key])
+                        }
+                    }
+                    $state.snapshot(DBState.db.characters[selIdState].chats)
+                    const chaId = DBState.db.characters[selIdState]?.chaId
+                    //chatPage can briefly point outside of chats while they are being edited
+                    const chat = DBState.db.characters[selIdState]?.chats?.[DBState.db.characters[selIdState]?.chatPage]
+                    if (changeTracker.character[0] !== chaId) {
+                        changeTracker.character.unshift(chaId)
+                    }
+                    if (chat && (changeTracker.chat[0]?.[0] !== chaId || changeTracker.chat[0]?.[1] !== chat.id)) {
+                        changeTracker.chat.unshift([chaId, chat.id])
+                    }
+                }
+            })
+        })
+        stopTracking = () => {
+            unsubscribe?.()
+            destroyRoot()
+        }
+    }
+    startTracking()
+
+    saveWatchdog.start({
+        //Read outside of any effect, so it works even when reactivity does not
+        fingerprint: () => {
+            const char = DBState.db?.characters?.[get(selectedCharID)]
+            const chat = char?.chats?.[char?.chatPage]
+            const messages = chat?.message
+            const last = messages?.[messages.length - 1]
+            return [
+                char?.chaId, char?.chatPage, char?.chats?.length, chat?.id,
+                messages?.length, last?.data?.length, last?.chatId
+            ].join('|')
+        },
+        restartTracking: startTracking,
+        forceSave: () => {
+            requiresFullEncoderReload.state = true
+            changed = true
+        }
+    })
+
+    //The first init already reads storage and writes the cache, so it can hang too:
+    //the watchdog has to be running before it.
+    saveWatchdog.beat('init')
+    encoder = new RisuSaveEncoder()
     await encoder.init(getDatabase(), {
         compression: forageStorage.isAccount,
         kv: saveKV
-    })
-
-    $effect.root(() => {
-
-        let selIdState = $state(0)
-
-        const debounceTime = 500; // 500 milliseconds
-        let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-
-        selectedCharID.subscribe((v) => {
-            selIdState = v
-        })
-
-        function saveTimeoutExecute() {
-            if (saveTimeout) {
-                clearTimeout(saveTimeout);
-            }
-            saveTimeout = setTimeout(() => {
-                changed = true;
-            }, debounceTime);
-        }
-
-        $effect(() => {
-            DBState.db.botPresetsId
-            DBState.db.botPresets.length
-            changeTracker.botPreset = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.modules)
-            changeTracker.modules = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.loadouts)
-            changeTracker.loadouts = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.plugins)
-            changeTracker.plugins = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.pluginCustomStorage)
-            changeTracker.pluginCustomStorage = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            for (const key in DBState.db) {
-                if (
-                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
-                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
-                ) {
-                    $state.snapshot(DBState.db[key])
-                }
-            }
-            if (DBState?.db?.characters?.[selIdState]) {
-                for (const key in DBState.db.characters[selIdState]) {
-                    if (key !== 'chats') {
-                        $state.snapshot(DBState.db.characters[selIdState][key])
-                    }
-                }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
-                if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
-                    changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
-                }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
-                }
-            }
-            saveTimeoutExecute()
-        })
     })
 
     let savetrys = 0
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
     while (true) {
+        saveWatchdog.beat('idle')
         //SaveKV is not reactive: it reports its own changes
         if (!changed && !saveKV.hasDirty()) {
             await sleep(500)
@@ -418,17 +464,26 @@ export async function saveDb() {
 
         saving.state = true
         changed = false
+        //forced save requests made from here on are left for the next save
+        const forcedRequest = saveWatchdog.saveStarted()
         let kvDirty: string[] = []
         try {
 
             if (requiresFullEncoderReload.state) {
-                encoder = new RisuSaveEncoder()
-                await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false,
-                    kv: saveKV
-                })
+                saveWatchdog.beat('reload')
+                //Cleared before the await, so a reload requested meanwhile is not lost
                 requiresFullEncoderReload.state = false
+                try {
+                    encoder = new RisuSaveEncoder()
+                    await encoder.init(getDatabase(), {
+                        compression: forageStorage.isAccount,
+                        skipRemoteSavingOnCharacters: false,
+                        kv: saveKV
+                    })
+                } catch (error) {
+                    requiresFullEncoderReload.state = true
+                    throw error
+                }
             }
 
             let toSave = safeStructuredClone(changeTracker)
@@ -452,6 +507,7 @@ export async function saveDb() {
 
             kvDirty = saveKV.takeDirty()
             toSave.kv = kvDirty
+            saveWatchdog.beat('encode')
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
@@ -460,6 +516,7 @@ export async function saveDb() {
                 continue
             }
             const dbData = new Uint8Array(encoded)
+            saveWatchdog.beat('write')
             if (isTauri) {
                 await writeFile('database/database.bin', dbData, { baseDir: BaseDirectory.AppData });
                 await writeFile(`database/dbbackup-${(Date.now() / 100).toFixed()}.bin`, dbData, { baseDir: BaseDirectory.AppData });
@@ -474,10 +531,12 @@ export async function saveDb() {
                     await sleep(3000)
                 }
             }
+            saveWatchdog.beat('backup')
             if (!forageStorage.isAccount) {
                 await getDbBackups()
             }
             savetrys = 0
+            saveWatchdog.saveSucceeded(forcedRequest)
             await saveDbKei()
             await sleep(500)
         } catch (error) {

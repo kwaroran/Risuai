@@ -105,3 +105,115 @@ describe('NodeStorage.setItem', () => {
         )
     })
 })
+
+describe('NodeStorage.getItemsBulk', () => {
+    const fetchMock = vi.fn()
+    let storage:NodeStorage
+
+    function frame(content:Uint8Array|null) {
+        const header = new Uint8Array(4)
+        new DataView(header.buffer).setUint32(0, content ? content.byteLength : 0xFFFFFFFF)
+        return content ? [header, content] : [header]
+    }
+
+    function streamResponse(parts:Uint8Array[], chunkSize:number) {
+        const total = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0))
+        let offset = 0
+        for(const part of parts){
+            total.set(part, offset)
+            offset += part.byteLength
+        }
+        let position = 0
+        return new Response(new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if(position >= total.byteLength){
+                    controller.close()
+                    return
+                }
+                controller.enqueue(total.slice(position, position + chunkSize))
+                position += chunkSize
+            }
+        }), { status: 200 })
+    }
+
+    async function collect(keys:string[]) {
+        const result:{ key:string, value:string|null }[] = []
+        for await (const { key, value } of storage.getItemsBulk(keys)){
+            result.push({ key, value: value ? new TextDecoder().decode(value) : null })
+        }
+        return result
+    }
+
+    beforeEach(() => {
+        fetchMock.mockReset()
+        vi.stubGlobal('fetch', fetchMock)
+        storage = new NodeStorage()
+        vi.spyOn(storage as any, 'checkAuth').mockResolvedValue(undefined)
+        vi.spyOn(storage, 'createAuth').mockResolvedValue('test-auth')
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        vi.restoreAllMocks()
+    })
+
+    it.each([1, 3, 1024])('parses frames split into %i-byte chunks in request order', async (chunkSize) => {
+        const encoder = new TextEncoder()
+        fetchMock.mockResolvedValue(streamResponse([
+            ...frame(encoder.encode('first asset')),
+            ...frame(null),
+            ...frame(new Uint8Array(0)),
+            ...frame(encoder.encode('last')),
+        ], chunkSize))
+
+        await expect(collect(['assets/a.png', 'assets/missing.png', 'assets/empty.png', 'assets/b.png'])).resolves.toEqual([
+            { key: 'assets/a.png', value: 'first asset' },
+            { key: 'assets/missing.png', value: null },
+            { key: 'assets/empty.png', value: null },
+            { key: 'assets/b.png', value: 'last' },
+        ])
+
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(url).toBe('/api/read_bulk')
+        expect(init.method).toBe('POST')
+        expect(init.headers['risu-auth']).toBe('test-auth')
+        expect(JSON.parse(init.body)).toEqual({
+            paths: ['assets/a.png', 'assets/missing.png', 'assets/empty.png', 'assets/b.png']
+                .map((key) => Buffer.from(key, 'utf-8').toString('hex'))
+        })
+    })
+
+    it('splits requests into batches of at most 100 paths', async () => {
+        const keys = Array.from({ length: 250 }, (_, i) => `assets/${i}.png`)
+        fetchMock.mockImplementation(async (_url, init) => {
+            const count = JSON.parse(init.body).paths.length
+            return streamResponse(Array.from({ length: count }, () => frame(null)).flat(), 64)
+        })
+
+        const result = await collect(keys)
+
+        expect(result.map((item) => item.key)).toEqual(keys)
+        expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body).paths.length)).toEqual([100, 100, 50])
+    })
+
+    it('fails when the response is truncated', async () => {
+        const encoder = new TextEncoder()
+        const [header, content] = frame(encoder.encode('cut short'))
+        fetchMock.mockResolvedValue(streamResponse([header, content.subarray(0, 3)], 1024))
+
+        await expect(collect(['assets/a.png'])).rejects.toThrow(
+            'Node storage bulk read failed.\nKey: assets/a.png\nCause: response ended before all frames were received'
+        )
+    })
+
+    it('includes server details for HTTP errors', async () => {
+        fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'Too many file paths (max 100)' }), {
+            status: 400,
+            statusText: 'Bad Request',
+        }))
+
+        await expect(collect(['assets/a.png'])).rejects.toThrow(
+            'Node storage bulk read failed.\nHTTP: 400 Bad Request\nServer: Too many file paths (max 100)'
+        )
+    })
+})

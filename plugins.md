@@ -745,6 +745,42 @@ await Risuai.setDatabaseLite(db);
 
 `getDatabase()` returns `null` if the user has not granted database access consent.
 
+**Partial reads and writes:** characters carry every chat and modules carry their lorebooks, so reading them whole can be expensive. Filter fields on read, and write single values back with `patchDatabase()`:
+
+```javascript
+const db = await Risuai.getDatabase(['characters'], {
+    include: { characters: ['name', 'modules'] } // or exclude: { characters: ['chats'] }
+});
+
+const index = 0;
+const character = db.characters[index];
+if (!character.coldstorage) {
+    await Risuai.patchDatabase([
+        { op: 'test', path: ['characters', index, 'chaId'], value: character.chaId },
+        { op: 'test', path: ['characters', index, 'modules'], value: character.modules },
+        { op: 'replace', path: ['characters', index, 'modules'], value: [...(character.modules ?? []), moduleId] }
+    ]);
+}
+```
+
+- `chaId` (characters) and `id` (modules) are always kept so entries can be identified. An empty `include` list returns only those ids, plus `coldstorage` on characters in cold storage.
+- Each filter is an array of field names. `getDatabase()` throws on anything else, such as a single string, instead of returning the key unfiltered.
+- `patchDatabase()` takes a list of operations. Each one has a `path`: the chain of keys and array indexes you would use on a `getDatabase()` result, so `db.characters[3].name` is `['characters', 3, 'name']`. Array indexes are numbers. The first step is one of the allowed database keys below.
+    - `{ op: 'replace', path, value }` sets the value. Everything before the last step must already exist. On an object the field is created if it is missing; in an array the index must exist.
+    - `{ op: 'test', path, value }` checks the current value (a missing last field counts as `undefined`) and aborts the patch if it is different.
+- Every operation is checked before anything is written, and tests are checked against the database as it is before the patch. If an operation is invalid or a test fails, `patchDatabase()` throws and nothing is written. It resolves to `true` when the patch is applied, or `false` if the user declines a permission it needs: `dbWrite` always, and `db` as well when the patch contains a `test`, because a test reads the database.
+- Entries can be added, removed or reordered between your read and your patch, so an index can point at a different entry by then, and the value itself can change too. Test the entry's id and the value you are about to replace against what you read, as the example does. The patch then fails instead of overwriting something newer.
+- Characters the user has not opened for a while may be in cold storage. They are returned as placeholders: `coldstorage` is set (it is always kept, like `chaId`) and most other fields are missing until the user opens the character. A placeholder does not hold the real values, and a value written into one is lost when the character is opened. Skip characters whose `coldstorage` is set when you read them, as the example does.
+- A chat that has not been used for a while can be a placeholder too. Its first message then starts with `'\uEF01COLDSTORAGE\uEF01'`, and its `message`, `hypaV2Data`, `hypaV3Data`, `scriptstate` and `localLore` are replaced when the chat is opened. Do not write those fields of such a chat.
+- `patchDatabase()` cannot write `plugins` or the internal fields of `pluginCustomStorage`. One patch cannot write the same place twice, or a place inside another place it writes. It cannot create a field named like a member every object already has, such as `toString`. A value must be encodable as JSON (no BigInt or circular reference). Values that JSON encodes differently, such as `Map`, `Set` or `Date`, are accepted but do not survive a reload.
+
+**Filtered data is partial.** Do not send it back whole:
+
+- To change something in a filtered key, write that one value with `patchDatabase()`.
+- `setDatabase()` and `setDatabaseLite()` ignore filtered keys when you pass back the object `getDatabase()` returned, or a spread of it. A key is filtered when the filter removed at least one field from it. The returned object lists those keys in `__partialKeys`, and they stay ignored even if you assign full data to them afterwards.
+- That protection is lost once the filtered data leaves that object: building a new object (`setDatabase({ characters: db.characters })`) or copying filtered items into an unfiltered `getDatabase()` result. The partial data then replaces the full data, and everything you did not read (chats, lorebooks, other plugins' storage) is deleted.
+- `setCharacter()` and `setCharacterToIndex()` have no protection at all: a filtered character passed to them replaces the whole character.
+
 **Allowed database keys:**
 - `characters`
 - `modules`
@@ -789,6 +825,8 @@ character.customField = 'new value';
 await Risuai.setCharacter(character);
 ```
 
+`setCharacter()` replaces the whole character. Pass it only a character from `getCharacter()`, never one read with `getDatabase()` field filtering: the fields that were filtered out would be deleted. Use `patchDatabase()` for those.
+
 **Legacy names** (still work, but prefer new names):
 - `Risuai.getChar()` : Use `Risuai.getCharacter()`
 - `Risuai.setChar()` : Use `Risuai.setCharacter()`
@@ -818,6 +856,8 @@ const chat = await Risuai.getChatFromIndex(charIndex, chatIndex);
 // Save a modified chat back
 await Risuai.setChatToIndex(charIndex, chatIndex, chat);
 ```
+
+`setCharacterToIndex()` replaces the whole character. Pass it only a character from `getCharacterFromIndex()`, never one read with `getDatabase()` field filtering: the fields that were filtered out would be deleted. Use `patchDatabase()` for those.
 
 ## Advanced Features
 
@@ -1181,7 +1221,7 @@ if (granted) {
 
 **Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
 
-`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
+`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `patchDatabase`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 
 ### Fetch Logs
 

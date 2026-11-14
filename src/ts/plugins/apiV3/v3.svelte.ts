@@ -1,6 +1,7 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
+import { applyDatabasePatch, dropFieldFilteredKeys, FIELD_FILTERED_KEYS_TAG, patchReadsDatabase, projectDbValue, type DbFieldFilter, type DbPath } from "./databaseFieldAccess";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -9,12 +10,13 @@ import { v4 } from "uuid";
 import { sleep } from "src/ts/util";
 import { alertConfirm, alertError, alertNormal } from "src/ts/alert";
 import { language } from "src/lang";
-import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.svelte";
+import { checkCharOrder, forageStorage, getFetchLogs, markCharactersForSave } from "src/ts/globalApi.svelte";
 import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type ColorScheme } from "src/ts/gui/colorscheme";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
 import { pluginStorage } from "src/ts/process/coldstorage.svelte";
+import { PLUGIN_STORAGE_INDEX_KEY, PLUGIN_STORAGE_LEGACY_MAP_KEY } from "src/ts/process/pluginStorageStore";
 import { getInlayAsset } from "src/ts/process/files/inlays";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher, risuChatParser, type CbsConditions } from "src/ts/parser/parser.svelte";
@@ -684,12 +686,25 @@ const authorizationHeaders = [
     'proxy-authorization',
 ]
 
+const patchReadOnlyPaths: DbPath[] = [
+    ['plugins'],
+    ['pluginCustomStorage', PLUGIN_STORAGE_INDEX_KEY],
+    ['pluginCustomStorage', PLUGIN_STORAGE_LEGACY_MAP_KEY],
+]
+
 const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
     const oldApis = getV2PluginAPIs();
     const getPluginScriptHash = createPluginScriptHashGetter(plugin.script, hasher)
     const getPermission = async (permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
         return getPluginPermission(plugin.name, await getPluginScriptHash(), permissionDesc, reconfirm)
+    }
+    const withoutFieldFilteredKeys = (newDb: any, apiName: string) => {
+        const { db, dropped } = dropFieldFilteredKeys(newDb)
+        for(const key of dropped){
+            console.warn(`Plugin "${plugin.name}" attempted to write field-filtered "${key}" using ${apiName}. The change was ignored. Use patchDatabase for partial updates.`);
+        }
+        return db
     }
     const withDbWrite = <A extends any[]>(write: (...args: A) => unknown) => {
         return (...args: A) => runWithPluginPermission(
@@ -799,6 +814,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         removeRisuChatListener: oldApis.removeRisuChatListener,
         setDatabaseLite: withDbWrite((newDb: any) => {
+            newDb = withoutFieldFilteredKeys(newDb, 'setDatabaseLite');
             if(newDb && Object.hasOwn(newDb, 'plugins')){
                 if(import.meta.env.DEV && !isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
                     console.warn(`Plugin "${plugin.name}" attempted to modify the plugin list using setDatabaseLite. The change was ignored.`);
@@ -811,7 +827,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
             return oldApis.setDatabaseLite(newDb);
         }),
-        setDatabase: withDbWrite(oldApis.setDatabase),
+        setDatabase: withDbWrite((newDb: any) => oldApis.setDatabase(withoutFieldFilteredKeys(newDb, 'setDatabase'))),
         loadPlugins: oldApis.loadPlugins,
         readImage: oldApis.readImage,
         readInlay: async (id: string) => {
@@ -823,20 +839,46 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         saveAsset: oldApis.saveAsset,
         //Same functionality, but new implementation
-        getDatabase: async (includeOnly:string[]|'all' = 'all') => {
+        getDatabase: async (includeOnly:string[]|'all' = 'all', options?: DbFieldFilter) => {
             const conf = await getPermission('db', 'periodically');
             if(!conf){
                 return null;
             }
             const db = DBState.db
             let liteDB = {}
+            const fieldFilteredKeys: string[] = []
             for(const key of allowedDbKeys){
                 if(includeOnly !== 'all' && !includeOnly.includes(key)){
                     continue;
                 }
-                (liteDB as any)[key] = $state.snapshot((db as any)[key]);
+                const projected = projectDbValue(key, (db as any)[key], options);
+                if(projected.filtered){
+                    fieldFilteredKeys.push(key);
+                }
+                (liteDB as any)[key] = $state.snapshot(projected.value);
+            }
+            if(fieldFilteredKeys.length > 0){
+                (liteDB as any)[FIELD_FILTERED_KEYS_TAG] = fieldFilteredKeys;
             }
             return liteDB;
+        },
+        patchDatabase: async (operations: any) => {
+            if(patchReadsDatabase(operations) && !(await getPermission('db', 'periodically'))){
+                return false;
+            }
+            return runWithPluginPermission(
+                () => getPermission('dbWrite', 'periodically'),
+                async () => {
+                    DBState.db.pluginCustomStorage ??= {};
+                    const { characterIds } = applyDatabasePatch(DBState.db, operations, {
+                        allowedKeys: allowedDbKeys,
+                        readOnlyPaths: patchReadOnlyPaths,
+                    });
+                    markCharactersForSave(characterIds);
+                    return true;
+                },
+                false
+            );
         },
 
         installPlugin: handlePluginInstallViaPlugin,

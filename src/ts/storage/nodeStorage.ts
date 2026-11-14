@@ -3,6 +3,7 @@ import { alertError, alertInput, waitAlert } from "../alert"
 import { base64url, getKeypairStore, saveKeypairStore } from "../util"
 
 const MAX_STORAGE_ERROR_DETAIL_LENGTH = 2000
+const MAX_REMOVE_HEADER_LENGTH = 4096
 
 function formatStorageValueSize(byteLength:number) {
     if(byteLength < 1024){
@@ -225,20 +226,37 @@ export class NodeStorage{
         return data.content
     }
     async removeItem(key:string|string[]){
-        await this.checkAuth()
-        const da = await fetch('/api/remove', {
-            method: "GET",
-            headers: {
-                'file-path': Buffer.from(Array.isArray(key) ? key.join('$$') : key, 'utf-8').toString('hex'),
-                'risu-auth': await this.createAuth()
-            }
-        })
-        if(da.status < 200 || da.status >= 300){
-            throw "removeItem Error"
+        const keys = Array.isArray(key) ? key : [key]
+        if(keys.length === 0){
+            return
         }
-        const data = await da.json()
-        if(data.error){
-            throw data.error
+        await this.checkAuth()
+        const chunks:string[] = []
+        for(const item of keys){
+            const encodedKey = Buffer.from(item, 'utf-8').toString('hex')
+            const lastIndex = chunks.length - 1
+            if(lastIndex >= 0 && chunks[lastIndex].length + 2 + encodedKey.length <= MAX_REMOVE_HEADER_LENGTH){
+                chunks[lastIndex] += '$$' + encodedKey
+            }
+            else{
+                chunks.push(encodedKey)
+            }
+        }
+        for(const chunk of chunks){
+            const da = await fetch('/api/remove', {
+                method: "GET",
+                headers: {
+                    'file-path': chunk,
+                    'risu-auth': await this.createAuth()
+                }
+            })
+            if(da.status < 200 || da.status >= 300){
+                throw "removeItem Error"
+            }
+            const data = await da.json()
+            if(data.error){
+                throw data.error
+            }
         }
     }
 

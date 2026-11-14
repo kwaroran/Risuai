@@ -1,7 +1,7 @@
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { MCPClient, type JsonRPC, type MCPTool, type RPCToolCallContent } from "./mcplib";
 import { DBState } from "src/ts/stores.svelte";
-import { getModuleMcps, type RisuModule } from "../modules";
+import { getModuleMcps, getModules, type RisuModule } from "../modules";
 import { alertError, alertInput, alertNormal } from "src/ts/alert";
 import { v4 } from "uuid";
 import type { MCPClientLike } from "./internalmcp";
@@ -274,6 +274,44 @@ export async function callMCPTool(methodName:string, args:any):Promise<RPCToolCa
         type: 'text',
         text: `Tool ${methodName} not found on any MCP`
     }]
+}
+
+async function loadEnabledMCPClients() {
+    try {
+        await initializeMCPs();
+    } catch (error) {
+        console.error('MCP: Failed to initialize MCPs:', error);
+        throw new Error('Failed to load MCP modules');
+    }
+    return getModules().flatMap((module) => {
+        const url = module.mcp?.url;
+        return url && Object.hasOwn(MCPs, url) ? [{ module, client: MCPs[url] }] : [];
+    });
+}
+
+async function getEnabledMCPClient(moduleId:string) {
+    const enabled = (await loadEnabledMCPClients()).find(({ module }) => module.id === moduleId);
+    if(!enabled) {
+        throw new Error(`MCP module ${moduleId} is not enabled`);
+    }
+    return enabled.client;
+}
+
+export async function getEnabledMCPs() {
+    return (await loadEnabledMCPClients()).map(({ module, client }) => ({
+        id: module.id,
+        name: client.serverInfo.serverInfo.name,
+        version: client.serverInfo.serverInfo.version,
+        description: client.serverInfo.instructions ?? '',
+    }));
+}
+
+export async function getEnabledMCPToolList(moduleId:string) {
+    return await (await getEnabledMCPClient(moduleId)).getToolList();
+}
+
+export async function callEnabledMCPTool(moduleId:string, toolName:string, args:any) {
+    return await (await getEnabledMCPClient(moduleId)).callTool(toolName, args);
 }
 
 //Currently just a wrapper for getMCPTools, but can be extended later for more than MCPs

@@ -1130,6 +1130,25 @@ await Risuai.unregisterMCP('plugin:my-tools');
 - `{ type: 'image' | 'audio', data: string, mimeType: string }` — base64 media
 - `{ type: 'resource', resource: { uri, mimeType, text } }` — resource reference
 
+#### Using Enabled MCP Modules
+
+A plugin can use the MCP modules the user has enabled, for example to offer their tools to a model from a custom provider:
+
+```javascript
+// Returns null if the user denies the 'mcpAccess' permission
+const mcps = await Risuai.getMCPs();
+// [{ id, name, version, description }, ...]
+
+const search = mcps?.find((mcp) => mcp.name === 'Web Search');
+if (search) {
+  const tools = await Risuai.getMCPToolList(search.id);
+  const result = await Risuai.callMCPTool(search.id, 'web_search', { query: 'weather' });
+}
+```
+
+- Only modules enabled for the open chat are listed. `getMCPToolList` and `callMCPTool` throw once a module is no longer enabled, so look modules up again instead of keeping an `id` for long.
+- The address of an MCP is not exposed.
+
 ### Body Interceptors
 
 Intercept and modify HTTP request bodies sent to LLM APIs (sensitive fields like API keys are stripped before your callback):
@@ -1184,7 +1203,7 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`, `'mcpAccess'`
 
 `'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 

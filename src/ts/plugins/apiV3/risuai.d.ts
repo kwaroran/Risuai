@@ -133,6 +133,20 @@ interface MCPToolDef {
 }
 
 /**
+ * An enabled MCP module, as returned by `risuai.getMCPs`
+ */
+interface MCPInfo {
+    /** Identifies the module in `getMCPToolList` and `callMCPTool` */
+    id: string;
+    /** Name reported by the MCP */
+    name: string;
+    /** Version reported by the MCP */
+    version: string;
+    /** Instructions reported by the MCP, or an empty string */
+    description: string;
+}
+
+/**
  * Text content returned from an MCP tool call
  */
 interface MCPToolCallTextContent {
@@ -1715,6 +1729,42 @@ interface RisuaiPluginAPI {
      */
     unregisterMCP(identifier: string): Promise<void>;
 
+    /**
+     * Lists the MCP modules that are currently enabled for the open chat.
+     * Requires the `mcpAccess` permission.
+     * @returns The enabled MCP modules, or null if the user declines
+     *
+     * @example
+     * ```typescript
+     * const mcps = await risuai.getMCPs();
+     * const search = mcps?.find((mcp) => mcp.name === 'Web Search');
+     * ```
+     */
+    getMCPs(): Promise<MCPInfo[] | null>;
+
+    /**
+     * Gets the tools of an enabled MCP module.
+     * Requires the `mcpAccess` permission. Throws if the module is not enabled.
+     * @param id - `id` of an entry returned by `getMCPs`
+     * @returns The tool definitions, or null if the user declines
+     */
+    getMCPToolList(id: string): Promise<MCPToolDef[] | null>;
+
+    /**
+     * Calls a tool of an enabled MCP module.
+     * Requires the `mcpAccess` permission. Throws if the module is not enabled.
+     * @param id - `id` of an entry returned by `getMCPs`
+     * @param toolName - Name of the tool to call
+     * @param content - Arguments for the tool
+     * @returns The tool result, or null if the user declines
+     *
+     * @example
+     * ```typescript
+     * const result = await risuai.callMCPTool(search.id, 'web_search', { query: 'weather' });
+     * ```
+     */
+    callMCPTool(id: string, toolName: string, content: any): Promise<MCPToolCallContent[] | null>;
+
     // ========== Provider APIs ==========
 
     /**
@@ -2066,7 +2116,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Requests permission for a specific action
-     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom')
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom'|'mcpAccess')
      * @returns True if permission granted, false otherwise
      */
     requestPluginPermission(permission: string): Promise<boolean>;

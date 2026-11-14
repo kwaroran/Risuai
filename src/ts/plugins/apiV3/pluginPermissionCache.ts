@@ -1,4 +1,4 @@
-export type PluginPermission = 'fetchLogs' | 'db' | 'dbWrite' | 'mainDom' | 'replacer' | 'provider' | 'sendChat' | 'inlay' | `mcp:${string}`
+export type PluginPermission = 'fetchLogs' | 'db' | 'dbWrite' | 'mainDom' | 'replacer' | 'provider' | 'sendChat' | 'inlay' | 'mcpAccess' | `mcp:${string}`
 
 type PluginScriptHasher = (data: Uint8Array) => Promise<string>
 

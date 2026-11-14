@@ -14,7 +14,7 @@ import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type Color
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
 import { assertMCPRegistrationAllowed, registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
-import { addEnabledMCPModuleIfMissing } from "src/ts/process/mcp/mcp";
+import { addEnabledMCPModuleIfMissing, callEnabledMCPTool, getEnabledMCPs, getEnabledMCPToolList } from "src/ts/process/mcp/mcp";
 import { pluginStorage } from "src/ts/process/coldstorage.svelte";
 import { getInlayAsset } from "src/ts/process/files/inlays";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
@@ -607,6 +607,7 @@ const permissionConsentTexts: Record<PluginPermission, () => string> = {
     provider: () => language.providerPermissionConsent,
     sendChat: () => language.sendChatConsent,
     inlay: () => language.inlayPermissionConsent,
+    mcpAccess: () => language.mcpAccessConsent,
 }
 
 const decidePluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false, customConsentText?: () => string): Promise<{granted: boolean, prompted: boolean}> => {
@@ -702,6 +703,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             () => getPermission('dbWrite', 'periodically'),
             async () => { await write(...args) },
             undefined
+        )
+    }
+    const withMCPAccess = <A extends any[], T>(use: (...args: A) => Promise<T>) => {
+        return (...args: A) => runWithPluginPermission<T|null>(
+            () => getPermission('mcpAccess', 'periodically'),
+            () => use(...args),
+            null
         )
     }
     return {
@@ -1274,6 +1282,9 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         unregisterMCP: async (identifier: string) => {
             unregisterMCPModule(plugin.name, identifier);
         },
+        getMCPs: withMCPAccess(getEnabledMCPs),
+        getMCPToolList: withMCPAccess(getEnabledMCPToolList),
+        callMCPTool: withMCPAccess(callEnabledMCPTool),
         unregisterUIPart: (id: string) => {
             const removeFromMenuStore = (menuStore: MenuDef[]) => {
                 const index = menuStore.findIndex(item => item.id === id);

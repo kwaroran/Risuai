@@ -1659,10 +1659,13 @@ interface RisuaiPluginAPI {
     // ========== MCP APIs ==========
 
     /**
-     * Registers a custom MCP (Model Context Protocol) module
+     * Registers a custom MCP (Model Context Protocol) module.
+     * The user is asked for consent the first time a plugin registers an identifier, and again when the plugin's script changes; the module is not registered if they decline.
+     * On first consent, an MCP module for the identifier is added and enabled unless one already exists.
+     * Throws if the identifier or name is invalid, or if the identifier is already registered by another plugin.
      * @param arg - MCP module configuration
-     * @param arg.identifier - Unique identifier (must start with 'plugin:')
-     * @param arg.name - Display name of the MCP module
+     * @param arg.identifier - Unique identifier (a single-line string starting with 'plugin:')
+     * @param arg.name - Display name of the MCP module (must not be empty)
      * @param arg.version - Version string
      * @param arg.description - Description of the MCP module
      * @param getToolList - Function that returns the list of available tools
@@ -1701,7 +1704,8 @@ interface RisuaiPluginAPI {
     ): Promise<void>;
 
     /**
-     * Unregisters a previously registered MCP module
+     * Unregisters a previously registered MCP module.
+     * Only identifiers registered by this plugin are affected.
      * @param identifier - The identifier used when registering the MCP module
      *
      * @example

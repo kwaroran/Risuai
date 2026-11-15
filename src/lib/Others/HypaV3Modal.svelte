@@ -662,203 +662,206 @@
   };
 </script>
 
-<!-- Modal Backdrop -->
-<div class="fixed inset-0 z-40 p-1 sm:p-2 bg-black/50">
-  <!-- Modal Wrapper -->
-  <div class="flex justify-center w-full h-full">
-    <!-- Modal Window -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="flex flex-col w-full max-w-3xl p-3 rounded-lg sm:p-6 bg-zinc-900 {hypaV3Data
-        .summaries.length === 0
-        ? 'h-fit'
-        : 'h-full'}"
-      onclick={(e) => {
-        e.stopPropagation();
-        uiState.dropdownOpen = false;
-      }}
-    >
-      <!-- Header -->
-      <ModalHeader
-        bind:searchState
-        bind:filterImportant={filterState.showImportantOnly}
-        bind:dropdownOpen={uiState.dropdownOpen}
-        bind:filterSelected
-        {bulkEditState}
-        {categoryManagerState}
-        {filterState}
-        {uiState}
-        {hypaV3Data}
-        onResetData={handleResetData}
-        onToggleBulkEditMode={handleToggleBulkEditMode}
-        onOpenCategoryManager={handleOpenCategoryManager}
-      />
+<!-- hypaV3Data is created by the $effect.pre above, which blocks can run ahead of -->
+{#if hypaV3Data}
+  <!-- Modal Backdrop -->
+  <div class="fixed inset-0 z-40 p-1 sm:p-2 bg-black/50">
+    <!-- Modal Wrapper -->
+    <div class="flex justify-center w-full h-full">
+      <!-- Modal Window -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="flex flex-col w-full max-w-3xl p-3 rounded-lg sm:p-6 bg-zinc-900 {hypaV3Data
+          .summaries.length === 0
+          ? 'h-fit'
+          : 'h-full'}"
+        onclick={(e) => {
+          e.stopPropagation();
+          uiState.dropdownOpen = false;
+        }}
+      >
+        <!-- Header -->
+        <ModalHeader
+          bind:searchState
+          bind:filterImportant={filterState.showImportantOnly}
+          bind:dropdownOpen={uiState.dropdownOpen}
+          bind:filterSelected
+          {bulkEditState}
+          {categoryManagerState}
+          {filterState}
+          {uiState}
+          {hypaV3Data}
+          onResetData={handleResetData}
+          onToggleBulkEditMode={handleToggleBulkEditMode}
+          onOpenCategoryManager={handleOpenCategoryManager}
+        />
 
-      <!-- Scrollable Container -->
-      <div class="flex flex-col gap-2 overflow-y-auto sm:gap-4" tabindex="-1">
-        {#if hypaV3Data.summaries.length === 0}
-          <!-- Conversion Section -->
-          {#if isHypaV2ConversionPossible()}
-            <div
-              class="flex flex-col p-2 border rounded-lg sm:p-4 border-zinc-700 bg-zinc-800/50"
-            >
-              <div class="flex flex-col items-center">
-                <div class="my-1 text-center sm:my-2 text-zinc-300">
-                  {language.hypaV3Modal.convertLabel}
+        <!-- Scrollable Container -->
+        <div class="flex flex-col gap-2 overflow-y-auto sm:gap-4" tabindex="-1">
+          {#if hypaV3Data.summaries.length === 0}
+            <!-- Conversion Section -->
+            {#if isHypaV2ConversionPossible()}
+              <div
+                class="flex flex-col p-2 border rounded-lg sm:p-4 border-zinc-700 bg-zinc-800/50"
+              >
+                <div class="flex flex-col items-center">
+                  <div class="my-1 text-center sm:my-2 text-zinc-300">
+                    {language.hypaV3Modal.convertLabel}
+                  </div>
+                  <button
+                    class="px-4 py-2 my-1 font-semibold transition-colors rounded-md sm:my-2 text-zinc-300 bg-zinc-700 hover:bg-zinc-500"
+                    tabindex="-1"
+                    onclick={async () => {
+                      const conversionResult = convertHypaV2ToV3();
+
+                      if (conversionResult.success) {
+                        await alertNormalWait(
+                          language.hypaV3Modal.convertSuccessMessage
+                        );
+                      } else {
+                        await alertNormalWait(
+                          language.hypaV3Modal.convertErrorMessage.replace(
+                            "{0}",
+                            conversionResult.error
+                          )
+                        );
+                      }
+                    }}
+                  >
+                    {language.hypaV3Modal.convertButton}
+                  </button>
                 </div>
-                <button
-                  class="px-4 py-2 my-1 font-semibold transition-colors rounded-md sm:my-2 text-zinc-300 bg-zinc-700 hover:bg-zinc-500"
-                  tabindex="-1"
-                  onclick={async () => {
-                    const conversionResult = convertHypaV2ToV3();
+              </div>
+            {:else}
+              <div class="p-4 text-center sm:p-3 md:p-4 text-zinc-400">
+                {language.hypaV3Modal.noSummariesLabel}
+              </div>
+            {/if}
 
-                    if (conversionResult.success) {
-                      await alertNormalWait(
-                        language.hypaV3Modal.convertSuccessMessage
-                      );
-                    } else {
-                      await alertNormalWait(
-                        language.hypaV3Modal.convertErrorMessage.replace(
-                          "{0}",
-                          conversionResult.error
-                        )
-                      );
-                    }
+            <!-- Search Bar -->
+          {:else if searchState}
+            <div class="sticky top-0 p-2 sm:p-3 bg-zinc-800">
+              <div class="flex items-center gap-2">
+                <div class="relative flex items-center flex-1">
+                  <form
+                    class="w-full"
+                    onsubmit={(e) => {
+                      e.preventDefault();
+                      onSearch({ key: "Enter" } as KeyboardEvent);
+                    }}
+                  >
+                    <input
+                      class="w-full px-2 py-2 border rounded-sm sm:px-4 sm:py-3 border-zinc-700 focus:outline-hidden focus:ring-2 focus:ring-zinc-500 text-zinc-200 bg-zinc-900"
+                      placeholder={language.hypaV3Modal.searchPlaceholder}
+                      bind:this={searchState.ref}
+                      bind:value={searchState.query}
+                      oninput={() => {
+                        if (searchState) {
+                          searchState.results = [];
+                          searchState.currentResultIndex = -1;
+                        }
+                      }}
+                      onkeydown={(e) => onSearch(e)}
+                    />
+                  </form>
+
+                  {#if searchState.results.length > 0}
+                    <span
+                      class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 sm:px-3 py-1 sm:py-2 rounded-sm text-sm font-semibold text-zinc-100 bg-zinc-700/65"
+                    >
+                      {searchState.currentResultIndex + 1}/{searchState.results
+                        .length}
+                    </span>
+                  {/if}
+                </div>
+
+                <!-- Previous Button -->
+                <button
+                  class="p-2 transition-colors text-zinc-400 hover:text-zinc-200"
+                  tabindex="-1"
+                  onclick={() => {
+                    onSearch({ shiftKey: true, key: "Enter" } as KeyboardEvent);
                   }}
                 >
-                  {language.hypaV3Modal.convertButton}
+                  <ChevronUpIcon class="w-6 h-6" />
                 </button>
-              </div>
-            </div>
-          {:else}
-            <div class="p-4 text-center sm:p-3 md:p-4 text-zinc-400">
-              {language.hypaV3Modal.noSummariesLabel}
-            </div>
-          {/if}
 
-          <!-- Search Bar -->
-        {:else if searchState}
-          <div class="sticky top-0 p-2 sm:p-3 bg-zinc-800">
-            <div class="flex items-center gap-2">
-              <div class="relative flex items-center flex-1">
-                <form
-                  class="w-full"
-                  onsubmit={(e) => {
-                    e.preventDefault();
+                <!-- Next Button -->
+                <button
+                  class="p-2 transition-colors text-zinc-400 hover:text-zinc-200"
+                  tabindex="-1"
+                  onclick={() => {
                     onSearch({ key: "Enter" } as KeyboardEvent);
                   }}
                 >
-                  <input
-                    class="w-full px-2 py-2 border rounded-sm sm:px-4 sm:py-3 border-zinc-700 focus:outline-hidden focus:ring-2 focus:ring-zinc-500 text-zinc-200 bg-zinc-900"
-                    placeholder={language.hypaV3Modal.searchPlaceholder}
-                    bind:this={searchState.ref}
-                    bind:value={searchState.query}
-                    oninput={() => {
-                      if (searchState) {
-                        searchState.results = [];
-                        searchState.currentResultIndex = -1;
-                      }
-                    }}
-                    onkeydown={(e) => onSearch(e)}
-                  />
-                </form>
-
-                {#if searchState.results.length > 0}
-                  <span
-                    class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 sm:px-3 py-1 sm:py-2 rounded-sm text-sm font-semibold text-zinc-100 bg-zinc-700/65"
-                  >
-                    {searchState.currentResultIndex + 1}/{searchState.results
-                      .length}
-                  </span>
-                {/if}
+                  <ChevronDownIcon class="w-6 h-6" />
+                </button>
               </div>
-
-              <!-- Previous Button -->
-              <button
-                class="p-2 transition-colors text-zinc-400 hover:text-zinc-200"
-                tabindex="-1"
-                onclick={() => {
-                  onSearch({ shiftKey: true, key: "Enter" } as KeyboardEvent);
-                }}
-              >
-                <ChevronUpIcon class="w-6 h-6" />
-              </button>
-
-              <!-- Next Button -->
-              <button
-                class="p-2 transition-colors text-zinc-400 hover:text-zinc-200"
-                tabindex="-1"
-                onclick={() => {
-                  onSearch({ key: "Enter" } as KeyboardEvent);
-                }}
-              >
-                <ChevronDownIcon class="w-6 h-6" />
-              </button>
             </div>
-          </div>
-        {/if}
-
-        <!-- Summaries List -->
-        {#each hypaV3Data.summaries as summary, i (summary)}
-          {#if isSummaryVisible(i)}
-            <!-- Summary Item  -->
-            <ModalSummaryItem
-              summaryIndex={i}
-              {hypaV3Data}
-              {summaryItemStateMap}
-              bind:expandedMessageState
-              bind:searchState
-              {filterSelected}
-              {categories}
-              {bulkEditState}
-              {uiState}
-              onToggleSummarySelection={handleToggleSummarySelection}
-              onOpenTagManager={handleOpenTagManager}
-              onToggleCollapse={handleToggleCollapse}
-            />
           {/if}
-        {/each}
 
-        <!-- Footer -->
-        <ModalFooter {hypaV3Data} />
+          <!-- Summaries List -->
+          {#each hypaV3Data.summaries as summary, i (summary)}
+            {#if isSummaryVisible(i)}
+              <!-- Summary Item  -->
+              <ModalSummaryItem
+                summaryIndex={i}
+                {hypaV3Data}
+                {summaryItemStateMap}
+                bind:expandedMessageState
+                bind:searchState
+                {filterSelected}
+                {categories}
+                {bulkEditState}
+                {uiState}
+                onToggleSummarySelection={handleToggleSummarySelection}
+                onOpenTagManager={handleOpenTagManager}
+                onToggleCollapse={handleToggleCollapse}
+              />
+            {/if}
+          {/each}
+
+          <!-- Footer -->
+          <ModalFooter {hypaV3Data} />
+        </div>
+
+        <!-- Bulk Resummary Result -->
+        <BulkResummaryResult
+          {bulkResummaryState}
+          onToggleTranslation={toggleBulkResummaryTranslation}
+          onReroll={rerollBulkResummary}
+          onApply={applyBulkResummary}
+          onCancel={cancelBulkResummary}
+        />
+
+        <!-- Bulk Edit Actions -->
+        <BulkEditActions
+          {bulkEditState}
+          {categories}
+          showImportantOnly={filterState.showImportantOnly}
+          selectedCategoryFilter={filterState.selectedCategoryFilter}
+          onResummarize={resummarizeBulkSelected}
+          onClearSelection={handleBulkEditClearSelection}
+          onUpdateSelectedCategory={handleBulkEditUpdateSelectedCategory}
+          onUpdateBulkSelectInput={handleBulkEditUpdateBulkSelectInput}
+          onApplyCategory={handleBulkEditApplyCategory}
+          onToggleImportant={handleBulkEditToggleImportant}
+          onParseAndSelectSummaries={handleBulkEditParseAndSelectSummaries}
+        />
       </div>
-
-      <!-- Bulk Resummary Result -->
-      <BulkResummaryResult
-        {bulkResummaryState}
-        onToggleTranslation={toggleBulkResummaryTranslation}
-        onReroll={rerollBulkResummary}
-        onApply={applyBulkResummary}
-        onCancel={cancelBulkResummary}
-      />
-
-      <!-- Bulk Edit Actions -->
-      <BulkEditActions
-        {bulkEditState}
-        {categories}
-        showImportantOnly={filterState.showImportantOnly}
-        selectedCategoryFilter={filterState.selectedCategoryFilter}
-        onResummarize={resummarizeBulkSelected}
-        onClearSelection={handleBulkEditClearSelection}
-        onUpdateSelectedCategory={handleBulkEditUpdateSelectedCategory}
-        onUpdateBulkSelectInput={handleBulkEditUpdateBulkSelectInput}
-        onApplyCategory={handleBulkEditApplyCategory}
-        onToggleImportant={handleBulkEditToggleImportant}
-        onParseAndSelectSummaries={handleBulkEditParseAndSelectSummaries}
-      />
     </div>
   </div>
-</div>
 
-<!-- Component Modals -->
-<CategoryManagerModal
-  bind:categoryManagerState
-  bind:searchState
-  {filterState}
-  onCategoryFilter={handleCategoryFilter}
-/>
+  <!-- Component Modals -->
+  <CategoryManagerModal
+    bind:categoryManagerState
+    bind:searchState
+    {filterState}
+    onCategoryFilter={handleCategoryFilter}
+  />
 
-<TagManagerModal
-  bind:tagManagerState
-/>
+  <TagManagerModal
+    bind:tagManagerState
+  />
+{/if}

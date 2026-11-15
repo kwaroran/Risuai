@@ -107,7 +107,9 @@
             const reloadPointer = reloadPointerMap[i] ?? 0;
             const activeStreamingMessage = i === activeStreamingIndex && message.role === 'char';
             const hashMessageData = activeStreamingMessage ? '' : message.data;
-            const shapeKey = (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            // What Chat only reads at mount; a change here needs a remount, not an in-place update.
+            // role also decides the name, icon and portrait it shows (setChatRole can change it).
+            const shapeKey = (message.chatId ?? '') + i.toString() + message.role + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
             let hashd = hashMessageData + shapeKey;
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);

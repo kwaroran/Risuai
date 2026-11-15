@@ -132,11 +132,6 @@ async function hashJSON(json){
     return hash.digest('hex');
 }
 
-function isAuthorizedRequest(req) {
-    const authHeader = normalizeAuthHeader(req.headers['risu-auth']);
-    return !!authHeader && authHeader.trim() === password.trim();
-}
-
 function normalizeAuthHeader(authHeader) {
     if (Array.isArray(authHeader)) {
         return authHeader[0] || '';
@@ -200,20 +195,6 @@ async function isAuthorizedJwtHeader(authHeader) {
     } catch {
         return false;
     }
-}
-
-async function isAuthorizedProxyRequest(req) {
-    if (isAuthorizedRequest(req)) {
-        return true;
-    }
-    return await isAuthorizedJwtHeader(req.headers['risu-auth']);
-}
-
-async function checkProxyAuth(req, res) {
-    if (isAuthorizedRequest(req)) {
-        return true;
-    }
-    return await checkAuth(req, res);
 }
 
 function getRequestTimeoutMs(timeoutHeader) {
@@ -787,7 +768,7 @@ async function checkAuth(req, res, returnOnlyStatus = false){
 }
 
 const reverseProxyFunc = async (req, res, next) => {
-    if(!await checkProxyAuth(req, res)){
+    if(!await checkAuth(req, res)){
         return;
     }
     
@@ -868,7 +849,7 @@ const reverseProxyFunc = async (req, res, next) => {
 }
 
 const reverseProxyFunc_get = async (req, res, next) => {
-    if(!await checkProxyAuth(req, res)){
+    if(!await checkAuth(req, res)){
         return;
     }
     
@@ -1105,7 +1086,7 @@ app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
-    if (!await checkProxyAuth(req, res)) {
+    if (!await checkAuth(req, res)) {
         return;
     }
 
@@ -1154,7 +1135,7 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
 });
 
 app.delete('/proxy-stream-jobs/:jobId', authenticatedRouteLimiter, async (req, res) => {
-    if (!await checkProxyAuth(req, res)) {
+    if (!await checkAuth(req, res)) {
         return;
     }
     const job = proxyStreamJobs.get(req.params.jobId);
@@ -1524,7 +1505,7 @@ function setupProxyStreamWebSocket(server) {
             }
 
             const auth = reqUrl.searchParams.get('risu-auth') || req.headers['risu-auth'];
-            if (!await isAuthorizedProxyRequest({ headers: { 'risu-auth': auth } })) {
+            if (!await isAuthorizedJwtHeader(auth)) {
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;

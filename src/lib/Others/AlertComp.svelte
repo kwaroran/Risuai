@@ -6,7 +6,7 @@
     import { ParseMarkdown } from '../../ts/parser/parser.svelte';
     import BarIcon from '../SideBars/BarIcon.svelte';
     import { ChevronRightIcon, User } from '@lucide/svelte';
-    import { hubURL, isCharacterHasAssets } from 'src/ts/characterCards';
+    import { hubURL, isCharacterHasAssets, isTrustedHubOrigin } from 'src/ts/characterCards';
     import TextInput from '../UI/GUI/TextInput.svelte';
     import { aiLawApplies, openURL, getFetchLogs } from 'src/ts/globalApi.svelte';
     import Button from '../UI/GUI/Button.svelte';
@@ -176,7 +176,7 @@
 </script>
 
 <svelte:window onmessage={async (e) => {
-    if(e.origin.startsWith("https://sv.risuai.xyz") || e.origin.startsWith("https://nightly.sv.risuai.xyz") || e.origin.startsWith("http://127.0.0.1") || e.origin === window.location.origin){
+    if(isTrustedHubOrigin(e.origin)){
         if(e.data.msg?.data?.vaild && $alertStore.type === 'login'){
             $alertStore = {
                 type: 'none',

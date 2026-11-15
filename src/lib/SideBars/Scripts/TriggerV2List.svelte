@@ -2195,15 +2195,28 @@
         e.stopPropagation()
     }
 
+    const escapeDisplayValue = (value:any) => {
+        if(value === undefined || value === null || typeof value === 'number' || typeof value === 'boolean'){
+            return value
+        }
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+    }
+
     const formatEffectDisplay = (effect:triggerEffect) => {
         const type = effect.type
+        const indent = Number((effect as triggerEffectV2).indent) || 0
 
         if(!checkSupported(type)){
             return `<span class="text-red-500">${language.triggerDesc.v2UnsupportedTriggerDesc}</span>`
         }
 
-        const txt = (language.triggerDesc[type + 'Desc'] as string || type).replace(/{{(.+?)}}/g, (match, p1) => {
-            const d = effect[p1]
+        const txt = (language.triggerDesc[type + 'Desc'] as string || escapeDisplayValue(type)).replace(/{{(.+?)}}/g, (match, p1) => {
+            const d = escapeDisplayValue(effect[p1])
             
             if(type === 'v2Comment' && p1 === 'value') {
                 return `<span class="text-gray-400">${d || ''}</span>`
@@ -2238,10 +2251,10 @@
         })
 
         if(type === 'v2Comment') {
-            return `<div class="text-gray-500 italic line-clamp-4" style="margin-left:${(effect as triggerEffectV2).indent}rem; word-break: break-all; overflow-wrap: break-word;">// ${txt}</div>`
+            return `<div class="text-gray-500 italic line-clamp-4" style="margin-left:${indent}rem; word-break: break-all; overflow-wrap: break-word;">// ${txt}</div>`
         }
 
-        return `<div class="text-purple-500 line-clamp-4" style="margin-left:${(effect as triggerEffectV2).indent}rem; word-break: break-all; overflow-wrap: break-word;">${txt}</div>`
+        return `<div class="text-purple-500 line-clamp-4" style="margin-left:${indent}rem; word-break: break-all; overflow-wrap: break-word;">${txt}</div>`
     }
     
     const updateGuideLines = () => {

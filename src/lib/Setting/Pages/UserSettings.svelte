@@ -1,6 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
-    import { hubURL } from "src/ts/characterCards";
+    import { hubURL, isTrustedHubOrigin } from "src/ts/characterCards";
     import { loadRisuAccountBackup, loadRisuAccountData, saveRisuAccountData } from "src/ts/drive/accounter";
     
     import { DBState } from 'src/ts/stores.svelte';
@@ -21,7 +21,7 @@
 </script>
 
 <svelte:window onmessage={async (e) => {
-    if(e.origin.startsWith("https://nightly.sv.risuai.xyz") || e.origin.startsWith("https://sv.risuai.xyz") || e.origin.startsWith("http://127.0.0.1") || e.origin === window.location.origin){
+    if(isTrustedHubOrigin(e.origin)){
         if(e.data.msg?.type === 'drive'){
             await loadRisuAccountData()
             DBState.db.account.data.refresh_token = e.data.msg.data.refresh_token

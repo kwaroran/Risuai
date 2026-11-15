@@ -112,8 +112,19 @@
             const shapeKey = (message.chatId ?? '') + i.toString() + message.role + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
             let hashd = hashMessageData + shapeKey;
             const currentHash = hashCode(hashd);
+            // The hash this message had before streaming display started blanking its content
+            const shownHash = activeStreamingMessage ? hashCode(message.data + shapeKey) : currentHash;
+            const isStreamingMessage = isStreaming && i === messages.length - 1;
             currentHashes.add(currentHash);
             let updatedInPlace = false;
+            // Continue streams into a message that is already shown. Streaming starts before the first
+            // chunk arrives, so the instance showing it is still mounted under its unchanged content.
+            if(isStreamingMessage
+                && !(streamTarget && streamTarget.roomId === roomId && streamTarget.index === i)){
+                if(hashes.has(shownHash)){
+                    streamTarget = { roomId, index: i, hash: shownHash, shapeKey };
+                }
+            }
             if(!hashes.has(currentHash)
                 && streamTarget
                 && streamTarget.roomId === roomId
@@ -137,7 +148,7 @@
                     updatedInPlace = true;
                 }
             }
-            if(isStreaming && i === messages.length - 1){
+            if(isStreamingMessage){
                 streamTarget = { roomId, index: i, hash: currentHash, shapeKey };
             }
             if(!updatedInPlace && !hashes.has(currentHash)){
@@ -203,15 +214,24 @@
         });
 
         hashes = currentHashes;
-        // Keep it until the whole generation is done: output triggers, inlays and output
-        // listeners can still rewrite the message after streaming has ended.
+        // Keep it until the whole generation is done (output triggers, inlays and output listeners can
+        // still rewrite the message after streaming has ended), then forget it, so a later change
+        // (an edit, a plugin) remounts the message as before.
         if(!isStreaming && !get(doingChat)){
             streamTarget = null;
         }
 
     };
 
+    // Often no update runs after the generation ends, so also forget the target here.
+    const unsubscribeDoingChat = doingChat.subscribe((doing) => {
+        if(!doing && !currentCharacter.chats?.[currentCharacter.chatPage]?.isStreaming){
+            streamTarget = null;
+        }
+    });
+
     onDestroy(() => {
+        unsubscribeDoingChat();
         console.log('Unmounting Chats');
         hashes.clear();
         mountInstances.forEach((inst) => {

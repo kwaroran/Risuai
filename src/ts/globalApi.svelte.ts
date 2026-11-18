@@ -373,13 +373,19 @@ export async function saveDb() {
         try {
 
             if (requiresFullEncoderReload.state) {
-                encoder = new RisuSaveEncoder()
-                await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false,
-                    kv: saveKV
-                })
+                //Cleared before the await, so a reload requested meanwhile is not lost
                 requiresFullEncoderReload.state = false
+                try {
+                    encoder = new RisuSaveEncoder()
+                    await encoder.init(getDatabase(), {
+                        compression: forageStorage.isAccount,
+                        skipRemoteSavingOnCharacters: false,
+                        kv: saveKV
+                    })
+                } catch (error) {
+                    requiresFullEncoderReload.state = true
+                    throw error
+                }
             }
 
             let toSave = safeStructuredClone(changeTracker)

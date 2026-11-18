@@ -27,6 +27,7 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { loadRisuAccountData } from "./drive/accounter";
 import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
 import { saveKV } from "./storage/saveKV";
+import { createSaveTracking, type SaveTracking } from "./storage/saveTracking.svelte";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -279,6 +280,16 @@ export async function loadAsset(id: string) {
 }
 
 let lastSave = ''
+let saveTracking: SaveTracking | null = null
+
+/**
+ * Recreates the save tracking effects and saves everything once.
+ * Call it after an uncaught error, which can leave those effects stalled.
+ */
+export function reviveSaveTracking() {
+    saveTracking?.revive()
+}
+
 export let saving = $state({
     state: false
 })
@@ -330,81 +341,21 @@ export async function saveDb() {
         kv: saveKV
     })
 
-    $effect.root(() => {
-
-        let selIdState = $state(0)
-
-        const debounceTime = 500; // 500 milliseconds
-        let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-
-        selectedCharID.subscribe((v) => {
-            selIdState = v
-        })
-
-        function saveTimeoutExecute() {
-            if (saveTimeout) {
-                clearTimeout(saveTimeout);
-            }
-            saveTimeout = setTimeout(() => {
-                changed = true;
-            }, debounceTime);
-        }
-
-        $effect(() => {
-            DBState.db.botPresetsId
-            DBState.db.botPresets.length
-            changeTracker.botPreset = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.modules)
-            changeTracker.modules = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.loadouts)
-            changeTracker.loadouts = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.plugins)
-            changeTracker.plugins = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.pluginCustomStorage)
-            changeTracker.pluginCustomStorage = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            for (const key in DBState.db) {
-                if (
-                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
-                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
-                ) {
-                    $state.snapshot(DBState.db[key])
-                }
-            }
-            if (DBState?.db?.characters?.[selIdState]) {
-                for (const key in DBState.db.characters[selIdState]) {
-                    if (key !== 'chats') {
-                        $state.snapshot(DBState.db.characters[selIdState][key])
-                    }
-                }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
-                if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
-                    changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
-                }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
-                }
-            }
-            saveTimeoutExecute()
-        })
+    saveTracking?.stop()
+    saveTracking = createSaveTracking({
+        db: () => DBState.db,
+        selectedCharID,
+        changeTracker,
+        onChange: () => {
+            changed = true
+        },
+        onRevive: () => {
+            //changes made while tracking was stalled were not recorded
+            requiresFullEncoderReload.state = true
+            changed = true
+        },
     })
+    saveTracking.start()
 
     let savetrys = 0
     let lastDbData = new Uint8Array(0)

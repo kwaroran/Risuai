@@ -1168,6 +1168,12 @@ export const languageChineseTraditional = {
     "updateRealm": "更新至 RisuRealm",
     "updateRealmDesc": "您正在嘗試將角色更新至 RisuRealm。此操作會更新 RisuRealm 上的角色，而且無法還原",
     "antiClaudeOverload": "防止 Claude 過載",
+    "saveLoopWatch": {
+        "stuck": "儲存已超過 {} 分鐘仍未完成。您最近的變更可能沒有儲存。",
+        "stopped": "自動儲存已停止。之後的變更將不會被儲存。",
+        "lastSaved": "上次儲存時間：{}。",
+        "advice": "請先備份重要資料，再重新整理應用程式。",
+    },
     "activeTabChange": "其他分頁目前處於啟用狀態，因此此分頁已停用。若要切換至此分頁，請按「確定」",
     "maxSupaChunkSize": "SupaMemory 最大分段大小",
     "addCharacter": "加入角色",

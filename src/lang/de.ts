@@ -1011,6 +1011,12 @@ export const languageGerman = {
     "updateRealm": "Auf RisuRealm aktualisieren",
     "updateRealmDesc": "Sie versuchen, Ihren Charakter auf RisuRealm zu aktualisieren. Dadurch wird Ihr Charakter auf RisuRealm aktualisiert, und Sie können dies nicht rückgängig machen.",
     "antiClaudeOverload": "Anti-Claude-Überlastung",
+    "saveLoopWatch": {
+        "stuck": "Das Speichern ist seit über {} Minuten nicht abgeschlossen. Ihre letzten Änderungen wurden möglicherweise nicht gespeichert.",
+        "stopped": "Das automatische Speichern wurde angehalten. Änderungen ab jetzt werden nicht gespeichert.",
+        "lastSaved": "Zuletzt gespeichert um {}.",
+        "advice": "Bitte sichern Sie Ihre wichtigen Daten und laden Sie die App anschließend neu.",
+    },
     "activeTabChange": "Aktueller Tab ist inaktiv, da ein anderer Tab aktiv ist. Um diesen Tab zu aktivieren, klicken Sie auf OK",
     "maxSupaChunkSize": "Maximale SupaMemory-Chunk-Größe",
     "addCharacter": "Charakter hinzufügen",

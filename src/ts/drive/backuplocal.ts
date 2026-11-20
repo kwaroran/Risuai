@@ -2,7 +2,7 @@ import { BaseDirectory, readFile, readDir, writeFile } from "@tauri-apps/plugin-
 import localforage from "localforage";
 import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
-import { isTauri } from "src/ts/platform"
+import { isTauri, isNodeServer } from "src/ts/platform"
 import { decodeRisuSave, encodeRisuSave } from "../storage/risuSave";
 import { saveKV } from "../storage/saveKV";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
@@ -13,6 +13,41 @@ import { language } from "src/lang";
 import { collectColdStorageBackupPayloads, confirmIncompleteColdStorageOperation, getColdStorageBackupKey, getColdStorageItem, isColdStorageBackupData, isValidColdStorageItem, listColdDataKeys, listPluginStorageColdKeys, pluginStorage, setColdStorageItem } from "../process/coldstorage.svelte";
 import { getPluginStorageIndexPointer } from "../process/coldstorageData";
 import { DBState } from "../stores.svelte";
+import { NodeStorage } from "../storage/nodeStorage";
+
+/**
+ * Returns the node storage when backups can use its bulk read API, or null otherwise.
+ */
+async function getBulkReadNodeStorage(): Promise<NodeStorage | null> {
+    if(!isNodeServer){
+        return null
+    }
+    await forageStorage.Init()
+    if(forageStorage.isAccount || !(forageStorage.realStorage instanceof NodeStorage)){
+        return null
+    }
+    return forageStorage.realStorage
+}
+
+function formatSkippedAssets(missingAssets: string[], assetMap: Map<string, { charName: string, assetName: string }>){
+    return missingAssets.map(key => {
+        const assetInfo = assetMap.get(key);
+        return assetInfo ? `'${assetInfo.assetName}' from ${assetInfo.charName}` : `'${key}'`;
+    }).join(', ');
+}
+
+/**
+ * Discards an unfinished backup so a truncated file is not saved as if it were complete.
+ */
+async function abortLocalWriter(writer: LocalWriter){
+    try {
+        if ('abort' in writer.writer) {
+            await writer.writer.abort()
+        }
+    } catch (error) {
+        console.error('Failed to abort local backup writer:', error)
+    }
+}
 
 function getBasename(data:string){
     const baseNameRegex = /\\/g
@@ -78,6 +113,7 @@ export async function SaveLocalBackup(){
         assetMap.set(db.customBackground, { charName: 'User Settings', assetName: 'Custom Background' })
     }
     const missingAssets: string[] = []
+    const bulkNodeStorage = await getBulkReadNodeStorage()
 
     if(isTauri){
         const assets = await readDir('assets', {baseDir: BaseDirectory.AppData})
@@ -104,6 +140,30 @@ export async function SaveLocalBackup(){
             } else {
                 missingAssets.push(key)
             }
+        }
+    }
+    else if(bulkNodeStorage){
+        const assetKeys = (await bulkNodeStorage.keys()).filter((key) => key && key.endsWith('.png'))
+        let i = 0
+        try {
+            for await (const { key, value } of bulkNodeStorage.getItemsBulk(assetKeys)){
+                i += 1
+                let message = `Saving local Backup... (${i} / ${assetKeys.length})`
+                if (missingAssets.length > 0) {
+                    message += `\n(Skipping... ${formatSkippedAssets(missingAssets, assetMap)})`;
+                }
+                alertWait(message)
+
+                if (value) {
+                    await writer.writeBackup(key, value)
+                } else {
+                    missingAssets.push(key)
+                }
+            }
+        } catch (error) {
+            await abortLocalWriter(writer)
+            alertError(error instanceof Error ? error : String(error))
+            return
         }
     }
     else{
@@ -289,6 +349,7 @@ export async function SavePartialLocalBackup(){
     }
     
     const missingAssets: string[] = []
+    const bulkNodeStorage = await getBulkReadNodeStorage()
 
     if(isTauri){
         // readDir returns entries without 'assets/' prefix, unlike forageStorage.keys()
@@ -326,6 +387,30 @@ export async function SavePartialLocalBackup(){
             } else {
                 missingAssets.push(keyWithPrefix)
             }
+        }
+    }
+    else if(bulkNodeStorage){
+        const assetKeys = Array.from(assetMap.keys()).filter((key) => key && key.endsWith('.png'))
+        let i = 0
+        try {
+            for await (const { key, value } of bulkNodeStorage.getItemsBulk(assetKeys)){
+                i += 1
+                let message = `Saving partial local backup... (${i} / ${assetKeys.length})`
+                if (missingAssets.length > 0) {
+                    message += `\n(Skipping... ${formatSkippedAssets(missingAssets, assetMap)})`;
+                }
+                alertWait(message)
+
+                if (value) {
+                    await writer.writeBackup(key, value)
+                } else {
+                    missingAssets.push(key)
+                }
+            }
+        } catch (error) {
+            await abortLocalWriter(writer)
+            alertError(error instanceof Error ? error : String(error))
+            return
         }
     }
     else{

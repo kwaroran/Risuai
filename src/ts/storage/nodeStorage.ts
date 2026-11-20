@@ -84,6 +84,82 @@ function getSetItemContext(key:string, byteLength:number) {
     return `Key: ${key}\nSize: ${formatStorageValueSize(byteLength)}`
 }
 
+// Must match BULK_READ_MAX_FILES / BULK_READ_MISSING_LENGTH in server/node/server.cjs
+const BULK_READ_MAX_FILES = 100
+const BULK_READ_MISSING_LENGTH = 0xFFFFFFFF
+
+/**
+ * Reads exact byte counts from a response body stream without buffering the whole response.
+ */
+class StreamFrameReader {
+    private chunks:Uint8Array[] = []
+    private buffered = 0
+    private ended = false
+
+    constructor(private reader:ReadableStreamDefaultReader<Uint8Array>){}
+
+    private async fill(byteLength:number) {
+        while(this.buffered < byteLength){
+            if(this.ended){
+                return false
+            }
+            const { done, value } = await this.reader.read()
+            if(done){
+                this.ended = true
+                return false
+            }
+            if(value && value.byteLength > 0){
+                this.chunks.push(value)
+                this.buffered += value.byteLength
+            }
+        }
+        return true
+    }
+
+    async readExact(byteLength:number):Promise<Uint8Array> {
+        if(byteLength === 0){
+            return new Uint8Array(0)
+        }
+        if(!await this.fill(byteLength)){
+            throw new Error('response ended before all frames were received')
+        }
+
+        const first = this.chunks[0]
+        if(first.byteLength >= byteLength){
+            const out = first.subarray(0, byteLength)
+            if(first.byteLength === byteLength){
+                this.chunks.shift()
+            }
+            else{
+                this.chunks[0] = first.subarray(byteLength)
+            }
+            this.buffered -= byteLength
+            return out
+        }
+
+        const out = new Uint8Array(byteLength)
+        let offset = 0
+        while(offset < byteLength){
+            const chunk = this.chunks[0]
+            const take = Math.min(chunk.byteLength, byteLength - offset)
+            out.set(chunk.subarray(0, take), offset)
+            offset += take
+            if(take === chunk.byteLength){
+                this.chunks.shift()
+            }
+            else{
+                this.chunks[0] = chunk.subarray(take)
+            }
+        }
+        this.buffered -= byteLength
+        return out
+    }
+
+    async cancel() {
+        await this.reader.cancel().catch(() => {})
+    }
+}
+
 
 export class NodeStorage{
 
@@ -206,6 +282,64 @@ export class NodeStorage{
             return null
         }
         return data
+    }
+    /**
+     * Reads many items through /api/read_bulk, yielding each one in the order of `keys` as soon
+     * as its bytes arrive, so callers can process items one by one without holding a whole batch.
+     * Missing or empty items yield `null`, matching getItem.
+     */
+    async *getItemsBulk(keys:string[]):AsyncGenerator<{ key:string, value:Buffer|null }> {
+        for(let start = 0; start < keys.length; start += BULK_READ_MAX_FILES){
+            const batch = keys.slice(start, start + BULK_READ_MAX_FILES)
+            await this.checkAuth()
+            let response:Response
+            try {
+                response = await fetch('/api/read_bulk', {
+                    method: "POST",
+                    body: JSON.stringify({
+                        paths: batch.map((key) => Buffer.from(key, 'utf-8').toString('hex'))
+                    }),
+                    headers: {
+                        'content-type': 'application/json',
+                        'risu-auth': await this.createAuth()
+                    }
+                })
+            } catch (error) {
+                throw new Error(`Node storage bulk read request failed.\nCause: ${formatUnknownError(error)}`)
+            }
+
+            if(!response.ok){
+                const responseDetail = await getStorageResponseErrorDetail(response)
+                const httpStatus = `${response.status}${response.statusText ? ` ${response.statusText}` : ''}`
+                throw new Error(
+                    `Node storage bulk read failed.\nHTTP: ${httpStatus}` +
+                    (responseDetail ? `\nServer: ${responseDetail}` : '')
+                )
+            }
+            if(!response.body){
+                throw new Error('Node storage bulk read failed.\nCause: response has no body')
+            }
+
+            const reader = new StreamFrameReader(response.body.getReader())
+            try {
+                for(const key of batch){
+                    let value:Buffer|null = null
+                    try {
+                        const header = await reader.readExact(4)
+                        const byteLength = new DataView(header.buffer, header.byteOffset, 4).getUint32(0)
+                        if(byteLength !== BULK_READ_MISSING_LENGTH && byteLength > 0){
+                            const content = await reader.readExact(byteLength)
+                            value = Buffer.from(content.buffer, content.byteOffset, content.byteLength)
+                        }
+                    } catch (error) {
+                        throw new Error(`Node storage bulk read failed.\nKey: ${key}\nCause: ${formatUnknownError(error)}`)
+                    }
+                    yield { key, value }
+                }
+            } finally {
+                await reader.cancel()
+            }
+        }
     }
     async keys():Promise<string[]>{
         await this.checkAuth()

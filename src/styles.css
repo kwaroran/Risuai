@@ -180,6 +180,12 @@ body {
   --risu-height-size: 100%;
   --risu-font-family: Arial, sans-serif, serif;
 
+  /* Settings switches; override in Custom CSS. The knob keeps one colour and only the track changes.
+     The 50% off track keeps knob-to-track at >= 3:1 on every built-in theme. */
+  --risu-switch-on: var(--risu-theme-textcolor);
+  --risu-switch-off: color-mix(in srgb, var(--risu-theme-textcolor) 50%, transparent);
+  --risu-switch-knob: var(--risu-theme-bgcolor);
+
   --risu-theme-neutral-50: #f9fafb;
   --risu-theme-neutral-100: #f3f4f6;
   --risu-theme-neutral-200: #e5e7eb;

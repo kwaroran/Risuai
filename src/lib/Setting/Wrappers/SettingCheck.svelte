@@ -2,8 +2,8 @@
     import type { SettingItem, SettingContext } from 'src/ts/setting/types';
     import { UNINITIALIZED, getLabel, getSettingValue, setSettingValue } from 'src/ts/setting/utils';
     import { untrack } from 'svelte';
-    import Check from 'src/lib/UI/GUI/CheckInput.svelte';
     import Help from 'src/lib/Others/Help.svelte';
+    import SwitchInput from 'src/lib/UI/GUI/SwitchInput.svelte';
 
     interface Props {
         item: SettingItem;
@@ -11,6 +11,8 @@
     }
 
     let { item, ctx }: Props = $props();
+    // Help icons are buttons, so without an explicit `for` the label would bind to them instead of the switch.
+    const inputId = $props.id();
 
     let localValue: any = $state(untrack(() => getSettingValue(item, ctx)));
 
@@ -31,9 +33,12 @@
     });
 </script>
 
-<div class="flex items-center {item.classes ?? 'mt-2'}">
-    <Check bind:check={localValue} name={getLabel(item)} >
+<!-- w-fit keeps the click target to the switch and its label instead of the whole row width. -->
+<label for={inputId} class="rs-setting-check flex w-fit max-w-full items-center gap-3 py-1 cursor-pointer select-none text-textcolor {item.classes ?? 'mt-2'}">
+    <SwitchInput id={inputId} bind:check={localValue} />
+    <span class="min-w-0">
+        {getLabel(item)}
         {#if item.showExperimental}<Help key="experimental"/>{/if}
         {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
-    </Check>
-</div>
+    </span>
+</label>

@@ -1164,6 +1164,8 @@ export const languageGerman = {
     "translatorPrompt": "Übersetzungsanweisung",
     "translateBeforeHTMLFormatting": "Vor HTML-Formatierung übersetzen",
     "retranslate": "Neu übersetzen",
+    "truncated": "Abgeschnitten",
+    "truncatedMessage": "Diese Antwort wurde durch das Token-Limit abgeschnitten, anstatt natürlich zu enden. Die Nachricht kann unvollständig sein.",
     "editTranslation": "Übersetzung bearbeiten",
     "editTranslationSave": "Übersetzung speichern",
     "exportTranslationCache": "Übersetzungscache exportieren",

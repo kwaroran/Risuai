@@ -1910,6 +1910,8 @@ export interface MessageGenerationInfo{
     inputTokens?: number
     outputTokens?: number
     maxContext?: number
+    stopReason?: string
+    truncated?: boolean
     stageTiming?: {
         stage1?: number
         stage2?: number

@@ -1357,6 +1357,8 @@ export const languageEnglish = {
     translatorPrompt: "Translation Prompt",
     translateBeforeHTMLFormatting: "Translate Before HTML Formatting",
     retranslate: "Retranslate",
+    truncated: "Truncated",
+    truncatedMessage: "This generation was cut off by the token limit instead of finishing naturally. The message may be incomplete.",
     editTranslation: "Edit Translation",
     editTranslationSave: "Save Translation",
     exportTranslationCache: "Export Translation Cache",

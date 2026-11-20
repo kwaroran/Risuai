@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon } from "@lucide/svelte";
+    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon, ArrowUpDownIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import { alertConfirm, alertMd, alertSelect } from "src/ts/alert";
     import { TriangleAlert } from '@lucide/svelte';
@@ -13,8 +13,11 @@
     import CheckInput from "src/lib/UI/GUI/CheckInput.svelte";
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import { hotReloadPluginFiles } from "src/ts/plugins/apiV3/developMode";
+    import PluginOrderModal from "src/lib/Others/PluginOrderModal.svelte";
 
-    let showParams = $state([])
+    // Keyed by plugin name so the open panels stay with their plugins when the order changes.
+    let showParams: string[] = $state([])
+    let showOrder = $state(false)
 </script>
 
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.plugin}</h2>
@@ -33,11 +36,11 @@
         {/if}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="flex gap-2" aria-labelledby="show-params" role='button' tabindex="0" onclick={() => {
-            if(showParams.includes(i)){
-                showParams.splice(showParams.indexOf(i),1)
+            if(showParams.includes(plugin.name)){
+                showParams.splice(showParams.indexOf(plugin.name),1)
             }
             else{
-                showParams.push(i)
+                showParams.push(plugin.name)
             }
         }}>
             <div class="font-bold grow">
@@ -139,7 +142,7 @@
                     .replace("{{required_version}}", "API V3")}
             </span>
             <!--List up args-->
-        {:else if Object.keys(plugin.arguments).filter((i) => !i.startsWith("hidden_")).length > 0 && showParams.includes(i)}
+        {:else if Object.keys(plugin.arguments).filter((i) => !i.startsWith("hidden_")).length > 0 && showParams.includes(plugin.name)}
             <div class="flex flex-col mt-2 bg-dark-900/50 p-3">
                 {#each Object.keys(plugin.arguments) as arg}
                     {#if !arg.startsWith("hidden_")}
@@ -274,4 +277,20 @@
     >
         <CodeXmlIcon />
     </button>
+
+    {#if DBState.db.plugins?.filter((p) => p.version === '3.0').length > 1}
+        <button
+            onclick={() => {
+                showOrder = true
+            }}
+            class="hover:text-textcolor cursor-pointer"
+            title={language.pluginLoadOrder}
+        >
+            <ArrowUpDownIcon />
+        </button>
+    {/if}
 </div>
+
+{#if showOrder}
+    <PluginOrderModal onclose={() => { showOrder = false }} />
+{/if}

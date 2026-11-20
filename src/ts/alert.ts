@@ -4,6 +4,7 @@ import { language } from "../lang"
 import { isTauri, isNodeServer } from "src/ts/platform"
 import { getDatabase, type MessageGenerationInfo } from "./storage/database.svelte"
 import { alertStore as alertStoreImported } from "./stores.svelte"
+import { getStackWithHeader } from "./sourcemap"
 
 export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
@@ -37,7 +38,7 @@ export function alertError(msg: string | Error) {
     if (typeof(msg) !== 'string') {
         try{
             if (msg instanceof Error) {
-                stackTrace = msg.stack
+                stackTrace = getStackWithHeader(msg)
                 msg = msg.message
             } else {
                 msg = JSON.stringify(msg)

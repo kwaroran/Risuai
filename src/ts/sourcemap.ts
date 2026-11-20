@@ -14,6 +14,23 @@ export interface StackTraceTranslationResult {
     didTranslate: boolean;
 }
 
+/**
+ * Returns the error's stack with a "Name: message" first line.
+ * V8 already starts Error.stack with that line, but WebKit (Tauri on macOS and Linux)
+ * keeps only the frames, so the line is added there.
+ */
+export function getStackWithHeader(error: Error): string | undefined {
+    const stack = error.stack
+    if (!stack) {
+        return stack
+    }
+    const header = error.message ? `${error.name}: ${error.message}` : error.name
+    if (stack.startsWith(header)) {
+        return stack
+    }
+    return `${header}\n${stack}`
+}
+
 export async function translateStackTrace(stackTrace: string): Promise<StackTraceTranslationResult> {
     if (!stackTrace) {
         return {
@@ -32,7 +49,8 @@ export async function translateStackTrace(stackTrace: string): Promise<StackTrac
 
     // Step 1: Collect all unique mapUrls from stack trace
     const urlsToFetch = new Set<string>();
-    const linePattern = /(http[s]?:\/\/[^\s)]+\.js):(\d+):(\d+)/;
+    // tauri:// is the asset origin of the macOS and Linux desktop builds
+    const linePattern = /((?:https?|tauri):\/\/[^\s)]+\.js):(\d+):(\d+)/;
     
     for (const line of stackLines) {
         const match = line.match(linePattern);

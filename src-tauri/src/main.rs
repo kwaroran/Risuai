@@ -25,6 +25,10 @@ use futures::future::{AbortHandle, Abortable};
 use tauri::{Listener, Manager};
 use tauri::{AppHandle, Emitter};
 
+// One client for every request, so connections to the same host are reused
+// instead of doing a new TCP and TLS handshake each time.
+static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
+
 #[tauri::command]
 async fn native_request(url: String, body: String, header: String, method: String) -> String {
     let headers_json: Value = match serde_json::from_str(&header) {
@@ -50,11 +54,10 @@ async fn native_request(url: String, body: String, header: String, method: Strin
         return format!(r#"{{"success":false,"body":"Invalid header JSON"}}"#);
     }
 
-    let client = reqwest::Client::new();
     let response: Result<reqwest::Response, reqwest::Error>;
 
     if method == "POST" {
-        response = client
+        response = HTTP_CLIENT
             .post(&url)
             .headers(headers)
             .timeout(Duration::from_secs(120))
@@ -62,7 +65,7 @@ async fn native_request(url: String, body: String, header: String, method: Strin
             .send()
             .await;
     } else {
-        response = client
+        response = HTTP_CLIENT
             .get(&url)
             .headers(headers)
             .timeout(Duration::from_secs(120))
@@ -298,19 +301,18 @@ async fn streamed_fetch_inner(
         return format!(r#"{{"success":false,"body":"Invalid header JSON"}}"#);
     }
 
-    let client = reqwest::Client::new();
     let builder: reqwest::RequestBuilder;
     if method == "POST" {
 
         let body_decoded = general_purpose::STANDARD.decode(body.as_bytes()).unwrap();
 
-        builder = client
+        builder = HTTP_CLIENT
         .post(&url)
         .headers(headers)
         .body(body_decoded)
     }
     else if method == "GET" {
-        builder = client
+        builder = HTTP_CLIENT
         .get(&url)
         .headers(headers);
     }
@@ -318,7 +320,7 @@ async fn streamed_fetch_inner(
 
         let body_decoded = general_purpose::STANDARD.decode(body.as_bytes()).unwrap();
 
-        builder = client
+        builder = HTTP_CLIENT
         .put(&url)
         .headers(headers)
         .body(body_decoded)
@@ -327,7 +329,7 @@ async fn streamed_fetch_inner(
 
         let body_decoded = general_purpose::STANDARD.decode(body.as_bytes()).unwrap();
 
-        builder = client
+        builder = HTTP_CLIENT
         .delete(&url)
         .headers(headers)
         .body(body_decoded)
@@ -442,7 +444,10 @@ fn header_map_to_json(header_map: &HeaderMap) -> serde_json::Value {
     for (key, value) in header_map {
         map.insert(
             key.as_str().to_string(),
-            value.to_str().unwrap().to_string(),
+            // Map each byte to the char with the same code (Latin-1), like
+            // browsers do. to_str() fails on non-ASCII bytes, and a lossy
+            // UTF-8 decode can give chars above U+00FF, which JS Headers rejects.
+            value.as_bytes().iter().map(|&b| b as char).collect::<String>(),
         );
     }
     json!(map)

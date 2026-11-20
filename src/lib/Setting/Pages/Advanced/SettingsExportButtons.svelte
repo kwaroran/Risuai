@@ -2,7 +2,7 @@
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { DBState } from 'src/ts/stores.svelte';
-    import { alertMd, alertNormal } from "src/ts/alert";
+    import { alertConfirm, alertMd, alertNormal } from "src/ts/alert";
     import { downloadFile, getRequestLog } from "src/ts/globalApi.svelte";
     import { getDatabase } from "src/ts/storage/database.svelte";
     import { isNodeServer, isTauri } from "src/ts/platform";
@@ -74,3 +74,19 @@ Show Statistics
 >
 Export Settings for Bug Report
 </Button>
+
+{#if !isTauri && 'serviceWorker' in navigator}
+    <Button
+        className="mt-4"
+        onclick={async () => {
+            if(!(await alertConfirm(language.clearImageCacheConfirm))){
+                return
+            }
+            // Only the copies the service worker serves images from; saved files are not touched
+            await caches.delete('risuCache')
+            location.reload()
+        }}
+    >
+        {language.clearImageCache}
+    </Button>
+{/if}

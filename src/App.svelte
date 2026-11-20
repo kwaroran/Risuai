@@ -90,8 +90,7 @@
         await importPreset({ name: file.name, data })
         alertNormal(language.successImport)
     } else if (name.endsWith('.risum')) {
-        const data = new Uint8Array(await file.arrayBuffer())
-        const module = await readModule(Buffer.from(data))
+        const module = await readModule(file)
         DBState.db.modules.push(module)
         alertNormal(language.successImport)
     } else {

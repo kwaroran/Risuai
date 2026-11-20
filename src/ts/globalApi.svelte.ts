@@ -419,6 +419,7 @@ export async function saveDb() {
         saving.state = true
         changed = false
         let kvDirty: string[] = []
+        let toSave: toSaveType | null = null
         try {
 
             if (requiresFullEncoderReload.state) {
@@ -431,11 +432,9 @@ export async function saveDb() {
                 requiresFullEncoderReload.state = false
             }
 
-            let toSave = safeStructuredClone(changeTracker)
+            toSave = safeStructuredClone(changeTracker)
             changeTracker.character = changeTracker.character.length === 0 ? [] : [changeTracker.character[0]]
             changeTracker.chat = changeTracker.chat.length === 0 ? [] : [changeTracker.chat[0]]
-            changeTracker.botPreset = false
-            changeTracker.modules = false
             if (gotChannel) {
                 //Data is saved in other tab
                 await sleep(1000)
@@ -449,6 +448,12 @@ export async function saveDb() {
                 await sleep(1000)
                 continue
             }
+            //clear these only once the save goes ahead, so a skipped save keeps them
+            changeTracker.botPreset = false
+            changeTracker.modules = false
+            changeTracker.loadouts = false
+            changeTracker.plugins = false
+            changeTracker.pluginCustomStorage = false
 
             kvDirty = saveKV.takeDirty()
             toSave.kv = kvDirty
@@ -483,6 +488,14 @@ export async function saveDb() {
         } catch (error) {
             //the KV blocks were not written; encode them again on the next attempt
             saveKV.markDirty(kvDirty)
+            //the same goes for the separately saved blocks
+            if (toSave) {
+                changeTracker.botPreset ||= toSave.botPreset
+                changeTracker.modules ||= toSave.modules
+                changeTracker.loadouts ||= toSave.loadouts
+                changeTracker.plugins ||= toSave.plugins
+                changeTracker.pluginCustomStorage ||= toSave.pluginCustomStorage
+            }
             savetrys += 1
             if (savetrys > 4) {
                 alertError(error)

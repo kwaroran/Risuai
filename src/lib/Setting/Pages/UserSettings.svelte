@@ -136,7 +136,7 @@
 <div class="bg-darkbg p-3 rounded-md mb-2 flex flex-col items-start mt-2">
     <div class="w-full">
         <h1 class="text-3xl font-black min-w-0">Risu Account{#if DBState.db.account}
-            <button class="bg-selected p-1 text-sm font-light rounded-md hover:bg-blue-500 transition-colors float-right" onclick={async () => {
+            <button class="bg-selected p-1 text-sm font-light rounded-control hover:bg-blue-500 transition-colors float-right" onclick={async () => {
                 if(DBState.db.account.useSync || forageStorage.isAccount){
                     unMigrationAccount()
                 }
@@ -144,11 +144,11 @@
                 DBState.db.account = undefined
             }}>{language.logout}</button>
                 {#if import.meta.env.DEV}
-                <button class="bg-selected p-1 text-sm font-light rounded-md hover:bg-blue-500 transition-colors float-right" onclick={async () => {
+                <button class="bg-selected p-1 text-sm font-light rounded-control hover:bg-blue-500 transition-colors float-right" onclick={async () => {
                     loginToSionyw()
                 }}>{language.loginSionyw}</button>
 
-                <button class="bg-selected p-1 text-sm font-light rounded-md hover:bg-blue-500 transition-colors float-right" onclick={async () => {
+                <button class="bg-selected p-1 text-sm font-light rounded-control hover:bg-blue-500 transition-colors float-right" onclick={async () => {
                     testSionywLogin()
                 }}>TestSionyw</button>
             {/if}
@@ -176,7 +176,7 @@
         {/if}
     {:else}
         <span>{language.notLoggedIn}</span>
-        <button class="bg-selected p-2 rounded-md mt-2 hover:bg-blue-500 transition-colors" onclick={() => {
+        <button class="bg-selected p-2 rounded-control mt-2 hover:bg-blue-500 transition-colors" onclick={() => {
             openIframeURL = hubURL + '/hub/login'
             openIframe = true
         }}>

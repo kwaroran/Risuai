@@ -1479,7 +1479,7 @@
     <div class="h-px flex-1 bg-white/10"></div>
     <button
       type="button"
-      class={`px-2 py-0.5 rounded-sm border border-darkborderc bg-darkbg shadow-md
+      class={`px-2 py-0.5 rounded-control border border-darkborderc bg-darkbg shadow-md
         ${d.omitted > 0 ? 'hover:border-white/40 hover:text-textcolor hover:shadow-lg cursor-pointer' : 'text-textcolor2/50 cursor-default'}`}
       disabled={d.omitted === 0}
       onclick={() => expandRange(scope, d.from, d.to)}

@@ -32,7 +32,7 @@
                             <div class="truncate font-bold">{creator.name}</div>
                             <div class="truncate text-xs text-textcolor2">{creator.id}</div>
                         </div>
-                        <button class="flex items-center gap-2 rounded-md bg-selected p-2 hover:ring-3" onclick={async () => {
+                        <button class="flex items-center gap-2 rounded-control bg-selected p-2 hover:ring-3" onclick={async () => {
                             DBState.db.blockedRealmCreators = removeBlockedRealmCreator(
                                 DBState.db.blockedRealmCreators,
                                 creator.id,

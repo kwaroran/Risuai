@@ -812,6 +812,7 @@ export const languageVietnamese = {
     "able": "Có thể",
     "assetWidth": "Chiều rộng tối đa của hình ảnh nội dung",
     "animationSpeed": "Tốc độ hoạt ảnh",
+    "radiusScale": "Độ bo góc",
     "screenshot": "Ảnh chụp màn hình",
     "screenshotSaved": "Đã lưu ảnh chụp màn hình",
     "createBotwithAI": "Tạo Bot từ AI",

@@ -21,7 +21,7 @@
 
 <span class="text-draculared text-xs mb-4">{language.pluginWarn}</span>
 
-<div class="border-solid border-darkborderc p-2 flex flex-col border-1">
+<div class="border-solid border-darkborderc p-2 flex flex-col border-1 rounded-md">
     {#if !DBState.db.plugins || DBState.db.plugins?.length === 0}
         <span class="text-textcolor2">{language.noPlugins}</span>
     {/if}
@@ -140,7 +140,7 @@
             </span>
             <!--List up args-->
         {:else if Object.keys(plugin.arguments).filter((i) => !i.startsWith("hidden_")).length > 0 && showParams.includes(i)}
-            <div class="flex flex-col mt-2 bg-dark-900/50 p-3">
+            <div class="flex flex-col mt-2 bg-dark-900/50 p-3 rounded-md">
                 {#each Object.keys(plugin.arguments) as arg}
                     {#if !arg.startsWith("hidden_")}
                         {#if typeof(plugin?.argMeta?.[arg]?.divider) === 'string'}

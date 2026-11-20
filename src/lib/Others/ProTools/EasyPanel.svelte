@@ -37,7 +37,7 @@
         <h2 class="text-lg font-bold mb-2 flex items-center">
             {language.easyPanel}
             <div class="ml-2 bg-blue-800 p-1 rounded text-sm">Beta</div>
-            <button class="ml-auto p-1 rounded hover:bg-selected" onclick={() => {
+            <button class="ml-auto p-1 rounded-control hover:bg-selected" onclick={() => {
                 onClose()
             }}>
                 <XIcon size={28} class="ml-auto hover:bg-selected rounded"></XIcon>

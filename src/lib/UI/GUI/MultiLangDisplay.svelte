@@ -40,7 +40,7 @@
     <div class="flex flex-wrap max-w-fit p-1 gap-2 items-center">
         {#if sortedLangs.priority}
             {#if sortedLangs.priority !== 'xx' || Object.keys(valueObject).length === 1}
-                <button class="bg-bgcolor py-2 rounded-lg px-4" class:ring-1={selectedLang === sortedLangs.priority} onclick={((e) => {
+                <button class="bg-bgcolor py-2 rounded-control px-4" class:ring-1={selectedLang === sortedLangs.priority} onclick={((e) => {
                     e.stopPropagation()
                     selectedLang = sortedLangs.priority
                 })}>{toLangName(sortedLangs.priority)}</button>
@@ -51,7 +51,7 @@
         {/if}
         {#each sortedLangs.rest as lang}
             {#if lang !== 'xx' || Object.keys(valueObject).length === 1}
-                <button class="bg-bgcolor py-2 rounded-lg px-4" class:ring-1={selectedLang === lang} onclick={((e) => {
+                <button class="bg-bgcolor py-2 rounded-control px-4" class:ring-1={selectedLang === lang} onclick={((e) => {
                     e.stopPropagation()
                     selectedLang = lang
                 })}>{toLangName(lang)}</button>

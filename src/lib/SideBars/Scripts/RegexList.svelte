@@ -80,7 +80,7 @@
 {/key}
 {#if buttons}
     <div class="flex gap-2 mt-2">
-        <button class="rounded-md text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={() => {
+        <button class="rounded-control text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={() => {
             value.push({
             comment: "",
             in: "",
@@ -90,10 +90,10 @@
         }}>
             <PlusIcon />
         </button>
-        <button class="rounded-md text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={() => {
+        <button class="rounded-control text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={() => {
             exportRegex(value)
         }}><DownloadIcon /></button>
-        <button class="rounded-md text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={async () => {
+        <button class="rounded-control text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={async () => {
             value = await importRegex(value)
         }}><HardDriveUploadIcon /></button>
     </div>

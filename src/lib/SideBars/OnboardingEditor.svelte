@@ -131,7 +131,7 @@
                 </div>
             {/each}
 
-            <button class="mt-2 flex items-center justify-center gap-1 w-full py-2 rounded-md border border-dashed border-darkborderc text-sm text-textcolor2 hover:text-green-500 hover:border-green-500 transition-colors" onclick={() => { char.onboarding.questions.push(createOnboardingQuestion()) }}>
+            <button class="mt-2 flex items-center justify-center gap-1 w-full py-2 rounded-control border border-dashed border-darkborderc text-sm text-textcolor2 hover:text-green-500 hover:border-green-500 transition-colors" onclick={() => { char.onboarding.questions.push(createOnboardingQuestion()) }}>
                 <PlusIcon size={16} />{language.onboardingAddQuestion}
             </button>
         {/if}

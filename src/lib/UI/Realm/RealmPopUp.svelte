@@ -145,7 +145,7 @@
             })}>
                 <PaperclipIcon />
             </button>
-            <button class="bg-selected hover:ring-3 grow p-2 font-bold rounded-md mr-2" onclick={() => {
+            <button class="bg-selected hover:ring-3 grow p-2 font-bold rounded-control mr-2" onclick={() => {
                 downloadRisuHub(openedData.id, { creator: openedData.creator })
                 openedData = null
             }}>

@@ -812,6 +812,7 @@ export const languageGerman = {
     "able": "Aktiv",
     "assetWidth": "Maximale Breite der Asset-Bilder",
     "animationSpeed": "Animationsgeschwindigkeit",
+    "radiusScale": "Eckenrundung",
     "screenshot": "Screenshot",
     "screenshotSaved": "Screenshot gespeichert",
     "createBotwithAI": "Bot mit KI erstellen",

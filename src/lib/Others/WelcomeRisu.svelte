@@ -297,7 +297,7 @@
 </script>
 
 <div class="relative h-full w-full overflow-hidden bg-bgcolor text-textcolor sm:p-3 lg:p-4">
-    <div class="relative flex h-full w-full flex-col overflow-hidden sm:rounded-[2rem]">
+    <div class="relative flex h-full w-full flex-col overflow-hidden sm:rounded-4xl">
         <WelcomeBackground />
         <div class="vignette pointer-events-none absolute inset-0"></div>
         <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-black/20 lg:bg-linear-to-r lg:from-black/40 lg:via-transparent lg:to-transparent"></div>
@@ -305,14 +305,14 @@
 
     <header class="relative z-20 flex shrink-0 items-center p-[clamp(1rem,2.4vmin,1.75rem)]">
         <!-- scales with the shorter screen side so tablets don't get a phone-sized logo -->
-        <div class="rounded-[clamp(1rem,2.4vmin,1.5rem)] bg-darkbg/85 px-[clamp(1rem,2.2vmin,1.5rem)] py-[clamp(0.625rem,1.6vmin,1rem)] shadow-xl backdrop-blur">
+        <div class="rounded-[calc(clamp(1rem,2.4vmin,1.5rem)*var(--risu-radius-scale,1))] bg-darkbg/85 px-[clamp(1rem,2.2vmin,1.5rem)] py-[clamp(0.625rem,1.6vmin,1rem)] shadow-xl backdrop-blur">
             <img src="/logo_typo_trans.png" alt="Risuai" class="h-[clamp(1.5rem,5.5vmin,3.25rem)] w-auto">
         </div>
     </header>
 
     <main class="relative z-10 flex min-h-0 flex-1 items-end">
         <!-- on desktop the modal is centered on 25% of the screen width and keeps a fixed height that scales with the screen -->
-        <div class="relative z-10 flex max-h-[78%] w-full flex-col rounded-t-[2rem] bg-darkbg shadow-2xl lg:absolute lg:left-1/4 lg:top-1/2 lg:h-[clamp(30rem,62%,40rem)] lg:max-h-[calc(100%-2.5rem)] lg:w-[clamp(26rem,32vw,36rem)] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-[2rem]">
+        <div class="relative z-10 flex max-h-[78%] w-full flex-col rounded-t-4xl bg-darkbg shadow-2xl lg:absolute lg:left-1/4 lg:top-1/2 lg:h-[clamp(30rem,62%,40rem)] lg:max-h-[calc(100%-2.5rem)] lg:w-[clamp(26rem,32vw,36rem)] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-4xl">
             <img src={Airisu} alt="" class="airisu pointer-events-none absolute bottom-full right-4 -mb-3 h-44 w-auto lg:hidden" draggable="false">
             <div class="flex items-center justify-between px-7 pt-6">
                 <button class="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-textcolor2 transition-colors hover:bg-textcolor/10 hover:text-textcolor disabled:invisible" disabled={step === 0 || step === 10} onclick={goBack} aria-label={language.goback}>
@@ -423,7 +423,7 @@
                     {/if}
                 </div>
                 {#if moreBelow}
-                    <div class="pointer-events-none absolute inset-x-0 bottom-0 flex h-16 items-end justify-center bg-linear-to-t from-darkbg via-darkbg/80 to-transparent pb-3 {step === 4 && !shortScreen.current ? '' : 'lg:rounded-b-[2rem]'}" transition:fade={{ duration: 150 }}>
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 flex h-16 items-end justify-center bg-linear-to-t from-darkbg via-darkbg/80 to-transparent pb-3 {step === 4 && !shortScreen.current ? '' : 'lg:rounded-b-4xl'}" transition:fade={{ duration: 150 }}>
                         <!-- mouse shortcut only; the area itself scrolls with wheel, touch and keyboard -->
                         <button class="scroll-hint pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-bgcolor text-textcolor2 shadow-lg transition-colors hover:bg-selected hover:text-textcolor" tabindex="-1" aria-hidden="true" onclick={scrollDown}>
                             <ChevronDown size={20} />
@@ -433,7 +433,7 @@
                 </div>
                 {#if step === 4 && !shortScreen.current}
                     <!-- kept outside the scroll area so the key input stays reachable under the long guide -->
-                    <div class="shrink-0 rounded-b-[2rem] px-7 pb-7 pt-4 shadow-[0_-12px_24px_-12px_rgb(0_0_0/0.4)]">
+                    <div class="shrink-0 rounded-b-4xl px-7 pb-7 pt-4 shadow-[0_-12px_24px_-12px_rgb(0_0_0/0.4)]">
                         {@render textInput('password', 'sk-...')}
                     </div>
                 {/if}
@@ -524,7 +524,7 @@
         word-break: break-all;
     }
     .guide :global(img){
-        border-radius: 0.75rem;
+        border-radius: var(--radius-xl);
         max-width: 100%;
         max-height: 14rem;
         margin: 0 auto;

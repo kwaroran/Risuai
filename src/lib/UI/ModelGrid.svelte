@@ -84,7 +84,7 @@
                 {#each sortFields as sf}
                     <button
                         onclick={() => { sortField = sf.key }}
-                        class="rounded px-3 py-1 text-sm transition-colors {sortField === sf.key ? 'bg-selected text-textcolor font-bold ring-2 ring-textcolor/30 ring-offset-1 ring-offset-bgcolor shadow-md' : 'bg-darkbutton text-textcolor2 font-medium hover:bg-darkbutton hover:text-textcolor'}"
+                        class="rounded-control px-3 py-1 text-sm transition-colors {sortField === sf.key ? 'bg-selected text-textcolor font-bold ring-2 ring-textcolor/30 ring-offset-1 ring-offset-bgcolor shadow-md' : 'bg-darkbutton text-textcolor2 font-medium hover:bg-darkbutton hover:text-textcolor'}"
                     >{sf.label}</button>
                 {/each}
             </div>
@@ -95,7 +95,7 @@
                 {#each sortDirs as sd}
                     <button
                         onclick={() => { sortDir = sd.key }}
-                        class="rounded px-3 py-1 text-sm transition-colors {sortDir === sd.key ? 'bg-selected text-textcolor font-bold ring-2 ring-textcolor/30 ring-offset-1 ring-offset-bgcolor shadow-md' : 'bg-darkbutton text-textcolor2 font-medium hover:bg-darkbutton hover:text-textcolor'}"
+                        class="rounded-control px-3 py-1 text-sm transition-colors {sortDir === sd.key ? 'bg-selected text-textcolor font-bold ring-2 ring-textcolor/30 ring-offset-1 ring-offset-bgcolor shadow-md' : 'bg-darkbutton text-textcolor2 font-medium hover:bg-darkbutton hover:text-textcolor'}"
                     >{sd.label}</button>
                 {/each}
             </div>

@@ -14,7 +14,7 @@
     <SaveIcon size={24} />
   </div>
 {:else if $AccountWarning}
-  <button class="absolute top-3 right-3 z-10 text-white bg-red-800 hover:bg-red-600 p-2 rounded-sm" onclick={() =>{
+  <button class="absolute top-3 right-3 z-10 text-white bg-red-800 hover:bg-red-600 p-2 rounded-control" onclick={() =>{
       alertMd($AccountWarning)
       $AccountWarning = ''
   }}>

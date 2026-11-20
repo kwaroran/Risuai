@@ -969,6 +969,7 @@ export const languageChineseTraditional = {
     "able": "啟用",
     "assetWidth": "資源圖片最大寬度",
     "animationSpeed": "動畫速度",
+    "radiusScale": "圓角程度",
     "screenshot": "螢幕截圖",
     "screenshotSaved": "螢幕截圖已儲存",
     "createBotwithAI": "使用 AI 建立角色",

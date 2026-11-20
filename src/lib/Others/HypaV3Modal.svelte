@@ -710,7 +710,7 @@
                     {language.hypaV3Modal.convertLabel}
                   </div>
                   <button
-                    class="px-4 py-2 my-1 font-semibold transition-colors rounded-md sm:my-2 text-zinc-300 bg-zinc-700 hover:bg-zinc-500"
+                    class="px-4 py-2 my-1 font-semibold transition-colors rounded-control sm:my-2 text-zinc-300 bg-zinc-700 hover:bg-zinc-500"
                     tabindex="-1"
                     onclick={async () => {
                       const conversionResult = convertHypaV2ToV3();
@@ -752,7 +752,7 @@
                     }}
                   >
                     <input
-                      class="w-full px-2 py-2 border rounded-sm sm:px-4 sm:py-3 border-zinc-700 focus:outline-hidden focus:ring-2 focus:ring-zinc-500 text-zinc-200 bg-zinc-900"
+                      class="w-full px-2 py-2 border rounded-control sm:px-4 sm:py-3 border-zinc-700 focus:outline-hidden focus:ring-2 focus:ring-zinc-500 text-zinc-200 bg-zinc-900"
                       placeholder={language.hypaV3Modal.searchPlaceholder}
                       bind:this={searchState.ref}
                       bind:value={searchState.query}

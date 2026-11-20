@@ -97,11 +97,14 @@
 
 <style>
     .segmented-control-container {
+        /* Children sit 4px (padding) + 1px (border) inside the outer edge,
+           so their corners are concentric with the container's */
+        --segmented-inner-radius: max(0px, calc(var(--radius-lg) - 4px - 1px));
         position: relative;
         display: inline-flex;
         width: fit-content;
         align-items: center;
-        border-radius: 0.5rem;
+        border-radius: var(--radius-lg);
         background-color: var(--risu-theme-darkbg);
         border: 1px solid var(--risu-theme-darkborderc);
         padding: 4px;
@@ -119,7 +122,7 @@
         left: 0;
         top: 4px;
         bottom: 4px;
-        border-radius: 0.375rem;
+        border-radius: var(--segmented-inner-radius);
         background-color: var(--risu-theme-borderc);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                     width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -135,7 +138,7 @@
         background: transparent;
         color: var(--risu-theme-textcolor2);
         font-weight: 500;
-        border-radius: 0.375rem;
+        border-radius: var(--segmented-inner-radius);
         cursor: pointer;
         white-space: nowrap;
         transition: color 0.2s ease;

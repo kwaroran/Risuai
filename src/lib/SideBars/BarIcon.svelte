@@ -19,7 +19,7 @@
 <style>
   .ico {
     cursor: pointer;
-    border-radius: 0.375rem;
+    border-radius: var(--radius-md);
     height: 3.5rem;
     width: 3.5rem;
     min-height: 3.5rem;

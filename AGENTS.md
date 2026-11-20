@@ -154,6 +154,14 @@ Available custom theme colors include:
 
 You can safely apply Tailwind's opacity modifiers directly to these custom theme colors (e.g., `text-textcolor/90`, `bg-textcolor/5`, `border-textcolor/10`).
 
+### Corner Radius
+
+All Tailwind radius steps (`rounded`, `rounded-sm` … `rounded-4xl`) are multiplied by `--risu-radius-scale` (see `src/styles.css`). Do not hardcode radii:
+- In markup, use the Tailwind steps or a role token: `rounded-control` for buttons and text fields, `rounded-check` for checkboxes, `rounded-track` for slider bars.
+- In `<style>` blocks or inline styles, use `var(--radius-sm)`, `var(--radius-md)`, `var(--radius-lg)` and so on instead of `px`/`rem` values.
+- Use `rounded-full` (unaffected by the scale) for circles and pills such as avatars, toggles and slider thumbs.
+- HTML that is exported or copied out of the app may keep fixed values, since the variables do not exist outside Risuai.
+
 ### File Naming Conventions
 
 - `.svelte.ts` - Svelte 5 files with runes

@@ -1011,6 +1011,12 @@ export const languageSpanish = {
     "updateRealm": "Actualizar a RisuRealm",
     "updateRealmDesc": "Estás intentando actualizar tu personaje a RisuRealm. Esto actualizará tu personaje en RisuRealm, y no podrás revertirlo.",
     "antiClaudeOverload": "Anti-Sobrecarga de Claude",
+    "saveLoopWatch": {
+        "stuck": "El guardado lleva más de {} minutos sin terminar. Es posible que tus cambios recientes no se hayan guardado.",
+        "stopped": "El guardado automático se ha detenido. Los cambios que hagas a partir de ahora no se guardarán.",
+        "lastSaved": "Último guardado: {}.",
+        "advice": "Haz una copia de seguridad de tus datos importantes y luego recarga la aplicación.",
+    },
     "activeTabChange": "La pestaña actual se desactivó porque otra pestaña está activa. para activar esta pestaña, haz clic en Aceptar",
     "maxSupaChunkSize": "Tamaño Máximo del Chunk de SupaMemoria",
     "addCharacter": "Agregar Personaje",

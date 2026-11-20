@@ -1,0 +1,21 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["risum"],
+        "name": "Risuai Module",
+        "description": "Risuai Module"
+      },
+      {
+        "ext": ["risup"],
+        "name": "Risuai Preset",
+        "description": "Risuai Preset"
+      },
+      {
+        "ext": ["charx"],
+        "name": "Character Card",
+        "description": "Character Card (CharX)"
+      }
+    ]
+  }
+}

@@ -1120,6 +1120,11 @@ await Risuai.registerMCP(
 await Risuai.unregisterMCP('plugin:my-tools');
 ```
 
+- **Arguments.** `identifier` must be a single-line string starting with `plugin:`, and `name` must be a non-empty string. Otherwise the call throws.
+- **User consent.** The user is asked the first time a plugin registers an identifier, and again whenever the plugin's script changes. If they decline, the module is not registered, the call resolves without an error, and they are asked again the next time the app starts.
+- **Module.** On first consent, an MCP module for the identifier is added to the user's modules and enabled, unless one already exists. After that, the user controls it from the module list.
+- **Ownership.** An identifier belongs to the plugin that registered it. Registering an identifier held by another plugin throws, and `unregisterMCP` only affects your own identifiers. Modules are unregistered automatically when the plugin unloads.
+
 **Tool call content types** (`MCPToolCallContent`):
 - `{ type: 'text', text: string }` — plain text result
 - `{ type: 'image' | 'audio', data: string, mimeType: string }` — base64 media

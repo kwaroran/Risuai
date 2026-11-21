@@ -5,9 +5,11 @@ export const registeredCustomPluginMCPs: Map<string, CustomPluginMCPClient> = ne
 
 export class CustomPluginMCPClient extends MCPClientLike {
 
+    readonly owner: string;
     #getToolList: () => Promise<MCPTool[]>;
     #callTool: (toolName: string, content: any) => Promise<RPCToolCallContent[]>;
     constructor(arg: {
+        owner: string;
         identifier: string;
         name: string;
         version: string;
@@ -16,6 +18,7 @@ export class CustomPluginMCPClient extends MCPClientLike {
         callTool: (toolName: string, content: any) => Promise<RPCToolCallContent[]>;
     }) {
         super(arg.identifier);
+        this.owner = arg.owner;
         this.serverInfo.serverInfo.name = arg.name;
         this.serverInfo.serverInfo.version = arg.version;
         this.serverInfo.instructions = arg.description;
@@ -33,26 +36,43 @@ export class CustomPluginMCPClient extends MCPClientLike {
 
 }
 
-export async function registerMCPModule(arg: {
+type PluginMCPInfo = {
     identifier: string;
     name: string;
     version: string;
     description: string;
-}, 
+}
+
+export function assertMCPRegistrationAllowed(owner: string, arg: PluginMCPInfo) {
+    if (typeof arg.identifier !== 'string' || !/^plugin:.*$/.test(arg.identifier)) {
+        throw new Error(`MCP module identifier must be a single-line string starting with 'plugin:'.`);
+    }
+    if (typeof arg.name !== 'string' || arg.name === '') {
+        throw new Error(`MCP module name must be a non-empty string.`);
+    }
+    const registered = registeredCustomPluginMCPs.get(arg.identifier);
+    if (registered && registered.owner !== owner) {
+        throw new Error(`MCP module identifier '${arg.identifier}' is already registered by another plugin.`);
+    }
+}
+
+export function registerMCPModule(owner: string, arg: PluginMCPInfo,
     getToolList: () => Promise<MCPTool[]>,
     callTool: (toolName: string, content: any) => Promise<RPCToolCallContent[]>,
 ) {
-    if (!arg.identifier.startsWith('plugin:')) {
-        throw new Error(`MCP module identifier must start with 'plugin:'.`);
-    }
+    assertMCPRegistrationAllowed(owner, arg);
     const client = new CustomPluginMCPClient({
         ...arg,
+        owner,
         getToolList,
         callTool,
     });
     registeredCustomPluginMCPs.set(arg.identifier, client);
+    return client;
 }
 
-export async function unregisterMCPModule(identifier: string) {
-    registeredCustomPluginMCPs.delete(identifier);
+export function unregisterMCPModule(owner: string, identifier: string) {
+    if (registeredCustomPluginMCPs.get(identifier)?.owner === owner) {
+        registeredCustomPluginMCPs.delete(identifier);
+    }
 }

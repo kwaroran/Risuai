@@ -291,6 +291,15 @@ export let saving = $state({
 export let requiresFullEncoderReload = $state({
     state: false
 })
+
+const pendingCharacterSaves = new Set<string>()
+
+export function markCharactersForSave(chaIds: Iterable<string>) {
+    for (const chaId of chaIds) {
+        pendingCharacterSaves.add(chaId)
+    }
+}
+
 export async function saveDb() {
     let changed = false
     syncDrive()
@@ -411,14 +420,16 @@ export async function saveDb() {
     await sleep(1000)
     while (true) {
         //SaveKV is not reactive: it reports its own changes
-        if (!changed && !saveKV.hasDirty()) {
+        if (!changed && !saveKV.hasDirty() && pendingCharacterSaves.size === 0) {
             await sleep(500)
             continue
         }
 
         saving.state = true
+        const hadChange = changed
         changed = false
         let kvDirty: string[] = []
+        let characterDirty: string[] = []
         try {
 
             if (requiresFullEncoderReload.state) {
@@ -452,10 +463,18 @@ export async function saveDb() {
 
             kvDirty = saveKV.takeDirty()
             toSave.kv = kvDirty
+            characterDirty = [...pendingCharacterSaves]
+            pendingCharacterSaves.clear()
+            for (const chaId of characterDirty) {
+                if (!toSave.character.includes(chaId)) {
+                    toSave.character.push(chaId)
+                }
+            }
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
                 saveKV.markDirty(kvDirty)
+                markCharactersForSave(characterDirty)
                 await sleep(1000)
                 continue
             }
@@ -483,13 +502,16 @@ export async function saveDb() {
         } catch (error) {
             //the KV blocks were not written; encode them again on the next attempt
             saveKV.markDirty(kvDirty)
+            markCharactersForSave(characterDirty)
             savetrys += 1
-            if (savetrys > 4) {
+            const repeatsPendingRetry = !hadChange && kvDirty.length === 0 && savetrys > 5
+            if (savetrys > 4 && !repeatsPendingRetry) {
                 alertError(error)
             }
             else {
                 console.error(error)
             }
+            await sleep(1000)
         }
 
         saving.state = false

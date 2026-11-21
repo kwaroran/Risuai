@@ -13,7 +13,8 @@ import { checkCharOrder, forageStorage, getFetchLogs } from "src/ts/globalApi.sv
 import { changeColorScheme, updateColorScheme, updateTextThemeAndCSS, type ColorScheme } from "src/ts/gui/colorscheme";
 import { isNodeServer, isTauri } from "src/ts/platform";
 import { get } from "svelte/store";
-import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
+import { assertMCPRegistrationAllowed, registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/pluginmcp";
+import { addEnabledMCPModuleIfMissing, callEnabledMCPTool, getEnabledMCPs, getEnabledMCPToolList } from "src/ts/process/mcp/mcp";
 import { pluginStorage } from "src/ts/process/coldstorage.svelte";
 import { getInlayAsset } from "src/ts/process/files/inlays";
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
@@ -606,12 +607,13 @@ const permissionConsentTexts: Record<PluginPermission, () => string> = {
     provider: () => language.providerPermissionConsent,
     sendChat: () => language.sendChatConsent,
     inlay: () => language.inlayPermissionConsent,
+    mcpAccess: () => language.mcpAccessConsent,
 }
 
-const getPluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
+const decidePluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false, customConsentText?: () => string): Promise<{granted: boolean, prompted: boolean}> => {
     const cachedPermission = permissionSessionCache.get(scriptHash, permissionDesc)
     if(cachedPermission !== undefined){
-        return cachedPermission;
+        return {granted: cachedPermission, prompted: false};
     }
 
     const permissionKey = getPluginPermissionKey(scriptHash, permissionDesc)
@@ -631,14 +633,14 @@ const getPluginPermission = async (pluginName: string, scriptHash: string, permi
 
     if(!requiresReconfirm && await permissionForage.getItem(permissionKey)){
         permissionSessionCache.set(scriptHash, permissionDesc, true)
-        return true;
+        return {granted: true, prompted: false};
     }   
     
 
-    if(!Object.hasOwn(permissionConsentTexts, permissionDesc)){
-        return false;
+    const consentText = customConsentText ?? (Object.hasOwn(permissionConsentTexts, permissionDesc) ? permissionConsentTexts[permissionDesc] : undefined)
+    if(!consentText){
+        return {granted: false, prompted: false};
     }
-    const consentText = permissionConsentTexts[permissionDesc]
     const conf = await alertConfirm(consentText().replace("{}", pluginName))
     if(conf && permissionKey){
         permissionSessionCache.set(scriptHash, permissionDesc, true)
@@ -646,10 +648,14 @@ const getPluginPermission = async (pluginName: string, scriptHash: string, permi
         if(reconfirm === 'periodically'){
             await permissionForage.setItem(pluginName + '_' + permissionDesc + '_lastGrantTime', Date.now());
         }
-        return true;
+        return {granted: true, prompted: true};
     }
     permissionSessionCache.set(scriptHash, permissionDesc, false)
-    return false;
+    return {granted: false, prompted: true};
+}
+
+const getPluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
+    return (await decidePluginPermission(pluginName, scriptHash, permissionDesc, reconfirm)).granted
 }
 
 const urlBlacklist = [
@@ -691,11 +697,19 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
     const getPermission = async (permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
         return getPluginPermission(plugin.name, await getPluginScriptHash(), permissionDesc, reconfirm)
     }
+    const isUnloaded = () => !iframe.isConnected
     const withDbWrite = <A extends any[]>(write: (...args: A) => unknown) => {
         return (...args: A) => runWithPluginPermission(
             () => getPermission('dbWrite', 'periodically'),
             async () => { await write(...args) },
             undefined
+        )
+    }
+    const withMCPAccess = <A extends any[], T>(use: (...args: A) => Promise<T>) => {
+        return (...args: A) => runWithPluginPermission<T|null>(
+            () => getPermission('mcpAccess', 'periodically'),
+            () => use(...args),
+            null
         )
     }
     return {
@@ -1247,8 +1261,30 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             addPluginUnloadCallback(plugin.name, () => removePluginChatPanels(plugin.name));
             return {id};
         },
-        registerMCP: registerMCPModule,
-        unregisterMCP: unregisterMCPModule,
+        registerMCP: async (arg: Parameters<typeof registerMCPModule>[1], getToolList: Parameters<typeof registerMCPModule>[2], callTool: Parameters<typeof registerMCPModule>[3]) => {
+            assertMCPRegistrationAllowed(plugin.name, arg);
+            const consent = await decidePluginPermission(
+                plugin.name,
+                await getPluginScriptHash(),
+                `mcp:${arg.identifier}`,
+                false,
+                () => language.mcpRegisterConsent.replace('{mcp}', () => arg.identifier),
+            );
+            if(!consent.granted || isUnloaded()){
+                return;
+            }
+            const client = registerMCPModule(plugin.name, arg, getToolList, callTool);
+            addPluginUnloadCallback(plugin.name, () => unregisterMCPModule(plugin.name, arg.identifier));
+            if(consent.prompted){
+                addEnabledMCPModuleIfMissing(arg.identifier, client.serverInfo);
+            }
+        },
+        unregisterMCP: async (identifier: string) => {
+            unregisterMCPModule(plugin.name, identifier);
+        },
+        getMCPs: withMCPAccess(getEnabledMCPs),
+        getMCPToolList: withMCPAccess(getEnabledMCPToolList),
+        callMCPTool: withMCPAccess(callEnabledMCPTool),
         unregisterUIPart: (id: string) => {
             const removeFromMenuStore = (menuStore: MenuDef[]) => {
                 const index = menuStore.findIndex(item => item.id === id);

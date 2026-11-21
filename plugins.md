@@ -1120,10 +1120,34 @@ await Risuai.registerMCP(
 await Risuai.unregisterMCP('plugin:my-tools');
 ```
 
+- **Arguments.** `identifier` must be a single-line string starting with `plugin:`, and `name` must be a non-empty string. Otherwise the call throws.
+- **User consent.** The user is asked the first time a plugin registers an identifier, and again whenever the plugin's script changes. If they decline, the module is not registered, the call resolves without an error, and they are asked again the next time the app starts.
+- **Module.** On first consent, an MCP module for the identifier is added to the user's modules and enabled, unless one already exists. After that, the user controls it from the module list.
+- **Ownership.** An identifier belongs to the plugin that registered it. Registering an identifier held by another plugin throws, and `unregisterMCP` only affects your own identifiers. Modules are unregistered automatically when the plugin unloads.
+
 **Tool call content types** (`MCPToolCallContent`):
 - `{ type: 'text', text: string }` — plain text result
 - `{ type: 'image' | 'audio', data: string, mimeType: string }` — base64 media
 - `{ type: 'resource', resource: { uri, mimeType, text } }` — resource reference
+
+#### Using Enabled MCP Modules
+
+A plugin can use the MCP modules the user has enabled, for example to offer their tools to a model from a custom provider:
+
+```javascript
+// Returns null if the user denies the 'mcpAccess' permission
+const mcps = await Risuai.getMCPs();
+// [{ id, name, version, description }, ...]
+
+const search = mcps?.find((mcp) => mcp.name === 'Web Search');
+if (search) {
+  const tools = await Risuai.getMCPToolList(search.id);
+  const result = await Risuai.callMCPTool(search.id, 'web_search', { query: 'weather' });
+}
+```
+
+- Only modules enabled for the open chat are listed. `getMCPToolList` and `callMCPTool` throw once a module is no longer enabled, so look modules up again instead of keeping an `id` for long.
+- The address of an MCP is not exposed.
 
 ### Body Interceptors
 
@@ -1179,7 +1203,7 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`, `'mcpAccess'`
 
 `'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 

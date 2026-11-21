@@ -1,7 +1,7 @@
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { MCPClient, type JsonRPC, type MCPTool, type RPCToolCallContent } from "./mcplib";
 import { DBState } from "src/ts/stores.svelte";
-import { getModuleMcps } from "../modules";
+import { getModuleMcps, getModules, type RisuModule } from "../modules";
 import { alertError, alertInput, alertNormal } from "src/ts/alert";
 import { v4 } from "uuid";
 import type { MCPClientLike } from "./internalmcp";
@@ -38,6 +38,17 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
         }
     }
     for(const mcp of mcpUrls) {
+        if(mcp.startsWith('plugin:')){
+            const customMCP = registeredCustomPluginMCPs.get(mcp);
+            if(customMCP){
+                MCPs[mcp] = customMCP;
+            }
+            else{
+                delete MCPs[mcp];
+            }
+            continue;
+        }
+
         if(!MCPs[mcp]) {
 
             let mcpUrl = mcp;
@@ -80,14 +91,6 @@ export async function initializeMCPs(additionalMCPs?:string[]) {
                 continue;
             }
 
-            if(mcp.startsWith('plugin:')){
-                const customMCP = registeredCustomPluginMCPs.get(mcp);
-                if(customMCP){
-                    MCPs[mcp] = customMCP;
-                    await MCPs[mcp].checkHandshake();
-                    continue;
-                }
-            }
             if(mcp.startsWith('stdio:')){
                 const MCPJSON = mcp.slice('stdio:'.length);
                 try {
@@ -273,6 +276,44 @@ export async function callMCPTool(methodName:string, args:any):Promise<RPCToolCa
     }]
 }
 
+async function loadEnabledMCPClients() {
+    try {
+        await initializeMCPs();
+    } catch (error) {
+        console.error('MCP: Failed to initialize MCPs:', error);
+        throw new Error('Failed to load MCP modules');
+    }
+    return getModules().flatMap((module) => {
+        const url = module.mcp?.url;
+        return url && Object.hasOwn(MCPs, url) ? [{ module, client: MCPs[url] }] : [];
+    });
+}
+
+async function getEnabledMCPClient(moduleId:string) {
+    const enabled = (await loadEnabledMCPClients()).find(({ module }) => module.id === moduleId);
+    if(!enabled) {
+        throw new Error(`MCP module ${moduleId} is not enabled`);
+    }
+    return enabled.client;
+}
+
+export async function getEnabledMCPs() {
+    return (await loadEnabledMCPClients()).map(({ module, client }) => ({
+        id: module.id,
+        name: client.serverInfo.serverInfo.name,
+        version: client.serverInfo.serverInfo.version,
+        description: client.serverInfo.instructions ?? '',
+    }));
+}
+
+export async function getEnabledMCPToolList(moduleId:string) {
+    return await (await getEnabledMCPClient(moduleId)).getToolList();
+}
+
+export async function callEnabledMCPTool(moduleId:string, toolName:string, args:any) {
+    return await (await getEnabledMCPClient(moduleId)).callTool(toolName, args);
+}
+
 //Currently just a wrapper for getMCPTools, but can be extended later for more than MCPs
 export async function getTools(){
     return await getMCPTools();
@@ -281,6 +322,37 @@ export async function getTools(){
 //Currently just a wrapper for callMCPTool, but can be extended later for more than MCPs
 export async function callTool(methodName:string, args:any) {
     return await callMCPTool(methodName, args);
+}
+
+function createMCPModule(url:string, meta:(MCPClient|MCPClientLike)['serverInfo']):RisuModule {
+    return {
+        name: meta.serverInfo.name,
+        description: "MCP from " + url,
+        mcp: {
+            url: url
+        },
+        id: v4(),
+        lorebook: [{
+            comment: "MCP Info",
+            content: `@@mcp\n\n<MCP Info>Name:${meta.serverInfo.name}\nVersion:${meta.serverInfo.version}\nInst:${meta.instructions ?? 'None'}</MCP Info>`,
+            key: '',
+            alwaysActive: true,
+            secondkey: "",
+            insertorder: 0,
+            mode: "normal",
+            selective: false
+        }]
+    }
+}
+
+export function addEnabledMCPModuleIfMissing(url:string, meta:(MCPClient|MCPClientLike)['serverInfo']) {
+    const db = getDatabase();
+    if(db.modules.some((module) => module.mcp?.url === url)){
+        return;
+    }
+    const module = createMCPModule(url, meta);
+    db.modules.push(module);
+    db.enabledModules.push(module.id);
 }
 
 export async function importMCPModule(){
@@ -318,24 +390,7 @@ export async function importMCPModule(){
             return;
         }
         const db = getDatabase();
-        db.modules.push({
-            name: meta.serverInfo.name,
-            description: "MCP from " + x,
-            mcp: {
-                url: x
-            },
-            id: v4(),
-            lorebook: [{
-                comment: "MCP Info",
-                content: `@@mcp\n\n<MCP Info>Name:${meta.serverInfo.name}\nVersion:${meta.serverInfo.version}\nInst:${meta.instructions ?? 'None'}</MCP Info>`,
-                key: '',
-                alwaysActive: true,
-                secondkey: "",
-                insertorder: 0,
-                mode: "normal",
-                selective: false
-            }]
-        })
+        db.modules.push(createMCPModule(x, meta))
         alertNormal(`MCP module imported successfully!\nName: ${meta.serverInfo.name}`);
 
     } catch (error) {

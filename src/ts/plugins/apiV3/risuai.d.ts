@@ -133,6 +133,20 @@ interface MCPToolDef {
 }
 
 /**
+ * An enabled MCP module, as returned by `risuai.getMCPs`
+ */
+interface MCPInfo {
+    /** Identifies the module in `getMCPToolList` and `callMCPTool` */
+    id: string;
+    /** Name reported by the MCP */
+    name: string;
+    /** Version reported by the MCP */
+    version: string;
+    /** Instructions reported by the MCP, or an empty string */
+    description: string;
+}
+
+/**
  * Text content returned from an MCP tool call
  */
 interface MCPToolCallTextContent {
@@ -1659,10 +1673,13 @@ interface RisuaiPluginAPI {
     // ========== MCP APIs ==========
 
     /**
-     * Registers a custom MCP (Model Context Protocol) module
+     * Registers a custom MCP (Model Context Protocol) module.
+     * The user is asked for consent the first time a plugin registers an identifier, and again when the plugin's script changes; the module is not registered if they decline.
+     * On first consent, an MCP module for the identifier is added and enabled unless one already exists.
+     * Throws if the identifier or name is invalid, or if the identifier is already registered by another plugin.
      * @param arg - MCP module configuration
-     * @param arg.identifier - Unique identifier (must start with 'plugin:')
-     * @param arg.name - Display name of the MCP module
+     * @param arg.identifier - Unique identifier (a single-line string starting with 'plugin:')
+     * @param arg.name - Display name of the MCP module (must not be empty)
      * @param arg.version - Version string
      * @param arg.description - Description of the MCP module
      * @param getToolList - Function that returns the list of available tools
@@ -1701,7 +1718,8 @@ interface RisuaiPluginAPI {
     ): Promise<void>;
 
     /**
-     * Unregisters a previously registered MCP module
+     * Unregisters a previously registered MCP module.
+     * Only identifiers registered by this plugin are affected.
      * @param identifier - The identifier used when registering the MCP module
      *
      * @example
@@ -1710,6 +1728,42 @@ interface RisuaiPluginAPI {
      * ```
      */
     unregisterMCP(identifier: string): Promise<void>;
+
+    /**
+     * Lists the MCP modules that are currently enabled for the open chat.
+     * Requires the `mcpAccess` permission.
+     * @returns The enabled MCP modules, or null if the user declines
+     *
+     * @example
+     * ```typescript
+     * const mcps = await risuai.getMCPs();
+     * const search = mcps?.find((mcp) => mcp.name === 'Web Search');
+     * ```
+     */
+    getMCPs(): Promise<MCPInfo[] | null>;
+
+    /**
+     * Gets the tools of an enabled MCP module.
+     * Requires the `mcpAccess` permission. Throws if the module is not enabled.
+     * @param id - `id` of an entry returned by `getMCPs`
+     * @returns The tool definitions, or null if the user declines
+     */
+    getMCPToolList(id: string): Promise<MCPToolDef[] | null>;
+
+    /**
+     * Calls a tool of an enabled MCP module.
+     * Requires the `mcpAccess` permission. Throws if the module is not enabled.
+     * @param id - `id` of an entry returned by `getMCPs`
+     * @param toolName - Name of the tool to call
+     * @param content - Arguments for the tool
+     * @returns The tool result, or null if the user declines
+     *
+     * @example
+     * ```typescript
+     * const result = await risuai.callMCPTool(search.id, 'web_search', { query: 'weather' });
+     * ```
+     */
+    callMCPTool(id: string, toolName: string, content: any): Promise<MCPToolCallContent[] | null>;
 
     // ========== Provider APIs ==========
 
@@ -2062,7 +2116,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Requests permission for a specific action
-     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom')
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom'|'mcpAccess')
      * @returns True if permission granted, false otherwise
      */
     requestPluginPermission(permission: string): Promise<boolean>;

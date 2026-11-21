@@ -4,6 +4,7 @@ import { runEmbedding } from "../transformers";
 import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { isContextModel, getContextProvider } from "./contextualEmbedding";
+import { batchByTokenBudget, getEmbeddingTokenCounter } from "./embeddingBatch";
 
 export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
@@ -58,7 +59,12 @@ export class HypaProcesser{
     }
 
     async embedDocuments(texts: string[]): Promise<VectorArray[]> {
-        const subPrompts = chunkArray(texts,50);
+        let subPrompts = chunkArray(texts,50);
+        if(!Object.keys(localModels.models).includes(this.model) && !isContextModel(this.model)){
+            const countTokens = getEmbeddingTokenCounter(this.model, getDatabase().hypaCustomSettings?.model);
+            const counts = await Promise.all(texts.map(text => countTokens(text)));
+            subPrompts = batchByTokenBudget(texts, counts, 50);
+        }
     
         const embeddings: VectorArray[] = [];
     

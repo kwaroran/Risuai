@@ -261,6 +261,23 @@ async function gemmaTokenize(text:string) {
     return gemmaTokenizer.encode(text)
 }
 
+let voyageTokenizerPromise: Promise<Tokenizer> = null
+
+export async function countVoyageTokens(text: string): Promise<number> {
+    if(!voyageTokenizerPromise){
+        voyageTokenizerPromise = (async () => {
+            const {Tokenizer} = await import('@mlc-ai/web-tokenizers')
+            return await Tokenizer.fromJSON(
+                await (await fetch("/token/voyage/tokenizer.json")).arrayBuffer()
+            )
+        })().catch((error) => {
+            voyageTokenizerPromise = null
+            throw error
+        })
+    }
+    return (await voyageTokenizerPromise).encode(text).length
+}
+
 async function tikJS(text:string, model='cl100k_base') {
     if(!tikParser || lastTikModel !== model){
         tikParser?.free()

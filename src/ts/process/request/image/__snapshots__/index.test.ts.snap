@@ -1,0 +1,428 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Imagen > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=google-key",
+      {
+        "body": {
+          "instances": [
+            {
+              "prompt": "a cat",
+            },
+          ],
+          "parameters": {
+            "aspectRatio": "16:9",
+            "personGeneration": "allow_adult",
+            "sampleCount": 1,
+            "sampleImageSize": "2K",
+          },
+        },
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "POST",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`comfy > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [
+    [
+      "http://comfy.test/history",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "GET",
+      },
+    ],
+    [
+      "http://comfy.test/view?filename=a.png&subfolder=sub&type=output",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "GET",
+      },
+    ],
+  ],
+  "globalFetch": [
+    [
+      "http://comfy.test/prompt",
+      {
+        "body": {
+          "prompt": {
+            "1": {
+              "inputs": {
+                "text": "a cat",
+              },
+            },
+            "2": {
+              "inputs": {
+                "text": "blurry",
+              },
+            },
+            "3": {
+              "inputs": {
+                "seed": 1,
+                "steps": 20,
+              },
+            },
+          },
+        },
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "POST",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`comfyui > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [
+    [
+      "http://comfy.test/api/history",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "GET",
+      },
+    ],
+    [
+      "http://comfy.test/api/view?filename=a.png&subfolder=sub&type=output",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "GET",
+      },
+    ],
+  ],
+  "globalFetch": [
+    [
+      "http://comfy.test/api/prompt",
+      {
+        "body": {
+          "prompt": {
+            "1": {
+              "inputs": {
+                "text": "a cat",
+              },
+            },
+            "2": {
+              "inputs": {
+                "text": "blurry",
+              },
+            },
+            "3": {
+              "inputs": {
+                "seed": 500000000,
+                "steps": 20,
+              },
+            },
+          },
+        },
+        "headers": {
+          "Content-Type": "application/json",
+        },
+        "method": "POST",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`dalle > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://api.openai.com/v1/images/generations",
+      {
+        "body": {
+          "model": "dall-e-3",
+          "prompt": "a cat",
+          "quality": "hd",
+          "response_format": "b64_json",
+          "style": "natural",
+        },
+        "headers": {
+          "Authorization": "Bearer openai-key",
+        },
+      },
+    ],
+  ],
+}
+`;
+
+exports[`fal > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://fal.run/fal-ai/flux-lora",
+      {
+        "body": {
+          "enable_safety_checker": false,
+          "image_size": {
+            "height": 768,
+            "width": 512,
+          },
+          "loras": [
+            {
+              "path": "https://civitai.com/api/download/models/2345?type=Model&format=SafeTensor",
+              "scale": 0.8,
+            },
+          ],
+          "prompt": "a cat",
+          "sync_mode": true,
+        },
+        "headers": {
+          "Authorization": "Key fal-token",
+          "Content-Type": "application/json",
+        },
+        "method": "POST",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`kei > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://kei.test/imaggen",
+      {
+        "body": {
+          "prompt": "a cat",
+        },
+        "headers": {
+          "x-api-key": "kei-token",
+        },
+      },
+    ],
+  ],
+}
+`;
+
+exports[`novelai > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://image.novelai.test/generate",
+      {
+        "body": {
+          "action": "generate",
+          "input": "a cat",
+          "model": "nai-diffusion-4-5-full",
+          "parameters": {
+            "add_original_image": true,
+            "autoSmea": false,
+            "cfg_rescale": 0,
+            "controlnet_strength": 1,
+            "deliberate_euler_ancestral_bug": false,
+            "director_reference_descriptions": [],
+            "director_reference_images": [],
+            "director_reference_information_extracted": [],
+            "director_reference_strength_values": [],
+            "dynamic_thresholding": false,
+            "extra_noise_seed": 7,
+            "height": 1216,
+            "image": undefined,
+            "legacy": false,
+            "legacy_uc": false,
+            "legacy_v3_extend": false,
+            "n_samples": 1,
+            "negative_prompt": "blurry",
+            "noise": undefined,
+            "noise_schedule": "karras",
+            "normalize_reference_strength_multiple": true,
+            "params_version": 3,
+            "prefer_brownian": true,
+            "qualityToggle": false,
+            "reference_image_multiple": [],
+            "reference_strength_multiple": [],
+            "sampler": "k_euler_ancestral",
+            "scale": 5,
+            "seed": 7,
+            "skip_cfg_above_sigma": null,
+            "sm": undefined,
+            "sm_dyn": undefined,
+            "steps": 28,
+            "strength": undefined,
+            "ucPreset": 3,
+            "uncond_scale": 1,
+            "use_coords": false,
+            "v4_negative_prompt": {
+              "caption": {
+                "base_caption": "blurry",
+                "char_captions": [],
+              },
+              "legacy_uc": false,
+            },
+            "v4_prompt": {
+              "caption": {
+                "base_caption": "a cat",
+                "char_captions": [],
+              },
+              "use_coords": false,
+              "use_order": true,
+            },
+            "width": 832,
+          },
+        },
+        "headers": {
+          "Authorization": "Bearer nai-key",
+        },
+        "rawResponse": true,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`openai-compat > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://compat.test/images",
+      {
+        "body": {
+          "model": "gpt-image-1",
+          "prompt": "a cat",
+          "quality": "auto",
+          "response_format": "b64_json",
+          "size": "1024x1024",
+        },
+        "headers": {
+          "Authorization": "Bearer compat-key",
+          "Content-Type": "application/json",
+        },
+      },
+    ],
+  ],
+}
+`;
+
+exports[`stability > sends the provider request 1`] = `
+{
+  "fetch": [
+    [
+      "https://api.stability.ai/v2beta/stable-image/generate/sd3",
+      {
+        "body": {
+          "model": "sd3-large",
+          "negative_prompt": "blurry",
+          "prompt": "a cat",
+        },
+        "headers": {
+          "accept": "image/*",
+          "authorization": "Bearer stab-key",
+        },
+        "method": "POST",
+      },
+    ],
+  ],
+  "fetchNative": [],
+  "globalFetch": [],
+}
+`;
+
+exports[`wavespeed > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "https://api.wavespeed.ai/api/v3/bytedance/seedream",
+      {
+        "body": {
+          "loras": [
+            {
+              "path": "lora-a",
+              "scale": 0.5,
+            },
+          ],
+          "prompt": "a cat",
+        },
+        "headers": {
+          "Authorization": "Bearer ws-key",
+          "Content-Type": "application/json",
+        },
+      },
+    ],
+    [
+      "https://api.wavespeed.ai/api/v3/predictions/t1/result",
+      {
+        "headers": {
+          "Authorization": "Bearer ws-key",
+        },
+        "method": "GET",
+      },
+    ],
+    [
+      "https://ws.test/out.webp",
+      {
+        "headers": {
+          "Authorization": "Bearer ws-key",
+        },
+        "method": "GET",
+        "rawResponse": true,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`webui > sends the provider request 1`] = `
+{
+  "fetch": [],
+  "fetchNative": [],
+  "globalFetch": [
+    [
+      "http://sd.test/sdapi/v1/txt2img",
+      {
+        "body": {
+          "cfg_scale": 7,
+          "denoising_strength": 0.5,
+          "enable_hr": false,
+          "height": 768,
+          "hr_scale": 2,
+          "hr_upscaler": "Latent",
+          "negative_prompt": "blurry",
+          "prompt": "a cat",
+          "sampler_name": "Euler a",
+          "seed": -1,
+          "steps": 20,
+          "width": 512,
+        },
+        "headers": {
+          "Content-Type": "application/json",
+        },
+      },
+    ],
+  ],
+}
+`;

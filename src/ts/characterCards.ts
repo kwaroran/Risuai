@@ -1045,6 +1045,7 @@ async function importCharacterCardSpec<T extends boolean = false>(card:Character
         additionalAssets: extAssets,
         replaceGlobalNote: data.post_history_instructions ?? '',
         backgroundHTML: data?.extensions?.risuai?.backgroundHTML,
+        sidePanelHTML: data?.extensions?.risuai?.sidePanelHTML,
         license: data?.extensions?.risuai?.license,
         triggerscript: data?.extensions?.risuai?.triggerscript ?? [],
         private: data?.extensions?.risuai?.private ?? false,
@@ -1270,6 +1271,7 @@ function createBaseV2(char:character) {
                     sdData: char.sdData,
                     // additionalAssets: char.additionalAssets,
                     backgroundHTML: char.backgroundHTML,
+                    sidePanelHTML: char.sidePanelHTML,
                     license: char.license,
                     triggerscript: char.triggerscript,
                     additionalText: char.additionalText,
@@ -1692,6 +1694,7 @@ export function createBaseV3(char:character){
                     utilityBot: char.utilityBot,
                     sdData: char.sdData,
                     backgroundHTML: char.backgroundHTML,
+                    sidePanelHTML: char.sidePanelHTML,
                     license: char.license,
                     triggerscript: char.triggerscript,
                     additionalText: char.additionalText,
@@ -2001,6 +2004,7 @@ type CharacterCardV2Risu = {
                 sdData?:[string,string][],
                 additionalAssets?:[string,string,string][],
                 backgroundHTML?:string,
+                sidePanelHTML?:string,
                 license?:string,
                 triggerscript?:triggerscript[]
                 private?:boolean

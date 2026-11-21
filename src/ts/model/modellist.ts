@@ -503,6 +503,74 @@ export const LLMModels: LLMModel[] = [
         endpoint: 'https://api.deepseek.com/beta/chat/completions',
         keyIdentifier: 'deepseek'
     },
+    // CrowLLM
+    {
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm',
+        recommended: true
+    },
+    {
+        id: 'glm-5.3',
+        name: 'GLM 5.3',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm'
+    },
+    {
+        id: 'kimi-k3',
+        name: 'Kimi K3',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm'
+    },
+    {
+        id: 'claude-opus-4-7',
+        name: 'Claude Opus 4.7',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasPrefill, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm'
+    },
+    {
+        id: 'gemini-3.7-flash',
+        name: 'Gemini 3.7 Flash',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm'
+    },
+    {
+        id: 'qwen-3.8-27b:free',
+        name: 'Qwen 3.8 27B (free)',
+        provider: LLMProvider.CrowLLM,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: OpenAIParameters,
+        tokenizer: LLMTokenizer.Unknown,
+        endpoint: 'https://crowllm.com/v1/chat/completions',
+        keyIdentifier: 'crowllm'
+    },
     // DeepInfra
     ...makeDeepInfraModels([
         'deepseek-ai/DeepSeek-R1',

@@ -25,7 +25,7 @@ import { processScriptFull } from "src/ts/process/scripts";
 import { getModelInfo } from "src/ts/model/modellist";
 import type { ModelModeExtended } from "src/ts/process/request/shared";
 import { requestChatDataMain } from "src/ts/process/request/request";
-import { getModuleLorebooks } from "src/ts/process/modules";
+import { getModuleLorebooks, moduleUpdate, refreshModules } from "src/ts/process/modules";
 import {
     registerTTSPreprocessor,
     unregisterTTSPreprocessor,
@@ -813,6 +813,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         }),
         setDatabase: withDbWrite(oldApis.setDatabase),
         loadPlugins: oldApis.loadPlugins,
+        refreshModules: refreshModules,
+        moduleUpdate: moduleUpdate,
         readImage: oldApis.readImage,
         readInlay: async (id: string) => {
             const conf = await getPermission('inlay', 'periodically');

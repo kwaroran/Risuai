@@ -2020,6 +2020,24 @@ interface RisuaiPluginAPI {
      */
     saveAsset(data: any): Promise<string>;
 
+    // ========== Modules ==========
+
+    /**
+     * Drops the app's cached list of active modules, so that it is rebuilt from the database
+     * the next time it is needed. The cache is only rebuilt by itself when the ids of the
+     * active modules change, so a module object replaced under the same id keeps being used
+     * until then. Call this after replacing a module object, then call moduleUpdate().
+     */
+    refreshModules(): Promise<void>;
+
+    /**
+     * Recomputes what the app derives from the active modules: whether chat icons are hidden,
+     * the background embedding, and a GUI reload when the set of active modules changed.
+     * Call this after changing modules or which modules are active. If you replaced a module
+     * object, call refreshModules() first, otherwise this reads the cached one.
+     */
+    moduleUpdate(): Promise<void>;
+
     // ========== Plugin Management ==========
 
     /**

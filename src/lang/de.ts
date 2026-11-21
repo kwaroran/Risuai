@@ -769,6 +769,7 @@ export const languageGerman = {
     "advanced": "Erweitert",
     "askReRollAutoSuggestions": "Neue Generierung für automatische Vorschläge",
     "creatingSuggestions": "Erstellung von Vorschlägen...",
+    "insertSuggestionToInput": "Ins Eingabefeld übernehmen",
     "orderByOrder": "Nach bestimmter Reihenfolge sprechen",
     "removeFromGroup": "Möchten Sie {{char}} wirklich aus der Gruppe entfernen?",
     "talkness": "Gesprächigkeit",

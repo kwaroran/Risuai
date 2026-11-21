@@ -278,24 +278,28 @@ body {
   font-weight: bold;
 }
 
-.chattext mark[risu-mark="quote1"] {
+.chattext mark[risu-mark="quote1"],
+.suggestion-text mark[risu-mark="quote1"] {
   background-color: transparent;
   color: var(--FontColorQuote1);
 }
 
-.chattext mark[risu-mark="quote2"] {
+.chattext mark[risu-mark="quote2"],
+.suggestion-text mark[risu-mark="quote2"] {
   background-color: transparent;
   color: var(--FontColorQuote2);
 }
 
-.chattext mark[risu-mark="blockquote1"] {
+.chattext mark[risu-mark="blockquote1"],
+.suggestion-text mark[risu-mark="blockquote1"] {
   border-left: 4px solid var(--FontColorQuote1);
   background-color: color-mix(in srgb, transparent 90%, var(--FontColorQuote1) 10%);
   padding: 0.5rem 1rem;
   color: var(--FontColorQuote1);
 }
 
-.chattext mark[risu-mark="blockquote2"] {
+.chattext mark[risu-mark="blockquote2"],
+.suggestion-text mark[risu-mark="blockquote2"] {
   border-left: 4px solid var(--FontColorQuote2);
   background-color: color-mix(in srgb, transparent 90%, var(--FontColorQuote2) 10%);
   padding: 0.5rem 1rem;

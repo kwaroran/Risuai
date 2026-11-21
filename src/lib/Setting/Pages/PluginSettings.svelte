@@ -6,6 +6,7 @@
 
     import { DBState, hotReloading } from "src/ts/stores.svelte";
     import { checkPluginUpdate, createBlankPlugin, importPlugin, loadPlugins, updatePlugin } from "src/ts/plugins/plugins.svelte";
+    import { removePluginEntry } from "src/ts/plugins/apiV3/pluginManagement";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
@@ -80,11 +81,12 @@
                         <button
                             class="text-green-400 hover:gray-200 cursor-pointer"
                             onclick={async () => {
+                                const target = plugin
                                 const v = await alertConfirm(
                                     language.pluginUpdateFoundInstallIt
                                 );
                                 if (v) {
-                                    updatePlugin(plugin)
+                                    updatePlugin(target)
                                 }
                             }}
                         >
@@ -114,17 +116,13 @@
             <button
                 class="textcolor2 hover:gray-200 cursor-pointer"
                 onclick={async () => {
+                    const target = plugin
                     const v = await alertConfirm(
                         language.removeConfirm +
-                            (plugin.displayName ?? plugin.name),
+                            (target.displayName ?? target.name),
                     );
                     if (v) {
-                        if (DBState.db.currentPluginProvider === plugin.name) {
-                            DBState.db.currentPluginProvider = "";
-                        }
-                        let plugins = DBState.db.plugins ?? [];
-                        plugins.splice(i, 1);
-                        DBState.db.plugins = plugins;
+                        removePluginEntry(DBState.db, target)
                         loadPlugins()
                     }
                 }}

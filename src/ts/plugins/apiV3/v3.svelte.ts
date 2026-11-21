@@ -1,6 +1,7 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
 import { createPluginScriptHashGetter, getPluginPermissionKey, PluginPermissionSessionCache, runWithPluginPermission, type PluginPermission } from "./pluginPermissionCache";
+import { listPlugins, removePluginsNamed, reorderPlugins, setPluginArgument, setPluginEnabled } from "./pluginManagement";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
@@ -601,6 +602,7 @@ const permissionConsentTexts: Record<PluginPermission, () => string> = {
     fetchLogs: () => language.fetchLogConsent,
     db: () => language.getFullDatabaseConsent,
     dbWrite: () => language.dbWriteConsent,
+    pluginManage: () => language.pluginManageConsent,
     mainDom: () => language.mainDomAccessConsent,
     replacer: () => language.replacerPermissionConsent,
     provider: () => language.providerPermissionConsent,
@@ -696,6 +698,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             () => getPermission('dbWrite', 'periodically'),
             async () => { await write(...args) },
             undefined
+        )
+    }
+    const withPluginManage = <A extends any[], T>(apply: (...args: A) => T, deniedResult: T) => {
+        return (...args: A) => runWithPluginPermission(
+            () => getPermission('pluginManage', 'periodically'),
+            async () => apply(...args),
+            deniedResult
         )
     }
     return {
@@ -1359,6 +1368,26 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         _lengthSafeLocalStorage: () => {
             return oldApis.safeLocalStorage.length
         },
+        _listPlugins: withPluginManage(() => {
+            return listPlugins(DBState.db.plugins ?? []);
+        }, null),
+        _setPluginEnabled: withPluginManage((name: string, enabled: boolean) => {
+            return setPluginEnabled(DBState.db.plugins ?? [], name, enabled);
+        }, false),
+        _setPluginOrder: withPluginManage((names: string[]) => {
+            const ordered = reorderPlugins(DBState.db.plugins ?? [], names);
+            if(!ordered){
+                return false;
+            }
+            DBState.db.plugins = ordered;
+            return true;
+        }, false),
+        _removePlugin: withPluginManage((name: string) => {
+            return removePluginsNamed(DBState.db, name);
+        }, false),
+        _setPluginArgument: withPluginManage((name: string, key: string, value: string|number) => {
+            return setPluginArgument(DBState.db.plugins ?? [], name, key, value);
+        }, false),
         searchTranslationCache: async (partialKey: string) => {
             return searchLLMCache(partialKey)
         },
@@ -1384,6 +1413,13 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     'key': '_keySafeLocalStorage',
                     'keys': '_keysSafeLocalStorage',
                     'length': '_lengthSafeLocalStorage',
+                },
+                'pluginManagement':{
+                    'list': '_listPlugins',
+                    'setEnabled': '_setPluginEnabled',
+                    'setOrder': '_setPluginOrder',
+                    'remove': '_removePlugin',
+                    'setArgument': '_setPluginArgument',
                 }
             }
         },

@@ -1147,6 +1147,97 @@ interface SafeLocalStorage {
     length(): Promise<number>;
 }
 
+/**
+ * An installed plugin as listed by `pluginManagement.list()`
+ */
+interface InstalledPluginInfo {
+    /** Plugin name (identifier, `//@name`) */
+    name: string;
+    /** Display name shown in UI */
+    displayName?: string;
+    /** API version */
+    version?: 1 | 2 | '2.1' | '3.0';
+    /** Whether the plugin is enabled */
+    enabled: boolean;
+}
+
+/**
+ * Lists and manages the installed plugins: enables or disables them, sets their
+ * order, removes them and sets their arguments.
+ *
+ * Every method requires the `pluginManage` permission. When the user declines,
+ * `list` resolves to `null` and the other methods resolve to `false`. `setEnabled`,
+ * `setOrder` and `setArgument` resolve to `true` also when nothing had to change.
+ * Once the permission is granted, an argument of the wrong type (for example a
+ * name that is not a string) makes the call reject with an error.
+ *
+ * Changes are written to the database. Enabling, disabling, reordering and removing
+ * apply to the running plugins only after `risuai.loadPlugins()`; a new argument
+ * value is returned by the target plugin's next `getArgument()` call without a reload.
+ * `loadPlugins()` reloads the calling plugin too, so call it in response to a user
+ * action. A plugin that calls it every time it starts is restarted by each reload,
+ * so the reloading never stops.
+ *
+ * Plugins are identified by name (`//@name`). If several installed plugins share
+ * a name, a call applies to all of them.
+ *
+ * @example
+ * ```typescript
+ * await risuai.registerButton({
+ *   name: 'Disable Some Plugin',
+ *   icon: '',
+ *   iconType: 'none'
+ * }, async () => {
+ *   if (await risuai.pluginManagement.setEnabled('Some Plugin', false)) {
+ *     await risuai.loadPlugins();
+ *   }
+ * });
+ * ```
+ */
+interface PluginManagement {
+    /**
+     * Lists the installed plugins in the plugin order.
+     * The entries do not include plugin scripts or arguments.
+     * @returns The installed plugins, or null if the user declines the permission.
+     * A name shared by several plugins appears once per plugin
+     */
+    list(): Promise<InstalledPluginInfo[] | null>;
+
+    /**
+     * Enables or disables a plugin.
+     * @param name - Plugin name
+     * @param enabled - Whether the plugin should be enabled
+     * @returns True if the plugin is now in the requested state. False if it is not installed
+     */
+    setEnabled(name: string, enabled: boolean): Promise<boolean>;
+
+    /**
+     * Sets the order of the installed plugins.
+     * When plugins load, API 2.1 plugins are started first, then API 3.0 plugins in this order.
+     * @param names - The name of every installed plugin, in the new order (see `list`).
+     * A name shared by several plugins is listed once per plugin
+     * @returns True if the plugins are now in the requested order. False if `names` does not match the installed plugins exactly
+     */
+    setOrder(names: string[]): Promise<boolean>;
+
+    /**
+     * Removes a plugin.
+     * @param name - Plugin name
+     * @returns True if the plugin was removed. False if it is not installed
+     */
+    remove(name: string): Promise<boolean>;
+
+    /**
+     * Sets an argument value of any installed plugin, selected by name.
+     * For the calling plugin's own arguments, `risuai.setArgument(key, value)` needs no permission.
+     * @param name - Plugin name
+     * @param key - Argument key declared by that plugin (`//@arg`)
+     * @param value - Value to set
+     * @returns True if the argument now holds the value. False if the plugin is not installed or does not declare the argument
+     */
+    setArgument(name: string, key: string, value: string | number): Promise<boolean>;
+}
+
 // ============================================================================
 // Provider API
 // ============================================================================
@@ -2028,6 +2119,12 @@ interface RisuaiPluginAPI {
     loadPlugins(): Promise<void>;
 
     /**
+     * Lists, enables, disables, reorders, removes and configures the installed plugins.
+     * Requires the `pluginManage` permission.
+     */
+    pluginManagement: PluginManagement;
+
+    /**
      * Registers an unload function called when plugin is unloaded
      */
     onUnload(func: () => void | Promise<void>): Promise<void>;
@@ -2062,7 +2159,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Requests permission for a specific action
-     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom')
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'pluginManage'|'mainDom')
      * @returns True if permission granted, false otherwise
      */
     requestPluginPermission(permission: string): Promise<boolean>;

@@ -292,7 +292,7 @@ export async function removeColdStorageItems(keys:string[]) {
         try {
             const storage = forageStorage.realStorage as NodeStorage
             const deleteKeys = keys.map(k => 'coldstorage/' + k);
-            (storage as NodeStorage).removeItem(deleteKeys)
+            await (storage as NodeStorage).removeItem(deleteKeys)
         } catch (error) {
             console.error(error)
         }

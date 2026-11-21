@@ -537,13 +537,21 @@ export function LoadLocalBackup(){
             let db = pendingDatabase;
             if(encryptionMeta.type === 'account' && encryptionMeta.time){
                 try {
-                    const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
+                    const response = await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)
+                    if(!response.ok){
+                        throw new Error(`Encryption key request failed (HTTP ${response.status})`)
+                    }
+                    const key = (await response.json())?.key
+                    if(typeof key !== 'string' || key.trim().length === 0){
+                        throw new Error('Invalid encryption key response')
+                    }
                     const decrypted = await decryptBuffer(db, key)
                     db = new Uint8Array(decrypted)
                 }
                 catch (e) {
                     console.error('Failed to decrypt database backup:', e)
-                    alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
+                    alertError(`Failed to restore encrypted database backup: ${e instanceof Error ? e.message : String(e)}`)
+                    return
                 }
             }
             const { database: dbData, kv: kvData } = await decodeRisuSave(db);

@@ -1764,6 +1764,7 @@ export const languageEnglish = {
     localToggles: "Local Toggles",
     comfyWorkflow: "Workflow (API)",
     comfyWorkflowInvalidJson: "Invalid workflow file. It must be a valid JSON.",
+    hideRelatedLinks: "Hide Related Links",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

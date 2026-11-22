@@ -478,14 +478,14 @@
 >
   {#if !DBState.db.hamburgerButtonBottom}
   <button
-    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500 risu-sidebar-menu"
     onclick={() => {
       menuMode = 1 - menuMode;
     }}><ListIcon />
   </button>
   <div class="mt-2 border-b border-b-selected w-full relative text-white ">
     {#if menuMode === 1}
-      <div class="absolute w-20 min-w-20 flex border-b-selected border-b bg-bgcolor flex-col items-center pt-2 rounded-b-md z-20 pb-2">
+      <div class="absolute w-20 min-w-20 flex border-b-selected border-b bg-bgcolor flex-col items-center pt-2 rounded-b-md z-20 pb-2 risu-sidebar-popout">
         <BarIcon
         onClick={() => {
           if ($settingsOpen) {
@@ -829,7 +829,7 @@
   {#if DBState.db.hamburgerButtonBottom}
   <div class="border-t border-t-selected w-full relative text-white ">
     {#if menuMode === 1}
-      <div class="absolute bottom-full w-20 min-w-20 flex border-t-selected border-t bg-bgcolor flex-col items-center pt-2 rounded-t-md z-20 pb-2">
+      <div class="absolute bottom-full w-20 min-w-20 flex border-t-selected border-t bg-bgcolor flex-col items-center pt-2 rounded-t-md z-20 pb-2 risu-sidebar-popout">
         <BarIcon
         onClick={() => {
           if ($settingsOpen) {
@@ -883,7 +883,7 @@
     {/if}
   </div>
   <button
-    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500 risu-sidebar-menu"
     onclick={() => {
       menuMode = 1 - menuMode;
     }}><ListIcon />
@@ -951,7 +951,7 @@
         </div>
       </div>
     {:else}
-      <div class="w-full h-8 min-h-8 border-l border-b border-r border-selected relative bottom-6 rounded-b-md flex">
+      <div class="w-full h-8 min-h-8 border-l border-b border-r border-selected relative bottom-6 rounded-b-md flex risu-sidebar-tabs">
         <button onclick={() => {
           devTool = false
           botMakerMode.set(false)

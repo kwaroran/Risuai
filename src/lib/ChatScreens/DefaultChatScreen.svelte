@@ -585,7 +585,7 @@
             }
         }}>
             <div
-                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full"
+                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full risu-chat-input-bar"
                     style="{DBState.db.fixedChatTextarea ? 'z-index:29;' : ''}"
             >
                 {#if DBState.db.useChatSticker && currentCharacter.type !== 'group'}
@@ -910,7 +910,7 @@
             {/if}
 
             {#if openMenu}
-                <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md" onclick={(e) => {
+                <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md risu-chat-menu" onclick={(e) => {
                     e.stopPropagation()
                 }}>
                     {#if DBState.db.characters[$selectedCharID].type === 'group'}

@@ -15,7 +15,7 @@
 </script>
 
 
-<button class="bg-darkbg rounded-lg p-4 flex flex-col hover:bg-selected transition-colors relative lg:w-96 w-full items-start" onclick={onClick}>
+<button class="p-4 flex flex-col transition-colors relative lg:w-96 w-full items-start bg-darkbg rounded-lg hover:bg-selected risu-card" onclick={onClick}>
     <div class="flex gap-2 w-full">
     {#if DBState.db.hideAllImages}
         <div class="w-20 min-w-20 h-20 sm:h-28 sm:w-28 rounded-md bg-darkbutton flex items-center justify-center text-textcolor2">

@@ -66,7 +66,7 @@
         {/if}
     </div>
 {:else}
-    <div class="grow h-full min-w-0 relative justify-center flex">
+    <div class="grow h-full min-w-0 relative justify-center flex risu-main-stage" class:risu-stage-chat={$selectedCharID >= 0}>
         <SideBarArrow />
         <BackgroundDom />
         <div style={bgImg} class="h-full w-full" class:max-w-6xl={DBState.db.classicMaxWidth}>

@@ -241,7 +241,7 @@
 
 
 {#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4">
+    <div class="flex w-full rounded-md border border-darkborderc mb-4 risu-seg">
         <button onclick={() => {
             submenu = 0
         }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>

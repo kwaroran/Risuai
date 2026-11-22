@@ -574,3 +574,646 @@ annotation {
     background-image: none;
   }
 }
+
+
+/*
+ * Aurora theme
+ * A flat shell with one rounded stage, a halftone sky painted on top of it and a
+ * floating composer. App.svelte sets these classes on <html>:
+ *   risu-aurora        the theme is selected
+ *   risu-aurora-light  the color scheme is a light one
+ *   risu-aurora-font   no custom font is set, so the theme brings its own
+ * src/ts/gui/auroraArt.ts renders the sky into --risu-aurora-art.
+ *
+ * Surfaces stay opaque on purpose. backdrop-filter would make each panel a
+ * containing block for its position: fixed popups.
+ */
+html.risu-aurora {
+  --aurora-shell: var(--risu-theme-darkbg);
+  --aurora-surface: var(--risu-theme-bgcolor);
+  --aurora-raised: color-mix(in oklab, var(--risu-theme-bgcolor) 93%, var(--risu-theme-textcolor));
+  --aurora-bubble: color-mix(in oklab, var(--risu-theme-bgcolor) 88%, var(--risu-theme-textcolor));
+  --aurora-fill: color-mix(in oklab, var(--risu-theme-textcolor) 6%, transparent);
+  --aurora-fill-strong: color-mix(in oklab, var(--risu-theme-textcolor) 10%, transparent);
+  --aurora-line: color-mix(in oklab, var(--risu-theme-textcolor) 9%, transparent);
+  --aurora-line-strong: color-mix(in oklab, var(--risu-theme-textcolor) 16%, transparent);
+  --aurora-accent: #b9a8ff;
+  --aurora-accent-fill: color-mix(in oklab, var(--aurora-accent) 15%, transparent);
+  --aurora-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 16px 40px -16px rgb(0 0 0 / 0.5);
+  --aurora-radius: 1rem;
+}
+
+html.risu-aurora-light {
+  --aurora-accent: #6d4aff;
+  --aurora-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 16px 40px -16px rgb(15 23 42 / 0.22);
+}
+
+/* Beats the inline font colorscheme.ts sets for the default font */
+html.risu-aurora-font {
+  --risu-font-family: "Pretendard Variable", Pretendard, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif !important;
+}
+
+html.risu-aurora body {
+  background-color: var(--aurora-shell);
+}
+
+/* Shell: the sidebars sit flat on the darkest tone */
+html.risu-aurora .rs-sidebar,
+html.risu-aurora .setting-area {
+  background-color: var(--aurora-shell);
+  box-shadow: none;
+}
+
+html.risu-aurora .setting-area {
+  border-right: 1px solid var(--aurora-line);
+}
+
+/* Stage: everything right of the sidebars is one inset, rounded window */
+html.risu-aurora .risu-main-stage {
+  isolation: isolate;
+  overflow: hidden;
+  align-self: stretch;
+  height: auto;
+  margin: 0.5rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius);
+  background-color: var(--aurora-surface);
+  box-shadow: var(--aurora-shadow);
+}
+
+html.risu-aurora .risu-main-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--risu-aurora-art, none) top center / var(--risu-aurora-art-size, cover) no-repeat;
+}
+
+/* Inside a chat the sky steps back so the messages stay easy to read */
+html.risu-aurora .risu-stage-chat::before {
+  opacity: 0.4;
+  mask-image: linear-gradient(#000, transparent 55%);
+}
+
+html.risu-aurora .risu-aurora-tab {
+  top: 0.75rem;
+  left: 0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: 999px;
+  background-color: var(--aurora-raised);
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .risu-aurora-tab:hover {
+  border-color: var(--aurora-line-strong);
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-aurora-tab svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Messages: a centered column, user turns in bubbles, replies as plain text */
+html.risu-aurora .risu-aurora-msg {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+html.risu-aurora .risu-aurora-user {
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+}
+
+html.risu-aurora .risu-aurora-bubble {
+  max-width: min(85%, 36rem);
+  min-width: 0;
+  padding: 0.625rem 1rem;
+  border-radius: 1.25rem;
+  background-color: var(--aurora-bubble);
+}
+
+html.risu-aurora .risu-aurora-bubble .chattext {
+  max-width: 100%;
+}
+
+html.risu-aurora .risu-aurora-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+html.risu-aurora .risu-aurora-head > :first-child {
+  box-shadow: 0 0 0 1px var(--aurora-line-strong);
+}
+
+html.risu-aurora .risu-aurora-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--risu-theme-textcolor);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.risu-aurora .risu-aurora-meta > div {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+html.risu-aurora .risu-aurora-meta button {
+  margin: 0;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .risu-aurora-meta button:hover {
+  --tw-ring-shadow: 0 0 #0000;
+  background-color: var(--aurora-fill);
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-aurora-meta svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+html.risu-aurora .risu-aurora-tools {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 1.75rem;
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .risu-aurora-head .risu-aurora-tools {
+  flex: 1;
+}
+
+html.risu-aurora .risu-aurora-tools svg {
+  width: 1.0625rem;
+  height: 1.0625rem;
+}
+
+/* Message tools appear on hover, but the latest message keeps its rerolls in view */
+@media (hover: hover) {
+  html.risu-aurora .risu-aurora-tools {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  html.risu-aurora .risu-chat:hover .risu-aurora-tools,
+  html.risu-aurora .risu-aurora-tools:focus-within,
+  html.risu-aurora .chat-message-container:first-of-type .risu-aurora-tools {
+    opacity: 1;
+  }
+}
+
+html.risu-aurora .chattext :not(pre) > code {
+  padding: 0.125em 0.4em;
+  border-radius: 0.375rem;
+  background-color: var(--aurora-accent-fill);
+  color: var(--aurora-accent);
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
+html.risu-aurora .chattext :not(pre) > code::before,
+html.risu-aurora .chattext :not(pre) > code::after {
+  content: none;
+}
+
+html.risu-aurora .chattext pre {
+  border: 1px solid var(--aurora-line);
+  border-radius: 0.75rem;
+}
+
+/* Composer: a floating card with the text on top and a toolbar below */
+html.risu-aurora .risu-chat-input-bar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  width: calc(100% - 2rem);
+  max-width: 48rem;
+  margin: 0.75rem auto 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--aurora-line-strong);
+  border-radius: 1.5rem;
+  background-color: var(--aurora-raised);
+  box-shadow: var(--aurora-shadow);
+  transition: border-color 0.15s ease;
+}
+
+html.risu-aurora .risu-chat-input-bar:focus-within {
+  border-color: color-mix(in oklab, var(--risu-theme-textcolor) 28%, transparent);
+}
+
+html.risu-aurora .risu-chat-input-bar.sticky {
+  bottom: 0.75rem;
+}
+
+html.risu-aurora .risu-chat-input-bar > textarea {
+  flex: 1 0 100%;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: 0.375rem 0.625rem 0.25rem;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+html.risu-aurora .risu-chat-input-bar > textarea::placeholder {
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .risu-chat-input-bar > :not(textarea) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  order: 1;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem !important;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--risu-theme-textcolor2);
+  cursor: pointer;
+}
+
+html.risu-aurora .risu-chat-input-bar > :not(textarea):hover {
+  background-color: var(--aurora-fill-strong);
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-chat-input-bar > div:first-child.text-green-500 {
+  color: #22c55e;
+}
+
+html.risu-aurora .risu-chat-input-bar > textarea + button {
+  order: 2;
+  margin-left: auto;
+}
+
+html.risu-aurora .risu-chat-input-bar > .button-icon-send,
+html.risu-aurora .risu-chat-input-bar > .button-icon-send:hover {
+  background-color: var(--risu-theme-textcolor);
+  color: var(--risu-theme-bgcolor);
+}
+
+html.risu-aurora .risu-chat-input-bar > .button-icon-send:hover {
+  opacity: 0.85;
+}
+
+html.risu-aurora .risu-chat-input-bar svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Popups and cards share one surface */
+html.risu-aurora .risu-chat-menu,
+html.risu-aurora .risu-card {
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius);
+  background-color: var(--aurora-raised);
+  box-shadow: var(--aurora-shadow);
+}
+
+html.risu-aurora .risu-card {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.2s ease;
+}
+
+html.risu-aurora button.risu-card:hover {
+  border-color: var(--aurora-line-strong);
+  background-color: color-mix(in oklab, var(--aurora-raised) 92%, var(--risu-theme-textcolor));
+}
+
+/* Home */
+html.risu-aurora .risu-home > h1,
+html.risu-aurora .risu-home > h2 {
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 24px var(--risu-theme-bgcolor);
+}
+
+html.risu-aurora .risu-home-version,
+html.risu-aurora .risu-home-chip {
+  margin-top: 0.75rem;
+  padding: 0.125rem 0.75rem;
+  border: 1px solid var(--aurora-line-strong);
+  border-radius: 999px;
+  background-color: var(--aurora-raised);
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+html.risu-aurora .risu-home-chip {
+  margin-top: 0.125rem;
+  font-weight: 500;
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-home-chip:hover {
+  --tw-ring-shadow: 0 0 #0000;
+  background-color: var(--aurora-bubble);
+}
+
+html.risu-aurora .risu-home h1 {
+  letter-spacing: -0.02em;
+}
+
+html.risu-aurora .risu-home .border-t-selected {
+  border-color: var(--aurora-line);
+}
+
+/* Section titles get the same pill as the Get More chip beside them */
+html.risu-aurora .risu-home-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+html.risu-aurora .risu-home-heading {
+  padding: 0.25rem 1.125rem;
+  border: 1px solid var(--aurora-line-strong);
+  border-radius: 999px;
+  background-color: var(--aurora-raised);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+/* Plain status lines under a section title (Realm hidden, hub failed) */
+html.risu-aurora .risu-home-note {
+  margin-top: 1rem;
+  padding: 0.75rem 1.125rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius);
+  background-color: var(--aurora-raised);
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+
+/* The hub notice is server HTML painted with an inline darkbg background */
+html.risu-aurora .hub-notice [style*="--risu-theme-darkbg"] {
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius) !important;
+  background-color: var(--aurora-raised) !important;
+}
+
+/* Search pill used by Realm */
+html.risu-aurora .risu-search-bar {
+  overflow: hidden;
+  margin-inline: 1rem;
+  border: 1px solid var(--aurora-line-strong);
+  border-radius: 999px;
+  background-color: var(--aurora-raised);
+}
+
+html.risu-aurora .risu-search-bar:focus-within {
+  border-color: color-mix(in oklab, var(--risu-theme-textcolor) 28%, transparent);
+}
+
+html.risu-aurora .risu-search-bar > * {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+html.risu-aurora .risu-search-bar > input {
+  padding-inline: 1.25rem;
+  font-size: 1rem;
+}
+
+html.risu-aurora .risu-search-bar > button {
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .risu-search-bar > button:hover {
+  background-color: var(--aurora-fill-strong);
+  color: var(--risu-theme-textcolor);
+}
+
+/* Sidebar: a quiet menu button and a segmented Chat / Character switch */
+html.risu-aurora .risu-sidebar-menu,
+html.risu-aurora .risu-sidebar-popout > button {
+  width: 3.5rem;
+  min-width: 3.5rem;
+  border-radius: 0.875rem;
+  background-color: var(--aurora-fill-strong);
+  box-shadow: none;
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-sidebar-menu {
+  height: 2.5rem;
+  min-height: 2.5rem;
+}
+
+html.risu-aurora .risu-sidebar-menu:hover,
+html.risu-aurora .risu-sidebar-popout > button:hover {
+  background-color: color-mix(in oklab, var(--risu-theme-textcolor) 16%, transparent);
+}
+
+/* The menu that drops out of the button keeps the sidebar's own tone */
+html.risu-aurora .risu-sidebar-popout {
+  gap: 0;
+  border-color: var(--aurora-line);
+  background-color: var(--aurora-shell);
+}
+
+html.risu-aurora .rs-sidebar > .border-b-selected {
+  border-color: var(--aurora-line);
+}
+
+html.risu-aurora .risu-sidebar-tabs,
+html.risu-aurora .risu-seg {
+  /* both sit in column flex parents that would otherwise squash them */
+  flex-shrink: 0;
+  gap: 0.1875rem;
+  height: auto;
+  min-height: 0;
+  padding: 0.1875rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: 0.75rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-sidebar-tabs {
+  bottom: 0.75rem;
+}
+
+html.risu-aurora .risu-sidebar-tabs > button,
+html.risu-aurora .risu-seg > button {
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  border-radius: 0.5625rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--risu-theme-textcolor2);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-sidebar-tabs > button:hover,
+html.risu-aurora .risu-seg > button:hover {
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-sidebar-tabs > button:not(.text-textcolor2),
+html.risu-aurora .risu-seg > button.bg-darkbutton {
+  background-color: var(--aurora-bubble);
+  color: var(--risu-theme-textcolor);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+}
+
+/* Realm sort filters as pills */
+html.risu-aurora .risu-filter-chips > button {
+  padding: 0.3125rem 0.875rem;
+  border: 1px solid var(--aurora-line-strong);
+  border-radius: 999px;
+  background-color: var(--aurora-raised);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+html.risu-aurora .risu-filter-chips > button:hover {
+  background-color: var(--aurora-bubble);
+}
+
+html.risu-aurora .risu-filter-chips > button.ring-3 {
+  border-color: transparent;
+  background-color: var(--risu-theme-textcolor);
+  box-shadow: none;
+  color: var(--risu-theme-bgcolor);
+}
+
+/* Chat list in the sidebar */
+html.risu-aurora .setting-area .risu-chat-row {
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  transition: background-color 0.15s ease;
+}
+
+html.risu-aurora .setting-area .risu-chat-row:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .setting-area .risu-chat-row.bg-selected {
+  background-color: var(--aurora-fill-strong);
+}
+
+/* Settings: a flat menu on the shell next to an inset content card */
+html.risu-aurora .rs-setting-cont {
+  background: var(--aurora-shell);
+}
+
+html.risu-aurora .rs-setting-cont-3 {
+  gap: 2px;
+  padding-inline: 0.75rem;
+  background-color: transparent;
+}
+
+html.risu-aurora .rs-setting-cont-3 > button:not(.absolute) {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .rs-setting-cont-3 > button:not(.absolute):hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .rs-setting-cont-3 > button.text-textcolor:not(.absolute) {
+  background-color: var(--aurora-fill-strong);
+  font-weight: 500;
+}
+
+html.risu-aurora .rs-setting-cont-3 svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+html.risu-aurora .rs-setting-cont-4 {
+  margin: 0.5rem;
+  padding: 1.75rem 2rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius);
+  background-color: var(--aurora-surface);
+  box-shadow: var(--aurora-shadow);
+}
+
+html.risu-aurora .rs-setting-cont-2 > button.absolute {
+  top: 1.25rem;
+  right: 1.25rem;
+  color: var(--risu-theme-textcolor2);
+}
+
+html.risu-aurora .rs-setting-cont-2 > button.absolute:hover {
+  color: var(--risu-theme-textcolor);
+}
+
+/* Shared controls */
+html.risu-aurora .risu-btn {
+  border-radius: 0.625rem;
+  border-color: var(--aurora-line-strong);
+  box-shadow: none;
+}
+
+html.risu-aurora .risu-btn-primary {
+  background-color: var(--aurora-fill-strong);
+}
+
+html.risu-aurora .risu-btn-primary:hover,
+html.risu-aurora .risu-btn-outlined:hover {
+  background-color: color-mix(in oklab, var(--risu-theme-textcolor) 16%, transparent);
+}
+
+html.risu-aurora .risu-field {
+  border-color: var(--aurora-line-strong);
+  border-radius: 0.625rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-field:focus,
+html.risu-aurora .risu-field:focus-within {
+  border-color: var(--aurora-accent);
+  outline: 2px solid var(--aurora-accent-fill);
+  outline-offset: 0;
+}
+
+html.risu-aurora ::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--aurora-line-strong);
+}

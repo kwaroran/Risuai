@@ -1632,7 +1632,8 @@ html.risu-aurora .risu-list-row > .endflex:hover {
   color: var(--risu-theme-textcolor);
 }
 
-html.risu-aurora .risu-list-row > button:not(.endflex) {
+html.risu-aurora .risu-list-row > button:not(.endflex),
+html.risu-aurora .risu-list-row > a {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -1650,12 +1651,14 @@ html.risu-aurora .risu-list-row > button.valuer:not(.endflex) {
   color: var(--risu-theme-textcolor2);
 }
 
-html.risu-aurora .risu-list-row > button:not(.endflex):hover {
+html.risu-aurora .risu-list-row > button:not(.endflex):hover,
+html.risu-aurora .risu-list-row > a:hover {
   background-color: var(--aurora-fill-strong);
   color: var(--risu-theme-textcolor);
 }
 
-html.risu-aurora .risu-list-row > button:not(.endflex) svg {
+html.risu-aurora .risu-list-row > button:not(.endflex) svg,
+html.risu-aurora .risu-list-row > a svg {
   width: 1.125rem;
   height: 1.125rem;
 }
@@ -1667,6 +1670,38 @@ html.risu-aurora .risu-list-editor {
 
 html.risu-aurora .risu-list-editor > span.text-textcolor:first-child {
   margin-top: 1rem;
+}
+
+/* Plugins reuse the list rows; their separators, title and settings need a few extra touches */
+html.risu-aurora .risu-plugin-list > .seperator {
+  margin-block: 0.25rem;
+  border-color: var(--aurora-line);
+}
+
+html.risu-aurora .risu-plugin-list .risu-list-row {
+  align-items: center;
+  cursor: pointer;
+}
+
+html.risu-aurora .risu-plugin-list .risu-list-row > .grow {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+html.risu-aurora .risu-plugin-list > span.text-draculared {
+  padding: 0 0.625rem 0.375rem;
+}
+
+html.risu-aurora .risu-plugin-list > .risu-list-editor > .mt-6 {
+  margin-top: 1rem;
+}
+
+html.risu-aurora .risu-plugin-list > .risu-list-editor > :first-child {
+  margin-top: 0.75rem;
 }
 
 /* Sidebar forms: room under sliders and under checkboxes that stand alone below their label */
@@ -1710,6 +1745,248 @@ html.risu-aurora .risu-trigger-edit {
   border: 0;
   border-radius: 0;
   background-color: transparent;
+}
+
+/* V1 trigger list reuses the list rows; its add button and condition/effect boxes match */
+html.risu-aurora .risu-trigger-v1-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.5rem;
+  border-radius: 0.625rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-trigger-v1-add:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-v1-add svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+html.risu-aurora .risu-trigger-v1-box {
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+  border-color: var(--aurora-line);
+  border-radius: 0.75rem;
+}
+
+html.risu-aurora .risu-trigger-v1-box > hr {
+  border-color: var(--aurora-line);
+}
+
+/* V2 trigger editor: a rounded floating window with soft rows */
+html.risu-aurora .risu-trigger-modal {
+  padding: 0.625rem;
+  border-color: var(--aurora-line);
+  background-color: var(--aurora-surface);
+  box-shadow: var(--aurora-shadow);
+}
+
+/* stacked on phones, so no gap is needed beside the trigger list there */
+html.risu-aurora .risu-trigger-side {
+  padding-right: 0;
+}
+
+@media (min-width: 768px) {
+  html.risu-aurora .risu-trigger-overlay {
+    padding: 1.5rem;
+  }
+
+  html.risu-aurora .risu-trigger-modal {
+    border-radius: var(--aurora-radius);
+  }
+
+  html.risu-aurora .risu-trigger-side {
+    padding-right: 0.625rem;
+  }
+}
+
+html.risu-aurora .risu-trigger-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  overflow-wrap: anywhere;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-trigger-item:hover {
+  background-color: var(--aurora-fill);
+}
+
+/* the trigger being edited (or every trigger picked with shift/ctrl) */
+html.risu-aurora .risu-trigger-item.bg-selected {
+  background-color: var(--aurora-accent-fill);
+  font-weight: 500;
+}
+
+/* open but no longer part of the selection */
+html.risu-aurora .risu-trigger-item.bg-darkbg {
+  background-color: var(--aurora-fill-strong);
+}
+
+/* Drop markers between rows while dragging */
+html.risu-aurora .risu-trigger-list > [role="listitem"],
+html.risu-aurora .risu-trigger-effects > [role="listitem"] {
+  border-radius: 1px;
+}
+
+html.risu-aurora .risu-trigger-list > [role="listitem"]:hover,
+html.risu-aurora .risu-trigger-effects > [role="listitem"]:hover {
+  background-color: var(--aurora-line-strong);
+}
+
+html.risu-aurora .risu-trigger-list > [role="listitem"].bg-blue-500,
+html.risu-aurora .risu-trigger-effects > [role="listitem"].bg-blue-500 {
+  background-color: var(--aurora-accent);
+}
+
+html.risu-aurora .risu-trigger-side > .risu-icon-row {
+  margin-top: 0.25rem;
+}
+
+html.risu-aurora .risu-trigger-main {
+  border-radius: 0.75rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-effects {
+  padding: 0.25rem;
+  border-color: var(--aurora-line);
+  border-radius: 0.75rem;
+  background-color: var(--aurora-surface);
+}
+
+/* if/loop guide lines are placed from the box edge; follow the padding */
+html.risu-aurora .risu-trigger-effects > .absolute {
+  margin-left: 0.25rem;
+}
+
+html.risu-aurora .risu-trigger-effect,
+html.risu-aurora .risu-trigger-effect-add {
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease;
+}
+
+html.risu-aurora .risu-trigger-effect:hover,
+html.risu-aurora .risu-trigger-effect-add:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-effect.bg-selected {
+  background-color: var(--aurora-bubble);
+}
+
+html.risu-aurora .risu-trigger-effect-add {
+  color: var(--risu-theme-textcolor2);
+}
+
+/* Right-click menu */
+html.risu-aurora .risu-trigger-menu {
+  width: auto;
+  min-width: 8rem;
+  gap: 0.125rem;
+  padding: 0.375rem;
+  border-color: var(--aurora-line);
+  border-radius: 0.875rem;
+  background-color: var(--aurora-raised);
+  box-shadow: var(--aurora-shadow);
+}
+
+html.risu-aurora .risu-trigger-menu > button {
+  padding: 0.4375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  text-align: left;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-trigger-menu > button:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-menu > div {
+  margin-bottom: 0.125rem;
+  padding: 0.25rem 0.75rem 0.5rem;
+  border-color: var(--aurora-line);
+}
+
+/* Effect picker: categories on the left, effects on the right */
+html.risu-aurora .risu-trigger-picker {
+  border-radius: 0.75rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-picker .border-darkborderc {
+  border-color: var(--aurora-line);
+}
+
+html.risu-aurora .risu-trigger-cats,
+html.risu-aurora .risu-trigger-types {
+  gap: 0.125rem;
+  padding: 0.375rem;
+}
+
+html.risu-aurora .risu-trigger-types {
+  display: flex;
+  flex-direction: column;
+}
+
+html.risu-aurora .risu-trigger-cats > button,
+html.risu-aurora .risu-trigger-types > button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+html.risu-aurora .risu-trigger-cats > button:hover,
+html.risu-aurora .risu-trigger-types > button:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-cats > button.bg-selected {
+  background-color: var(--aurora-bubble);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+}
+
+html.risu-aurora .risu-trigger-form {
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+html.risu-aurora .risu-trigger-back {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 0.625rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-trigger-back:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-trigger-back svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 /* Onboarding editor: a soft panel holding raised question cards */
@@ -1788,4 +2065,164 @@ html.risu-aurora-light .risu-share-remove {
 html.risu-aurora .risu-share-remove:hover {
   border-color: color-mix(in oklab, var(--aurora-danger) 45%, transparent);
   background-color: color-mix(in oklab, var(--aurora-danger) 12%, transparent);
+}
+
+/* Accordion: one rounded card whose header is a left-aligned row with a chevron */
+html.risu-aurora .risu-accordion {
+  border: 1px solid var(--aurora-line);
+  border-radius: 0.75rem;
+}
+
+html.risu-aurora .risu-accordion-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 0;
+  border-radius: calc(0.75rem - 1px);
+  background-color: transparent;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--risu-theme-textcolor);
+  transition: background-color 0.15s ease;
+}
+
+html.risu-aurora .risu-accordion-head > span:first-child {
+  margin-right: 0;
+}
+
+html.risu-aurora .risu-accordion-head:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-accordion-head:focus-visible {
+  outline: 2px solid var(--aurora-accent);
+  outline-offset: -2px;
+}
+
+html.risu-aurora .risu-accordion-head[aria-expanded="true"] {
+  border-bottom: 1px solid var(--aurora-line);
+  border-radius: calc(0.75rem - 1px) calc(0.75rem - 1px) 0 0;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-accordion-head[aria-expanded="true"]:hover {
+  background-color: var(--aurora-fill-strong);
+}
+
+html.risu-aurora .risu-accordion-head::after,
+html.risu-aurora .risu-accordion-plain-head::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  margin-left: auto;
+  margin-right: 0.125rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  opacity: 0.55;
+  transform: translateY(-20%) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+html.risu-aurora .risu-accordion-head[aria-expanded="true"]::after,
+html.risu-aurora .risu-accordion-plain-head[aria-expanded="true"]::after {
+  transform: translateY(20%) rotate(-135deg);
+}
+
+html.risu-aurora .risu-accordion-body {
+  padding: 0.5rem 0.875rem 0.875rem;
+  border: 0;
+  border-radius: 0 0 calc(0.75rem - 1px) calc(0.75rem - 1px);
+}
+
+/* The unstyled accordion only groups the model picker by provider: plain rows, models in a tinted well */
+html.risu-aurora .risu-accordion-plain-head,
+html.risu-aurora .risu-model-list > button.px-6 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.625rem;
+  background-color: transparent;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+html.risu-aurora .risu-accordion-plain-head:hover,
+html.risu-aurora .risu-model-list > button.px-6:hover {
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-accordion-plain-body {
+  margin: 0.125rem 0 0.375rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-accordion-plain-body > button {
+  padding: 0.4375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+html.risu-aurora .risu-accordion-plain-body > button:hover {
+  background-color: var(--aurora-fill-strong);
+}
+
+/* The model picker itself: a floating card instead of a full-height strip */
+html.risu-aurora .risu-model-list {
+  max-height: calc(100% - 2rem);
+  padding: 0.75rem;
+  gap: 0.125rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: var(--aurora-radius);
+  background-color: var(--aurora-surface);
+  box-shadow: var(--aurora-shadow);
+}
+
+html.risu-aurora .risu-model-list > .border-t-1 {
+  border-color: var(--aurora-line);
+}
+
+/* Regex flags: a two-column grid of toggles in the segmented-control style */
+html.risu-aurora .risu-flag-grid {
+  gap: 0.1875rem;
+  margin-top: 0.375rem;
+  padding: 0.1875rem;
+  border: 1px solid var(--aurora-line);
+  border-radius: 0.75rem;
+  background-color: var(--aurora-fill);
+}
+
+html.risu-aurora .risu-flag-grid > button {
+  padding: 0.375rem 0.5rem;
+  border: 0;
+  border-radius: 0.5625rem;
+  background-color: transparent;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+html.risu-aurora .risu-flag-grid > button:hover {
+  color: var(--risu-theme-textcolor);
+}
+
+html.risu-aurora .risu-flag-grid > button[aria-pressed="true"] {
+  background-color: var(--aurora-bubble);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
 }

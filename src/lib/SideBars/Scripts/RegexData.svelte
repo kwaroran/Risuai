@@ -134,9 +134,10 @@ interface Props {
                 <TextInput size="sm" bind:value={value.flag} /> -->
                 <Accordion styled name="FLAGS">
                     <span class="text-textcolor mt-3">Normal Flag</span>
-                    <div class="grid w-full grid-cols-2 rounded-md border border-darkborderc">
+                    <div class="grid w-full grid-cols-2 rounded-md border border-darkborderc risu-flag-grid">
                         {#each flags as flag, i}
                             <button class="w-full bg-darkbg border-darkborderc text-sm py-1"
+                                aria-pressed={checkFlagContain(flag[1], value.flag)}
                                 class:border-r-1={i % 2 === 0}
                                 class:border-b-1={i < flags.length - 2}
                                 class:text-textcolor2={!checkFlagContain(flag[1], value.flag)}

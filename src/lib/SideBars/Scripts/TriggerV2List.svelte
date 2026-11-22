@@ -2305,7 +2305,7 @@
 </script>
 
 <div
-    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md"
+    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md risu-trigger-edit"
 >
     <Button onclick={(e) => {
         e.stopPropagation()

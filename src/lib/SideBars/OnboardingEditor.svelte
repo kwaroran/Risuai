@@ -49,7 +49,7 @@
 />
 
 {#if char.onboarding?.enabled}
-    <div class="flex flex-col gap-2 mt-2 p-3 rounded-md border border-darkborderc">
+    <div class="flex flex-col gap-2 mt-2 p-3 rounded-md border border-darkborderc risu-panel risu-onboarding">
         <div class="flex items-center gap-2 flex-wrap">
             <SegmentedControl bind:value={char.onboarding.mode} options={modeOptions} size="sm" />
             <div class="flex-1"></div>
@@ -72,7 +72,7 @@
             <TextAreaInput margin="none" autocomplete="off" bind:value={char.onboarding.description} />
 
             {#each char.onboarding.questions as question, i (question.id)}
-                <div class="flex flex-col gap-2 mt-2 p-3 rounded-md bg-darkbg border border-darkborderc">
+                <div class="flex flex-col gap-2 mt-2 p-3 rounded-md bg-darkbg border border-darkborderc risu-onboarding-question">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-medium uppercase tracking-wider text-textcolor2">{language.onboardingQuestion} {i + 1}</span>
                         <div class="flex-1"></div>
@@ -131,7 +131,7 @@
                 </div>
             {/each}
 
-            <button class="mt-2 flex items-center justify-center gap-1 w-full py-2 rounded-md border border-dashed border-darkborderc text-sm text-textcolor2 hover:text-green-500 hover:border-green-500 transition-colors" onclick={() => { char.onboarding.questions.push(createOnboardingQuestion()) }}>
+            <button class="mt-2 flex items-center justify-center gap-1 w-full py-2 rounded-md border border-dashed border-darkborderc text-sm text-textcolor2 hover:text-green-500 hover:border-green-500 transition-colors risu-icon-add" onclick={() => { char.onboarding.questions.push(createOnboardingQuestion()) }}>
                 <PlusIcon size={16} />{language.onboardingAddQuestion}
             </button>
         {/if}

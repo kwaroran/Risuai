@@ -81,8 +81,8 @@ interface Props {
     let open = $state(false)
 </script>
 
-<div class="w-full flex flex-col pt-2 mt-2 border-t border-t-selected first:pt-0 first:mt-0 first:border-0" data-risu-idx={idx}>
-    <div class="flex items-center transition-colors w-full ">
+<div class="w-full flex flex-col pt-2 mt-2 border-t border-t-selected first:pt-0 first:mt-0 first:border-0 risu-list-item" data-risu-idx={idx}>
+    <div class="flex items-center transition-colors w-full risu-list-row">
         <button class="endflex valuer border-borderc" onclick={() => {
             open = !open
             if(open){
@@ -107,7 +107,7 @@ interface Props {
         </button>
     </div>
     {#if open}
-        <div class="seperator p-2">
+        <div class="seperator p-2 risu-list-editor">
             <span class="text-textcolor mt-6">{language.name}</span>
             <TextInput size="sm" bind:value={value.comment} onchange={(e) => {
                 $ReloadGUIPointer += 1

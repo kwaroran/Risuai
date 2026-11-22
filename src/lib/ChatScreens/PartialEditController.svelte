@@ -826,7 +826,7 @@
         padding: 8px;
         background: rgba(255, 255, 255, 0.95);
         border: 1px solid rgba(0, 0, 0, 0.15);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         transition: all 0.15s ease;
@@ -847,7 +847,7 @@
 
     .partial-match-failed-modal {
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         padding: 20px;
         width: 50vw;
         max-width: 500px;
@@ -879,7 +879,7 @@
 
     .partial-delete-modal {
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         padding: 20px;
         width: 50vw;
         max-width: 1600px;
@@ -911,7 +911,7 @@
     .partial-delete-preview {
         padding: 12px;
         background: var(--risu-theme-darkbg, #f5f5f5);
-        border-radius: 8px;
+        border-radius: var(--radius-lg);
         font-size: 13px;
         color: var(--risu-theme-textcolor, #000);
         max-height: 100px;
@@ -925,7 +925,7 @@
         gap: 6px;
         padding: 8px 16px;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
@@ -953,7 +953,7 @@
 
     .partial-edit-modal {
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         padding: 20px;
         width: 50vw;
         max-width: 1600px;
@@ -992,7 +992,7 @@
         font-size: 11px;
         font-weight: 600;
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         background: #10b981;
         color: white;
     }
@@ -1007,7 +1007,7 @@
         max-height: 50vh;
         padding: 12px;
         border: 1px solid var(--risu-theme-darkborderc, #ddd);
-        border-radius: 8px;
+        border-radius: var(--radius-lg);
         background: var(--risu-theme-darkbg, #f5f5f5);
         color: var(--risu-theme-textcolor, #000);
         font-family: inherit;
@@ -1034,7 +1034,7 @@
         gap: 6px;
         padding: 8px 16px;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
@@ -1062,7 +1062,7 @@
     /* Match Selection Modal */
     .partial-match-selection-modal {
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         padding: 20px;
         width: 50vw;
         max-width: 1200px;
@@ -1092,7 +1092,7 @@
         font-size: 13px;
         font-weight: 500;
         padding: 4px 10px;
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         background: var(--risu-theme-darkbg, #f5f5f5);
         color: var(--risu-theme-textcolor, #000);
     }
@@ -1112,7 +1112,7 @@
         gap: 8px;
         padding: 16px;
         border: 1px solid var(--risu-theme-darkborderc, #ddd);
-        border-radius: 8px;
+        border-radius: var(--radius-lg);
         background: var(--risu-theme-darkbg, #f9f9f9);
         cursor: pointer;
         transition: all 0.15s ease;
@@ -1138,14 +1138,14 @@
         color: var(--risu-theme-textcolor, #000);
         background: var(--risu-theme-bgcolor, #fff);
         padding: 2px 8px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
     }
 
     .match-confidence {
         font-size: 11px;
         font-weight: 600;
         padding: 3px 8px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         color: white;
     }
 
@@ -1165,7 +1165,7 @@
         font-size: 11px;
         font-weight: 500;
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         background: var(--risu-theme-bgcolor, #fff);
         color: var(--risu-theme-textcolor, #000);
         font-family: monospace;
@@ -1177,7 +1177,7 @@
         color: var(--risu-theme-textcolor, #000);
         padding: 8px 12px;
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         border-left: 3px solid var(--risu-theme-darkborderc, #ddd);
         line-height: 1.5;
         font-style: italic;
@@ -1189,7 +1189,7 @@
         color: var(--risu-theme-textcolor, #000);
         padding: 10px 12px;
         background: var(--risu-theme-bgcolor, #fff);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         border-left: 3px solid #3b82f6;
         line-height: 1.5;
         font-weight: 500;

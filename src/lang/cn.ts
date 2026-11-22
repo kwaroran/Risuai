@@ -812,6 +812,7 @@ export const languageChinese = {
     "able": "激活",
     "assetWidth": "额外资源图片最大宽度",
     "animationSpeed": "动画速度",
+    "radiusScale": "圆角程度",
     "screenshot": "截图",
     "screenshotSaved": "截图已保存",
     "createBotwithAI": "使用 AI 创建机器人",

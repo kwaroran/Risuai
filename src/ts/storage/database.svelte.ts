@@ -384,6 +384,7 @@ export function setDatabase(data:Database){
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
+    data.radiusScale ??= 1
     data.colorScheme ??= safeStructuredClone(defaultColorScheme)
     data.colorSchemeName ??= 'default'
     data.customColorScheme ??= safeStructuredClone(data.colorSchemeName === 'custom' ? data.colorScheme : defaultColorScheme)
@@ -962,6 +963,7 @@ export interface Database{
     personas:RisuPersona[]
     assetWidth:number
     animationSpeed:number
+    radiusScale:number
     botSettingAtStart:false
     NAIsettings:NAISettings
     hideRealm:boolean

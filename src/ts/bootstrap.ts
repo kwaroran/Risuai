@@ -23,6 +23,7 @@ import { loadRisuAccountData } from "./drive/accounter";
 import { decodeRisuSave, encodeRisuSave } from "./storage/risuSave";
 import { saveKV } from "./storage/saveKV";
 import { updateAnimationSpeed } from "./gui/animation";
+import { updateRadiusScale } from "./gui/radius";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
 import { autoServerBackup } from "./kei/backup";
 import { language } from "src/lang";
@@ -235,6 +236,7 @@ export async function loadData() {
             updateColorScheme()
             updateTextThemeAndCSS()
             updateAnimationSpeed()
+            updateRadiusScale()
             updateHeightMode()
             updateErrorHandling()
             updateGuisize()

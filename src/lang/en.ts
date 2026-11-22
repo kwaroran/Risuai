@@ -979,6 +979,7 @@ export const languageEnglish = {
     close: "Close",
     assetWidth: "Asset Images Max Width",
     animationSpeed: "Animation Speed",
+    radiusScale: "Corner Roundness",
     screenshot: "Screenshot",
     screenshotSaved: "Screenshot Saved",
     createBotwithAI: "Create Bot from AI",

@@ -288,26 +288,44 @@ export function applyAuroraArt(dark: boolean): void {
 export function startAuroraArt(dark: boolean): () => void {
     let lastWidth = 0
     let lastHeight = 0
+    let lastRatio = 0
     let timer: ReturnType<typeof setTimeout> | undefined
+    let ratioQuery: MediaQueryList | undefined
     const update = () => {
         const w = window.innerWidth
         const h = window.innerHeight
-        if (Math.abs(w - lastWidth) < 64 && Math.abs(h - lastHeight) < 64) {
+        const ratio = window.devicePixelRatio || 1
+        if (ratio === lastRatio && Math.abs(w - lastWidth) < 64 && Math.abs(h - lastHeight) < 64) {
             return
         }
         lastWidth = w
         lastHeight = h
+        lastRatio = ratio
         applyAuroraArt(dark)
     }
     const onResize = () => {
         clearTimeout(timer)
         timer = setTimeout(update, 250)
     }
+    // Moving the window to a screen with another pixel ratio may keep the same
+    // CSS size and fire no resize, so watch the current ratio and re-arm on change
+    const watchRatio = () => {
+        ratioQuery?.removeEventListener('change', onRatioChange)
+        ratioQuery = window.matchMedia?.(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+        ratioQuery?.addEventListener('change', onRatioChange)
+    }
+    const onRatioChange = () => {
+        watchRatio()
+        onResize()
+    }
     update()
+    watchRatio()
     window.addEventListener('resize', onResize)
     return () => {
         clearTimeout(timer)
         window.removeEventListener('resize', onResize)
+        ratioQuery?.removeEventListener('change', onRatioChange)
+        ratioQuery = undefined
         renderToken++
         const root = document.documentElement
         root.style.removeProperty('--risu-aurora-art')

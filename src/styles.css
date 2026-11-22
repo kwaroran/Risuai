@@ -653,6 +653,11 @@ html.risu-aurora .risu-main-stage {
   box-shadow: var(--aurora-shadow);
 }
 
+/* The mobile body is a plain block, so stretch cannot size the stage there */
+html.risu-aurora .risu-mobile-body > .risu-main-stage {
+  height: calc(100% - 1rem);
+}
+
 html.risu-aurora .risu-main-stage::before {
   content: "";
   position: absolute;
@@ -701,9 +706,23 @@ html.risu-aurora .risu-aurora-msg {
 
 html.risu-aurora .risu-aurora-user {
   flex-direction: row-reverse;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-block: 0.5rem;
+}
+
+/* Translation controls take their own line under the bubble, only when there are any */
+html.risu-aurora .risu-aurora-user > .risu-aurora-meta {
+  flex-basis: 100%;
+}
+
+html.risu-aurora .risu-aurora-user > .risu-aurora-meta > div {
+  justify-content: flex-end;
+}
+
+html.risu-aurora .risu-aurora-user > .risu-aurora-meta:not(:has(button)) {
+  display: none;
 }
 
 html.risu-aurora .risu-aurora-bubble {
@@ -921,8 +940,11 @@ html.risu-aurora .risu-chat-input-bar > .risu-chat-menu {
   bottom: calc(100% + 0.5rem);
   left: 0;
   min-width: 13rem;
+  max-height: var(--risu-chat-menu-room, 60vh);
   padding: 0.5rem;
   gap: 0.125rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 html.risu-aurora .risu-chat-menu > div {

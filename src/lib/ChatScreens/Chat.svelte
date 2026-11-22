@@ -1248,6 +1248,9 @@
                     <div class="risu-aurora-tools">
                         {@render iconButtons()}
                     </div>
+                    <div class="risu-aurora-meta">
+                        {@render genInfo()}
+                    </div>
                 </div>
             {:else}
                 <div class="risu-aurora-msg risu-aurora-char">

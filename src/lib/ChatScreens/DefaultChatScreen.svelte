@@ -505,7 +505,20 @@
         }
     }
 
-    
+    // Aurora opens the menu right above the composer; this measures how much
+    // of the chat's scroll box is left above it so the menu can scroll instead
+    // of being cut off. Other themes do not read the variable.
+    function fitChatMenu(menu: HTMLElement) {
+        const scroller = menu.closest('.default-chat-screen')
+        const bar = menu.parentElement
+        if (!scroller || !bar) {
+            return
+        }
+        const room = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16
+        menu.style.setProperty('--risu-chat-menu-room', `${Math.max(room, 96)}px`)
+    }
+
+
 </script>
 
 
@@ -703,7 +716,7 @@
                     </div>
                 {/if}
                 {#if openMenu}
-                    <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 z-30 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md risu-chat-menu" onclick={(e) => {
+                    <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 z-30 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md risu-chat-menu" use:fitChatMenu onclick={(e) => {
                         e.stopPropagation()
                     }}>
                         {#if DBState.db.characters[$selectedCharID].type === 'group'}

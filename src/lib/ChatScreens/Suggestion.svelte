@@ -166,7 +166,7 @@
     {:else if !$doingChat}
         {#if DBState.db.translator !== ''}
             <div class="flex mr-2 mb-2">
-                <button class={"bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-sm " + (toggleTranslate ? 'text-green-500' : 'text-textcolor')}
+                <button class={"bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-control " + (toggleTranslate ? 'text-green-500' : 'text-textcolor')}
                     onclick={() => {
                         toggleTranslate = !toggleTranslate
                     }}
@@ -178,7 +178,7 @@
         
 
         <div class="flex mr-2 mb-2">
-            <button class="bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-sm text-textcolor"
+            <button class="bg-textcolor2 hover:bg-darkbutton font-bold py-2 px-4 rounded-control text-textcolor"
                 onclick={() => {
                     alertConfirm(language.askReRollAutoSuggestions).then((result) => {
                         if(result) {
@@ -194,7 +194,7 @@
         </div>
         {#each suggestMessages??[] as suggest, i}
             <div class="flex mr-2 mb-2">
-                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-sm" onclick={() => {
+                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-control" onclick={() => {
                     suggestMessages = []
                     messageInput(suggest)
                     send()
@@ -203,7 +203,7 @@
                     {@html md}
                 {/await}
                 </button>
-                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-sm ml-1" onclick={() => {
+                <button class="bg-textcolor2 hover:bg-darkbutton text-textcolor font-bold py-2 px-4 rounded-control ml-1" onclick={() => {
                     messageInput(suggest)
                 }}>
                     <CopyIcon/>

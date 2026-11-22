@@ -5,6 +5,7 @@ import { BufferToText, selectSingleFile } from "../util";
 import { alertError } from "../alert";
 import { isLite } from "../lite";
 import { CustomCSSStore, DBState, SafeModeStore } from "../stores.svelte";
+import { normalizeRadiusScale, updateRadiusScale } from "./radius";
 
 export interface ColorScheme{
     bgcolor: string;
@@ -294,7 +295,12 @@ export function changeColorSchemeType(type: 'light'|'dark'){
 }
 
 export function exportColorScheme(){
-    let json = JSON.stringify(DBState.db.customColorScheme)
+    // The corner radius scale travels with the color scheme file so a shared
+    // theme keeps its look. Older versions ignore the extra field.
+    let json = JSON.stringify({
+        ...DBState.db.customColorScheme,
+        radiusScale: DBState.db.radiusScale ?? 1,
+    })
     downloadFile('colorScheme.json', json)
 }
 
@@ -305,8 +311,12 @@ export async function importColorScheme(){
     }
     const string = BufferToText(uarray.data)
     let colorScheme: ColorScheme
+    let radiusScale: number | null = null
     try{
-        colorScheme = JSON.parse(string)
+        const parsed = JSON.parse(string)
+        const { radiusScale: importedRadiusScale, ...rest } = parsed ?? {}
+        colorScheme = rest
+        radiusScale = normalizeRadiusScale(importedRadiusScale)
         if(
             typeof colorScheme.bgcolor !== 'string' ||
             typeof colorScheme.darkbg !== 'string' ||
@@ -324,6 +334,11 @@ export async function importColorScheme(){
         }
         DBState.db.customColorScheme = colorScheme
         updateCustomColorScheme()
+        // Files exported before the radius scale existed keep the current value
+        if(radiusScale !== null){
+            DBState.db.radiusScale = radiusScale
+            updateRadiusScale()
+        }
     }
     catch(e){
         alertError('Invalid color scheme')

@@ -64,14 +64,14 @@
                     {#if !previewing}
                         <select
                             bind:value={languageMode}
-                            class="risu-select bg-bgcolor border-none rounded px-2 py-1 text-sm"
+                            class="risu-select bg-bgcolor border-none rounded-control px-2 py-1 text-sm"
                         >
                             <option value="markdown">Markdown</option>
                             <option value="cbs" disabled>CBS</option>
                         </select>
                     {/if}
                     <button
-                        class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                        class="bg-blue-500 text-white px-3 py-1 rounded-control hover:bg-blue-600 transition"
                         onclick={() => (previewing = !previewing)}
                     >
                         {previewing ? language.edit : language.preview}
@@ -80,7 +80,7 @@
                     <span class="bg-bgcolor border-none rounded px-2 py-1 text-sm">{languageMode}</span>
                 {/if}
                 <button
-                    class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
+                    class="bg-red-500 text-white px-3 py-1 rounded-control hover:bg-red-600 transition"
                     onclick={() => (popUpEditorStore.open = false)}
                 >
                     X
@@ -99,7 +99,7 @@
                             <button class={{
                                 "bg-blue-500 text-white hover:bg-blue-600": showToggles,
                                 "bg-gray-500 text-white hover:bg-gray-600": !showToggles,
-                                "px-3 py-1 rounded transition": true,
+                                "px-3 py-1 rounded-control transition": true,
                             }} onclick={() => {
                                 showToggles = !showToggles
                             }}>{language.customPromptTemplateToggle}</button>

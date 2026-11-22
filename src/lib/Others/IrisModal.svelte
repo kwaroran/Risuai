@@ -296,7 +296,7 @@
     <!-- Close button (mobile only) -->
     <button
         onclick={hide}
-        class="absolute right-4 top-4 flex items-center gap-1 rounded-md bg-black/40 px-2 py-1 text-xs text-white/50 transition hover:bg-black/60 hover:text-white/80"
+        class="absolute right-4 top-4 flex items-center gap-1 rounded-control bg-black/40 px-2 py-1 text-xs text-white/50 transition hover:bg-black/60 hover:text-white/80"
         aria-label="Close"
     >
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -423,7 +423,7 @@
             <button
                 onclick={openBacklog}
                 title="View backlog (L)"
-                class="absolute right-4 top-4 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white/40 transition hover:bg-white/10 hover:text-white/70"
+                class="absolute right-4 top-4 flex items-center gap-1 rounded-control px-2 py-1 text-xs text-white/40 transition hover:bg-white/10 hover:text-white/70"
             >
                 <svg
                     class="h-3.5 w-3.5"
@@ -515,12 +515,12 @@
                             ? "Waiting for reply…"
                             : "Type a message…"}
                         disabled={waitingForReply}
-                        class="flex-1 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-400 focus:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="flex-1 rounded-control border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-400 focus:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <button
                         onclick={submitUserInput}
                         disabled={!userInput.trim() || waitingForReply || isUnsupportedModel}
-                        class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-40"
+                        class="rounded-control bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-40"
                     >
                         Send
                     </button>

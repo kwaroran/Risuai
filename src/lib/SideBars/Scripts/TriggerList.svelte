@@ -22,7 +22,7 @@
 
 <div class="flex items-start mt-2 gap-2">
     {#if v1Enabled || DBState.db.showDeprecatedTriggerV1 }
-        <button class="bg-bgcolor py-1 rounded-md text-sm px-2" class:ring-1={v1Enabled} onclick={(async (e) => {
+        <button class="bg-bgcolor py-1 rounded-control text-sm px-2" class:ring-1={v1Enabled} onclick={(async (e) => {
             e.stopPropagation()
             const codeType = value?.[0]?.effect?.[0]?.type
             if(codeType === 'triggercode' || codeType === 'triggerlua' || codeType === 'v2Header'){
@@ -34,7 +34,7 @@
             }
         })}>V1</button>
     {/if}
-    <button class="bg-bgcolor py-1 rounded-md text-sm px-2" class:ring-1={
+    <button class="bg-bgcolor py-1 rounded-control text-sm px-2" class:ring-1={
         value?.[0]?.effect?.[0]?.type === 'v2Header'
     } onclick={(async (e) => {
         e.stopPropagation()
@@ -61,7 +61,7 @@
             }]
         }
     })}>V2</button>
-    <button class="bg-bgcolor py-1 rounded-md text-sm px-2" class:ring-1={value?.[0]?.effect?.[0]?.type === 'triggerlua'} onclick={(async (e) => {
+    <button class="bg-bgcolor py-1 rounded-control text-sm px-2" class:ring-1={value?.[0]?.effect?.[0]?.type === 'triggerlua'} onclick={(async (e) => {
         e.stopPropagation()
         if(value?.[0]?.effect?.[0]?.type !== 'triggerlua'){
             if(value && value.length > 0){

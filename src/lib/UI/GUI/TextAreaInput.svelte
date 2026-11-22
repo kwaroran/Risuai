@@ -1,5 +1,5 @@
 <div 
-    class={"border border-darkborderc relative n-scroll focus-within:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus-within:ring-borderc focus-within:ring-2 focus-within:outline-hidden transition-colors duration-200 z-20 focus-within:z-40" + ((className) ? (' ' + className) : '')} 
+    class={"border border-darkborderc relative n-scroll focus-within:border-borderc rounded-control shadow-xs text-textcolor bg-transparent focus-within:ring-borderc focus-within:ring-2 focus-within:outline-hidden transition-colors duration-200 z-20 focus-within:z-40" + ((className) ? (' ' + className) : '')} 
     class:text-sm={size === 'sm' || (size === 'default' && $textAreaTextSize === 1)}
     class:text-md={size === 'md' || (size === 'default' && $textAreaTextSize === 2)}
     class:text-lg={size === 'lg' || (size === 'default' && $textAreaTextSize === 3)}

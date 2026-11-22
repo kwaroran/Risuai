@@ -172,7 +172,7 @@
             {#each Object.keys(loadOptions) as key}
                 {@const k = key as LoadoutApplyOption}
                 <button
-                    class="px-2.5 py-1 rounded text-xs font-medium transition-colors {loadOptions[k]
+                    class="px-2.5 py-1 rounded-control text-xs font-medium transition-colors {loadOptions[k]
                         ? 'bg-textcolor/15 text-textcolor/90'
                         : 'bg-textcolor/5 text-textcolor/30 hover:bg-textcolor/10 hover:text-textcolor/50'}"
                     onclick={() => loadOptions[k] = !loadOptions[k]}
@@ -259,10 +259,10 @@
                 type="text"
                 bind:value={saveName}
                 placeholder="Loadout name…"
-                class="flex-1 min-w-0 bg-textcolor/5 hover:bg-textcolor/8 focus:bg-textcolor/10 border border-textcolor/10 focus:border-textcolor/25 rounded px-3 py-1.5 text-sm text-textcolor/80 placeholder:text-textcolor/25 outline-none transition-colors"
+                class="flex-1 min-w-0 bg-textcolor/5 hover:bg-textcolor/8 focus:bg-textcolor/10 border border-textcolor/10 focus:border-textcolor/25 rounded-control px-3 py-1.5 text-sm text-textcolor/80 placeholder:text-textcolor/25 outline-none transition-colors"
             />
             <button
-                class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded bg-textcolor/10 hover:bg-textcolor/15 text-textcolor/70 hover:text-textcolor/90 text-sm font-medium transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-textcolor/10 hover:bg-textcolor/15 text-textcolor/70 hover:text-textcolor/90 text-sm font-medium transition-colors disabled:opacity-30 disabled:pointer-events-none"
                 disabled={!saveName.trim()}
                 onclick={() => {
                     saveCurrentLoadout(saveName.trim());

@@ -7,6 +7,7 @@
 import type { SettingItem } from './types';
 import { changeFullscreen } from '../util';
 import { updateAnimationSpeed } from '../gui/animation';
+import { RADIUS_SCALE_MAX, RADIUS_SCALE_MIN, updateRadiusScale } from '../gui/radius';
 import { guiSizeText, updateGuisize } from '../gui/guisize';
 import { updateTextThemeAndCSS } from '../gui/colorscheme';
 import { CustomGUISettingMenuStore } from '../stores.svelte';
@@ -226,6 +227,15 @@ export const displaySizeSettingsItems: SettingItem[] = [
         onChange: () => updateAnimationSpeed(),
         options: { min: 0, max: 1, step: 0.05, fixed: 2 },
         keywords: ['animation', 'speed'],
+    },
+    {
+        id: 'display.radiusScale',
+        type: 'slider',
+        labelKey: 'radiusScale',
+        bindKey: 'radiusScale',
+        onChange: () => updateRadiusScale(),
+        options: { min: RADIUS_SCALE_MIN, max: RADIUS_SCALE_MAX, step: 0.25, fixed: 2 },
+        keywords: ['radius', 'corner', 'round', 'rounded'],
     },
     {
         id: 'display.memoryLimitThickness',

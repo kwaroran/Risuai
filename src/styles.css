@@ -120,6 +120,37 @@
 }
 
 /*
+  Corner radius scale.
+  `--risu-radius-scale` multiplies every Tailwind radius step:
+  0 = sharp corners, 1 = Tailwind defaults (no visual change), 2 = rounder.
+
+  `inline` makes utilities embed the calc() expression, so the scale is
+  resolved per element and can be overridden for a subtree in custom CSS.
+  `static` always emits the variables, so component <style> blocks and
+  user custom CSS can use var(--radius-*) as well.
+  `rounded-full` and `rounded-none` are intentionally unaffected.
+*/
+@theme inline static {
+  --radius: calc(0.25rem * var(--risu-radius-scale, 1));
+  --radius-xs: calc(0.125rem * var(--risu-radius-scale, 1));
+  --radius-sm: calc(0.25rem * var(--risu-radius-scale, 1));
+  --radius-md: calc(0.375rem * var(--risu-radius-scale, 1));
+  --radius-lg: calc(0.5rem * var(--risu-radius-scale, 1));
+  --radius-xl: calc(0.75rem * var(--risu-radius-scale, 1));
+  --radius-2xl: calc(1rem * var(--risu-radius-scale, 1));
+  --radius-3xl: calc(1.5rem * var(--risu-radius-scale, 1));
+  --radius-4xl: calc(2rem * var(--risu-radius-scale, 1));
+
+  /* Role tokens: change a role here instead of editing every component. */
+  /* Buttons and text fields */
+  --radius-control: calc(0.375rem * var(--risu-radius-scale, 1));
+  /* Checkboxes never get rounder than today, so they stay distinct from radio buttons */
+  --radius-check: calc(0.375rem * min(var(--risu-radius-scale, 1), 1));
+  /* Slider tracks (h-8): a full pill at 1, flattening toward sharp at 0 */
+  --radius-track: calc(1rem * var(--risu-radius-scale, 1));
+}
+
+/*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.
@@ -179,6 +210,7 @@ body {
   --risu-theme-darkbutton: #374151;
   --risu-height-size: 100%;
   --risu-font-family: Arial, sans-serif, serif;
+  --risu-radius-scale: 1;
 
   --risu-theme-neutral-50: #f9fafb;
   --risu-theme-neutral-100: #f3f4f6;
@@ -367,7 +399,7 @@ body {
 .x-risu-risu-file {
   padding: 1rem;
   border: 1px solid var(--risu-theme-selected);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   color: var(--FontColorStandard);
   min-width: 0;
   max-width: 20rem;
@@ -377,7 +409,7 @@ body {
 }
 
 .x-risu-button-default {
-  @apply border text-textcolor rounded-md shadow-xs focus:outline-hidden focus:ring-2 transition-colors duration-200 border-darkborderc px-4 py-2 bg-darkbutton hover:bg-borderc focus:ring-borderc;
+  @apply border text-textcolor rounded-control shadow-xs focus:outline-hidden focus:ring-2 transition-colors duration-200 border-darkborderc px-4 py-2 bg-darkbutton hover:bg-borderc focus:ring-borderc;
 }
 
 .loadmove {
@@ -445,7 +477,7 @@ body {
 
 .prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)):not(pre code) {
   background-color: var(--tw-prose-pre-bg);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   color: var(--tw-prose-pre-code);
   padding: 0.125rem 0.25rem;
 }
@@ -527,7 +559,7 @@ body {
   width: calc(100% - 1rem);
   max-width: 20rem;
   height: auto;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 4px rgba(137, 137, 137, 0.1);
 }
 

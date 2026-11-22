@@ -11,6 +11,6 @@
   let { openLoreList = $bindable(false) }: Props = $props();
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.globalLoreBook} <Help key="lorebook" /></h2>
-<button onclick={() => {openLoreList = true}} class="mt-4 drop-shadow-lg p-3 flex justify-center items-center ml-2 mr-2 rounded-lg bg-selected mb-4">{DBState.db.loreBook[DBState.db.loreBookPage].name}</button>
+<button onclick={() => {openLoreList = true}} class="mt-4 drop-shadow-lg p-3 flex justify-center items-center ml-2 mr-2 rounded-control bg-selected mb-4">{DBState.db.loreBook[DBState.db.loreBookPage].name}</button>
 
 <LoreBookSetting globalMode />

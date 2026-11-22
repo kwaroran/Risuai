@@ -839,6 +839,7 @@ export const languageKorean = {
     "close": "닫기",
     "assetWidth": "에셋 넓이",
     "animationSpeed": "에니메이션 속도",
+    "radiusScale": "모서리 둥글기",
     "screenshot": "스크린샷",
     "screenshotSaved": "스크린샷 저장됨",
     "createBotwithAI": "AI로 캐릭터 생성하기",

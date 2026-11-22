@@ -602,7 +602,7 @@
                             <ChevronRightIcon />
                         </div>
                     </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={((e) => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={((e) => {
                         e.stopPropagation()
                         e.preventDefault()
                         alertStore.set({
@@ -617,7 +617,7 @@
                             <ChevronRightIcon />
                         </div>
                     </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={(e) => {
                         e.stopPropagation()
                         e.preventDefault()
                         alertStore.set({
@@ -632,7 +632,7 @@
                             <ChevronRightIcon />
                         </div>
                     </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={(e) => {
                         e.stopPropagation()
                         e.preventDefault()
                         alertStore.set({
@@ -647,7 +647,7 @@
                             <ChevronRightIcon />
                         </div>
                     </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={(e) => {
                         e.stopPropagation()
                         e.preventDefault()
                         alertStore.set({
@@ -665,7 +665,7 @@
                     <h1 class="text-xl mb-4 font-bold">
                         {language.chatOptions}
                     </h1>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={() => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={() => {
                         alertStore.set({
                             type: 'none',
                             msg: '0'
@@ -678,7 +678,7 @@
                             <ChevronRightIcon />
                         </div>
                     </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={() => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={() => {
                         alertStore.set({
                             type: 'none',
                             msg: '1'
@@ -692,7 +692,7 @@
                         </div>
                     </button>
                     {#if DBState.db.useExperimental}
-                        <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={() => {
+                        <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={() => {
                             alertStore.set({
                                 type: 'none',
                                 msg: '2'
@@ -706,7 +706,7 @@
                             </div>
                         </button>
                     {/if}
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={() => {
+                    <button class="border-darkborderc border py-2 px-8 flex rounded-control hover:ring-2 items-center mt-2" onclick={() => {
                         alertStore.set({
                             type: 'none',
                             msg: 'cancel'
@@ -768,18 +768,18 @@
             {/if}
             <div class="flex items-center flex-wrap mt-2">
                 {#if $alertStore.submsg === 'preset'}
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg ml-2 flex-1" class:ring-1={cardExportType === ''} onclick={() => {cardExportType = ''}}>Risupreset</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control ml-2 flex-1" class:ring-1={cardExportType === ''} onclick={() => {cardExportType = ''}}>Risupreset</button>
                 {:else if $alertStore.submsg === 'module'}
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg ml-2 flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg flex-1" class:ring-1={cardExportType === ''} onclick={() => {cardExportType = ''}}>RisuM</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control ml-2 flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control flex-1" class:ring-1={cardExportType === ''} onclick={() => {cardExportType = ''}}>RisuM</button>
                 {:else}
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg ml-2 flex-1" class:ring-1={cardExportType === ''} onclick={() => {
+                    <button class="bg-bgcolor px-2 py-4 rounded-control flex-1" class:ring-1={cardExportType === 'realm'} onclick={() => {cardExportType = 'realm'}}>RisuRealm</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control ml-2 flex-1" class:ring-1={cardExportType === ''} onclick={() => {
                         cardExportType = ''
                         cardExportType2 = 'charxJpeg'
                     }}>Character Card V3</button>
-                    <button class="bg-bgcolor px-2 py-4 rounded-lg ml-2 flex-1" class:ring-1={cardExportType === 'ccv2'} onclick={() => {cardExportType = 'ccv2'}}>Character Card V2</button>
+                    <button class="bg-bgcolor px-2 py-4 rounded-control ml-2 flex-1" class:ring-1={cardExportType === 'ccv2'} onclick={() => {cardExportType = 'ccv2'}}>Character Card V2</button>
                 {/if}
             </div>
             {#if $alertStore.submsg === '' && cardExportType === ''}
@@ -838,7 +838,7 @@
         {/if}
 
         <div class="x-50 right-2 top-2 absolute">
-            <button class="bg-darkbg border-darkborderc border p-2 rounded-md" onclick={() => {
+            <button class="bg-darkbg border-darkborderc border p-2 rounded-control" onclick={() => {
                 alertStore.set({
                     type: 'none',
                     msg: ''
@@ -969,7 +969,7 @@
                                                 <div class="flex items-center justify-between mb-2">
                                                     <span class="text-textcolor text-sm font-semibold">URL</span>
                                                     <button
-                                                        class="p-1 rounded hover:bg-bgcolor transition-colors {copiedKey === `${i}-url` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
+                                                        class="p-1 rounded-control hover:bg-bgcolor transition-colors {copiedKey === `${i}-url` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
                                                         onclick={(e) => { e.stopPropagation(); copyToClipboard(log.url, `${i}-url`) }}
                                                         title="Copy"
                                                     >
@@ -986,7 +986,7 @@
                                                 <div class="flex items-center justify-between mb-2">
                                                     <span class="text-textcolor text-sm font-semibold">Request Body</span>
                                                     <button
-                                                        class="p-1 rounded hover:bg-bgcolor transition-colors {copiedKey === `${i}-body` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
+                                                        class="p-1 rounded-control hover:bg-bgcolor transition-colors {copiedKey === `${i}-body` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
                                                         onclick={(e) => { e.stopPropagation(); copyToClipboard(log.body, `${i}-body`) }}
                                                         title="Copy"
                                                     >
@@ -1003,7 +1003,7 @@
                                                 <div class="flex items-center justify-between mb-2">
                                                     <span class="text-textcolor text-sm font-semibold">Request Header</span>
                                                     <button
-                                                        class="p-1 rounded hover:bg-bgcolor transition-colors {copiedKey === `${i}-header` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
+                                                        class="p-1 rounded-control hover:bg-bgcolor transition-colors {copiedKey === `${i}-header` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
                                                         onclick={(e) => { e.stopPropagation(); copyToClipboard(log.header, `${i}-header`) }}
                                                         title="Copy"
                                                     >
@@ -1020,7 +1020,7 @@
                                                 <div class="flex items-center justify-between mb-2">
                                                     <span class="text-textcolor text-sm font-semibold">Response</span>
                                                     <button
-                                                        class="p-1 rounded hover:bg-bgcolor transition-colors {copiedKey === `${i}-response` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
+                                                        class="p-1 rounded-control hover:bg-bgcolor transition-colors {copiedKey === `${i}-response` ? 'text-green-500' : 'text-textcolor2 hover:text-textcolor'}"
                                                         onclick={(e) => { e.stopPropagation(); copyToClipboard(log.response, `${i}-response`) }}
                                                         title="Copy"
                                                     >
@@ -1100,7 +1100,7 @@
         background-color: var(--risu-theme-bgcolor);
         color: var(--risu-theme-textcolor2);
         border: 1px solid var(--risu-theme-darkborderc);
-        border-radius: 0.25rem;
+        border-radius: var(--radius-sm);
         padding: 0.75rem 2.75rem 0.75rem 0.75rem;
         font-family: monospace;
         font-size: 0.75rem;
@@ -1120,7 +1120,7 @@
         width: 1.75rem;
         height: 1.75rem;
         border: 1px solid var(--risu-theme-darkborderc);
-        border-radius: 0.375rem;
+        border-radius: var(--radius-md);
         background-color: var(--risu-theme-darkbg);
         color: var(--risu-theme-textcolor2);
         transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
@@ -1135,7 +1135,7 @@
         background-color: #1a1a2e;
         color: #e0e0e0;
         border: 1px solid var(--risu-theme-darkborderc);
-        border-radius: 0.375rem;
+        border-radius: var(--radius-md);
         padding: 0.75rem;
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 0.75rem;

@@ -812,6 +812,7 @@ export const languageSpanish = {
     "able": "Habilitar",
     "assetWidth": "Ancho Máximo de Imágenes de Activos",
     "animationSpeed": "Velocidad de Animación",
+    "radiusScale": "Redondeo de esquinas",
     "screenshot": "Captura de Pantalla",
     "screenshotSaved": "Captura de Pantalla Guardada",
     "createBotwithAI": "Crear Bot con IA",

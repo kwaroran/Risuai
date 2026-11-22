@@ -35,7 +35,7 @@
         }}>
             <div class="flex items-center gap-3 mb-4">
                 <button 
-                    class="flex items-center justify-center p-2 rounded-lg hover:bg-selected transition-colors shrink-0"
+                    class="flex items-center justify-center p-2 rounded-control hover:bg-selected transition-colors shrink-0"
                     onclick={() => {
                         openOptions = false
                     }}
@@ -58,7 +58,7 @@
 {/if}
 
 <button onclick={() => {openOptions = true}}
-    class="mt-4 drop-shadow-lg p-3 flex justify-center items-center ml-2 mr-2 rounded-lg bg-darkbutton mb-4 border-darkborderc border">
+    class="mt-4 drop-shadow-lg p-3 flex justify-center items-center ml-2 mr-2 rounded-control bg-darkbutton mb-4 border-darkborderc border">
         {value}
 </button>
 

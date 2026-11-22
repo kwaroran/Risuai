@@ -58,7 +58,7 @@
         <div class="mx-4 mb-6 flex flex-col">
             <div class="flex items-center gap-3 mb-2">
                 <button 
-                    class="flex items-center justify-center p-2 rounded-lg hover:bg-selected transition-colors shrink-0"
+                    class="flex items-center justify-center p-2 rounded-control hover:bg-selected transition-colors shrink-0"
                     onclick={() => endGrid()}
                     title="Back"
                 >

@@ -2689,7 +2689,7 @@
 
                     <!-- <div class="mx-2 mb-2 p-2 bg-darkbg2 border border-darkborderc rounded-md">
                         <div class="flex flex-wrap gap-2">
-                            <button class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+                            <button class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-control transition-colors">
                                 TBD
                             </button>
                         </div>

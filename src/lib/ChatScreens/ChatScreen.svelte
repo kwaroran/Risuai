@@ -18,7 +18,7 @@
     const externalStyles = 
             ("background: " + (DBState.db.textScreenColor ? (DBState.db.textScreenColor + '80') : "rgba(0,0,0,0.8)") + ';\n')
         +   (DBState.db.textBorder ? "text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;" : '')
-        +   (DBState.db.textScreenRounded ? "border-radius: 2rem; padding: 1rem;" : '')
+        +   (DBState.db.textScreenRounded ? "border-radius: var(--radius-4xl); padding: 1rem;" : '')
         +   (DBState.db.textScreenBorder ? `border: 0.3rem solid ${DBState.db.textScreenBorder};` : '')
     let bgImg= $state('')
     let lastBg = $state('')

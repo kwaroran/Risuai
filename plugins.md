@@ -909,6 +909,10 @@ const imageData = await Risuai.readImage('asset-id');
 
 // Save assets
 const savedPath = await Risuai.saveAsset(assetData);
+
+// Create an inlay from image data; renders in chat via {{inlay::<id>}}
+// Asks for the 'inlay' permission; returns null if the user declines
+const inlayId = await Risuai.createInlay(imageBytes, { name: 'generated.png' });
 ```
 
 #### Inlay Assets (user-attached images / audio / video)
@@ -1179,7 +1183,7 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`, `'inlay'`
 
 `'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 

@@ -808,7 +808,7 @@
         }
       }} ondragenter={preventAll}></div>
     {/each}
-    <div class="flex flex-col items-center gap-2 px-2">
+    <div class="flex flex-col items-center gap-2 px-2 risu-sidebar-add" class:risu-round-icons={IconRounded}>
       <BaseRoundedButton
         onClick={async () => {
           addCharacter({reseter}) 

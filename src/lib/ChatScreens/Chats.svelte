@@ -50,10 +50,12 @@
     }
     let mountInstances: Map<number, ChatInstance> = new Map();
     // The message being streamed. Its hash changes with its content (every chunk, or once at the end
-    // when streaming display optimization is on), but remounting it collapses its height until the
-    // new instance finishes parsing, which breaks scroll anchoring and snaps the view to the bottom.
-    // So a hash change of this message updates the mounted instance in place instead, until the
-    // generation (including post-processing) has finished.
+    // when streaming display optimization is on), but remounting it re-creates its DOM, which loses
+    // the browser's scroll anchor (and in 'strong' mode renders it empty until parsed), so the view
+    // moves or snaps to the bottom. So a hash change of this message updates the mounted instance in
+    // place instead, until the generation (including post-processing) has finished. Only an instance
+    // mounted during this generation is used: one that was on screen before it (the message a continue
+    // streams into) is remounted instead, so nothing set on it before (translation, an open editor) stays.
     let streamTarget: { roomId: string | null, index: number, hash: number, shapeKey: string } | null = null;
 
     //Non-cryptographic hash function to generate a unique hash for each message
@@ -112,19 +114,8 @@
             const shapeKey = (message.chatId ?? '') + i.toString() + message.role + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
             let hashd = hashMessageData + shapeKey;
             const currentHash = hashCode(hashd);
-            // The hash this message had before streaming display started blanking its content
-            const shownHash = activeStreamingMessage ? hashCode(message.data + shapeKey) : currentHash;
-            const isStreamingMessage = isStreaming && i === messages.length - 1;
             currentHashes.add(currentHash);
             let updatedInPlace = false;
-            // Continue streams into a message that is already shown. Streaming starts before the first
-            // chunk arrives, so the instance showing it is still mounted under its unchanged content.
-            if(isStreamingMessage
-                && !(streamTarget && streamTarget.roomId === roomId && streamTarget.index === i)){
-                if(hashes.has(shownHash)){
-                    streamTarget = { roomId, index: i, hash: shownHash, shapeKey };
-                }
-            }
             if(!hashes.has(currentHash)
                 && streamTarget
                 && streamTarget.roomId === roomId
@@ -148,10 +139,10 @@
                     updatedInPlace = true;
                 }
             }
-            if(isStreamingMessage){
-                streamTarget = { roomId, index: i, hash: currentHash, shapeKey };
-            }
             if(!updatedInPlace && !hashes.has(currentHash)){
+                if(isStreaming && i === messages.length - 1){
+                    streamTarget = { roomId, index: i, hash: currentHash, shapeKey };
+                }
                 const b = document.createElement('div');
                 b.setAttribute('x-hashed', currentHash.toString());
                 b.classList.add('chat-message-container');
@@ -216,7 +207,7 @@
         hashes = currentHashes;
         // Keep it until the whole generation is done (output triggers, inlays and output listeners can
         // still rewrite the message after streaming has ended), then forget it, so a later change
-        // (an edit, a plugin) remounts the message as before.
+        // (an edit, a plugin) remounts the message.
         if(!isStreaming && !get(doingChat)){
             streamTarget = null;
         }

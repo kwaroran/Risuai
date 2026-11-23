@@ -561,8 +561,8 @@ export const LLMModels: LLMModel[] = [
         keyIdentifier: 'crowllm'
     },
     {
-        id: 'qwen-3.8-27b:free',
-        name: 'Qwen 3.8 27B (free)',
+        id: 'grok-4.7:free',
+        name: 'Grok 4.7 (free)',
         provider: LLMProvider.CrowLLM,
         format: LLMFormat.OpenAICompatible,
         flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],

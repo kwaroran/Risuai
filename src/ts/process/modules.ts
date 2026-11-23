@@ -262,6 +262,10 @@ export async function importModule(){
     if(!f){
         return
     }
+    return importModuleFile(f)
+}
+
+export async function importModuleFile(f:{name:string, data:Uint8Array}){
     let fileData = f.data
     if(f.name.endsWith('.charx')){
         try {
@@ -289,6 +293,7 @@ export async function importModule(){
             const buf = Buffer.from(fileData)
             const module = await readModule(buf)
             DBState.db.modules.push(module)
+            alertNormal(language.successImport)
         } catch (error) {
             console.error(error)
             alertError(language.errors.noData)

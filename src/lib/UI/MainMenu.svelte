@@ -46,15 +46,15 @@
       }
     ];
 </script>
-<div class="h-full w-full flex flex-col overflow-y-auto items-center">
+<div class="h-full w-full flex flex-col overflow-y-auto items-center risu-home">
     {#if !$OpenRealmStore}
       <Title />
-      <h3 class="text-textcolor2 mt-1">Version {getVersionString()}</h3>
+      <h3 class="text-textcolor2 mt-1 risu-home-version">Version {getVersionString()}</h3>
     {/if}
     <div class="w-full flex p-4 flex-col text-textcolor max-w-4xl">
       {#if !$OpenRealmStore}
       <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
-      <h1 class="text-2xl font-bold">Recently Uploaded<button class="text-base font-medium float-right p-1 bg-darkbg rounded-md hover:ring-3" onclick={() => {
+      <h1 class="text-2xl font-bold risu-home-section"><span class="risu-home-heading">Recently Uploaded</span><button class="text-base font-medium float-right hover:ring-3 p-1 bg-darkbg rounded-md risu-home-chip" onclick={() => {
         $OpenRealmStore = true
       }}>Get More</button></h1>
           {#if !DBState.db.hideRealm}
@@ -65,7 +65,7 @@
                   sort: 'recommended'
               }) then charas}
             {#if charas.length > 0}
-              {@html hubAdditionalHTML}
+              <div class="hub-notice">{@html hubAdditionalHTML}</div>
               <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
                   {#each charas as chara}
                       <RisuHubIcon onClick={() => {
@@ -77,19 +77,20 @@
                   {/each}
               </div>
             {:else}
-              <div class="text-textcolor2">Failed to load {language.hub}...</div>
+              <div class="text-textcolor2 risu-home-note">Failed to load {language.hub}...</div>
             {/if}
           {/await}
         {:else}
-          <div class="text-textcolor2">{language.hideRealm}</div>
+          <div class="text-textcolor2 risu-home-note">{language.hideRealm}</div>
         {/if}
+      {#if !DBState.db.hideRelatedLinks}
       <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
-      <h1 class="text-2xl font-bold mb-4">
-        Related Links
+      <h1 class="text-2xl font-bold mb-4 risu-home-section">
+        <span class="risu-home-heading">Related Links</span>
       </h1>
         <div class="grid w-full grid-cols-1 gap-4 p-2 md:grid-cols-2">
           {#each relatedLinks as relatedLink}
-            <button class="group relative flex min-h-[140px] flex-col justify-center overflow-hidden rounded-2xl border border-borderc/10 bg-darkbg p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-borderc/30 hover:bg-selected/50 hover:shadow-xl hover:shadow-darkbg/50" onclick={() => {
+            <button class="group relative flex min-h-[140px] flex-col justify-center overflow-hidden rounded-2xl border border-borderc/10 p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-borderc/30 hover:bg-selected/50 hover:shadow-xl hover:shadow-darkbg/50 bg-darkbg risu-card" onclick={() => {
               openURL(relatedLink.href)
             }}>
               <div class="relative z-10 w-[68%] sm:w-[70%]">
@@ -113,6 +114,7 @@
             </button>
           {/each}
       </div>
+      {/if}
 
       {:else}
         <div class="flex items-center mt-4">

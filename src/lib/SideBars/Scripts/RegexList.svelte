@@ -65,7 +65,7 @@
     })
 </script>
 {#key sorted}
-    <div class="contain w-full max-w-full mt-2 flex flex-col p-3 border-selected border-1 bg-darkbg rounded-md" bind:this={ele}>
+    <div class="contain w-full max-w-full mt-2 flex flex-col p-3 border-selected border-1 bg-darkbg rounded-md risu-panel risu-list" bind:this={ele}>
         {#if value.length === 0}
                 <div class="text-textcolor2">No Scripts</div>
         {/if}
@@ -79,7 +79,7 @@
     </div>
 {/key}
 {#if buttons}
-    <div class="flex gap-2 mt-2">
+    <div class="flex gap-2 mt-2 risu-icon-row">
         <button class="rounded-md text-textcolor2 hover:text-textcolor focus-within:text-textcolor" onclick={() => {
             value.push({
             comment: "",

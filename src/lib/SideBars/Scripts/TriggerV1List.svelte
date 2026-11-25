@@ -71,7 +71,7 @@
 
 {#key sorted}
   <div
-    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md p-3"
+    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md p-3 risu-panel risu-list"
     bind:this={ele}
   >
     {#if value.length === 0}
@@ -93,7 +93,7 @@
     {/each}
   </div>
   <button
-    class="font-medium cursor-pointer hover:text-textcolor mb-2 text-textcolor2"
+    class="font-medium cursor-pointer hover:text-textcolor mb-2 text-textcolor2 risu-trigger-v1-add"
     onclick={() => {
       value.push({
         comment: '',

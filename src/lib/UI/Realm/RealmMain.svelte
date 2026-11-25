@@ -51,7 +51,7 @@
     })
 </script>
 <div class="w-full flex justify-center mt-4 mb-2">
-    <div class="flex items-stretch w-2xl max-w-full">
+    <div class="flex items-stretch w-2xl max-w-full risu-search-bar">
         <input bind:value={search} class="peer focus:border-textcolor transition-colors outline-hidden text-textcolor p-2 min-w-0 border border-r-0 bg-transparent rounded-md rounded-r-none input-text text-xl grow ml-4 border-darkborderc resize-none overflow-y-hidden overflow-x-hidden max-w-full">
             <button
             onclick={() => {
@@ -113,7 +113,7 @@
     </div>
 </div>
 {:else}
-    <div class="w-full p-1 flex mb-3 overflow-x-auto sm:justify-center">
+    <div class="w-full p-1 flex mb-3 overflow-x-auto sm:justify-center risu-filter-chips">
         <button class="bg-darkbg p-2 rounded-lg ml-2 flex justify-center items-center hover:bg-selected transition-shadow" class:ring-3={nsfw} onclick={() => {
             nsfw = !nsfw
             getHub()

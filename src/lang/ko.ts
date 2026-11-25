@@ -1575,4 +1575,5 @@ export const languageKorean = {
     localToggles: "로컬 토글",
     comfyWorkflow: "워크플로 (API)",
     comfyWorkflowInvalidJson: "올바르지 않은 워크플로 파일입니다. 유효한 JSON이어야 합니다.",
+    hideRelatedLinks: "관련 링크 숨기기",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

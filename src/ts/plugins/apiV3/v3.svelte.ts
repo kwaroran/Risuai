@@ -26,6 +26,7 @@ import { getModelInfo } from "src/ts/model/modellist";
 import type { ModelModeExtended } from "src/ts/process/request/shared";
 import { requestChatDataMain } from "src/ts/process/request/request";
 import { getModuleLorebooks } from "src/ts/process/modules";
+import { createInlayFromData } from "src/ts/process/files/inlays";
 import {
     registerTTSPreprocessor,
     unregisterTTSPreprocessor,
@@ -417,6 +418,7 @@ type SafeMutationRecordObject = {
     type: string;
     target: SafeElement;
     addedNodes: SafeElement[];
+    removedNodes: SafeElement[];
 }
 
 class SafeClassArray<T> {
@@ -441,10 +443,12 @@ class SafeMutationRecord{
     #type: string;
     #target: SafeElement;
     #addedNodes: SafeClassArray<SafeElement>;
-    constructor(type: string, target: SafeElement, addedNodes: SafeElement[]) {
+    #removedNodes: SafeClassArray<SafeElement>;
+    constructor(type: string, target: SafeElement, addedNodes: SafeElement[], removedNodes: SafeElement[]) {
         this.#type = type;
         this.#target = target;
         this.#addedNodes = new SafeClassArray<SafeElement>(addedNodes);
+        this.#removedNodes = new SafeClassArray<SafeElement>(removedNodes);
     }
     getType(): string {
         return this.#type;
@@ -454,6 +458,9 @@ class SafeMutationRecord{
     }
     getAddedNodes(): SafeClassArray<SafeElement> {
         return this.#addedNodes;
+    }
+    getRemovedNodes(): SafeClassArray<SafeElement> {
+        return this.#removedNodes;
     }
 }
 
@@ -490,7 +497,8 @@ class SafeMutationObserver {
                 safeClassed.push(new SafeMutationRecord(
                     record.type,
                     record.target,
-                    record.addedNodes
+                    record.addedNodes,
+                    record.removedNodes,
                 ));
             }
             callback(safeClassed);
@@ -589,6 +597,18 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 
 export const customV3ProviderMetaStore:LLMModel[] = []
 
+// Read at prompt time so the current UI language is used
+const permissionConsentTexts: Record<PluginPermission, () => string> = {
+    fetchLogs: () => language.fetchLogConsent,
+    db: () => language.getFullDatabaseConsent,
+    dbWrite: () => language.dbWriteConsent,
+    mainDom: () => language.mainDomAccessConsent,
+    replacer: () => language.replacerPermissionConsent,
+    provider: () => language.providerPermissionConsent,
+    sendChat: () => language.sendChatConsent,
+    inlay: () => language.inlayPermissionConsent,
+}
+
 const getPluginPermission = async (pluginName: string, scriptHash: string, permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
     const cachedPermission = permissionSessionCache.get(scriptHash, permissionDesc)
     if(cachedPermission !== undefined){
@@ -616,19 +636,11 @@ const getPluginPermission = async (pluginName: string, scriptHash: string, permi
     }   
     
 
-    let alertTitle =
-        permissionDesc === 'fetchLogs' ? language.fetchLogConsent.replace("{}", pluginName)
-        : permissionDesc === 'db' ? language.getFullDatabaseConsent.replace("{}", pluginName)
-        : permissionDesc === 'mainDom' ? language.mainDomAccessConsent.replace("{}", pluginName)
-        : permissionDesc === 'replacer' ? language.replacerPermissionConsent.replace("{}", pluginName)
-        : permissionDesc === 'provider' ? language.providerPermissionConsent.replace("{}", pluginName)
-        : permissionDesc === 'sendChat' ? language.sendChatConsent.replace("{}", pluginName)
-        : permissionDesc === 'inlay' ? language.inlayPermissionConsent.replace("{}", pluginName)
-        : `Error`
-    if(alertTitle === 'Error'){
+    if(!Object.hasOwn(permissionConsentTexts, permissionDesc)){
         return false;
     }
-    const conf = await alertConfirm(alertTitle)
+    const consentText = permissionConsentTexts[permissionDesc]
+    const conf = await alertConfirm(consentText().replace("{}", pluginName))
     if(conf && permissionKey){
         permissionSessionCache.set(scriptHash, permissionDesc, true)
         await permissionForage.setItem(permissionKey, true);
@@ -647,6 +659,26 @@ const urlBlacklist = [
     'sionyw.com',
 ]
 
+const assertPluginUrlAllowed = (url: string) => {
+    if(typeof url !== 'string'){
+        throw new Error('Invalid URL');
+    }
+    const hostnames: string[] = [];
+    for(const base of [undefined, location.href]){
+        try {
+            hostnames.push(new URL(url, base).hostname.toLowerCase().replace(/\.+$/, ''));
+        } catch {}
+    }
+    if(hostnames.length === 0){
+        throw new Error('Invalid URL');
+    }
+    for(const blocked of urlBlacklist){
+        if(hostnames.some((hostname) => hostname === blocked || hostname.endsWith('.' + blocked))){
+            throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
+        }
+    }
+}
+
 const authorizationHeaders = [
     'x-api-key',
     'authorization',
@@ -660,16 +692,19 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
     const getPermission = async (permissionDesc: PluginPermission, reconfirm: boolean|'periodically' = false) => {
         return getPluginPermission(plugin.name, await getPluginScriptHash(), permissionDesc, reconfirm)
     }
+    const withDbWrite = <A extends any[]>(write: (...args: A) => unknown) => {
+        return (...args: A) => runWithPluginPermission(
+            () => getPermission('dbWrite', 'periodically'),
+            async () => { await write(...args) },
+            undefined
+        )
+    }
     return {
 
         //Old APIs from v2.1
         risuFetch: (url, options) => {
             console.error(`[DEPRECATION WARNING] risuFetch is deprecated and will be removed in future versions. Please use nativeFetch instead.`)
-            for(const blocked of urlBlacklist){
-                if(url.toLowerCase().includes(blocked)){
-                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
-                }
-            }
+            assertPluginUrlAllowed(url);
 
             //scan headers
             const headers = options?.headers || {};
@@ -681,11 +716,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return oldApis.risuFetch(url, options);
         },
         nativeFetch: (url, options) => {
-            for(const blocked of urlBlacklist){
-                if(url.toLowerCase().includes(blocked)){
-                    throw new Error(`Requests to ${blocked} are blocked for security reasons.`);
-                }
-            }
+            assertPluginUrlAllowed(url);
 
             //scan headers
             const headers = options?.headers || {};
@@ -697,7 +728,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             return oldApis.nativeFetch(url, options);
         },
         getChar: oldApis.getChar,
-        setChar: oldApis.setChar,
+        setChar: withDbWrite(oldApis.setChar),
         addProvider: (name: string, func: (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string | ReadableStream<string> }>, options?: PluginV3ProviderOptions) => {
             console.warn(`[WARN] addProvider is a powerful API that can potentially be unsafe if used incorrectly. addProvider's functionality might be limited or changed in future updates to ensure security. please use other APIs if possible.`);
             let provs = get(customProviderStore)
@@ -768,7 +799,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             addPluginUnloadCallback(plugin.name, () => oldApis.removeRisuChatListener(mode, func as any));
         },
         removeRisuChatListener: oldApis.removeRisuChatListener,
-        setDatabaseLite: (newDb: any) => {
+        setDatabaseLite: withDbWrite((newDb: any) => {
             if(newDb && Object.hasOwn(newDb, 'plugins')){
                 if(import.meta.env.DEV && !isEqual(newDb.plugins, $state.snapshot(DBState.db.plugins))){
                     console.warn(`Plugin "${plugin.name}" attempted to modify the plugin list using setDatabaseLite. The change was ignored.`);
@@ -780,8 +811,8 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
 
             return oldApis.setDatabaseLite(newDb);
-        },
-        setDatabase: oldApis.setDatabase,
+        }),
+        setDatabase: withDbWrite(oldApis.setDatabase),
         loadPlugins: oldApis.loadPlugins,
         readImage: oldApis.readImage,
         readInlay: async (id: string) => {
@@ -897,6 +928,16 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                 }
             }
         },
+        createInlay: async (data: Uint8Array | string, options?: { name?: string }) => {
+            if(typeof data !== 'string' && !(data instanceof Uint8Array)){
+                throw new Error('data must be a Uint8Array or an image data URI string')
+            }
+            const conf = await getPermission('inlay', 'periodically');
+            if(!conf){
+                return null;
+            }
+            return await createInlayFromData(data, options?.name)
+        },
         getCharacterFromIndex: (index:number) => {
             const db = DBState.db
             const charIds = Object.keys(db.characters);
@@ -906,14 +947,14 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             }
             return null;
         },
-        setCharacterToIndex: (index:number, char:any) => {
+        setCharacterToIndex: withDbWrite((index:number, char:any) => {
             const db = DBState.db
             const charIds = Object.keys(db.characters);
             const charId = charIds[index];
             if(charId){
                 DBState.db.characters[charId] = char
             }
-        },
+        }),
         getChatFromIndex: (characterIndex:number, chatIndex:number) => {
             const db = DBState.db
             const charIds = Object.keys(db.characters);
@@ -969,7 +1010,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
 
             return (await processScriptFull(char, parsed, 'editprocess', chatID, cbsConditions)).data;
         },
-        setChatToIndex: (characterIndex:number, chatIndex:number, chat:any) => {
+        setChatToIndex: withDbWrite((characterIndex:number, chatIndex:number, chat:any) => {
             const db = DBState.db
             const charIds = Object.keys(db.characters);
             const charId = charIds[characterIndex];
@@ -979,7 +1020,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
                     DBState.db.characters[charId].chats[chatIndex] = chat
                 }
             }
-        },
+        }),
         getCurrentCharacterIndex: () => {
             return get(selectedCharID)
         },
@@ -1002,7 +1043,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
         },
         //New names for character APIs, to match API naming conventions
         getCharacter: oldApis.getChar,
-        setCharacter: oldApis.setChar,
+        setCharacter: withDbWrite(oldApis.setChar),
 
         showContainer: (
             //more types may be added in future

@@ -1,6 +1,15 @@
+// @vitest-environment jsdom
+// DOMPurify does not support happy-dom. Since 3.4.8 it reads tag names through
+// the Node.prototype.nodeName getter, which returns '' on happy-dom elements, so
+// every element is stripped (https://github.com/capricorn86/happy-dom/issues/2182).
 import { describe, it, expect, vi } from 'vitest'
 import { writable } from 'svelte/store'
 import { ParseMarkdown } from '../parser.svelte'
+
+// jsdom has no matchMedia, which platform.ts calls at import time
+vi.hoisted(() => {
+    window.matchMedia ??= ((query: string) => ({ matches: false, media: query })) as any
+})
 
 //#region module mocks
 
@@ -43,7 +52,9 @@ vi.mock(import('../../stores.svelte'), () => {
 
 //#endregion
 
-const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html').body
+// The explicit <body> keeps a leading <style> in the body; without it the
+// parser moves that style into <head>, as the HTML spec requires
+const parse = (html: string) => new DOMParser().parseFromString(`<body>${html}`, 'text/html').body
 
 /**
  * Every rendered style rule must stay scoped to the chat text container.

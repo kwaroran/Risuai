@@ -182,6 +182,19 @@
 
     });
 
+    // The forms bind directly to these configs, and blocks can update before
+    // $effect.pre runs, so hold a form back until the effects above have created its config.
+    const ttsConfigReady = $derived.by(() => {
+        const chara = DBState.db.characters[$selectedCharID] as character
+        switch (chara.ttsMode) {
+            case 'novelai': return chara.naittsConfig !== undefined
+            case 'gptsovits': return chara.gptSoVitsConfig !== undefined
+            case 'fishspeech': return chara.fishSpeechConfig !== undefined
+            case 'openai': return chara.oaiTTSConfig !== undefined
+            default: return true
+        }
+    })
+
     async function getFishSpeechModels() {
         try {
             const res = await fetch(`https://api.fish.audio/model?self=true`, {
@@ -234,7 +247,7 @@
 </script>
 
 {#if licensed !== 'private' && !$MobileGUI}
-    <div class="flex mb-2" class:gap-2={iconButtonSize === 24} class:gap-1={iconButtonSize < 24}>
+    <div class="flex mb-2 risu-charconfig-tabs" class:gap-2={iconButtonSize === 24} class:gap-1={iconButtonSize < 24}>
         <button class={$CharConfigSubMenu === 0 ? 'text-textcolor ' : 'text-textcolor2'} onclick={() => {$CharConfigSubMenu = 0}}>
             <UserIcon size={iconButtonSize} />
         </button>
@@ -269,15 +282,15 @@
         <TextInput size="xl" marginBottom placeholder="Character Name" bind:value={DBState.db.characters[$selectedCharID].name} />
         <span class="text-textcolor">{language.description} <Help key="charDesc"/></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={(DBState.db.characters[$selectedCharID] as character).desc}></TextAreaInput>
-        <span class="text-textcolor2 mb-6 text-sm">{tokens.desc} {language.tokens}</span>
+        <span class="text-textcolor2 mb-6 text-sm risu-token-count">{tokens.desc} {language.tokens}</span>
         <span class="text-textcolor">{language.firstMessage} <Help key="charFirstMessage"/></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].firstMessage}></TextAreaInput>
-        <span class="text-textcolor2 mb-6 text-sm">{tokens.firstMsg} {language.tokens}</span>
+        <span class="text-textcolor2 mb-6 text-sm risu-token-count">{tokens.firstMsg} {language.tokens}</span>
 
     {:else if licensed !== 'private' && DBState.db.characters[$selectedCharID].type === 'group'}
         <TextInput size="xl" marginBottom placeholder="Group Name" bind:value={DBState.db.characters[$selectedCharID].name} />
         <span class="text-textcolor">{language.character}</span>
-        <div class="p-4 gap-2 bg-bgcolor rounded-lg char-grid">
+        <div class="p-4 gap-2 bg-bgcolor rounded-lg char-grid risu-panel">
             {#if (DBState.db.characters[$selectedCharID] as groupChat).characters.length === 0}
                 <span class="text-textcolor2">No Character</span>
             {:else}
@@ -298,7 +311,7 @@
                     {/await}
                     <div class="flex items-center px-2 py-3">
                         {#each [1,2,3,4,5,6] as barIndex}
-                            <button class="bg-selected h-full flex-1 border-r-bgcolor border-r" 
+                            <button class="bg-selected h-full flex-1 border-r-bgcolor border-r risu-talk-bar" 
                                 aria-labelledby="loading"
                                 class:bg-green-500={(DBState.db.characters[$selectedCharID] as groupChat).characterTalks[i] >= (1 / 6 * barIndex)}
                                 class:bg-selected={(DBState.db.characters[$selectedCharID] as groupChat).characterTalks[i] < (1 / 6 * barIndex)}
@@ -318,7 +331,7 @@
                 {/each}
             {/if}
         </div>
-        <div class="text-textcolor2 mt-1 flex mb-6">
+        <div class="text-textcolor2 mt-1 flex mb-6 risu-icon-row">
             <button onclick={addGroupChar} class="hover:text-textcolor cursor-pointer">
                 <PlusIcon />
             </button>
@@ -333,7 +346,7 @@
         highlight
         placeholder={getAuthorNoteDefaultText()}
     />
-    <span class="text-textcolor2 mb-6 text-sm">{tokens.localNote} {language.tokens}</span>
+    <span class="text-textcolor2 mb-6 text-sm risu-token-count">{tokens.localNote} {language.tokens}</span>
 
     {#if !$MobileGUI}
         <Toggles bind:chara={DBState.db.characters[$selectedCharID]} noContainer />
@@ -351,10 +364,10 @@
     })()}
 {:else if $CharConfigSubMenu === 1}
     {#if !$MobileGUI}
-        <h2 class="mb-2 text-2xl font-bold mt-2">{language.characterDisplay}</h2>
+        <h2 class="mb-2 text-2xl font-bold mt-2 risu-charconfig-title">{language.characterDisplay}</h2>
     {/if}
 
-    <div class="flex w-full rounded-md border border-selected mb-4">
+    <div class="flex w-full rounded-md border border-selected mb-4 risu-seg risu-seg-wrap">
         <button onclick={() => {
             viewSubMenu = 0
         }} class="p-2 flex-1" class:bg-selected={viewSubMenu === 0}>
@@ -376,13 +389,13 @@
         {#if DBState.db.characters[$selectedCharID].type === 'group'}
             <button onclick={async () => {await selectCharImg($selectedCharID)}}>
                 {#await getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
-                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3"></div>
+                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 risu-icon-tile"></div>
                 {:then im}
-                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3" style={im}></div>     
+                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 risu-icon-tile" style={im}></div>     
                 {/await}
             </button>
         {:else}
-            <div class="p-2 border-darkborderc border rounded-md flex flex-wrap gap-2">
+            <div class="p-2 border-darkborderc border rounded-md flex flex-wrap gap-2 risu-panel">
                 {#if DBState.db.characters[$selectedCharID].image !== '' && DBState.db.characters[$selectedCharID].image}
                     <button onclick={() => {
                         if(
@@ -400,12 +413,12 @@
                     }}>
                         {#await getCharImage(DBState.db.characters[$selectedCharID].image, (DBState.db.characters[$selectedCharID] as character).largePortrait ? 'lgcss' : 'css')}
                             <div
-                                class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow"
+                                class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow risu-icon-tile"
                                 class:ring-red-500={iconRemoveMode}
     ></div>
                         {:then im}
                             <div
-                                class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow"
+                                class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow risu-icon-tile"
                                 class:ring-red-500={iconRemoveMode}
                                 style={im}
     ></div>     
@@ -425,12 +438,12 @@
                         }}>
                             {#await getCharImage(assets.uri, (DBState.db.characters[$selectedCharID] as character).largePortrait ? 'lgcss' : 'css')}
                                 <div
-                                    class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow"
+                                    class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow risu-icon-tile"
                                     class:ring-red-500={iconRemoveMode} class:ring-3={iconRemoveMode}
     ></div>
                             {:then im}
                                 <div
-                                    class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow"
+                                    class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow risu-icon-tile"
                                     style={im} class:ring-red-500={iconRemoveMode} class:ring-3={iconRemoveMode}
     ></div>     
                             {/await}
@@ -439,14 +452,14 @@
                 {/if}
                 <button onclick={async () => {await selectCharImg($selectedCharID);}}>
                     <div
-                        class="rounded-md h-24 w-24 cursor-pointer border-darkborderc border border-dashed flex justify-center items-center hover:border-blue-500"
+                        class="rounded-md h-24 w-24 cursor-pointer border-darkborderc border border-dashed flex justify-center items-center hover:border-blue-500 risu-icon-add"
                         style={(DBState.db.characters[$selectedCharID] as character).largePortrait ? 'height: 10.66rem;' : ''}
                     >
                         <PlusIcon />
                     </div>
                 </button>
             </div>
-            <div class="flex w-full items-end justify-end mt-2">
+            <div class="flex w-full items-end justify-end mt-2 risu-icon-row">
                 <button class={iconRemoveMode ? "text-red-500" : "text-textcolor2 hover:text-textcolor"} onclick={() => {
                     iconRemoveMode = !iconRemoveMode
                 }}>
@@ -495,7 +508,7 @@
             <span class="text-textcolor mt-6">{language.emotionImage} <Help key="emotion"/></span>
             <span class="text-textcolor2 text-xs">{language.emotionWarn}</span>
 
-            <div class="w-full max-w-full border border-selected p-2 rounded-md">
+            <div class="w-full max-w-full border border-selected p-2 rounded-md risu-panel">
 
                 <table class="w-full max-w-full tabler">
                     <tbody>
@@ -533,7 +546,7 @@
 
             </div>
 
-            <div class="text-textcolor2 hover:text-textcolor mt-2 flex">
+            <div class="text-textcolor2 hover:text-textcolor mt-2 flex risu-icon-row">
                 {#if !$addingEmotion}
                     <button class="cursor-pointer hover:text-green-500" onclick={() => {addCharEmotion($selectedCharID)}}>
                         <PlusIcon />
@@ -588,7 +601,7 @@
                 <OptionInput value="dynamic">{language.dynamic}</OptionInput>
             </SelectInput>
             {/if}
-            <div class="w-full max-w-full border border-selected rounded-md p-2 mt-2">
+            <div class="w-full max-w-full border border-selected rounded-md p-2 mt-2 risu-panel">
                 <table class="contain w-full max-w-full tabler mt-2">
                 <tbody>
                     <tr>
@@ -674,13 +687,13 @@
     {/if}
 {:else if $CharConfigSubMenu === 3}
     {#if !$MobileGUI}
-        <h2 class="mb-2 text-2xl font-bold mt-2">{language.loreBook} <Help key="lorebook"/></h2>
+        <h2 class="mb-2 text-2xl font-bold mt-2 risu-charconfig-title">{language.loreBook} <Help key="lorebook"/></h2>
     {/if}
     <LoreBook />
 {:else if $CharConfigSubMenu === 4}
     {#if DBState.db.characters[$selectedCharID].type === 'character'}
         {#if !$MobileGUI}
-            <h2 class="mb-2 text-2xl font-bold mt-2">{language.scripts}</h2>
+            <h2 class="mb-2 text-2xl font-bold mt-2 risu-charconfig-title">{language.scripts}</h2>
         {/if}
 
         <span class="text-textcolor mt-2">{language.backgroundHTML} <Help key="backgroundHTML" /></span>
@@ -688,7 +701,7 @@
 
         <span class="text-textcolor mt-4">{language.regexScript} <Help key="regexScript"/></span>
         <RegexList bind:value={DBState.db.characters[$selectedCharID].customscript} />
-        <div class="text-textcolor2 mt-2 flex gap-2">
+        <div class="text-textcolor2 mt-2 flex gap-2 risu-icon-row">
             <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
                 if(DBState.db.characters[$selectedCharID].type === 'character'){
                     let script = DBState.db.characters[$selectedCharID].customscript
@@ -729,7 +742,7 @@
             if(await alertTOS()){
                 $ShowRealmFrameStore = 'character'
             }
-        }} className="mt-2">
+        }} className="mt-2 risu-share-main">
             {#if DBState.db.characters[$selectedCharID].realmId}
                 {language.updateRealm}
             {:else}
@@ -745,17 +758,17 @@
         }
         <Button size="sm" onclick={async () => {
             const res = await exportChar($selectedCharID)
-        }} className="mt-2">{language.exportCharacter}</Button>
+        }} className="mt-2 risu-share-btn">{language.exportCharacter}</Button>
     {/if}
 
     <Button onclick={async () => {
         removeChar($selectedCharID, DBState.db.characters[$selectedCharID].name)
-    }} className="mt-2" size="sm">{ DBState.db.characters[$selectedCharID].type === 'group' ? language.removeGroup : language.removeCharacter}</Button>
+    }} className="mt-2 risu-share-btn risu-share-remove" size="sm">{ DBState.db.characters[$selectedCharID].type === 'group' ? language.removeGroup : language.removeCharacter}</Button>
     
 {:else if $CharConfigSubMenu === 5}
     {#if DBState.db.characters[$selectedCharID].type === 'character'}
         {#if !$MobileGUI}
-            <h2 class="mb-2 text-2xl font-bold mt-2">TTS</h2>
+            <h2 class="mb-2 text-2xl font-bold mt-2 risu-charconfig-title">TTS</h2>
         {/if}
         <span class="text-textcolor">{language.provider}</span>
         <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].ttsMode} onchange={(e) => {
@@ -831,7 +844,7 @@
                 <span class="text-textcolor">Intonation scale</span>
                 <NumberInput size={"sm"} marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.INTONATION_SCALE}/>
                 <span class="text-sm mb-2 text-textcolor2">To use VOICEVOX, you need to run a colab and put the localtunnel URL in "Settings → Other Bots". https://colab.research.google.com/drive/1tyeXJSklNfjW-aZJAib1JfgOMFarAwze</span>
-        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'novelai'}
+        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'novelai' && ttsConfigReady}
             <span class="text-textcolor">Custom Voice Seed</span>
             <Check bind:check={DBState.db.characters[$selectedCharID].naittsConfig.customvoice}/>
             {#if !DBState.db.characters[$selectedCharID].naittsConfig.customvoice}
@@ -856,7 +869,7 @@
                 <OptionInput value="v1">v1</OptionInput>
                 <OptionInput value="v2">v2</OptionInput>
             </SelectInput>
-        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'openai'}
+        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'openai' && ttsConfigReady}
             <span class="text-textcolor">Voice</span>
             {#if !DBState.db.characters[$selectedCharID].oaiTTSConfig?.enabled}
                 <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].oaiVoice}>
@@ -919,7 +932,7 @@
                     DBState.db.characters[$selectedCharID].vits = model
                 }
             }}>{language.selectModel}</Button>
-        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'gptsovits'}
+        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'gptsovits' && ttsConfigReady}
             <span class="text-textcolor">Volume</span>
             <SliderInput min={0.0} max={1.0} step={0.01} fixed={2} bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.volume}/>
             <span class="text-textcolor">URL</span>
@@ -1022,7 +1035,7 @@
                 <OptionInput value="cut4">Cut 4 (Split by English periods)</OptionInput>
                 <OptionInput value="cut5">Cut 5 (Split by various punctuation marks)</OptionInput>
             </SelectInput>        
-        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'fishspeech'}
+        {:else if DBState.db.characters[$selectedCharID].ttsMode === 'fishspeech' && ttsConfigReady}
             {#await getFishSpeechModels()}
                 <span class="text-textcolor">Loading...</span>
             {:then}
@@ -1056,11 +1069,11 @@
     {/if}
 {:else if $CharConfigSubMenu === 2}
     {#if !$MobileGUI}
-        <h2 class="mb-2 text-2xl font-bold mt-2">{language.advancedSettings}</h2>
+        <h2 class="mb-2 text-2xl font-bold mt-2 risu-charconfig-title">{language.advancedSettings}</h2>
     {/if}
         {#if DBState.db.characters[$selectedCharID].type !== 'group'}
         <span class="text-textcolor mt-2">Bias <Help key="bias"/></span>
-        <div class="w-full max-w-full border border-selected rounded-md p-2 mb-2">
+        <div class="w-full max-w-full border border-selected rounded-md p-2 mb-2 risu-panel">
 
         <table class="w-full max-w-full tabler mt-2">
             <tbody>
@@ -1148,13 +1161,13 @@
         <TextInput size="sm" bind:value={DBState.db.characters[$selectedCharID].nickname}/>
 
         <span class="text-textcolor">{language.depthPrompt}</span>
-        <div class="flex justify-center items-center">
+        <div class="flex justify-center items-center risu-field-row">
             <NumberInput size="sm" bind:value={DBState.db.characters[$selectedCharID].depth_prompt.depth} className="w-12"/>
             <TextInput size="sm" bind:value={DBState.db.characters[$selectedCharID].depth_prompt.prompt} className="flex-1"/>
         </div>
 
         <span class="text-textcolor mt-2">{language.altGreet}</span>
-        <div class="w-full max-w-full border border-selected rounded-md p-2">
+        <div class="w-full max-w-full border border-selected rounded-md p-2 risu-panel">
             <table class="contain w-full max-w-full tabler mt-2">
                 <tbody>
                 <tr>

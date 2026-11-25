@@ -1238,6 +1238,37 @@
             </div>
         {:else if DBState.db.theme === 'customHTML' && !blankMessage}
             {@render renderGuiHtmlPart(RenderGUIHtml(DBState.db.guiHTML))}
+        {:else if DBState.db.theme === 'aurora' && !blankMessage && DBState.db.characters[selIdState.selId]?.chaId !== "§playground"}
+            <!-- Aurora: the user's turns sit in bubbles on the right, replies flow as plain text -->
+            {#if role === 'user'}
+                <div class="risu-aurora-msg risu-aurora-user">
+                    <div class="risu-aurora-bubble">
+                        {@render textBox()}
+                    </div>
+                    <div class="risu-aurora-tools">
+                        {@render iconButtons()}
+                    </div>
+                    <div class="risu-aurora-meta">
+                        {@render genInfo()}
+                    </div>
+                </div>
+            {:else}
+                <div class="risu-aurora-msg risu-aurora-char">
+                    <div class="risu-aurora-head">
+                        {#if !$HideIconStore}
+                            {@render senderIcon({rounded: true, styleFix: 'height:1.75rem;width:1.75rem;min-width:1.75rem'})}
+                            <span class="risu-aurora-name">{name}</span>
+                        {/if}
+                        <div class="risu-aurora-meta">
+                            {@render genInfo()}
+                        </div>
+                        <div class="risu-aurora-tools">
+                            {@render iconButtons()}
+                        </div>
+                    </div>
+                    {@render textBox()}
+                </div>
+            {/if}
         {:else}
             {@render senderIcon({rounded: DBState.db.roundIcons})}
             <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">

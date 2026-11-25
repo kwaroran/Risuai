@@ -14,7 +14,7 @@
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.display}</h2>
 
 {#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4 overflow-x-auto h-16 min-h-16 overflow-y-clip">
+    <div class="flex w-full rounded-md border border-darkborderc mb-4 risu-seg overflow-x-auto h-16 min-h-16 overflow-y-clip">
         <button
             onclick={() => {
                 submenu = 0;

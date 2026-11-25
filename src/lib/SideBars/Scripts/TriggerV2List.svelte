@@ -2195,15 +2195,28 @@
         e.stopPropagation()
     }
 
+    const escapeDisplayValue = (value:any) => {
+        if(value === undefined || value === null || typeof value === 'number' || typeof value === 'boolean'){
+            return value
+        }
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+    }
+
     const formatEffectDisplay = (effect:triggerEffect) => {
         const type = effect.type
+        const indent = Number((effect as triggerEffectV2).indent) || 0
 
         if(!checkSupported(type)){
             return `<span class="text-red-500">${language.triggerDesc.v2UnsupportedTriggerDesc}</span>`
         }
 
-        const txt = (language.triggerDesc[type + 'Desc'] as string || type).replace(/{{(.+?)}}/g, (match, p1) => {
-            const d = effect[p1]
+        const txt = (language.triggerDesc[type + 'Desc'] as string || escapeDisplayValue(type)).replace(/{{(.+?)}}/g, (match, p1) => {
+            const d = escapeDisplayValue(effect[p1])
             
             if(type === 'v2Comment' && p1 === 'value') {
                 return `<span class="text-gray-400">${d || ''}</span>`
@@ -2238,10 +2251,10 @@
         })
 
         if(type === 'v2Comment') {
-            return `<div class="text-gray-500 italic line-clamp-4" style="margin-left:${(effect as triggerEffectV2).indent}rem; word-break: break-all; overflow-wrap: break-word;">// ${txt}</div>`
+            return `<div class="text-gray-500 italic line-clamp-4" style="margin-left:${indent}rem; word-break: break-all; overflow-wrap: break-word;">// ${txt}</div>`
         }
 
-        return `<div class="text-purple-500 line-clamp-4" style="margin-left:${(effect as triggerEffectV2).indent}rem; word-break: break-all; overflow-wrap: break-word;">${txt}</div>`
+        return `<div class="text-purple-500 line-clamp-4" style="margin-left:${indent}rem; word-break: break-all; overflow-wrap: break-word;">${txt}</div>`
     }
     
     const updateGuideLines = () => {
@@ -2292,7 +2305,7 @@
 </script>
 
 <div
-    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md"
+    class="contain w-full max-w-full mt-2 flex flex-col border-selected border-1 bg-darkbg rounded-md risu-trigger-edit"
 >
     <Button onclick={(e) => {
         e.stopPropagation()
@@ -2313,7 +2326,7 @@
 <Portal>
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="text-textcolor absolute top-0 bottom-0 bg-black/50 max-w-full w-full h-full z-40 flex justify-center items-center" 
+    <div class="text-textcolor absolute top-0 bottom-0 bg-black/50 max-w-full w-full h-full z-40 flex justify-center items-center risu-trigger-overlay" 
          onclick={(e) => {
              if (e.target === e.currentTarget) {
                  contextMenu = false
@@ -2330,7 +2343,7 @@
          }}
     >
         {#if contextMenu}
-            <div class="absolute flex-col gap-2 w-28 p-2 flex bg-darkbg border border-darkborderc rounded-md z-50" style={contextMenuLoc.style} 
+            <div class="absolute flex-col gap-2 w-28 p-2 flex bg-darkbg border border-darkborderc rounded-md z-50 risu-trigger-menu" style={contextMenuLoc.style} 
                  onclick={(e) => {
                      e.stopPropagation()
                  }}
@@ -2434,7 +2447,7 @@
                 {/if}
             </div>
         {/if}
-        <div class="max-w-full p-2 border border-darkborderc bg-bgcolor flex max-h-full flex-col-reverse md:flex-row overflow-y-auto md:overflow-y-visible" 
+        <div class="max-w-full p-2 border border-darkborderc bg-bgcolor flex max-h-full flex-col-reverse md:flex-row overflow-y-auto md:overflow-y-visible risu-trigger-modal" 
              class:w-7xl={menuMode === 0} 
              class:w-3xl={menuMode !== 0} 
              class:h-full={menuMode!==2}
@@ -2450,8 +2463,8 @@
              }}
         >
             {#if menuMode === 0}
-                <div class="pr-2 md:w-96 flex flex-col md:h-full mt-2 md:mt-0">
-                    <div class="flex-1 flex flex-col overflow-y-auto" bind:this={triggerScrollRef} onscroll={scrollManager.handleTriggerScroll} 
+                <div class="pr-2 md:w-96 flex flex-col md:h-full mt-2 md:mt-0 risu-trigger-side">
+                    <div class="flex-1 flex flex-col overflow-y-auto risu-trigger-list" bind:this={triggerScrollRef} onscroll={scrollManager.handleTriggerScroll} 
                          ondragover={handleTriggerDragOver}
                          ondragleave={(e) => {
                              if (!isMobileScreen) {
@@ -2487,7 +2500,7 @@
                         </div>
                                 
                                 <button
-                                    class="p-2 text-start trigger-item select-none"
+                                    class="p-2 text-start trigger-item select-none risu-trigger-item"
                                     class:hover:cursor-grab={!isMobileScreen}
                                     class:active:cursor-grabbing={!isMobileScreen}
                                     class:text-textcolor2={!isTriggerSelected(i) && selectedIndex !== i}
@@ -2590,7 +2603,7 @@
                             }}>
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 risu-icon-row">
                         <button class="p-2 border-t-darkborderc text-start text-textcolor2 hover:text-textcolor focus:bg-bgcolor" onclick={() => {
                             value.push({
                                 comment: "",
@@ -2632,7 +2645,7 @@
                     }}>Close</Button>
                 </div>
 
-                <div class="md:flex-1 bg-darkbg flex-col flex h-svh min-h-svh md:h-auto md:min-h-0">
+                <div class="md:flex-1 bg-darkbg flex-col flex h-svh min-h-svh md:h-auto md:min-h-0 risu-trigger-main">
                     <div class="mb-0 grid grid-cols-2 items-stretch" onclick={() => {
                         selectMode = 1
                         selectedEffectIndex = -1
@@ -2682,7 +2695,7 @@
                         </div>
                     </div> -->
                     
-                    <div class="border border-darkborderc mx-2 mb-2 rounded-md flex-1 overflow-x-hidden overflow-y-auto relative" bind:this={menu0Container}
+                    <div class="border border-darkborderc mx-2 mb-2 rounded-md flex-1 overflow-x-hidden overflow-y-auto relative risu-trigger-effects" bind:this={menu0Container}
                          onscroll={scrollManager.handleMenu0Scroll}
                          ondragover={handleEffectDragOver}
                          ondragleave={(e) => {
@@ -2747,7 +2760,7 @@
                                 }}>
                             </div>
 
-                            <div class="flex items-center w-full relative"
+                            <div class="flex items-center w-full relative risu-trigger-effect"
                                 class:hover:bg-selected={selectedEffectIndex !== i}
                                 class:bg-selected={selectedEffectIndex === i}
                                 ondragover={(e) => {
@@ -2865,7 +2878,7 @@
                             }}>
                         </div>
                         
-                        <button class="p-2 w-full text-start hover:bg-selected" onclick={() => {
+                        <button class="p-2 w-full text-start hover:bg-selected risu-trigger-effect-add" onclick={() => {
                             //add effect
                             if(lastClickTime + 500 > Date.now()){
                                 selectedEffectIndex = -1
@@ -2882,10 +2895,10 @@
                     </div>
                 </div>
             {:else if menuMode === 1}
-                <div class="flex-1 bg-darkbg flex flex-col md:flex-row overflow-y-auto md:overflow-y-visible">
+                <div class="flex-1 bg-darkbg flex flex-col md:flex-row overflow-y-auto md:overflow-y-visible risu-trigger-picker">
                     <div class="w-full md:w-48 border-b md:border-b-0 md:border-r border-darkborderc flex flex-col">
                         <div class="p-4 border-b border-darkborderc flex items-center min-h-16">
-                            <button class="border-t-darkborderc text-start text-textcolor2 hover:text-textcolor" onclick={() => {
+                            <button class="border-t-darkborderc text-start text-textcolor2 hover:text-textcolor risu-trigger-back" onclick={() => {
                                 if(selectedIndex > 0) {
                                     selectedTriggerIndex = selectedIndex;
                                     selectedEffectIndexSaved = selectedEffectIndex;
@@ -2896,7 +2909,7 @@
                             </button>
                             <h3 class="ml-4 text-lg font-medium text-textcolor md:hidden">{language.triggerCategories[selectedCategory] || selectedCategory}</h3>
                         </div>
-                        <div class="hidden md:flex md:flex-1 md:flex-col md:overflow-y-auto">
+                        <div class="hidden md:flex md:flex-1 md:flex-col md:overflow-y-auto risu-trigger-cats">
                             {#each getAvailableCategories() as category}
                                 <button 
                                     class="w-full p-3 text-left hover:bg-selected hover:text-textcolor transition-colors"
@@ -2932,7 +2945,7 @@
                         <div class="hidden md:flex p-4 border-b border-darkborderc items-center min-h-16">
                             <h3 class="text-lg font-medium text-textcolor">{language.triggerCategories[selectedCategory] || selectedCategory}</h3>
                         </div>
-                        <div class="flex-1 overflow-y-auto">
+                        <div class="flex-1 overflow-y-auto risu-trigger-types">
                             {#each getFilteredTriggers() as type}
                                 <button 
                                     class="w-full p-3 text-left hover:bg-selected transition-colors text-textcolor2 hover:text-textcolor" 
@@ -2964,9 +2977,9 @@
                     </div>
                 </div>
             {:else if menuMode === 2 || menuMode === 3}
-                <div class="flex-1 flex-col flex overflow-y-auto">
+                <div class="flex-1 flex-col flex overflow-y-auto risu-trigger-form">
                     <div class="flex items-center gap-2 mb-4">
-                        <button class="p-2 border-t-darkborderc text-start text-textcolor2 hover:text-textcolor" onclick={() => {
+                        <button class="p-2 border-t-darkborderc text-start text-textcolor2 hover:text-textcolor risu-trigger-back" onclick={() => {
                             if(menuMode === 3 && selectedIndex > 0) {
                                 selectedTriggerIndex = selectedIndex;
                                 selectedEffectIndexSaved = selectedEffectIndex;

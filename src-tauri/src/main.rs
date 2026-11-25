@@ -1,11 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 use base64::{engine::general_purpose, Engine as _};
 use oauth2::basic::BasicClient;
 use oauth2::{
@@ -23,11 +18,10 @@ use oauth2::{
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::json;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::io::Write;
-use std::{path::Path, time::Duration};
-use std::sync::{Arc, Mutex};
-use tauri::path::BaseDirectory;
+use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
+use std::sync::{Arc, LazyLock, Mutex};
+use futures::future::{AbortHandle, Abortable};
 use tauri::{Listener, Manager};
 use tauri::{AppHandle, Emitter};
 
@@ -183,251 +177,36 @@ async fn oauth_login(app: AppHandle) -> Result<String, String> {
     return Ok(token_result.unwrap().access_token().secret().to_string());
 }
 
+// How long streamed_fetch waits for the next data when no total timeout is given
+const STREAMED_FETCH_IDLE_TIMEOUT_SECS: u64 = 600;
 
-#[tauri::command]
-fn check_auth(fpath: String, auth: String) -> bool {
-    //check file exists
-    let path = Path::new(&fpath);
-    if !path.exists() {
-        println!("File {} does not exist", path.display());
-        return false;
-    }
-
-    // check file is a file
-    if !path.is_file() {
-        println!("File {} is not a file", path.display());
-        return false;
-    }
-
-    // check file size
-    let size = std::fs::metadata(&fpath).unwrap().len();
-
-    //check file size is less than 1000 bytes
-    if size > 1000 {
-        println!("File {} is too large", path.display());
-        return false;
-    }
-
-    // read file, return false when error
-    let got_auth = std::fs::read_to_string(&path);
-
-    // check read error
-    if got_auth.is_err() {
-        println!("Error reading file {}", path.display());
-        return false;
-    } else {
-        // check auth
-        if got_auth.unwrap() != auth {
-            println!("Auth does not match");
-            return false;
-        }
-        println!("Auth matches");
-        return true;
+async fn with_idle_timeout<F: std::future::Future>(
+    idle_timeout: Option<Duration>,
+    future: F,
+) -> Result<F::Output, String> {
+    match idle_timeout {
+        Some(duration) => tokio::time::timeout(duration, future).await.map_err(|_| {
+            streamed_fetch_failure(format!("No data received for {} seconds", duration.as_secs()))
+        }),
+        None => Ok(future.await),
     }
 }
 
-#[tauri::command]
-async fn install_python(path: String) -> bool {
-    //get python embeddable depending on os
-    let os = std::env::consts::OS;
-    let url;
-    let py_path = Path::new(&path).join("python");
-    if !py_path.exists() {
-        std::fs::create_dir_all(&py_path).unwrap();
-    }
-    let zip_path: std::path::PathBuf = Path::new(&path).join("python.zip");
-
-    println!("Path: {}", path);
-    if os == "windows" {
-        url = "https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed-amd64.zip".to_string()
-    } else {
-        println!("OS not supported");
-        return false;
-    }
-
-    //download python embeddable
-    let mut resp = reqwest::get(&url).await.unwrap();
-    let mut out = std::fs::File::create(&zip_path).unwrap();
-    let mut content = Vec::new();
-    while let Some(chunk) = resp.chunk().await.unwrap() {
-        content.extend_from_slice(&chunk);
-    }
-    out.write_all(&content).unwrap();
-
-    //extract python embeddable
-
-    use zip::ZipArchive;
-
-    if os == "windows" {
-        let mut zipf = ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
-        zipf.extract(&py_path).unwrap();
-    } else if os == "linux" {
-        let mut tarf = tar::Archive::new(std::fs::File::open(&zip_path).unwrap());
-        tarf.unpack(&py_path).unwrap();
-    } else if os == "macos" {
-        let mut zipf = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
-        zipf.extract(&py_path).unwrap();
-    } else {
-        println!("OS not supported");
-        return false;
-    }
-
-    let py_exec_path = py_path.join("python.exe");
-
-    //check python is installed
-    let mut py = Command::new(py_exec_path);
-    let output = py.arg("--version").output();
-    match output {
-        Ok(o) => {
-            let res = String::from_utf8(o.stdout).unwrap();
-            if !res.starts_with("Python ") {
-                return false;
-            }
-            println!("{}", res);
-            return true;
-        }
-        Err(e) => {
-            println!("{}", e);
-            return false;
-        }
-    }
+// The frontend JSON.parses this, so the message must be a quoted JSON string
+fn streamed_fetch_failure(body: impl std::fmt::Display) -> String {
+    json!({ "success": false, "body": body.to_string() }).to_string()
 }
 
-#[tauri::command]
-async fn install_pip(path: String) -> bool {
-    let py_path = Path::new(&path).join("python");
-    let py_exec_path = py_path.join("python.exe");
-    let get_pip_url = "https://bootstrap.pypa.io/get-pip.py";
-    let mut resp = reqwest::get(get_pip_url).await.unwrap();
-    let get_pip_path = Path::new(&path).join("get-pip.py");
-    let mut out = std::fs::File::create(&get_pip_path).unwrap();
-    let mut content = Vec::new();
-    while let Some(chunk) = resp.chunk().await.unwrap() {
-        content.extend_from_slice(&chunk);
-    }
-    out.write_all(&content).unwrap();
+// Abort handles of in-flight streamed_fetch calls, keyed by fetch id
+static STREAMED_FETCH_ABORTS: LazyLock<Mutex<HashMap<String, AbortHandle>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
-    let mut py = Command::new(py_exec_path);
-    let output = py.arg(get_pip_path).output();
-    match output {
-        Ok(o) => {
-            let res = String::from_utf8(o.stdout).unwrap();
-            println!("{}", res);
-            if !res.starts_with("Python ") {
-                return false;
-            }
-            return true;
-        }
-        Err(e) => {
-            println!("{}", e);
-            return false;
-        }
-    }
-}
-
-use std::process::Command;
-
-#[tauri::command]
-fn check_requirements_local() -> String {
-    let mut py = Command::new("python");
-    let output = py.arg("--version").output();
-    match output {
-        Ok(o) => {
-            let res = String::from_utf8(o.stdout).unwrap();
-            if !res.starts_with("Python ") {
-                return "Python is not installed".to_string();
-            }
-            println!("{}", res);
-        }
-        Err(e) => {
-            println!("{}", e);
-            return "Python is not installed, or not loadable".to_string();
-        }
-    }
-
-    let mut git = Command::new("git");
-    let output = git.arg("--version").output();
-    match output {
-        Ok(o) => {
-            let res = String::from_utf8(o.stdout).unwrap();
-            if !res.starts_with("git version ") {
-                return "Git is not installed".to_string();
-            }
-            println!("{}", res);
-        }
-        Err(e) => {
-            println!("{}", e);
-            return "Git is not installed, or not loadable".to_string();
-        }
-    }
-
-    return "success".to_string();
-}
-
-#[tauri::command]
-fn post_py_install(path: String) {
-    let py_path = Path::new(&path).join("python");
-    let py_pth_path = py_path.join("python311._pth");
-    //uncomment python libs
-    let mut py_pth = std::fs::read_to_string(&py_pth_path).unwrap();
-    py_pth = py_pth.replace("#import site", "import site");
-    std::fs::write(&py_pth_path, py_pth).unwrap();
-
-    //create "completed" file
-    let completed_path = py_path.join("completed.txt");
-    std::fs::write(&completed_path, "python311").unwrap();
-}
-
-#[tauri::command]
-fn install_py_dependencies(path: String, dependency: String) -> Result<(), String> {
-    println!("installing {}", dependency);
-    let py_path = Path::new(&path).join("python");
-    let py_exec_path = py_path.join("python.exe");
-    let mut py = Command::new(py_exec_path);
-    let output = py
-        .arg("-m")
-        .arg("pip")
-        .arg("install")
-        .arg(dependency)
-        .output();
-    match output {
-        Ok(o) => {
-            let res = String::from_utf8(o.stdout).unwrap();
-            println!("{}", res);
-            return Ok(());
-        }
-        Err(e) => {
-            println!("{}", e);
-            return Err(e.to_string());
-        }
-    }
-}
-
-#[tauri::command]
-fn run_py_server(handle: tauri::AppHandle, py_path: String) {
-    let py_exec_path = Path::new(&py_path).join("python").join("python.exe");
-    let server_path = handle
-        .path()
-        .resolve("src-python/run.py", BaseDirectory::Resource)
-        .expect("failed to resolve resource");
-
-    let mut py_server = Command::new(&py_exec_path);
-    //set working directory to server path
-    py_server.current_dir(server_path.parent().unwrap());
-
-    println!("server_path: {}", server_path.display());
-    println!("py_exec_path: {}", py_exec_path.display());
-    let mut _child = py_server
-        .arg("-m")
-        .arg("uvicorn")
-        .arg("--port")
-        .arg("10026")
-        .arg("main:app")
-        .spawn()
-        .expect("failed to execute process");
-    println!("server started");
-    return;
-}
+// Recently started fetch ids. When a page reloads mid-stream, Tauri's IPC script
+// resends the still pending invoke over postMessage, which would start the same
+// request a second time and orphan the first one.
+static STREAMED_FETCH_SEEN_IDS: LazyLock<Mutex<VecDeque<String>>> =
+    LazyLock::new(|| Mutex::new(VecDeque::new()));
+const STREAMED_FETCH_SEEN_IDS_LIMIT: usize = 1000;
 
 #[tauri::command]
 async fn streamed_fetch(
@@ -439,10 +218,67 @@ async fn streamed_fetch(
     method: String,
     timeout_secs: Option<u64>,
 ) -> String {
+    {
+        let mut seen = STREAMED_FETCH_SEEN_IDS.lock().unwrap();
+        if seen.contains(&id) {
+            return r#"{"success":false,"body":"duplicate streamed_fetch id"}"#.to_string();
+        }
+        if seen.len() >= STREAMED_FETCH_SEEN_IDS_LIMIT {
+            seen.pop_front();
+        }
+        seen.push_back(id.clone());
+    }
+
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    STREAMED_FETCH_ABORTS
+        .lock()
+        .unwrap()
+        .insert(id.clone(), abort_handle);
+
+    // Dropping the inner future on abort also closes the upstream connection
+    let result = Abortable::new(
+        streamed_fetch_inner(id.clone(), url, headers, body, app, method, timeout_secs),
+        abort_registration,
+    )
+    .await;
+
+    STREAMED_FETCH_ABORTS.lock().unwrap().remove(&id);
+
+    match result {
+        Ok(res) => res,
+        Err(_) => r#"{"success":false,"body":"aborted"}"#.to_string(),
+    }
+}
+
+#[tauri::command]
+fn cancel_streamed_fetch(id: String) {
+    if let Some(handle) = STREAMED_FETCH_ABORTS.lock().unwrap().remove(&id) {
+        handle.abort();
+    }
+}
+
+// Called when the webview (re)loads: requests from a previous page load
+// have nobody left to read or cancel them
+#[tauri::command]
+fn cancel_all_streamed_fetch() {
+    for (_, handle) in STREAMED_FETCH_ABORTS.lock().unwrap().drain() {
+        handle.abort();
+    }
+}
+
+async fn streamed_fetch_inner(
+    id: String,
+    url: String,
+    headers: String,
+    body: String,
+    app: AppHandle,
+    method: String,
+    timeout_secs: Option<u64>,
+) -> String {
     //parse headers
     let headers_json: Value = match serde_json::from_str(&headers) {
         Ok(h) => h,
-        Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+        Err(e) => return streamed_fetch_failure(e),
     };
 
     let mut headers = HeaderMap::new();
@@ -450,11 +286,11 @@ async fn streamed_fetch(
         for (key, value) in obj {
             let header_name = match HeaderName::from_bytes(key.as_bytes()) {
                 Ok(name) => name,
-                Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                Err(e) => return streamed_fetch_failure(e),
             };
             let header_value = match HeaderValue::from_str(value.as_str().unwrap_or("")) {
                 Ok(value) => value,
-                Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                Err(e) => return streamed_fetch_failure(e),
             };
             headers.insert(header_name, header_value);
         }
@@ -463,7 +299,6 @@ async fn streamed_fetch(
     }
 
     let client = reqwest::Client::new();
-    let timeout_secs = timeout_secs.unwrap_or(240);
     let builder: reqwest::RequestBuilder;
     if method == "POST" {
 
@@ -472,14 +307,12 @@ async fn streamed_fetch(
         builder = client
         .post(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "GET" {
         builder = client
         .get(&url)
-        .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs));
+        .headers(headers);
     }
     else if method == "PUT" {
 
@@ -488,7 +321,6 @@ async fn streamed_fetch(
         builder = client
         .put(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else if method == "DELETE" {
@@ -498,18 +330,23 @@ async fn streamed_fetch(
         builder = client
         .delete(&url)
         .headers(headers)
-        .timeout(Duration::from_secs(timeout_secs))
         .body(body_decoded)
     }
     else {
-        return format!(r#"{{"success":false, body:"Invalid method"}}"#);
+        return streamed_fetch_failure("Invalid method");
     }
 
+    // Local Network Timeout is a total limit, as on the Node server. Otherwise only
+    // give up when no data arrives for a while, so long generations are not cut off.
+    let (builder, idle_timeout) = match timeout_secs {
+        Some(secs) => (builder.timeout(Duration::from_secs(secs)), None),
+        None => (builder, Some(Duration::from_secs(STREAMED_FETCH_IDLE_TIMEOUT_SECS))),
+    };
 
-
-    let response = builder
-        .send()
-        .await;
+    let response = match with_idle_timeout(idle_timeout, builder.send()).await {
+        Ok(response) => response,
+        Err(e) => return e,
+    };
 
     match response {
         Ok(mut resp) => {
@@ -526,7 +363,10 @@ async fn streamed_fetch(
             )
             .unwrap();
             loop {
-                let byt = resp.chunk().await;
+                let byt = match with_idle_timeout(idle_timeout, resp.chunk()).await {
+                    Ok(byt) => byt,
+                    Err(e) => return e,
+                };
                 match byt {
                     Ok(chunk) => {
                         if chunk.is_none() {
@@ -545,11 +385,11 @@ async fn streamed_fetch(
                         match emited {
                             Ok(_) => {}
                             Err(e) => {
-                                return format!(r#"{{"success":false, body:{}}}"#, e.to_string())
+                                return streamed_fetch_failure(e)
                             }
                         }
                     }
-                    Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+                    Err(e) => return streamed_fetch_failure(e),
                 }
             }
             app.emit(
@@ -559,7 +399,7 @@ async fn streamed_fetch(
             .unwrap();
             return "{\"success\":true}".to_string();
         }
-        Err(e) => return format!(r#"{{"success":false, body:{}}}"#, e.to_string()),
+        Err(e) => return streamed_fetch_failure(e),
     }
 }
 
@@ -587,16 +427,10 @@ fn main() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             native_request,
-            check_auth,
-            check_requirements_local,
-            install_python,
-            install_pip,
-            post_py_install,
-            run_py_server,
-            install_py_dependencies,
             streamed_fetch,
+            cancel_streamed_fetch,
+            cancel_all_streamed_fetch,
             oauth_login
         ])
         .run(tauri::generate_context!())

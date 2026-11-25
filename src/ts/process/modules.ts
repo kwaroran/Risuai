@@ -122,7 +122,10 @@ export async function exportModuleLegacy(module:RisuModule, arg:{
     return apb.buffer
 }
 
-export async function readModule(source:Buffer|File):Promise<RisuModule> {
+export async function readModule(source:Buffer|File, arg:{
+    confirmLowLevelAccess?:boolean
+} = {}):Promise<RisuModule> {
+    const confirmLowLevelAccess = arg.confirmLowLevelAccess ?? true
     const readChunkBytes = 4 * 1024 * 1024
     let pos = 0
     let chunk:Uint8Array = source instanceof File ? new Uint8Array(0) : source
@@ -275,7 +278,7 @@ export async function readModule(source:Buffer|File):Promise<RisuModule> {
 
     module.id = v4()
     delete module.mcp
-    if(module.lowLevelAccess && !(await alertConfirm(language.lowLevelAccessConfirm))){
+    if(confirmLowLevelAccess && module.lowLevelAccess && !(await alertConfirm(language.lowLevelAccessConfirm))){
         module.lowLevelAccess = false
     }
     return module

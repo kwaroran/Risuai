@@ -38,6 +38,8 @@
     import Legal from './lib/Others/Legal.svelte';
     import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
     import { RISU_APP_INTERNAL_DRAG_TYPE, RISU_SIDEBAR_DRAG_TYPE } from './ts/dragTypes';
+    import { startAuroraArt } from './ts/gui/auroraArt';
+    import { ColorSchemeTypeStore } from './ts/gui/colorscheme';
 
 
   
@@ -62,6 +64,20 @@
     const markAppInternalDrag = (e:DragEvent) => {
         e.dataTransfer?.setData(RISU_APP_INTERNAL_DRAG_TYPE, 'true')
     }
+
+    // The Aurora theme styles the whole app from styles.css, keyed on these classes
+    $effect(() => {
+        const aurora = DBState.db.theme === 'aurora'
+        const dark = $ColorSchemeTypeStore === 'dark'
+        const root = document.documentElement
+        root.classList.toggle('risu-aurora', aurora)
+        root.classList.toggle('risu-aurora-light', aurora && !dark)
+        root.classList.toggle('risu-aurora-font', aurora && (DBState.db.font ?? 'default') === 'default')
+        if (!aurora) {
+            return
+        }
+        return startAuroraArt(dark)
+    })
 
 </script>
 
@@ -236,7 +252,7 @@
             {#if (!$DynamicGUI)}
                 <Sidebar openGrid={() => {gridOpen = true}} hidden={!$sideBarStore} />
             {:else}
-                <div class="top-0 w-full h-full left-0 z-30 flex flex-row items-center" class:fixed={$sideBarStore} class:hidden={!$sideBarStore} >
+                <div class="top-0 w-full h-full left-0 z-30 flex flex-row items-center risu-sidebar-overlay" class:fixed={$sideBarStore} class:hidden={!$sideBarStore} >
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <Sidebar openGrid={() => {gridOpen = true}}  hidden={false} />
 

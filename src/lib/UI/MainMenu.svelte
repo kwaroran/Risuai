@@ -5,8 +5,10 @@
     import { ArrowLeft, ArrowRight, FolderCodeIcon, GlobeIcon, MailIcon, Send } from "@lucide/svelte";
     import { getVersionString, openURL } from "src/ts/globalApi.svelte";
     import { language } from "src/lang";
-    import { getRisuHub, hubAdditionalHTML } from "src/ts/characterCards";
+    import { getRisuHub, hubAdditionalHTML, type hubType } from "src/ts/characterCards";
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
+    import RisuHubIconSkeleton from "./Realm/RealmHubIconSkeleton.svelte";
+    import RealmBannerSkeleton from "./Realm/RealmBannerSkeleton.svelte";
     import Title from "./Title.svelte";
 
     type RelatedLink = {
@@ -15,6 +17,39 @@
       href: string;
       logoIcon: "source" | "globe" | "mail" | "paper-airplane";
     };
+
+    // The home screen only previews the hub: a fixed number of cards, so the space can be
+    // reserved before the list arrives. "Get More" opens the full list.
+    const realmPreviewCount = 6
+
+    // The preview and the full list behind "Get More" start from the same request, so it is
+    // made once and shared. It is asked again when it gets old or the blocked creators change,
+    // and a failed load is never kept.
+    const realmListMaxAge = 5 * 60 * 1000
+    let realmList: { key: string, time: number, promise: Promise<hubType[]> } | null = null
+
+    function loadRealmList(){
+        const key = JSON.stringify(DBState.db.blockedRealmCreators ?? [])
+        if(!realmList || realmList.key !== key || Date.now() - realmList.time > realmListMaxAge){
+            const entry = {
+                key,
+                time: Date.now(),
+                promise: getRisuHub({
+                    search: '',
+                    page: 0,
+                    nsfw: false,
+                    sort: 'recommended'
+                })
+            }
+            entry.promise.then((charas) => {
+                if(charas.length === 0 && realmList === entry){
+                    realmList = null
+                }
+            })
+            realmList = entry
+        }
+        return realmList.promise
+    }
 
     const relatedLinkIconClass =
       "h-40 w-40 md:h-44 md:w-44 origin-right -rotate-12 opacity-[0.12] transition-all duration-500 group-hover:scale-105 group-hover:opacity-[0.22]";
@@ -46,28 +81,28 @@
       }
     ];
 </script>
-<div class="h-full w-full flex flex-col overflow-y-auto items-center">
+<div class="h-full w-full flex flex-col overflow-y-auto items-center risu-home">
     {#if !$OpenRealmStore}
       <Title />
-      <h3 class="text-textcolor2 mt-1">Version {getVersionString()}</h3>
+      <h3 class="text-textcolor2 mt-1 risu-home-version">Version {getVersionString()}</h3>
     {/if}
     <div class="w-full flex p-4 flex-col text-textcolor max-w-4xl">
       {#if !$OpenRealmStore}
       <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
-      <h1 class="text-2xl font-bold">Recently Uploaded<button class="text-base font-medium float-right p-1 bg-darkbg rounded-md hover:ring-3" onclick={() => {
+      <h1 class="text-2xl font-bold risu-home-section"><span class="risu-home-heading">Recently Uploaded</span><button class="text-base font-medium float-right hover:ring-3 p-1 bg-darkbg rounded-md risu-home-chip" onclick={() => {
         $OpenRealmStore = true
       }}>Get More</button></h1>
           {#if !DBState.db.hideRealm}
-            {#await getRisuHub({
-                  search: '',
-                  page: 0,
-                  nsfw: false,
-                  sort: 'recommended'
-              }) then charas}
-            {#if charas.length > 0}
-              {@html hubAdditionalHTML}
+            {#await loadRealmList()}
+              <RealmBannerSkeleton />
               <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-                  {#each charas as chara}
+                  <RisuHubIconSkeleton count={realmPreviewCount} />
+              </div>
+            {:then charas}
+            {#if charas.length > 0}
+              <div class="hub-notice">{@html hubAdditionalHTML}</div>
+              <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
+                  {#each charas.slice(0, realmPreviewCount) as chara}
                       <RisuHubIcon onClick={() => {
                         $OpenRealmStore = true
                         if(DBState.db.realmDirectOpen){
@@ -77,19 +112,20 @@
                   {/each}
               </div>
             {:else}
-              <div class="text-textcolor2">Failed to load {language.hub}...</div>
+              <div class="text-textcolor2 risu-home-note">Failed to load {language.hub}...</div>
             {/if}
           {/await}
         {:else}
-          <div class="text-textcolor2">{language.hideRealm}</div>
+          <div class="text-textcolor2 risu-home-note">{language.hideRealm}</div>
         {/if}
+      {#if !DBState.db.hideRelatedLinks}
       <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
-      <h1 class="text-2xl font-bold mb-4">
-        Related Links
+      <h1 class="text-2xl font-bold mb-4 risu-home-section">
+        <span class="risu-home-heading">Related Links</span>
       </h1>
         <div class="grid w-full grid-cols-1 gap-4 p-2 md:grid-cols-2">
           {#each relatedLinks as relatedLink}
-            <button class="group relative flex min-h-[140px] flex-col justify-center overflow-hidden rounded-2xl border border-borderc/10 bg-darkbg p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-borderc/30 hover:bg-selected/50 hover:shadow-xl hover:shadow-darkbg/50" onclick={() => {
+            <button class="group relative flex min-h-[140px] flex-col justify-center overflow-hidden rounded-2xl border border-borderc/10 p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-borderc/30 hover:bg-selected/50 hover:shadow-xl hover:shadow-darkbg/50 bg-darkbg risu-card" onclick={() => {
               openURL(relatedLink.href)
             }}>
               <div class="relative z-10 w-[68%] sm:w-[70%]">
@@ -113,6 +149,7 @@
             </button>
           {/each}
       </div>
+      {/if}
 
       {:else}
         <div class="flex items-center mt-4">
@@ -120,7 +157,7 @@
             <ArrowLeft/>
           </button>
         </div>
-        <Hub />
+        <Hub initialList={loadRealmList()} />
       {/if}
   </div>
 </div>

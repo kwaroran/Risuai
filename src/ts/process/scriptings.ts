@@ -2,7 +2,7 @@ import { asBuffer } from 'src/ts/util';
 import { getChatVar, getGlobalChatVar, setChatVar } from "../parser/chatVar.svelte";
 import { hasher, type simpleCharacterArgument, risuChatParser } from "../parser/parser.svelte";
 import { LuaEngine, LuaFactory } from "wasmoon";
-import { getCurrentCharacter, getCurrentChat, getDatabase, setDatabase, type Chat, type character, type groupChat, type triggerscript } from "../storage/database.svelte";
+import { getCurrentCharacter, getCurrentChat, getDatabase, type Chat, type character, type groupChat, type Message, type triggerscript } from "../storage/database.svelte";
 import { get } from "svelte/store";
 import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
@@ -18,7 +18,7 @@ import { tokenize } from "../tokenizer";
 import { fetchNative, readImage } from "../globalApi.svelte";
 import { loadLoreBookV3Prompt } from './lorebook.svelte';
 import { getPersonaPrompt, getUserName, getUserIcon } from '../util';
-let luaFactory:LuaFactory
+let luaFactory: LuaFactory
 let ScriptingSafeIds = new Set<string>()
 let ScriptingEditDisplayIds = new Set<string>()
 let ScriptingLowLevelIds = new Set<string>()
@@ -34,6 +34,7 @@ interface BasicScriptingEngineState {
 }
 
 interface LuaScriptingEngineState extends BasicScriptingEngineState {
+    editListeners?: Set<string>;
     engine?: LuaEngine;
     type: 'lua';
 }
@@ -90,6 +91,11 @@ export async function runScripted(code:string, arg:{
                 ScriptingEngineState.code = code
                 ScriptingEngineState.engine = await luaFactory.createEngine({injectObjects: true, enableProxy: false})
                 const luaEngine = ScriptingEngineState.engine
+                const editListeners = new Set<string>()
+                ScriptingEngineState.editListeners = editListeners
+                luaEngine.global.set('__registerEditListener', (eventType: string) => {
+                    editListeners.add(eventType)
+                })
                 declareAPI = (name:string, func:Function) => {
                     luaEngine.global.set(name, func)
                 }
@@ -140,11 +146,11 @@ export async function runScripted(code:string, arg:{
                 }
                 alertNormal(value)
             })
-            declareAPI('alertInput', (id:string, value:string) => {
+            declareAPI('alertInput', (id:string, value:string, defaultValue?:string) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                return alertInput(value)
+                return alertInput(value, undefined, defaultValue)
             })
             declareAPI('alertSelect', (id:string, value:string[]) => {
                 if(!ScriptingSafeIds.has(id)){
@@ -167,7 +173,8 @@ export async function runScripted(code:string, arg:{
                 const data = {
                     role: chat.role,
                     data: chat.data,
-                    time: chat.time ?? 0
+                    time: chat.time ?? 0,
+                    chatId: chat.chatId
                 }
                 return JSON.stringify(data)
             })
@@ -190,6 +197,7 @@ export async function runScripted(code:string, arg:{
                     role: v.role,
                     data: v.data,
                     time: v.time ?? 0,
+                    chatId: v.chatId,
                 })))
             })
 
@@ -254,7 +262,8 @@ export async function runScripted(code:string, arg:{
                     return {
                         role: v.role,
                         data: v.data,
-                        time: v.time ?? 0
+                        time: v.time ?? 0,
+                        chatId: v.chatId
                     }
                 }))
                 return data
@@ -280,12 +289,24 @@ export async function runScripted(code:string, arg:{
                     return
                 }
                 const realValue = JSON.parse(value)
+                const byChatId = new Map<string, Message>()
+                for(const message of ScriptingEngineState.chat.message){
+                    if(message.chatId){
+                        byChatId.set(message.chatId, message)
+                    }
+                }
 
                 ScriptingEngineState.chat.message = realValue.map((v) => {
-                    return {
-                        role: v.role,
-                        data: v.data
+                    const role:'user'|'char' = v.role === 'user' ? 'user' : 'char'
+                    const data = v.data ?? ''
+                    const original = byChatId.get(v.chatId)
+                    if(!original){
+                        return { role, data }
                     }
+                    byChatId.delete(v.chatId)
+                    original.role = role
+                    original.data = data
+                    return original
                 })
             })
 
@@ -389,7 +410,7 @@ export async function runScripted(code:string, arg:{
                 }
             })
 
-            declareAPI('generateImage', async (id:string, value:string, negValue:string = '', options?:ImageGenerationOptions) => {
+            declareAPI('generateImage', async (id: string, value: string, negValue: string = '', options?: ImageGenerationOptions & { name?: string }) => {
                 if(!ScriptingLowLevelIds.has(id)){
                     return
                 }
@@ -402,9 +423,12 @@ export async function runScripted(code:string, arg:{
                 if(!gen){
                     return 'Error: Image generation failed'
                 }
+
                 const imgHTML = new Image()
                 imgHTML.src = gen
-                const inlay = await writeInlayImage(imgHTML)
+
+                const name = typeof options?.name === 'string' && options.name ? options.name : undefined
+                const inlay = await writeInlayImage(imgHTML, { name })
                 return `{{inlay::${inlay}}}`
             })
 
@@ -1129,6 +1153,10 @@ export async function runScripted(code:string, arg:{
                     case 'editDisplay':
                     case 'editInput':
                     case 'editOutput':{
+                        if (!ScriptingEngineState.editListeners?.has(mode)) {
+                            res = data
+                            break
+                        }
                         const func = luaEngine.global.get('callListenMain')
                         if(func){
                             // editDisplay takes a raw string, and must output a raw string
@@ -1332,21 +1360,25 @@ local editOutputFuncs = {}
 function listenEdit(type, func)
     if type == 'editRequest' then
         editRequestFuncs[#editRequestFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editDisplay' then
         editDisplayFuncs[#editDisplayFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editInput' then
         editInputFuncs[#editInputFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editOutput' then
         editOutputFuncs[#editOutputFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 

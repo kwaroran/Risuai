@@ -53,7 +53,7 @@
 </script>
 
 {#if !globalMode}
-    <div class="flex w-full rounded-md border border-selected">
+    <div class="flex w-full rounded-md border border-selected risu-seg risu-seg-wrap">
         <button onclick={() => {
             submenu = 0
         }} class="p-2 flex-1" class:bg-selected={submenu === 0}>
@@ -119,7 +119,7 @@
 {/if}
 {#if submenu !== 2}
 
-<div class="text-textcolor2 mt-2 flex">
+<div class="text-textcolor2 mt-2 flex risu-icon-row">
     <button onclick={() => {addLorebook(globalMode ? -1 : submenu)}} class="hover:text-textcolor cursor-pointer">
         <PlusIcon />
     </button>

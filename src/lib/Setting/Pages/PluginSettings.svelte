@@ -21,7 +21,7 @@
 
 <span class="text-draculared text-xs mb-4">{language.pluginWarn}</span>
 
-<div class="border-solid border-darkborderc p-2 flex flex-col border-1">
+<div class="border-solid border-darkborderc p-2 flex flex-col border-1 risu-panel risu-list risu-plugin-list">
     {#if !DBState.db.plugins || DBState.db.plugins?.length === 0}
         <span class="text-textcolor2">{language.noPlugins}</span>
     {/if}
@@ -32,7 +32,7 @@
         ></div>
         {/if}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="flex gap-2" aria-labelledby="show-params" role='button' tabindex="0" onclick={() => {
+        <div class="flex gap-2 risu-list-row" aria-labelledby="show-params" role='button' tabindex="0" onclick={() => {
             if(showParams.includes(i)){
                 showParams.splice(showParams.indexOf(i),1)
             }
@@ -140,7 +140,7 @@
             </span>
             <!--List up args-->
         {:else if Object.keys(plugin.arguments).filter((i) => !i.startsWith("hidden_")).length > 0 && showParams.includes(i)}
-            <div class="flex flex-col mt-2 bg-dark-900/50 p-3">
+            <div class="flex flex-col mt-2 bg-dark-900/50 p-3 risu-list-editor">
                 {#each Object.keys(plugin.arguments) as arg}
                     {#if !arg.startsWith("hidden_")}
                         {#if typeof(plugin?.argMeta?.[arg]?.divider) === 'string'}
@@ -241,7 +241,7 @@
         {/if}
     {/each}
 </div>
-<div class="text-textcolor2 mt-2 flex gap-2">
+<div class="text-textcolor2 mt-2 flex gap-2 risu-icon-row">
     <button
         onclick={() => {
             importPlugin()

@@ -20,7 +20,7 @@
     const loadTriggerV1List = () => import("./TriggerV1List.svelte").then(m => m.default)
 </script>
 
-<div class="flex items-start mt-2 gap-2">
+<div class="flex items-start mt-2 gap-2 risu-seg risu-trigger-mode">
     {#if v1Enabled || DBState.db.showDeprecatedTriggerV1 }
         <button class="bg-bgcolor py-1 rounded-md text-sm px-2" class:ring-1={v1Enabled} onclick={(async (e) => {
             e.stopPropagation()

@@ -1,12 +1,22 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import { downloadRisuHub, getRisuHub, hubAdditionalHTML, type hubType } from "src/ts/characterCards";
     import { ArrowLeft, ArrowRight, MenuIcon, SearchIcon, XIcon } from "@lucide/svelte";
     import { alertInput } from "src/ts/alert";
     import { language } from "src/lang";
     import RisuHubIcon from "./RealmHubIcon.svelte";
+    import RisuHubIconSkeleton from "./RealmHubIconSkeleton.svelte";
+    import RealmBannerSkeleton from "./RealmBannerSkeleton.svelte";
     import { MobileGUI, RealmInitialOpenChar } from "src/ts/stores.svelte";
     import RealmPopUp from "./RealmPopUp.svelte";
     import RealmBlockedCreators from "./RealmBlockedCreators.svelte";
+
+    interface Props {
+        // The default list (recommended, first page, no search), when the caller already asked for it
+        initialList?: Promise<hubType[]>
+    }
+
+    let { initialList }: Props = $props()
 
     let openedData:null|hubType = $state(null)
 
@@ -20,13 +30,32 @@
     let blockedCreatorsOpen = $state(false)
     let nsfw = $state(false)
 
-    async function getHub(){
-        charas = await getRisuHub({
-            search: search,
-            page: page,
-            nsfw: nsfw,
-            sort: sort
-        })
+    // Placeholder count for the first load: the default (recommended) list has this many cards
+    const initialPlaceholderCount = 60
+    let loading = $state(true)
+    let latestRequest = 0
+    // hubAdditionalHTML is a plain variable that getRisuHub fills in, so it is copied after each load
+    let additionalHTML = $state(hubAdditionalHTML)
+
+    async function getHub(known?:Promise<hubType[]>){
+        const request = ++latestRequest
+        loading = true
+        let result = known ? await known : []
+        if(result.length === 0){
+            result = await getRisuHub({
+                search: search,
+                page: page,
+                nsfw: nsfw,
+                sort: sort
+            })
+        }
+        // A newer search, sort or page change is already on its way; drop this answer
+        if(request !== latestRequest){
+            return
+        }
+        charas = result
+        additionalHTML = hubAdditionalHTML
+        loading = false
     }
 
     function changeSort(type:string) {
@@ -39,7 +68,7 @@
         return getHub()
     }
 
-    getHub()
+    getHub(untrack(() => initialList))
 
 
 
@@ -51,7 +80,7 @@
     })
 </script>
 <div class="w-full flex justify-center mt-4 mb-2">
-    <div class="flex items-stretch w-2xl max-w-full">
+    <div class="flex items-stretch w-2xl max-w-full risu-search-bar">
         <input bind:value={search} class="peer focus:border-textcolor transition-colors outline-hidden text-textcolor p-2 min-w-0 border border-r-0 bg-transparent rounded-md rounded-r-none input-text text-xl grow ml-4 border-darkborderc resize-none overflow-y-hidden overflow-x-hidden max-w-full">
             <button
             onclick={() => {
@@ -113,7 +142,7 @@
     </div>
 </div>
 {:else}
-    <div class="w-full p-1 flex mb-3 overflow-x-auto sm:justify-center">
+    <div class="w-full p-1 flex mb-3 overflow-x-auto sm:justify-center risu-filter-chips">
         <button class="bg-darkbg p-2 rounded-lg ml-2 flex justify-center items-center hover:bg-selected transition-shadow" class:ring-3={nsfw} onclick={() => {
             nsfw = !nsfw
             getHub()
@@ -143,13 +172,22 @@
         </button>
     </div>
 {/if}
-{@html hubAdditionalHTML}
-<div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-    {#key charas}
-        {#each charas as chara}
-            <RisuHubIcon onClick={() =>{openedData = chara}} chara={chara} />
-        {/each}
-    {/key}
+{#if additionalHTML}
+    {@html additionalHTML}
+{:else if loading}
+    <RealmBannerSkeleton />
+{/if}
+<div class="w-full flex gap-4 p-2 flex-wrap justify-center" aria-busy={loading}>
+    {#if loading}
+        <!-- Keep the height of the list being replaced so the page controls below stay put -->
+        <RisuHubIconSkeleton count={charas.length || initialPlaceholderCount} />
+    {:else}
+        {#key charas}
+            {#each charas as chara}
+                <RisuHubIcon onClick={() =>{openedData = chara}} chara={chara} />
+            {/each}
+        {/key}
+    {/if}
 </div>
 {#if sort !== 'random' && sort !== 'recommended'}
     <div class="w-full flex justify-center">

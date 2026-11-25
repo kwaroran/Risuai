@@ -31,8 +31,8 @@
     let open = $state(false)
 </script>
 
-<div class="w-full flex flex-col pt-2 mt-2 border-t border-t-selected first:pt-0 first:mt-0 first:border-0" data-risu-idx2={idx}>
-    <div class="flex items-center transition-colors w-full ">
+<div class="w-full flex flex-col pt-2 mt-2 border-t border-t-selected first:pt-0 first:mt-0 first:border-0 risu-list-item" data-risu-idx2={idx}>
+    <div class="flex items-center transition-colors w-full risu-list-row">
         <button class="endflex valuer border-borderc" onclick={() => {
             open = !open
             if(open){
@@ -57,7 +57,7 @@
         </button>
     </div>
     {#if open}
-        <div class="seperator p-2">
+        <div class="seperator p-2 risu-list-editor">
             <span class="text-textcolor mt-6">{language.name}</span>
             <TextInput size="sm" bind:value={value.comment} />
             <span class="text-textcolor mt-4">{language.type}</span>
@@ -80,7 +80,7 @@
 
                 }}><PlusIcon size={18} /></button>
             </span>
-            <div class="flex flex-col px-2 py-4 border border-selected rounded-md">
+            <div class="flex flex-col px-2 py-4 border border-selected rounded-md risu-trigger-v1-box">
                 {#if value.conditions.length === 0}
                     <span class="text-textcolor2 text-sm">{language.always}</span>
                 {/if}
@@ -188,7 +188,7 @@
                 }}><PlusIcon size={18} /></button>
             </span>
 
-            <div class="flex flex-col px-2 py-4 border border-selected rounded-md">
+            <div class="flex flex-col px-2 py-4 border border-selected rounded-md risu-trigger-v1-box">
                 {#if value.effect.length === 0}
                     <span class="text-textcolor2 text-sm">{language.noEffect}</span>
                 {/if}

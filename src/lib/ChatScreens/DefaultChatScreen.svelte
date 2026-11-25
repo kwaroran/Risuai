@@ -54,6 +54,8 @@
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
     let showNewMessageButton = $state(false)
+    // Rounding can leave the reversed scroller a pixel past 0 at the bottom, where Chrome stops skipping scroll anchoring
+    let chatPinnedToBottom = $state(true)
     let chatsInstance: any = $state()
     let isScrollingToMessage = $state(false)
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
@@ -503,7 +505,20 @@
         }
     }
 
-    
+    // Aurora opens the menu right above the composer; this measures how much
+    // of the chat's scroll box is left above it so the menu can scroll instead
+    // of being cut off. Other themes do not read the variable.
+    function fitChatMenu(menu: HTMLElement) {
+        const scroller = menu.closest('.default-chat-screen')
+        const bar = menu.parentElement
+        if (!scroller || !bar) {
+            return
+        }
+        const room = bar.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16
+        menu.style.setProperty('--risu-chat-menu-room', `${Math.max(room, 96)}px`)
+    }
+
+
 </script>
 
 
@@ -570,7 +585,8 @@
             {/await}
         {/if}
     {:else}
-        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {
+        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" class:risu-chat-pinned={chatPinnedToBottom} onscroll={(e) => {
+            chatPinnedToBottom = (e.currentTarget as HTMLElement).scrollTop > -2
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
             if(scrolled < 100 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length > loadPages){
@@ -585,7 +601,7 @@
             }
         }}>
             <div
-                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full"
+                    class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full risu-chat-input-bar"
                     style="{DBState.db.fixedChatTextarea ? 'z-index:29;' : ''}"
             >
                 {#if DBState.db.useChatSticker && currentCharacter.type !== 'group'}
@@ -697,6 +713,167 @@
                          style:height={inputHeight}
                     >
                         <Plus />
+                    </div>
+                {/if}
+                {#if openMenu}
+                    <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 z-30 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md risu-chat-menu" use:fitChatMenu onclick={(e) => {
+                        e.stopPropagation()
+                    }}>
+                        {#if DBState.db.characters[$selectedCharID].type === 'group'}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={runAutoMode}>
+                                <DicesIcon />
+                                <span class="ml-2">{language.autoMode}</span>
+                            </div>
+                        {/if}
+
+                        
+                        <!-- svelte-ignore block_empty -->
+                        {#if DBState.db.characters[$selectedCharID].ttsMode === 'webspeech' || DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                stopTTS()
+                            }}>
+                                <MicOffIcon />
+                                <span class="ml-2">{language.ttsStop}</span>
+                            </div>
+                        {/if}
+
+                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors"
+                            class:text-textcolor2={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')}
+                            onclick={() => {
+                                if((DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')){
+                                    return
+                                }
+                                sendContinue();
+                            }}
+                        >
+                            <StepForwardIcon />
+                            <span class="ml-2">{language.continueResponse}</span>
+                        </div>
+
+
+                        {#if DBState.db.showMenuChatList}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                openChatList = true
+                                openMenu = false
+                            }}>
+                                <DatabaseIcon />
+                                <span class="ml-2">{language.chatList}</span>
+                            </div>
+                        {/if}
+
+                        
+                        {#if DBState.db.enableRisuaiProTools}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                easyPanelStore.open = !easyPanelStore.open
+                            }}>
+                                <SparkleIcon />
+                                <span class="ml-2">{language.easyPanel}</span>
+                            </div>
+                        {/if}
+
+                        {#each additionalChatMenu as menu}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                menu.callback()
+                                openMenu = false
+                            }}>
+                                <PluginDefinedIcon ico={menu} />
+                                <span class="ml-2">{menu.name}</span>
+                            </div>
+                        {/each}
+
+                        {#if DBState.db.showMenuHypaMemoryModal}
+                            {#if (DBState.db.supaModelType !== 'none' && DBState.db.hypav2) || DBState.db.hypaV3}
+                                <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                    if (DBState.db.hypav2) {
+                                        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].hypaV2Data ??= {
+                                            lastMainChunkID: 0,
+                                            mainChunks: [],
+                                            chunks: [],
+                                        }
+                                        showHypaV2Alert();
+                                    } else if (DBState.db.hypaV3) {
+                                        $hypaV3ModalOpen = true
+                                    }
+
+                                    openMenu = false
+                                }}>
+                                    <BrainIcon />
+                                    <span class="ml-2">
+                                        {DBState.db.hypav2 ? language.hypaMemoryV2Modal : language.hypaMemoryV3Modal}
+                                    </span>
+                                </div>
+                            {/if}
+                        {/if}
+                        
+                        {#if DBState.db.translator !== ''}
+                            <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoTranslateInput ? 'text-green-500':'lg:hover:text-green-500')} onclick={() => {
+                                DBState.db.useAutoTranslateInput = !DBState.db.useAutoTranslateInput
+                            }}>
+                                <GlobeIcon />
+                                <span class="ml-2">{language.autoTranslateInput}</span>
+                            </div>
+                            
+                        {/if}
+                
+                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                            screenShot()
+                        }}>
+                            <CameraIcon />
+                            <span class="ml-2">{language.screenshot}</span>
+                        </div>
+
+                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={async () => {
+                            const results = await postChatFile(messageInput)
+                            if(!results) return
+                            for(const res of results){
+                                if(res?.type === 'asset'){
+                                    fileInput.push(res.data)
+                                }
+                                if(res?.type === 'text'){
+                                    messageInput += `{{file::${res.name}::${res.data}}}`
+                                }
+                            }
+                            updateInputSizeAll()
+                        }}>
+
+                            <ImagePlusIcon />
+                            <span class="ml-2">{language.postFile}</span>
+                        </div>
+
+
+                        <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoSuggestions ? 'text-green-500':'lg:hover:text-green-500')} onclick={async () => {
+                            DBState.db.useAutoSuggestions = !DBState.db.useAutoSuggestions
+                        }}>
+                            <ReplyIcon />
+                            <span class="ml-2">{language.autoSuggest}</span>
+                        </div>
+
+
+                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].modules ??= []
+                            openModuleList = true
+                            openMenu = false
+                        }}>
+                            <PackageIcon />
+                            <span class="ml-2">{language.modules}</span>
+                        </div>
+
+                        {#if getActiveOnboarding(currentCharacter)}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                                onboardingModalStore.open = true
+                                openMenu = false
+                            }}>
+                                <CompassIcon />
+                                <span class="ml-2">{language.onboarding}</span>
+                            </div>
+                        {/if}
+
+                        {#if DBState.db.sideMenuRerollButton}
+                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={reroll}>
+                                <RefreshCcwIcon />
+                                <span class="ml-2">{language.reroll}</span>
+                            </div>
+                        {/if}
                     </div>
                 {/if}
             </div>
@@ -909,168 +1086,6 @@
 
             {/if}
 
-            {#if openMenu}
-                <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md" onclick={(e) => {
-                    e.stopPropagation()
-                }}>
-                    {#if DBState.db.characters[$selectedCharID].type === 'group'}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={runAutoMode}>
-                            <DicesIcon />
-                            <span class="ml-2">{language.autoMode}</span>
-                        </div>
-                    {/if}
-
-                    
-                    <!-- svelte-ignore block_empty -->
-                    {#if DBState.db.characters[$selectedCharID].ttsMode === 'webspeech' || DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                            stopTTS()
-                        }}>
-                            <MicOffIcon />
-                            <span class="ml-2">{language.ttsStop}</span>
-                        </div>
-                    {/if}
-
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors"
-                        class:text-textcolor2={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')}
-                        onclick={() => {
-                            if((DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')){
-                                return
-                            }
-                            sendContinue();
-                        }}
-                    >
-                        <StepForwardIcon />
-                        <span class="ml-2">{language.continueResponse}</span>
-                    </div>
-
-
-                    {#if DBState.db.showMenuChatList}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                            openChatList = true
-                            openMenu = false
-                        }}>
-                            <DatabaseIcon />
-                            <span class="ml-2">{language.chatList}</span>
-                        </div>
-                    {/if}
-
-                    
-                    {#if DBState.db.enableRisuaiProTools}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                            easyPanelStore.open = !easyPanelStore.open
-                        }}>
-                            <SparkleIcon />
-                            <span class="ml-2">{language.easyPanel}</span>
-                        </div>
-                    {/if}
-
-                    {#each additionalChatMenu as menu}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                            menu.callback()
-                            openMenu = false
-                        }}>
-                            <PluginDefinedIcon ico={menu} />
-                            <span class="ml-2">{menu.name}</span>
-                        </div>
-                    {/each}
-
-                    {#if DBState.db.showMenuHypaMemoryModal}
-                        {#if (DBState.db.supaModelType !== 'none' && DBState.db.hypav2) || DBState.db.hypaV3}
-                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                                if (DBState.db.hypav2) {
-                                    DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].hypaV2Data ??= {
-                                        lastMainChunkID: 0,
-                                        mainChunks: [],
-                                        chunks: [],
-                                    }
-                                    showHypaV2Alert();
-                                } else if (DBState.db.hypaV3) {
-                                    $hypaV3ModalOpen = true
-                                }
-
-                                openMenu = false
-                            }}>
-                                <BrainIcon />
-                                <span class="ml-2">
-                                    {DBState.db.hypav2 ? language.hypaMemoryV2Modal : language.hypaMemoryV3Modal}
-                                </span>
-                            </div>
-                        {/if}
-                    {/if}
-                    
-                    {#if DBState.db.translator !== ''}
-                        <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoTranslateInput ? 'text-green-500':'lg:hover:text-green-500')} onclick={() => {
-                            DBState.db.useAutoTranslateInput = !DBState.db.useAutoTranslateInput
-                        }}>
-                            <GlobeIcon />
-                            <span class="ml-2">{language.autoTranslateInput}</span>
-                        </div>
-                        
-                    {/if}
-            
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                        screenShot()
-                    }}>
-                        <CameraIcon />
-                        <span class="ml-2">{language.screenshot}</span>
-                    </div>
-
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={async () => {
-                        const results = await postChatFile(messageInput)
-                        if(!results) return
-                        for(const res of results){
-                            if(res?.type === 'asset'){
-                                fileInput.push(res.data)
-                            }
-                            if(res?.type === 'text'){
-                                messageInput += `{{file::${res.name}::${res.data}}}`
-                            }
-                        }
-                        updateInputSizeAll()
-                    }}>
-
-                        <ImagePlusIcon />
-                        <span class="ml-2">{language.postFile}</span>
-                    </div>
-
-
-                    <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoSuggestions ? 'text-green-500':'lg:hover:text-green-500')} onclick={async () => {
-                        DBState.db.useAutoSuggestions = !DBState.db.useAutoSuggestions
-                    }}>
-                        <ReplyIcon />
-                        <span class="ml-2">{language.autoSuggest}</span>
-                    </div>
-
-
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].modules ??= []
-                        openModuleList = true
-                        openMenu = false
-                    }}>
-                        <PackageIcon />
-                        <span class="ml-2">{language.modules}</span>
-                    </div>
-
-                    {#if getActiveOnboarding(currentCharacter)}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                            onboardingModalStore.open = true
-                            openMenu = false
-                        }}>
-                            <CompassIcon />
-                            <span class="ml-2">{language.onboarding}</span>
-                        </div>
-                    {/if}
-
-                    {#if DBState.db.sideMenuRerollButton}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={reroll}>
-                            <RefreshCcwIcon />
-                            <span class="ml-2">{language.reroll}</span>
-                        </div>
-                    {/if}
-                </div>
-
-            {/if}
         </div>
 
     {/if}

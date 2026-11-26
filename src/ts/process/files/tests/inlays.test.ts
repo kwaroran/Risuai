@@ -9,6 +9,7 @@ import {
     listInlayAssets,
     postInlayAsset,
     removeInlayAsset,
+    saveInlayedSignature,
     setInlayAsset,
     writeInlayImage,
 } from '../inlays'
@@ -283,6 +284,7 @@ describe('postInlayAsset', () => {
 
         const stored = store.get('test-uuid-1234') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'mp3',
             name: 'clip.mp3',
@@ -300,6 +302,7 @@ describe('postInlayAsset', () => {
 
         const stored = store.get('test-uuid-1234') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'webm',
             name: 'video.webm',
@@ -332,9 +335,14 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
+
                 const stored = store.get(result!) as InlayAsset
-                expect(stored.type).toBe('audio')
-                expect(stored.ext).toBe(ext)
+                expect(stored).toMatchObject({
+                    created: expect.any(Number),
+                    ext,
+                    name: `sound.${ext}`,
+                    type: 'audio',
+                })
             }),
         )
     })
@@ -348,9 +356,14 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
+
                 const stored = store.get(result!) as InlayAsset
-                expect(stored.type).toBe('video')
-                expect(stored.ext).toBe(ext)
+                expect(stored).toMatchObject({
+                    created: expect.any(Number),
+                    name: `clip.${ext}`,
+                    ext,
+                    type: 'video',
+                })
             }),
         )
     })
@@ -370,6 +383,7 @@ describe('writeInlayImage', () => {
 
         const stored = store.get('custom-id') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'png',
             height: 100,
@@ -386,6 +400,7 @@ describe('writeInlayImage', () => {
         expect(result).toBe('test-uuid-1234')
 
         const stored = store.get('test-uuid-1234') as InlayAsset
+        expect(stored.created).toEqual(expect.any(Number))
         expect(stored.name).toBe('test-uuid-1234')
     })
 
@@ -539,7 +554,9 @@ describe('set -> get round-trip', () => {
                 async (id, name, ext, width, height) => {
                     store.clear()
                     const blob = new Blob(['data'], { type: 'application/octet-stream' })
+                    const now = Date.now()
                     const asset: InlayAsset = {
+                        created: now,
                         data: blob,
                         ext,
                         height,
@@ -552,6 +569,7 @@ describe('set -> get round-trip', () => {
 
                     const result = await getInlayAsset(id)
                     expect(result).toMatchObject({
+                        created: now,
                         data: expect.any(String),
                         ext,
                         height,
@@ -586,5 +604,27 @@ describe('set -> remove -> get', () => {
                 expect(await getInlayAsset(id)).toBeNull()
             }),
         )
+    })
+})
+
+describe('saveInlayedSignature', () => {
+    test('stores signature asset with created timestamp and returns id', async () => {
+        const signature: Parameters<typeof saveInlayedSignature>[1] = {
+            signatures: [{ type: 'text', content: 'thought' }],
+            sourceFormat: 0 as Parameters<typeof saveInlayedSignature>[1]['sourceFormat'],
+            source: 'gemini-2.5-pro',
+        }
+
+        const result = await saveInlayedSignature('sig-1', signature)
+        expect(result).toBe('sig-1')
+
+        const stored = store.get('sig-1') as InlayAsset
+        expect(stored).toMatchObject({
+            created: expect.any(Number),
+            data: JSON.stringify(signature),
+            ext: 'json',
+            name: 'sig-1',
+            type: 'signature',
+        })
     })
 })

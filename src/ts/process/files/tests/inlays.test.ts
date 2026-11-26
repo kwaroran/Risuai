@@ -1,5 +1,6 @@
 import fc from 'fast-check'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { getDatabase } from 'src/ts/storage/database.svelte'
 import { getImageType } from 'src/ts/media'
 import type { InlayAsset } from '../inlays'
 import {
@@ -17,17 +18,25 @@ import {
 //#region module mocks
 
 // happy-dom canvas getContext returns null
-const fakeCtx = {
+const fakeCtx: {
+    drawImage: ReturnType<typeof vi.fn>
+    getImageData?: ReturnType<typeof vi.fn>
+    putImageData?: ReturnType<typeof vi.fn>
+} = {
     drawImage: vi.fn(),
 }
+let toBlobHandler: (cb: BlobCallback, type?: string, quality?: number) => void = (cb) => {
+    cb(new Blob(['fake-png'], { type: 'image/png' }))
+}
+const toBlobSpy = vi.fn((cb: BlobCallback, type?: string, quality?: number) => {
+    toBlobHandler(cb, type, quality)
+})
 const origCreateElement = document.createElement.bind(document)
 vi.spyOn(document, 'createElement').mockImplementation((tag: string, options?: any) => {
     const el = origCreateElement(tag, options)
     if (tag === 'canvas') {
         ;(el as HTMLCanvasElement).getContext = (() => fakeCtx) as any
-        ;(el as HTMLCanvasElement).toBlob = ((cb: BlobCallback) => {
-            cb(new Blob(['fake-png'], { type: 'image/png' }))
-        }) as any
+        ;(el as HTMLCanvasElement).toBlob = toBlobSpy as any
     }
     return el
 })
@@ -102,6 +111,12 @@ function makeImage(w: number, h: number): HTMLImageElement {
 beforeEach(() => {
     vi.clearAllMocks()
     store.clear()
+    vi.mocked(getDatabase).mockReturnValue(undefined as any)
+    delete fakeCtx.getImageData
+    delete fakeCtx.putImageData
+    toBlobHandler = (cb) => {
+        cb(new Blob(['fake-png'], { type: 'image/png' }))
+    }
 })
 
 describe('setInlayAsset', () => {
@@ -402,6 +417,87 @@ describe('writeInlayImage', () => {
         const stored = store.get('test-uuid-1234') as InlayAsset
         expect(stored.created).toEqual(expect.any(Number))
         expect(stored.name).toBe('test-uuid-1234')
+    })
+
+    test('encodes WebP with selected quality preset and flattens NAI alpha=254 pixels', async () => {
+        vi.mocked(getDatabase).mockReturnValue({
+            inlayImageFormat: 'webp',
+            inlayImageQuality: 'high',
+            inlayPreserveMetadata: false,
+        } as any)
+
+        const pixels = new Uint8ClampedArray([
+            10, 20, 30, 254,
+            40, 50, 60, 255,
+        ])
+        fakeCtx.getImageData = vi.fn(() => ({ data: pixels }))
+        fakeCtx.putImageData = vi.fn()
+        toBlobHandler = (cb, type) => {
+            cb(new Blob(['fake-webp'], { type: type ?? 'image/png' }))
+        }
+
+        const imgObj = makeImage(2, 1)
+        await writeInlayImage(imgObj, { id: 'webp-id' })
+
+        expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.92)
+        expect(fakeCtx.putImageData).toHaveBeenCalledTimes(1)
+        expect(pixels[3]).toBe(255)
+        expect(pixels[7]).toBe(255)
+
+        const stored = store.get('webp-id') as InlayAsset
+        expect(stored.ext).toBe('webp')
+        expect((stored.data as Blob).type).toBe('image/webp')
+    })
+
+    test('falls back from WebP to JPEG for opaque images when browser lacks WebP encoding', async () => {
+        vi.mocked(getDatabase).mockReturnValue({
+            inlayImageFormat: 'webp',
+            inlayImageQuality: 'balanced',
+            inlayPreserveMetadata: false,
+        } as any)
+
+        fakeCtx.getImageData = vi.fn(() => ({
+            data: new Uint8ClampedArray([10, 20, 30, 255]),
+        }))
+        toBlobHandler = (cb, type) => {
+            // Simulate Safari/WebKit returning image/png when image/webp is requested
+            if (type === 'image/webp') {
+                cb(new Blob(['fallback-png'], { type: 'image/png' }))
+            } else {
+                cb(new Blob(['fake-jpeg'], { type: type ?? 'image/png' }))
+            }
+        }
+
+        const imgObj = makeImage(1, 1)
+        await writeInlayImage(imgObj, { id: 'fallback-jpeg' })
+
+        expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), 'image/webp', 0.85)
+        expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.85)
+        const stored = store.get('fallback-jpeg') as InlayAsset
+        expect(stored.ext).toBe('jpeg')
+    })
+
+    test('keeps PNG when JPEG is selected but image has real transparency (alpha < 254)', async () => {
+        vi.mocked(getDatabase).mockReturnValue({
+            inlayImageFormat: 'jpeg',
+            inlayImageQuality: 'low',
+            inlayPreserveMetadata: false,
+        } as any)
+
+        fakeCtx.getImageData = vi.fn(() => ({
+            data: new Uint8ClampedArray([10, 20, 30, 0]),
+        }))
+        toBlobHandler = (cb, type) => {
+            cb(new Blob(['fake'], { type: type ?? 'image/png' }))
+        }
+
+        const imgObj = makeImage(1, 1)
+        await writeInlayImage(imgObj, { id: 'transparent-png' })
+
+        expect(toBlobSpy).toHaveBeenCalledTimes(1)
+        expect(toBlobSpy).toHaveBeenCalledWith(expect.any(Function), 'image/png')
+        const stored = store.get('transparent-png') as InlayAsset
+        expect(stored.ext).toBe('png')
     })
 
     test('output pixels never exceed 1024 * 1024', async () => {

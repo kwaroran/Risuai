@@ -453,7 +453,7 @@ export async function runScripted(code:string, arg:{
 
                     imgObj.src = URL.createObjectURL(new Blob([asBuffer(img)], {type: `image/${extention}`}))
 
-                    const imgid = await writeInlayImage(imgObj, { name: character.image, ext: extention, id: character.image})
+                    const imgid = await writeInlayImage(imgObj, { name: character.image, ext: extention, id: character.image, sourceData: img })
 
                     if (imgid) {
                         return `{{inlayed::${imgid}}}`
@@ -480,7 +480,7 @@ export async function runScripted(code:string, arg:{
 
                     imgObj.src = URL.createObjectURL(new Blob([asBuffer(img)], {type: `image/${extention}`}))
 
-                    const imgid = await writeInlayImage(imgObj, { name: icon, ext: extention, id: icon})
+                    const imgid = await writeInlayImage(imgObj, { name: icon, ext: extention, id: icon, sourceData: img })
 
                     if (imgid) {
                         return `{{inlayed::${imgid}}}`

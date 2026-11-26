@@ -5,7 +5,6 @@
   import { language } from 'src/lang'
   import { alertConfirm } from 'src/ts/alert'
   import { getInlayAssetBlob, listInlayAssets, removeInlayAsset, type InlayAsset } from 'src/ts/process/files/inlays'
-  import { DBState } from 'src/ts/stores.svelte'
   import Button from '../UI/GUI/Button.svelte'
   import CheckInput from '../UI/GUI/CheckInput.svelte'
 
@@ -220,7 +219,7 @@
             </div>
           </div>
           <div class="text-textcolor2 text-sm mb-3">
-            <span>{asset.created ? new Date(asset.created).toLocaleString(DBState.db.language) : '(unknown date)'}</span>
+            <span>{asset.created != null ? new Date(asset.created).toLocaleString() : '(unknown date)'}</span>
           </div>
 
           <Button onclick={() => deleteAsset(id, asset.name)} styled="danger" size="sm">Delete</Button>

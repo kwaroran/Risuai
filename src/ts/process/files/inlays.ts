@@ -141,6 +141,7 @@ export type InlaySignature = {
 
 export async function saveInlayedSignature(sigid:string,signature:InlaySignature){
     await inlayStorage.setItem(sigid, {
+        created: Date.now(),
         name: sigid,
         data: JSON.stringify(signature),
         ext: 'json',

@@ -7,6 +7,7 @@ import {
     listInlayAssets,
     postInlayAsset,
     removeInlayAsset,
+    saveInlayedSignature,
     setInlayAsset,
     writeInlayImage,
 } from '../inlays'
@@ -514,5 +515,27 @@ describe('set -> remove -> get', () => {
                 expect(await getInlayAsset(id)).toBeNull()
             }),
         )
+    })
+})
+
+describe('saveInlayedSignature', () => {
+    test('stores signature asset with created timestamp and returns id', async () => {
+        const signature: Parameters<typeof saveInlayedSignature>[1] = {
+            signatures: [{ type: 'text', content: 'thought' }],
+            sourceFormat: 0 as Parameters<typeof saveInlayedSignature>[1]['sourceFormat'],
+            source: 'gemini-2.5-pro',
+        }
+
+        const result = await saveInlayedSignature('sig-1', signature)
+        expect(result).toBe('sig-1')
+
+        const stored = store.get('sig-1') as InlayAsset
+        expect(stored).toMatchObject({
+            created: expect.any(Number),
+            data: JSON.stringify(signature),
+            ext: 'json',
+            name: 'sig-1',
+            type: 'signature',
+        })
     })
 })

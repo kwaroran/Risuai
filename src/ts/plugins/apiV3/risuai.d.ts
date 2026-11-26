@@ -104,6 +104,8 @@
  * `data` is a base64 data-URI string (e.g. `"data:image/png;base64,iVBORw0..."`).
  */
 interface InlayAssetForPlugin {
+    /** Creation timestamp in milliseconds since the Unix epoch */
+    created?: number;
     /** Base64 data-URI string (`data:<mime>;base64,...`) */
     data: string;
     /** File extension without leading dot (e.g. `"png"`, `"webp"`, `"mp3"`) */

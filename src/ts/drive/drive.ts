@@ -1,7 +1,7 @@
 import { alertConfirm, alertError, alertInput, alertMd, alertNormal, alertSelect, alertStore } from "../alert";
 import { getDatabase, type Database } from "../storage/database.svelte";
 import { forageStorage, getUncleanables, openURL } from "../globalApi.svelte";
-import { isTauri } from "src/ts/platform"
+import { isNodeServer, isTauri } from "src/ts/platform"
 import { BaseDirectory, exists, readFile, readDir, writeFile } from "@tauri-apps/plugin-fs";
 import { language } from "../../lang";
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -31,11 +31,14 @@ import {
     type PackPosition,
     type PackSegment,
 } from "./drivePack";
+import { createRequestPacer } from "./requestPacer";
 
 const driveStateKey = 'risuDriveState'
 
 //how many packs are uploaded or downloaded at the same time
 const DRIVE_PARALLEL = 2
+//the node server allows 2000 storage requests a minute; leave room for chat saves and proxy calls
+const nodeStoragePacer = createRequestPacer(1400, 60 * 1000)
 
 export async function checkDriver(type:'save'|'load'|'loadtauri'|'savetauri'|'reftoken'){
     const CLIENT_ID = '580075990041-l26k2d3c0nemmqiu3d3aag01npfrkn76.apps.googleusercontent.com';
@@ -510,7 +513,7 @@ type BackupSources = Map<string, () => Promise<Uint8Array | null>>
 async function collectBackupSources(db:Database, coldPayloads:ColdStorageBackupPayload[]): Promise<{ sources: BackupSources, missing: string[] }> {
     const sources: BackupSources = new Map()
     const missing: string[] = []
-    const required = await getUncleanables(db)
+    const required = await getUncleanables(db, 'basename', new Map(coldPayloads.map((payload) => [payload.key, payload.value])))
     let local: Set<string>
     if(isTauri){
         try {
@@ -537,7 +540,12 @@ async function collectBackupSources(db:Database, coldPayloads:ColdStorageBackupP
         }
         sources.set(assetEntryName(name), isTauri
             ? () => readFile('assets/' + name, {baseDir: BaseDirectory.AppData})
-            : async () => await forageStorage.getItem('assets/' + name) as unknown as Uint8Array)
+            : async () => {
+                if(isNodeServer){
+                    await nodeStoragePacer()
+                }
+                return await forageStorage.getItem('assets/' + name) as unknown as Uint8Array
+            })
     }
     return { sources, missing: [...new Set(missing)] }
 }
@@ -940,6 +948,9 @@ async function loadDriveData(ACCESS_TOKEN:string, mode: 'backup'|'sync'):Promise
             await writeFile(`assets/` + images, data ,{baseDir: BaseDirectory.AppData})
         }
         else{
+            if(isNodeServer){
+                await nodeStoragePacer()
+            }
             await forageStorage.setItem('assets/' + images, data)
         }
     }

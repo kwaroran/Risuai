@@ -1063,12 +1063,16 @@ export function getBasename(data: string) {
     return lasts;
 }
 
-export async function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename') {
+/**
+ * @param coldItems cold storage items already read by the caller, used instead
+ * of reading them again; a key it lacks counts as unreadable
+ */
+export async function getUncleanables(db: Database, uptype: 'basename' | 'pure' = 'basename', coldItems?: ReadonlyMap<string, any>) {
     let chars: (character|groupChat)[] = []
     if (db.characters) {
         for(let cha of db.characters){
             if(cha?.coldstorage){
-                const coldData = await getColdStorageItem(cha.coldstorage!)
+                const coldData = coldItems ? coldItems.get(cha.coldstorage) : await getColdStorageItem(cha.coldstorage!)
                 if(coldData?.character && coldData.character.chaId === cha.chaId){
                     cha = coldData.character
                 }

@@ -378,7 +378,7 @@ describe('drive backup v2', () => {
         await checkDriver('savetauri')
         expect(state.errors).toEqual([])
         expect(drive.files.has(last.id)).toBe(false)
-        expect(drive.named(new RegExp(last.name.replace(/\./g, '\\.')))).toHaveLength(1)
+        expect([...drive.files.values()].filter((file) => file.name === last.name)).toHaveLength(1)
 
         expectRestored(await restoreOnEmptyDevice(), original)
     })

@@ -8,6 +8,7 @@ import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "..
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage, type ImageGenerationOptions } from "./stableDiff";
+import { isNAICharacterList } from "./naiCharacterPrompts";
 import { writeInlayImage, getInlayAsset } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
 import { requestChatData, type StreamResponseChunk } from "./request/request";
@@ -418,18 +419,27 @@ export async function runScripted(code:string, arg:{
                 if(orientation !== undefined && orientation !== 'landscape' && orientation !== 'portrait'){
                     return 'Error: Image orientation must be landscape or portrait, received ' + orientation
                 }
-
-                const gen = await generateAIImage(value, char as character, negValue, 'inlay', options)
-                if(!gen){
-                    return 'Error: Image generation failed'
+                if(!isNAICharacterList(options?.characters)){
+                    return 'Error: Image characters must be a list with no gaps or named keys'
                 }
 
-                const imgHTML = new Image()
-                imgHTML.src = gen
+                try {
+                    const gen = await generateAIImage(value, char as character, negValue, 'inlay', options)
+                    if(!gen){
+                        return 'Error: Image generation failed'
+                    }
 
-                const name = typeof options?.name === 'string' && options.name ? options.name : undefined
-                const inlay = await writeInlayImage(imgHTML, { name })
-                return `{{inlay::${inlay}}}`
+                    const imgHTML = new Image()
+                    imgHTML.src = gen
+
+                    const name = typeof options?.name === 'string' && options.name ? options.name : undefined
+                    const inlay = await writeInlayImage(imgHTML, { name })
+                    return `{{inlay::${inlay}}}`
+                } catch (error) {
+                    // Keep failures inside the script instead of aborting the whole run
+                    console.error('Error in generateImage:', error)
+                    return 'Error: Image generation failed'
+                }
             })
 
             declareAPI('getCharacterImageMain', async (id:string) => {

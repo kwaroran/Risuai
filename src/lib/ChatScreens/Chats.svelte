@@ -6,6 +6,7 @@
     import { createSimpleCharacter, DBState, selectedCharID, ReloadChatPointer } from 'src/ts/stores.svelte';
     import { chatFoldedStateMessageIndex } from 'src/ts/globalApi.svelte';
     import { get } from 'svelte/store';
+    import { doingChat } from 'src/ts/process/index.svelte';
     
     const getCurrentChatRoomId = () => {
         const charId = get(selectedCharID);
@@ -44,9 +45,18 @@
             isOptimizedStreamingMessage: boolean
             streamingOptimizationMode: StreamingDisplayOptimizationMode
             rawStreamingText: string
+            message?: string
         }) => void
     }
     let mountInstances: Map<number, ChatInstance> = new Map();
+    // The message being streamed. Its hash changes with its content (every chunk, or once at the end
+    // when streaming display optimization is on), but remounting it re-creates its DOM, which loses
+    // the browser's scroll anchor (and in 'strong' mode renders it empty until parsed), so the view
+    // moves or snaps to the bottom. So a hash change of this message updates the mounted instance in
+    // place instead, until the generation (including post-processing) has finished. Only an instance
+    // mounted during this generation is used: one that was on screen before it (the message a continue
+    // streams into) is remounted instead, so nothing set on it before (translation, an open editor) stays.
+    let streamTarget: { roomId: string | null, index: number, hash: number, shapeKey: string } | null = null;
 
     //Non-cryptographic hash function to generate a unique hash for each message
     function hashCode(str:string):number {
@@ -82,6 +92,8 @@
         const activeStreamingIndex = performanceMode !== 'off' && currentChat?.isStreaming
             ? messages.length - 1
             : -1
+        const isStreaming = !!currentChat?.isStreaming
+        const roomId = currentChat?.id ?? null
 
         if(chatFoldedStateMessageIndex.index !== -1){
             loadStart = chatFoldedStateMessageIndex.index
@@ -97,10 +109,40 @@
             const reloadPointer = reloadPointerMap[i] ?? 0;
             const activeStreamingMessage = i === activeStreamingIndex && message.role === 'char';
             const hashMessageData = activeStreamingMessage ? '' : message.data;
-            let hashd = hashMessageData + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            // What Chat only reads at mount; a change here needs a remount, not an in-place update.
+            // role also decides the name, icon and portrait it shows (setChatRole can change it).
+            const shapeKey = (message.chatId ?? '') + i.toString() + message.role + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            let hashd = hashMessageData + shapeKey;
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
-            if(!hashes.has(currentHash)){
+            let updatedInPlace = false;
+            if(!hashes.has(currentHash)
+                && streamTarget
+                && streamTarget.roomId === roomId
+                && streamTarget.index === i
+                && streamTarget.shapeKey === shapeKey
+                && hashes.has(streamTarget.hash)){
+                const inst = mountInstances.get(streamTarget.hash);
+                const element = chatBody.querySelector(`[x-hashed="${streamTarget.hash}"]`);
+                if(inst && element){
+                    mountInstances.delete(streamTarget.hash);
+                    hashes.delete(streamTarget.hash);
+                    mountInstances.set(currentHash, inst);
+                    element.setAttribute('x-hashed', currentHash.toString());
+                    streamTarget.hash = currentHash;
+                    inst.updateStreamingDisplay?.({
+                        isOptimizedStreamingMessage: activeStreamingMessage,
+                        streamingOptimizationMode: performanceMode,
+                        rawStreamingText: message.data,
+                        message: message.data,
+                    });
+                    updatedInPlace = true;
+                }
+            }
+            if(!updatedInPlace && !hashes.has(currentHash)){
+                if(isStreaming && i === messages.length - 1){
+                    streamTarget = { roomId, index: i, hash: currentHash, shapeKey };
+                }
                 const b = document.createElement('div');
                 b.setAttribute('x-hashed', currentHash.toString());
                 b.classList.add('chat-message-container');
@@ -137,7 +179,7 @@
                     chatBody.prepend(b);
                 }
             }
-            else{
+            else if(!updatedInPlace){
                 mountInstances.get(currentHash)?.updateStreamingDisplay?.({
                     isOptimizedStreamingMessage: activeStreamingMessage,
                     streamingOptimizationMode: performanceMode,
@@ -163,10 +205,24 @@
         });
 
         hashes = currentHashes;
-        
+        // Keep it until the whole generation is done (output triggers, inlays and output listeners can
+        // still rewrite the message after streaming has ended), then forget it, so a later change
+        // (an edit, a plugin) remounts the message.
+        if(!isStreaming && !get(doingChat)){
+            streamTarget = null;
+        }
+
     };
 
+    // Often no update runs after the generation ends, so also forget the target here.
+    const unsubscribeDoingChat = doingChat.subscribe((doing) => {
+        if(!doing && !currentCharacter.chats?.[currentCharacter.chatPage]?.isStreaming){
+            streamTarget = null;
+        }
+    });
+
     onDestroy(() => {
+        unsubscribeDoingChat();
         console.log('Unmounting Chats');
         hashes.clear();
         mountInstances.forEach((inst) => {
@@ -200,14 +256,17 @@
     $effect(() => {
         console.log('Updating Chats');
         void $ReloadChatPointer; // Make $effect track ReloadChatPointer changes
-        const wasAtBottom = checkIfAtBottom();
-        updateChatBody()
-        
         const currentChatRoomId = getCurrentChatRoomId();
         const isSameChat = currentChatRoomId === previousChatRoomId;
-        
+        const messagesAdded = isSameChat && messages.length > previousLength;
+        // Read layout only when it is needed: a message re-rendered in this same update may still be
+        // empty (its {#await} renders a microtask later), and forcing a layout now collapses it,
+        // which snaps the chat scroll to the bottom.
+        const wasAtBottom = messagesAdded ? checkIfAtBottom() : true;
+        updateChatBody()
+
         // Only auto-scroll if it's the same chat and new messages were added
-        if(isSameChat && messages.length > previousLength){
+        if(messagesAdded){
             const lastMsg = messages[messages.length - 1];
             if(lastMsg && lastMsg.role === 'char' && DBState.db.autoScrollToNewMessage){
                 if(wasAtBottom || DBState.db.alwaysScrollToNewMessage){

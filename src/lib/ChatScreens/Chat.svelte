@@ -34,6 +34,10 @@
     let loadingTranslationEdit = $state(false)
     let editTranslationText = $state('')
     let editTranslationKey: string | null = null
+    // Latest translation edit load; an in-place update bumps it to drop one still loading
+    let translationEditRequestId = 0
+    // Bumped by an in-place update to re-create the partial editor
+    let partialEditReset = $state(0)
     let chatBodyRevision = $state(0)
     let bodyRoot:HTMLElement|null = $state(null)
     interface Props {
@@ -97,10 +101,21 @@
         isOptimizedStreamingMessage: boolean
         streamingOptimizationMode: StreamingDisplayOptimizationMode
         rawStreamingText: string
+        message?: string
     }){
         isOptimizedStreamingMessage = state.isOptimizedStreamingMessage
         streamingOptimizationMode = state.streamingOptimizationMode
         rawStreamingText = state.rawStreamingText
+        if(state.message !== undefined){
+            // Same outcome as the remount this replaces: any editor opened mid-stream is discarded
+            editMode = false
+            editTranslationMode = false
+            editTranslationKey = null
+            loadingTranslationEdit = false
+            translationEditRequestId += 1
+            partialEditReset += 1
+            message = state.message
+        }
     }
 
     async function rm(e:MouseEvent, rec?:boolean){
@@ -230,9 +245,11 @@
         if (translationViewControlsDisabled) return
 
         loadingTranslationEdit = true
+        const requestId = ++translationEditRequestId
         try {
             const key = await getTranslationCacheKey()
             const cached = await getLLMCache(key)
+            if (requestId !== translationEditRequestId) return
             editTranslationKey = key
             editTranslationText = cached ?? ''
             editTranslationMode = true
@@ -268,6 +285,17 @@
     let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
     let displayMessage = $derived(isOptimizedStreamingMessage ? rawStreamingText : message)
     let renderRawStreaming = $derived(isOptimizedStreamingMessage && streamingOptimizationMode === 'strong')
+    // Key for ChatBody's rendered-HTML cache. Branched / copied chats keep the same message chatId,
+    // so the key also names the character and the chat room.
+    let renderCacheKey = $derived.by(() => {
+        if(idx < 0){
+            return ''
+        }
+        const char = DBState.db.characters?.[selIdState.selId]
+        const chat = char?.chats?.[char.chatPage]
+        const messageId = chat?.message?.[idx]?.chatId
+        return messageId ? `${char.chaId}:${chat.id}:${messageId}` : ''
+    })
 
     function updateDisplayedMessage(){
         if(renderRawStreaming){
@@ -566,20 +594,23 @@
                     bind:translating={translating}
                     bind:retranslate={retranslate}
                     {renderRawStreaming}
-                    {rawStreamingText} />
+                    {rawStreamingText}
+                    {renderCacheKey} />
             {/key}
         </span>
         {#if idx >= 0 && !editMode && !editTranslationMode && !isOptimizedStreamingMessage && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
-            <PartialEditController
-                messageData={message}
-                chatIndex={idx}
-                {bodyRoot}
-                blockEditEnabled={DBState.db.enableBlockPartialEdit}
-                dragEditEnabled={DBState.db.enableDragPartialEdit}
-                translatedView={translated}
-                getTranslationEditContext={getTranslationPartialEditContext}
-                on:save={handlePartialEditSave}
-            />
+            {#key partialEditReset}
+                <PartialEditController
+                    messageData={message}
+                    chatIndex={idx}
+                    {bodyRoot}
+                    blockEditEnabled={DBState.db.enableBlockPartialEdit}
+                    dragEditEnabled={DBState.db.enableDragPartialEdit}
+                    translatedView={translated}
+                    getTranslationEditContext={getTranslationPartialEditContext}
+                    on:save={handlePartialEditSave}
+                />
+            {/key}
         {/if}
     {/if}
 {/snippet}

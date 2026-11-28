@@ -1163,7 +1163,7 @@ export interface Database{
     thinkingType: 'off' | 'budget' | 'adaptive'
     deepseekThinkingType: 'off' | 'enabled'
     adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-    deepseekReasoningEffort: 'high' | 'max'
+    deepseekReasoningEffort: 'low' | 'high' | 'max'
     antiServerOverloads: boolean
     hypaCustomSettings: {
         url: string,
@@ -1312,7 +1312,7 @@ export interface SeparateParameters{
     thinking_type?: 'off' | 'budget' | 'adaptive'
     deepseek_thinking_type?: 'off' | 'enabled'
     adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-    deepseek_reasoning_effort?: 'high' | 'max'
+    deepseek_reasoning_effort?: 'low' | 'high' | 'max'
     outputImageModal?:boolean
     verbosity?:number
 }
@@ -1677,7 +1677,7 @@ export interface botPreset{
     thinkingType?: 'off' | 'budget' | 'adaptive'
     deepseekThinkingType?: 'off' | 'enabled'
     adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-    deepseekReasoningEffort?: 'high' | 'max'
+    deepseekReasoningEffort?: 'low' | 'high' | 'max'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean
     seperateModels?:{

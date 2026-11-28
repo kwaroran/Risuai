@@ -41,7 +41,8 @@ import {
     getUncleanables,
     getBasename,
     setUsingSw,
-    checkCharOrder
+    checkCharOrder,
+    reviveSaveTracking
 } from "./globalApi.svelte";
 import { isTauri } from "./platform";
 import { registerModelDynamic } from "./model/modellist";
@@ -291,12 +292,15 @@ async function registerSw() {
  */
 function updateErrorHandling() {
     const errorHandler = (event: ErrorEvent) => {
+        //an error thrown by an effect can stall the save tracking effects
+        reviveSaveTracking();
         console.error(event.error);
         if(!(event.error.target instanceof Worker)){
             alertError(event.error);            
         }
     };
     const rejectHandler = (event: PromiseRejectionEvent) => {
+        reviveSaveTracking();
         console.error(event.reason);
         alertError(event.reason);
     };

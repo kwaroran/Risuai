@@ -1041,6 +1041,12 @@ export const languageKorean = {
     "updateRealm": "RisuRealm에 업데이트하기",
     "updateRealmDesc": "당신은 이 캐릭터를 RisuRealm에 업데이트 하려고 합니다. 이 작업은 취소할 수 없습니다.",
     "antiClaudeOverload": "Claude 오버로드 방지",
+    "saveLoopWatch": {
+        "stuck": "저장이 {}분 넘게 끝나지 않고 있습니다. 최근에 변경한 내용이 저장되지 않았을 수 있습니다.",
+        "stopped": "자동 저장이 멈췄습니다. 지금부터 변경하는 내용은 저장되지 않습니다.",
+        "lastSaved": "마지막으로 저장된 시각: {}.",
+        "advice": "중요한 데이터를 백업한 뒤 앱을 새로고침해 주세요.",
+    },
     "activeTabChange": "현재 탭이 비활성화되었습니다. OK를 누르면 탭이 다시 활성화됩니다.",
     "maxSupaChunkSize": "최대 수파메모리 청크 크기",
     "addCharacter": "캐릭터 추가",

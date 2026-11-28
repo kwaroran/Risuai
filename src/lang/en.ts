@@ -1181,6 +1181,12 @@ export const languageEnglish = {
     updateRealm: "Update to RisuRealm",
     updateRealmDesc: "You are trying to update your character to RisuRealm. this will update your character to RisuRealm, and you can't revert it back.",
     antiClaudeOverload: "Anti-Claude Overload",
+    saveLoopWatch: {
+        stuck: "Saving hasn't finished for over {} minutes. Your recent changes may not have been saved.",
+        stopped: "Auto-save has stopped. Changes you make from now on won't be saved.",
+        lastSaved: "Last saved at {}.",
+        advice: "Back up your important data, then reload the app.",
+    },
     activeTabChange: "Current tab is inactivated since other tab is active. To activate this tab, click OK",
     maxSupaChunkSize: "Max SupaMemory Chunk Size",
     addCharacter: "Add Character",

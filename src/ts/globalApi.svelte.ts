@@ -17,7 +17,7 @@ import streamSaver from 'streamsaver';
 import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat, appSubVer } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
-import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
+import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, alertStore as alertState } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
 import { checkDriverInit, syncDrive } from "./drive/drive";
@@ -27,6 +27,8 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { loadRisuAccountData } from "./drive/accounter";
 import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
 import { saveKV } from "./storage/saveKV";
+import { createSaveTracking, type SaveTracking } from "./storage/saveTracking.svelte";
+import { createSaveLoopWatch, SAVE_LOOP_STALL_MS, type SaveLoopNotice, type SaveLoopWatch } from "./storage/saveLoopWatch";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -279,6 +281,35 @@ export async function loadAsset(id: string) {
 }
 
 let lastSave = ''
+let saveTracking: SaveTracking | null = null
+
+/**
+ * Recreates the save tracking effects and saves everything once.
+ * Call it after an uncaught error, which can leave those effects stalled.
+ */
+export function reviveSaveTracking() {
+    saveTracking?.revive()
+}
+
+let saveLoopWatch: SaveLoopWatch | null = null
+
+function showSaveLoopNotice(notice: SaveLoopNotice) {
+    const text = language.saveLoopWatch
+    const msg = notice.kind === 'stuck'
+        ? text.stuck.replace('{}', `${Math.round(SAVE_LOOP_STALL_MS / 60000)}`)
+        : text.stopped
+    const submsg = [
+        notice.lastSaved ? text.lastSaved.replace('{}', new Date(notice.lastSaved).toLocaleTimeString()) : '',
+        text.advice,
+    ].filter(Boolean).join(' ')
+    alertState.set({
+        type: 'error',
+        msg,
+        submsg,
+        stackTrace: notice.kind === 'stopped' && notice.error instanceof Error ? notice.error.stack : undefined,
+    })
+}
+
 export let saving = $state({
     state: false
 })
@@ -292,6 +323,26 @@ export let requiresFullEncoderReload = $state({
     state: false
 })
 export async function saveDb() {
+    saveLoopWatch?.stop()
+    const watch = createSaveLoopWatch({
+        isVisible: () => document.visibilityState === 'visible',
+        isAlertOpen: () => {
+            const type = get(alertState).type
+            return type !== 'none' && type !== 'toast'
+        },
+        notify: showSaveLoopNotice,
+    })
+    saveLoopWatch = watch
+    watch.start()
+    try {
+        await runSaveLoop(watch)
+    } catch (error) {
+        //the loop never returns, so this means saving stopped for the rest of the session
+        watch.died(error)
+    }
+}
+
+async function runSaveLoop(watch: SaveLoopWatch) {
     let changed = false
     syncDrive()
     let gotChannel = false
@@ -330,86 +381,27 @@ export async function saveDb() {
         kv: saveKV
     })
 
-    $effect.root(() => {
-
-        let selIdState = $state(0)
-
-        const debounceTime = 500; // 500 milliseconds
-        let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-
-        selectedCharID.subscribe((v) => {
-            selIdState = v
-        })
-
-        function saveTimeoutExecute() {
-            if (saveTimeout) {
-                clearTimeout(saveTimeout);
-            }
-            saveTimeout = setTimeout(() => {
-                changed = true;
-            }, debounceTime);
-        }
-
-        $effect(() => {
-            DBState.db.botPresetsId
-            DBState.db.botPresets.length
-            changeTracker.botPreset = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.modules)
-            changeTracker.modules = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.loadouts)
-            changeTracker.loadouts = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.plugins)
-            changeTracker.plugins = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            $state.snapshot(DBState.db.pluginCustomStorage)
-            changeTracker.pluginCustomStorage = true
-            saveTimeoutExecute()
-        })
-        $effect(() => {
-            for (const key in DBState.db) {
-                if (
-                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
-                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
-                ) {
-                    $state.snapshot(DBState.db[key])
-                }
-            }
-            if (DBState?.db?.characters?.[selIdState]) {
-                for (const key in DBState.db.characters[selIdState]) {
-                    if (key !== 'chats') {
-                        $state.snapshot(DBState.db.characters[selIdState][key])
-                    }
-                }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
-                if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
-                    changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
-                }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
-                }
-            }
-            saveTimeoutExecute()
-        })
+    saveTracking?.stop()
+    saveTracking = createSaveTracking({
+        db: () => DBState.db,
+        selectedCharID,
+        changeTracker,
+        onChange: () => {
+            changed = true
+        },
+        onRevive: () => {
+            //changes made while tracking was stalled were not recorded
+            requiresFullEncoderReload.state = true
+            changed = true
+        },
     })
+    saveTracking.start()
 
     let savetrys = 0
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
     while (true) {
+        watch.step('idle')
         //SaveKV is not reactive: it reports its own changes
         if (!changed && !saveKV.hasDirty()) {
             await sleep(500)
@@ -422,13 +414,20 @@ export async function saveDb() {
         try {
 
             if (requiresFullEncoderReload.state) {
-                encoder = new RisuSaveEncoder()
-                await encoder.init(getDatabase(), {
-                    compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false,
-                    kv: saveKV
-                })
+                watch.step('reload')
+                //Cleared before the await, so a reload requested meanwhile is not lost
                 requiresFullEncoderReload.state = false
+                try {
+                    encoder = new RisuSaveEncoder()
+                    await encoder.init(getDatabase(), {
+                        compression: forageStorage.isAccount,
+                        skipRemoteSavingOnCharacters: false,
+                        kv: saveKV
+                    })
+                } catch (error) {
+                    requiresFullEncoderReload.state = true
+                    throw error
+                }
             }
 
             let toSave = safeStructuredClone(changeTracker)
@@ -452,6 +451,7 @@ export async function saveDb() {
 
             kvDirty = saveKV.takeDirty()
             toSave.kv = kvDirty
+            watch.step('encode')
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
@@ -460,6 +460,7 @@ export async function saveDb() {
                 continue
             }
             const dbData = new Uint8Array(encoded)
+            watch.step('write')
             if (isTauri) {
                 await writeFile('database/database.bin', dbData, { baseDir: BaseDirectory.AppData });
                 await writeFile(`database/dbbackup-${(Date.now() / 100).toFixed()}.bin`, dbData, { baseDir: BaseDirectory.AppData });
@@ -474,10 +475,13 @@ export async function saveDb() {
                     await sleep(3000)
                 }
             }
+            watch.saved()
             if (!forageStorage.isAccount) {
+                watch.step('backup')
                 await getDbBackups()
             }
             savetrys = 0
+            watch.step('kei')
             await saveDbKei()
             await sleep(500)
         } catch (error) {

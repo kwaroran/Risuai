@@ -1011,6 +1011,12 @@ export const languageVietnamese = {
     "updateRealm": "Cập nhật lên RisuRealm",
     "updateRealmDesc": "Bạn đang cố gắng cập nhật nhân vật của mình lên RisuRealm. Điều này sẽ cập nhật nhân vật của bạn lên RisuRealm và bạn không thể hoàn tác.",
     "antiClaudeOverload": "Chống quá tải Claude",
+    "saveLoopWatch": {
+        "stuck": "Việc lưu đã hơn {} phút mà chưa xong. Các thay đổi gần đây của bạn có thể chưa được lưu.",
+        "stopped": "Tính năng tự động lưu đã dừng. Các thay đổi từ bây giờ sẽ không được lưu.",
+        "lastSaved": "Lần lưu gần nhất: {}.",
+        "advice": "Vui lòng sao lưu dữ liệu quan trọng rồi tải lại ứng dụng.",
+    },
     "activeTabChange": "Tab hiện tại bị vô hiệu hóa vì tab khác đang hoạt động. Để kích hoạt tab này, nhấp OK",
     "maxSupaChunkSize": "Kích thước SupaMemory Chunk tối đa",
     "addCharacter": "Thêm nhân vật",

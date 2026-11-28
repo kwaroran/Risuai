@@ -1258,6 +1258,82 @@ app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
     }
 });
 
+const BULK_READ_MAX_FILES = 100;
+const BULK_READ_MISSING_LENGTH = 0xFFFFFFFF;
+
+function waitForDrainOrClose(res) {
+    // 'close' may have fired already (e.g. the client left during the file read), and it will not fire again
+    if(res.destroyed){
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        const done = () => {
+            res.off('drain', done);
+            res.off('close', done);
+            resolve();
+        };
+        res.on('drain', done);
+        res.on('close', done);
+    });
+}
+
+// Body: JSON { paths: string[] } with hex-encoded keys, the same encoding as the file-path header of /api/read.
+// Response: one frame per requested path, in request order: a uint32 big-endian byte length
+// (0xFFFFFFFF when the file does not exist) followed by that many bytes of file content.
+app.post('/api/read_bulk', authenticatedRouteLimiter, async (req, res) => {
+    if(!await checkAuth(req, res)){
+        return;
+    }
+    const filePaths = req.body?.paths;
+    if(!Array.isArray(filePaths) || filePaths.length === 0){
+        res.status(400).send({
+            error:'File paths required'
+        });
+        return;
+    }
+    if(filePaths.length > BULK_READ_MAX_FILES){
+        res.status(400).send({
+            error:`Too many file paths (max ${BULK_READ_MAX_FILES})`
+        });
+        return;
+    }
+    // Strict hex only: unlike isHex, this keeps internal files such as __password out of bulk reads
+    if(!filePaths.every((filePath) => typeof filePath === 'string' && hexRegex.test(filePath))){
+        res.status(400).send({
+            error:'Invaild Path'
+        });
+        return;
+    }
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    for(const filePath of filePaths){
+        if(res.destroyed){
+            return;
+        }
+        let content = null;
+        try {
+            content = await fs.readFile(path.join(savePath, filePath));
+        } catch (error) {
+            if(error?.code !== 'ENOENT'){
+                if(!res.headersSent){
+                    throw error;
+                }
+                // Frames already sent cannot be taken back; abort so the client sees a truncated body
+                console.error('[Storage] Failed to read item during bulk read:', error);
+                res.destroy(error);
+                return;
+            }
+        }
+        const lengthHeader = Buffer.alloc(4);
+        lengthHeader.writeUInt32BE(content ? content.byteLength : BULK_READ_MISSING_LENGTH);
+        res.write(lengthHeader);
+        if(content && !res.write(content)){
+            await waitForDrainOrClose(res);
+        }
+    }
+    res.end();
+});
+
 app.get('/api/remove', authenticatedRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;

@@ -41,6 +41,25 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
     })
 }
 
+// OpenUncensored: OpenAI-compatible API, one key shared by every model below.
+// Docs: https://openuncensored.com/docs
+function makeOpenUncensoredModel(internalID:string, name:string, flags:LLMFlags[], tokenizer:LLMTokenizer):LLMModel{
+    return {
+        id: 'openuncensored_' + internalID,
+        name: name + ' (OpenUncensored)',
+        fullName: 'OpenUncensored ' + name,
+        internalID,
+        provider: LLMProvider.OpenUncensored,
+        format: LLMFormat.OpenAICompatible,
+        parameters: OpenAIParameters,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming, ...flags],
+        tokenizer,
+        endpoint: 'https://api.openuncensored.com/v1/chat/completions',
+        keyIdentifier: 'openuncensored',
+        recommended: true
+    }
+}
+
 export const LLMModels: LLMModel[] = [
     ...OpenAIModels,
     ...AnthropicModels,
@@ -533,6 +552,10 @@ export const LLMModels: LLMModel[] = [
         'google/gemma-2-27b-it',
         'google/gemma-2-9b-it'
     ]),
+    // OpenUncensored
+    makeOpenUncensoredModel('deepseek-v4.1-flash-1017-uncensored', 'DeepSeek V4.1 Flash 1017 Uncensored', [LLMFlags.hasImageInput], LLMTokenizer.DeepSeekV4),
+    makeOpenUncensoredModel('glm-5.3-flash-uncensored', 'GLM 5.3 Flash Uncensored', [], LLMTokenizer.GLM5),
+    makeOpenUncensoredModel('venice-uncensored-role-play', 'Venice Role Play Uncensored', [], LLMTokenizer.Unknown),
     // NanoGPT — single provider entry; model list fetched on demand via getNanoGPTModels()
     {
         id: 'nanogpt',

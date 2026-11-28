@@ -1,5 +1,11 @@
 // @ts-nocheck
 
+// Older versions could cache empty files as images, which then stayed broken.
+// This runs once when an updated worker takes over (after all tabs are closed), so start clean.
+self.addEventListener('activate', (event) => {
+    event.waitUntil(caches.delete('risuCache'))
+})
+
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url)
     const path = url.pathname.split('/')
@@ -117,6 +123,12 @@ async function registerCache(urlr, buffer, noContentType = false){
         url.pathname = path.join('/')
     }
     const buf = new Uint8Array(await buffer)
+    if(buf.byteLength === 0){
+        // Usually a missing file; caching it would keep the asset broken after the file comes back
+        return new Response(JSON.stringify({
+            "done": false
+        }), { status: 400 })
+    }
     let headers = {
         "cache-control": "max-age=604800",
         "content-type": "image/png"

@@ -121,6 +121,40 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.sayNothing', type: 'check', labelKey: 'sayNothing', bindKey: 'useSayNothing', helpKey: 'sayNothing', classes: 'mt-4' },
     { id: 'adv.showUnrec', type: 'check', labelKey: 'showUnrecommended', bindKey: 'showUnrecommended', helpKey: 'showUnrecommended', classes: 'mt-4' },
     { id: 'adv.imgComp', type: 'check', labelKey: 'imageCompression', bindKey: 'imageCompression', helpKey: 'imageCompression', classes: 'mt-4' },
+
+    // Inlay Images
+    {
+        id: 'adv.inlayImgFormat',
+        type: 'segmented',
+        labelKey: 'inlayImageFormat',
+        bindKey: 'inlayImageFormat',
+        helpKey: 'inlayImageFormat',
+        classes: 'mt-4',
+        options: {
+            segmentOptions: [
+                { value: 'png', label: 'PNG' },
+                { value: 'webp', label: 'WebP' },
+                { value: 'jpeg', label: 'JPEG' }
+            ]
+        }
+    },
+    {
+        id: 'adv.inlayImgQuality',
+        type: 'segmented',
+        labelKey: 'inlayImageQuality',
+        bindKey: 'inlayImageQuality',
+        helpKey: 'inlayImageQuality',
+        condition: (ctx) => ctx.db.inlayImageFormat === 'webp' || ctx.db.inlayImageFormat === 'jpeg',
+        options: {
+            segmentOptions: [
+                { value: 'low', labelKey: 'inlayImageQualityLow' },
+                { value: 'balanced', labelKey: 'inlayImageQualityBalanced' },
+                { value: 'high', labelKey: 'inlayImageQualityHigh' }
+            ]
+        }
+    },
+    { id: 'adv.inlayPreserveMeta', type: 'check', labelKey: 'inlayPreserveMetadata', bindKey: 'inlayPreserveMetadata', helpKey: 'inlayPreserveMetadata', classes: 'mt-0' },
+
     { id: 'adv.useExp', type: 'check', labelKey: 'useExperimental', bindKey: 'useExperimental', helpKey: 'useExperimental', classes: 'mt-4' },
     { id: 'adv.forceProxy', type: 'check', labelKey: 'forceProxyAsOpenAI', bindKey: 'forceProxyAsOpenAI', helpKey: 'forceProxyAsOpenAI', classes: 'mt-4' },
     { id: 'adv.legacyMedia', type: 'check', labelKey: 'legacyMediaFindings', bindKey: 'legacyMediaFindings', helpKey: 'legacyMediaFindings', classes: 'mt-4' },

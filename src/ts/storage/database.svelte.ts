@@ -26,6 +26,8 @@ export let appVer = "2026.10.295" //<APP_VERSION_POINT>
 export let appSubVer = ''
 
 export type StreamingDisplayOptimizationMode = 'off'|'balanced'|'strong'
+export type InlayImageFormat = 'png'|'webp'|'jpeg'
+export type InlayImageQuality = 'low'|'balanced'|'high'
 
 export function setDatabase(data:Database){
     if(checkNullish(data.characters)){
@@ -356,6 +358,9 @@ export function setDatabase(data:Database){
     data.OAIPrediction ??= ''
     data.autoSuggestClean ??= true
     data.imageCompression ??= true
+    data.inlayImageFormat ??= 'png'
+    data.inlayImageQuality ??= 'balanced'
+    data.inlayPreserveMetadata ??= false
     data.enableBlockPartialEdit ??= false
     data.enableDragPartialEdit ??= false
     if(!data.formatingOrder.includes('personaPrompt')){
@@ -926,6 +931,9 @@ export interface Database{
     novellistAPI:string,
     useAutoTranslateInput:boolean
     imageCompression:boolean
+    inlayImageFormat?: InlayImageFormat
+    inlayImageQuality?: InlayImageQuality
+    inlayPreserveMetadata?: boolean
     account?:{
         token:string
         id:string,

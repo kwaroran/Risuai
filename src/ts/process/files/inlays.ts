@@ -1,9 +1,26 @@
 import localforage from "localforage";
 import { v4 } from "uuid";
 import { getImageType } from "src/ts/media";
-import { getDatabase } from "../../storage/database.svelte";
+import { getDatabase, type InlayImageFormat, type InlayImageQuality } from "../../storage/database.svelte";
 import { getModelInfo, LLMFlags, LLMFormat } from "src/ts/model/modellist";
 import { asBuffer } from "../../util";
+import {
+    dataUriToUint8Array,
+    extractMetadataFromBytes,
+    extractStealthMetadataFromPixels,
+    hasMetadata,
+    injectMetadataIntoImage,
+    type ExtractedImageMetadata,
+} from "./inlayMetadata";
+
+const INLAY_QUALITY_MAP: Record<InlayImageQuality, number> = {
+    low: 0.75,
+    balanced: 0.85,
+    high: 0.92,
+}
+
+// NovelAI embeds stealth metadata in alpha LSBs, leaving opaque pixels at 254 or 255
+const STEALTH_ALPHA_MIN = 254
 
 export type InlayAsset = {
     /** Creation timestamp */
@@ -46,7 +63,8 @@ export async function postInlayAsset(img: {
 
         return await writeInlayImage(imgObj, {
             name: img.name,
-            ext: extension
+            ext: extension,
+            sourceData: img.data
         })
     }
 
@@ -85,10 +103,13 @@ export async function postInlayAsset(img: {
     return null
 }
 
-export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string, ext?:string, id?:string} = {}) {
+export async function writeInlayImage(
+    imgObj:HTMLImageElement,
+    arg:{name?:string, ext?:string, id?:string, sourceData?:Uint8Array | string} = {}
+) {
     let drawHeight = 0
     let drawWidth = 0
-
+    let wasResized = false
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     await new Promise((resolve) => {
@@ -104,6 +125,7 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
                 const scaleFactor = Math.sqrt(maxPixels / currentPixels)
                 drawWidth = Math.floor(drawWidth * scaleFactor)
                 drawHeight = Math.floor(drawHeight * scaleFactor)
+                wasResized = true
             }
 
             canvas.width = drawWidth
@@ -112,7 +134,123 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
             resolve(null)
         }
     })
-    const imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+    const db = getDatabase()
+    const targetFormat: InlayImageFormat = db?.inlayImageFormat ?? 'png'
+    const qualityPreset: InlayImageQuality = db?.inlayImageQuality ?? 'balanced'
+    const quality = INLAY_QUALITY_MAP[qualityPreset] ?? 0.85
+    const preserveMetadata = db?.inlayPreserveMetadata === true
+
+    let metadata: ExtractedImageMetadata | null = null
+    if(preserveMetadata){
+        let sourceBytes: Uint8Array | null = null
+        if(arg.sourceData instanceof Uint8Array){
+            sourceBytes = arg.sourceData
+        } else if(typeof arg.sourceData === 'string'){
+            sourceBytes = dataUriToUint8Array(arg.sourceData)
+        } else if(typeof imgObj.src === 'string'){
+            sourceBytes = dataUriToUint8Array(imgObj.src)
+        }
+        if(sourceBytes){
+            metadata = extractMetadataFromBytes(sourceBytes)
+        }
+    }
+
+    let hasRealTransparency = false
+    let hasStealthLikeAlpha = false
+
+    const needsPixelInspection =
+        targetFormat !== 'png' || (preserveMetadata && !wasResized && !hasMetadata(metadata))
+
+    if(needsPixelInspection && typeof ctx?.getImageData === 'function' && drawWidth > 0 && drawHeight > 0){
+        try {
+            const imageData = ctx.getImageData(0, 0, drawWidth, drawHeight)
+            const pixels = imageData.data
+            for(let i = 3; i < pixels.length; i += 4){
+                const a = pixels[i]
+                if(a < STEALTH_ALPHA_MIN){
+                    hasRealTransparency = true
+                    break
+                }
+                if(a === STEALTH_ALPHA_MIN){
+                    hasStealthLikeAlpha = true
+                }
+            }
+
+            if(preserveMetadata && !wasResized && !hasMetadata(metadata) && hasStealthLikeAlpha){
+                const stealth = extractStealthMetadataFromPixels(pixels, drawWidth, drawHeight)
+                if(stealth){
+                    metadata = { textChunks: stealth, rawPngChunks: [] }
+                }
+            }
+
+            // Flatten NAI stealth-only alpha (254/255) to opaque 255 before lossy WebP encoding
+            // so encoders do not waste an alpha plane or alter dark semi-transparent pixels.
+            if(targetFormat === 'webp' && !hasRealTransparency && hasStealthLikeAlpha && typeof ctx.putImageData === 'function'){
+                for(let i = 3; i < pixels.length; i += 4){
+                    pixels[i] = 255
+                }
+                ctx.putImageData(imageData, 0, 0)
+            }
+        } catch {
+            // Fall back cleanly if canvas pixel readback is unavailable
+        }
+    }
+
+    const toBlob = (mime: string, q?: number) =>
+        new Promise<Blob | null>((resolve) => {
+            if(q === undefined){
+                canvas.toBlob(resolve, mime)
+            } else {
+                canvas.toBlob(resolve, mime, q)
+            }
+        })
+
+    let actualFormat: InlayImageFormat = 'png'
+    let imageBlob: Blob | null = null
+
+    if(targetFormat === 'webp'){
+        const webpBlob = await toBlob('image/webp', quality)
+        if(webpBlob && webpBlob.type === 'image/webp'){
+            imageBlob = webpBlob
+            actualFormat = 'webp'
+        } else if(!hasRealTransparency){
+            const jpegBlob = await toBlob('image/jpeg', quality)
+            if(jpegBlob && jpegBlob.type === 'image/jpeg'){
+                imageBlob = jpegBlob
+                actualFormat = 'jpeg'
+            }
+        }
+    } else if(targetFormat === 'jpeg' && !hasRealTransparency){
+        const jpegBlob = await toBlob('image/jpeg', quality)
+        if(jpegBlob && jpegBlob.type === 'image/jpeg'){
+            imageBlob = jpegBlob
+            actualFormat = 'jpeg'
+        }
+    }
+
+    if(!imageBlob){
+        imageBlob = await toBlob('image/png')
+        actualFormat = 'png'
+    }
+
+    if(preserveMetadata && imageBlob && hasMetadata(metadata)){
+        try {
+            const encodedBytes = new Uint8Array(await imageBlob.arrayBuffer())
+            const withMeta = injectMetadataIntoImage(
+                encodedBytes,
+                actualFormat,
+                metadata,
+                drawWidth,
+                drawHeight,
+            )
+            if(withMeta !== encodedBytes){
+                imageBlob = new Blob([asBuffer(withMeta)], { type: `image/${actualFormat}` })
+            }
+        } catch {
+            // Keep the encoded image even if metadata injection fails
+        }
+    }
 
     const now = Date.now()
     const imgid = arg.id ?? v4()
@@ -121,7 +259,7 @@ export async function writeInlayImage(imgObj:HTMLImageElement, arg:{name?:string
         created: now,
         name: arg.name ?? imgid,
         data: imageBlob,
-        ext: 'png',
+        ext: actualFormat,
         height: drawHeight,
         width: drawWidth,
         type: 'image'
@@ -136,7 +274,7 @@ export async function createInlayFromData(data: Uint8Array | string, name?: stri
         if(!data.startsWith('data:')){
             throw new Error('String input must be an image data URI')
         }
-        return await writeInlayImageFromSrc(data, name)
+        return await writeInlayImageFromSrc(data, name, data)
     }
 
     //mime is only a hint; undecodable bytes reject via onerror in writeInlayImageFromSrc
@@ -145,13 +283,13 @@ export async function createInlayFromData(data: Uint8Array | string, name?: stri
 
     const src = URL.createObjectURL(new Blob([asBuffer(data)], {type: mimeType}))
     try {
-        return await writeInlayImageFromSrc(src, name)
+        return await writeInlayImageFromSrc(src, name, data)
     } finally {
         URL.revokeObjectURL(src)
     }
 }
 
-function writeInlayImageFromSrc(src: string, name?: string): Promise<string> {
+function writeInlayImageFromSrc(src: string, name?: string, sourceData?: Uint8Array | string): Promise<string> {
     const imgObj = new Image()
 
     return new Promise((resolve, reject) => {
@@ -160,7 +298,7 @@ function writeInlayImageFromSrc(src: string, name?: string): Promise<string> {
             reject(new Error('Failed to decode inlay image data'))
         }
         imgObj.src = src
-        writeInlayImage(imgObj, { name }).then(resolve, reject)
+        writeInlayImage(imgObj, { name, sourceData }).then(resolve, reject)
     })
 }
 

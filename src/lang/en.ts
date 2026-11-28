@@ -141,6 +141,15 @@ export const languageEnglish = {
             "Strong is similar to Balanced, but skips post-processing while streaming and runs it only once after the stream finishes.\n\n" +
             "This is an experimental feature, and some features may behave unexpectedly because of it.",
         imageCompression: "If enabled, it will compress images when exporting character. if animated images doesn't works, try disabling this option.",
+        inlayImageFormat:
+            "Format used when saving newly created inlay images.\n\n" +
+            "PNG keeps the original lossless behavior.\n\n" +
+            "WebP gives the smallest file size while keeping transparency, and falls back automatically if the browser cannot encode WebP.\n\n" +
+            "JPEG offers the widest compatibility, and keeps PNG automatically when an image has transparency.",
+        inlayImageQuality:
+            "Compression quality for WebP and JPEG inlay images. Balanced (85%) is recommended for most uses. High (92%) keeps slightly finer detail at a larger file size, while Low (75%) prioritizes storage space.",
+        inlayPreserveMetadata:
+            "Preserves generation metadata (NovelAI text/stealth info, ComfyUI prompt/workflow, WebUI parameters) when saving inlay images. Only applies to newly saved inlays.",
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
         forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. this can cause CORS errors.",
@@ -957,6 +966,12 @@ export const languageEnglish = {
     downloads: "Downloads",
     trending: "Trending",
     imageCompression: "Image Compression",
+    inlayImageFormat: "Inlay Image Format",
+    inlayImageQuality: "Inlay Compression Quality",
+    inlayImageQualityLow: "Low (75%)",
+    inlayImageQualityBalanced: "Balanced (85%)",
+    inlayImageQualityHigh: "High (92%)",
+    inlayPreserveMetadata: "Preserve Inlay Metadata",
     notLoggedIn: "Not Logged in to Risu Account",
     googleDriveInfo: "Connect to Google Drive to sync your data.",
     googleDriveConnection: "Google Drive Connection",

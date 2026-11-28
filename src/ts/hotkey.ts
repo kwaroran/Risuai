@@ -1,7 +1,7 @@
 import { get } from "svelte/store"
 import { alertMd, alertSelect, alertToast, alertWait, doingAlert, alertRequestLogs } from "./alert"
 import { changeToPreset as changeToPreset2, getDatabase  } from "./storage/database.svelte"
-import { alertStore, DBState, loadoutModalStore, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
+import { alertStore, DBState, loadoutModalStore, MobileGUIStack, MobileSideBar, openPersonaList, openPresetList, OpenRealmStore, PlaygroundStore, QuickSettings, ReloadGUIPointer, SafeModeStore, selectedCharID, settingsOpen } from "./stores.svelte"
 import { language } from "src/lang"
 import { updateTextThemeAndCSS } from "./gui/colorscheme"
 import { defaultHotkeys } from "./defaulthotkeys"
@@ -308,6 +308,7 @@ async function quickMenu(){
         language.presets,
         language.persona,
         language.hotkeyDesc.loadout,
+        `${language.hideAllImages} (${DBState.db.hideAllImages ? 'on' : 'off'})`,
         language.cancel
     ])
     const sel = parseInt(selStr)
@@ -319,6 +320,11 @@ async function quickMenu(){
     }
     if(sel === 2){
         loadoutModalStore.open = !(loadoutModalStore.open)
+    }
+    if(sel === 3){
+        DBState.db.hideAllImages = !DBState.db.hideAllImages
+        // Chat messages are rendered once, so force a re-render to apply the change
+        ReloadGUIPointer.update((v) => v + 1)
     }
 }
 

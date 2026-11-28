@@ -7,6 +7,7 @@ import { globalFetch } from "src/ts/globalApi.svelte";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { appendLastPath } from "src/ts/util";
 import { isMobile } from "src/ts/platform";
+import { batchByTokenBudget, getEmbeddingTokenCounter } from "./embeddingBatch";
 
 export interface HypaProcessorV2Options {
   model?: HypaModel;
@@ -206,8 +207,6 @@ export class HypaProcessorV2<TMetadata> {
       `Optimal chunk size for ${this.options.model}: ${chunkSize}`
     );
 
-    const chunks = this.chunkArray(toEmbed, chunkSize);
-
     if (ctxProvider && saveToMemory) {
       const metadataGroups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
       for (const item of toEmbed) {
@@ -249,6 +248,7 @@ export class HypaProcessorV2<TMetadata> {
       }
     } else if (this.isLocalModel()) {
       // Local model: Sequential processing
+      const chunks = this.chunkArray(toEmbed, chunkSize);
       for (let i = 0; i < chunks.length; i++) {
         // Progress callback
         this.progressCallback?.(chunks.length - i - 1);
@@ -286,6 +286,9 @@ export class HypaProcessorV2<TMetadata> {
       }
     } else {
       // API model: Parallel processing
+      const countTokens = getEmbeddingTokenCounter(this.options.model, getDatabase().hypaCustomSettings?.model);
+      const counts = await Promise.all(toEmbed.map(item => countTokens(item.content)));
+      const chunks = batchByTokenBudget(toEmbed, counts, 50);
       const embeddingTasks = chunks.map((chunk) => {
         const contents = chunk.map((item) => item.content);
 

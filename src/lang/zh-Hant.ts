@@ -1323,6 +1323,8 @@ export const languageChineseTraditional = {
     "translatorPrompt": "翻譯提示詞",
     "translateBeforeHTMLFormatting": "在 HTML 格式化前翻譯",
     "retranslate": "重新翻譯",
+    "truncated": "已截斷",
+    "truncatedMessage": "該回覆因達到權杖上限而被截斷，未自然結束，內容可能不完整。",
     "editTranslation": "編輯翻譯",
     "editTranslationSave": "儲存翻譯",
     "exportTranslationCache": "匯出翻譯快取",

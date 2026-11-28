@@ -8,7 +8,7 @@ import { alertError, alertToast } from "../alert";
 import { parseChatML } from "../parser/chatML";
 import { loadLoreBookV3Prompt } from "./lorebook.svelte";
 import { findCharacterbyId, getAuthorNoteDefaultText, getPersonaPrompt, getUserName, isLastCharPunctuation, trimUntilPunctuation, parseToggleSyntax, prebuiltAssetCommand } from "../util";
-import { requestChatData } from "./request/request";
+import { requestChatData, isTruncatedFinishReason } from "./request/request";
 import { stableDiff } from "./stableDiff";
 import { processScript, processScriptFull, risuChatParser } from "./scripts";
 import { exampleMessage } from "./exampleMessages";
@@ -1756,7 +1756,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             return false
         }
 
-        addRerolls(generationId, Object.values(lastResponseChunk))
+        if(generationInfo && lastResponseChunk?.['__finish_reason']){
+            generationInfo.stopReason = lastResponseChunk['__finish_reason']
+            generationInfo.truncated = isTruncatedFinishReason(generationInfo.stopReason)
+        }
+
+        addRerolls(generationId, Object.entries(lastResponseChunk).filter(([key]) => key !== '__finish_reason').map(([, value]) => value))
 
         DBState.db.characters[selectedChar].chats[selectedChat] = runCurrentChatFunction(DBState.db.characters[selectedChar].chats[selectedChat])
         currentChat = DBState.db.characters[selectedChar].chats[selectedChat]        
@@ -1793,6 +1798,10 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         }
     }
     else{
+        if(generationInfo && req.type === 'success' && req.finishReason){
+            generationInfo.stopReason = req.finishReason
+            generationInfo.truncated = isTruncatedFinishReason(req.finishReason)
+        }
         const msgs = (req.type === 'success') ? [['char',req.result]] as const 
                     : (req.type === 'multiline') ? req.result
                     : []

@@ -77,6 +77,7 @@
 {#if value.deepseek_thinking_type === 'enabled'}
     <span class="text-textcolor">DeepSeek Reasoning Effort</span>
     <SelectInput bind:value={value.deepseek_reasoning_effort}>
+        <OptionInput value="low">Low</OptionInput>
         <OptionInput value="high">High</OptionInput>
         <OptionInput value="max">Max</OptionInput>
     </SelectInput>

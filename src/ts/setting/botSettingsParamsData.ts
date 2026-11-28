@@ -200,6 +200,7 @@ export const modelSpecificParameterItems: SettingItem[] = [
             ctx.db.deepseekThinkingType === 'enabled',
         options: {
             segmentOptions: [
+                { value: 'low', label: 'Low' },
                 { value: 'high', label: 'High' },
                 { value: 'max', label: 'Max' },
             ]

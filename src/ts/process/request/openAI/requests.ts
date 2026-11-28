@@ -457,10 +457,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
 
     if(arg.modelInfo.flags.includes(LLMFlags.deepSeekThinkingToggle)){
         if(db.deepseekThinkingType === 'enabled'){
-            body.thinking = {
-                type: 'enabled',
-                reasoning_effort: db.deepseekReasoningEffort ?? 'high'
-            }
+            body.thinking = { type: 'enabled' }
+            body.reasoning_effort = db.deepseekReasoningEffort ?? 'high'
             delete body.temperature
             delete body.top_p
             delete body.frequency_penalty

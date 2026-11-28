@@ -37,11 +37,25 @@ export const naiEmphasis = (s:string) => s
     .replaceAll('♤',')')
 
 /**
+ * Whether a Lua-supplied characters value can be read as a list.
+ * An empty Lua table crosses the bridge as {} rather than [], so that counts as an empty list.
+ * A table with holes or named keys arrives as a non-empty object and is rejected,
+ * so a script mistake does not silently drop every character prompt.
+ */
+export function isNAICharacterList(value:unknown):boolean{
+    if(value === undefined || Array.isArray(value)){
+        return true
+    }
+    return typeof value === 'object' && value !== null && Object.keys(value).length === 0
+}
+
+/**
  * Builds the NAI v4/v4.5 multi-character fields from options supplied by modules via Lua.
  * Kept out of stableDiff.ts so the shape can be asserted without pulling in the app's stores.
  */
 export function buildNAICharacterPrompts(naiOptions?:NAIImageGenOptions){
-    const naiCharacters = naiOptions?.characters ?? []
+    // Anything that is not an array, such as an empty Lua table arriving as {}, means no characters
+    const naiCharacters = Array.isArray(naiOptions?.characters) ? naiOptions.characters : []
     const charCenter = (c:NAICharacterPrompt) => ({
         x: naiPosition(c?.x),
         y: naiPosition(c?.y)

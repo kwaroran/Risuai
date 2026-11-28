@@ -8,6 +8,7 @@ import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "..
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
 import { generateAIImage, type ImageGenerationOptions } from "./stableDiff";
+import { isNAICharacterList } from "./naiCharacterPrompts";
 import { writeInlayImage, getInlayAsset } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
 import { requestChatData, type StreamResponseChunk } from "./request/request";
@@ -417,6 +418,9 @@ export async function runScripted(code:string, arg:{
                 const orientation = options?.orientation
                 if(orientation !== undefined && orientation !== 'landscape' && orientation !== 'portrait'){
                     return 'Error: Image orientation must be landscape or portrait, received ' + orientation
+                }
+                if(!isNAICharacterList(options?.characters)){
+                    return 'Error: Image characters must be a list with no gaps or named keys'
                 }
 
                 try {

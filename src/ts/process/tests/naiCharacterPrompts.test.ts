@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildNAICharacterPrompts, type NAIImageGenOptions } from "../naiCharacterPrompts";
+import { buildNAICharacterPrompts, isNAICharacterList, type NAIImageGenOptions } from "../naiCharacterPrompts";
 
-// Modules hand these options over as a JSON string through the Lua bridge, so the
-// parsed value is only guaranteed to be an object. Anything else has to degrade
-// to a documented default rather than corrupt the request.
+// Modules hand these options over as a Lua table, which the bridge turns into a plain
+// object with no type checks. Anything unexpected has to degrade to a documented
+// default rather than corrupt the request.
 const fromLua = (json: string) => JSON.parse(json) as NAIImageGenOptions;
 
 describe("buildNAICharacterPrompts", () => {
@@ -76,6 +76,10 @@ describe("buildNAICharacterPrompts", () => {
     });
 
     describe("malformed options", () => {
+        it("treats an empty Lua table, which arrives as {}, as no characters", () => {
+            expect(buildNAICharacterPrompts(fromLua('{"characters":{}}'))).toEqual(buildNAICharacterPrompts());
+        });
+
         it("ignores a non-boolean use_coords instead of treating it as truthy", () => {
             // "false" is a truthy string, so a plain ?? would enable coordinates here
             expect(buildNAICharacterPrompts(fromLua('{"use_coords":"false","characters":[{"prompt":"a"}]}')).useCoords).toBe(false);
@@ -95,5 +99,24 @@ describe("buildNAICharacterPrompts", () => {
 
             expect(built.posCharCaptions).toEqual([{ char_caption: "", centers: [{ x: 0, y: 0 }] }]);
         });
+    });
+});
+
+describe("isNAICharacterList", () => {
+    it("accepts a missing value, a list, and an empty Lua table", () => {
+        expect(isNAICharacterList(undefined)).toBe(true);
+        expect(isNAICharacterList([{ prompt: "a" }])).toBe(true);
+        expect(isNAICharacterList({})).toBe(true);
+    });
+
+    it("rejects a Lua table with holes or named keys", () => {
+        // { {prompt='a'}, nil, {prompt='c'} } and { {prompt='a'}, foo='bar' } arrive like this
+        expect(isNAICharacterList({ "1": { prompt: "a" }, "3": { prompt: "c" } })).toBe(false);
+        expect(isNAICharacterList({ "1": { prompt: "a" }, foo: "bar" })).toBe(false);
+    });
+
+    it("rejects values that are not tables", () => {
+        expect(isNAICharacterList("abc")).toBe(false);
+        expect(isNAICharacterList(null)).toBe(false);
     });
 });

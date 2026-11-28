@@ -176,6 +176,10 @@ export const advancedSettingsItems: SettingItem[] = [
         id: 'adv.exp.cachePoint', type: 'check', labelKey: 'automaticCachePoint', bindKey: 'automaticCachePoint',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
     },
+    {
+        id: 'adv.exp.splitChatSaving', type: 'check', labelKey: 'splitChatSaving', bindKey: 'splitChatSaving',
+        condition: (ctx) => ctx.db.useExperimental, helpKey: 'splitChatSaving', showExperimental: true, classes: 'mt-4'
+    },
     // Unrecommended Section
     {
         id: 'adv.cot', type: 'check', labelKey: 'cot', bindKey: 'chainOfThought',

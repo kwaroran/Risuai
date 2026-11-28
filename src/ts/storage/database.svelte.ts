@@ -1268,6 +1268,8 @@ export interface Database{
     createFolderOnBranch?:boolean
     hamburgerButtonBottom?:boolean
     enableRemoteSaving?:boolean
+    /** experimental: save each chat as its own block in database.bin (not used with account storage) */
+    splitChatSaving?:boolean
     blockquoteStyling?:boolean
     dynamicModelRegistry?:boolean
     enableRisuaiProTools?:boolean

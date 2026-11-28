@@ -1,12 +1,15 @@
 import fc from 'fast-check'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { getImageType } from 'src/ts/media'
 import type { InlayAsset } from '../inlays'
 import {
+    createInlayFromData,
     getInlayAsset,
     getInlayAssetBlob,
     listInlayAssets,
     postInlayAsset,
     removeInlayAsset,
+    saveInlayedSignature,
     setInlayAsset,
     writeInlayImage,
 } from '../inlays'
@@ -281,6 +284,7 @@ describe('postInlayAsset', () => {
 
         const stored = store.get('test-uuid-1234') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'mp3',
             name: 'clip.mp3',
@@ -298,6 +302,7 @@ describe('postInlayAsset', () => {
 
         const stored = store.get('test-uuid-1234') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'webm',
             name: 'video.webm',
@@ -330,9 +335,14 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
+
                 const stored = store.get(result!) as InlayAsset
-                expect(stored.type).toBe('audio')
-                expect(stored.ext).toBe(ext)
+                expect(stored).toMatchObject({
+                    created: expect.any(Number),
+                    ext,
+                    name: `sound.${ext}`,
+                    type: 'audio',
+                })
             }),
         )
     })
@@ -346,9 +356,14 @@ describe('postInlayAsset', () => {
                     data: new Uint8Array([0x00]),
                 })
                 expect(result).not.toBeNull()
+
                 const stored = store.get(result!) as InlayAsset
-                expect(stored.type).toBe('video')
-                expect(stored.ext).toBe(ext)
+                expect(stored).toMatchObject({
+                    created: expect.any(Number),
+                    name: `clip.${ext}`,
+                    ext,
+                    type: 'video',
+                })
             }),
         )
     })
@@ -368,6 +383,7 @@ describe('writeInlayImage', () => {
 
         const stored = store.get('custom-id') as InlayAsset
         expect(stored).toMatchObject({
+            created: expect.any(Number),
             data: expect.any(Blob),
             ext: 'png',
             height: 100,
@@ -384,6 +400,7 @@ describe('writeInlayImage', () => {
         expect(result).toBe('test-uuid-1234')
 
         const stored = store.get('test-uuid-1234') as InlayAsset
+        expect(stored.created).toEqual(expect.any(Number))
         expect(stored.name).toBe('test-uuid-1234')
     })
 
@@ -438,6 +455,93 @@ describe('writeInlayImage', () => {
     })
 })
 
+describe('createInlayFromData', () => {
+    // happy-dom does not load images, so onload/onerror never fire naturally
+    class FakeImage {
+        onload: (() => void) | null = null
+        onerror: (() => void) | null = null
+        width = 200
+        height = 100
+        #src = ''
+        get src() {
+            return this.#src
+        }
+        set src(value: string) {
+            this.#src = value
+            queueMicrotask(() => {
+                if (value.includes('bad-image')) this.onerror?.()
+                else this.onload?.()
+            })
+        }
+    }
+
+    const origCreateObjectURL = URL.createObjectURL
+    const origRevokeObjectURL = URL.revokeObjectURL
+
+    beforeEach(() => {
+        vi.stubGlobal('Image', FakeImage)
+        URL.createObjectURL = vi.fn(() => 'blob:fake-url')
+        URL.revokeObjectURL = vi.fn()
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        URL.createObjectURL = origCreateObjectURL
+        URL.revokeObjectURL = origRevokeObjectURL
+    })
+
+    test('creates an image inlay from a data URI string', async () => {
+        const result = await createInlayFromData('data:image/png;base64,aGVsbG8=')
+
+        expect(result).toBe('test-uuid-1234')
+        const stored = store.get('test-uuid-1234') as InlayAsset
+        expect(stored).toMatchObject({
+            data: expect.any(Blob),
+            ext: 'png',
+            name: 'test-uuid-1234',
+            type: 'image',
+        })
+    })
+
+    test('creates an image inlay from raw bytes and revokes the object URL', async () => {
+        vi.mocked(getImageType).mockReturnValue('PNG')
+
+        const result = await createInlayFromData(new Uint8Array([0x89, 0x50]), 'gen.png')
+
+        expect(result).toBe('test-uuid-1234')
+        expect(URL.createObjectURL).toHaveBeenCalledOnce()
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:fake-url')
+        const stored = store.get('test-uuid-1234') as InlayAsset
+        expect(stored).toMatchObject({
+            name: 'gen.png',
+            type: 'image',
+        })
+    })
+
+    test('rejects and revokes the object URL when raw bytes cannot be decoded', async () => {
+        vi.mocked(getImageType).mockReturnValue('Unknown')
+        vi.mocked(URL.createObjectURL).mockReturnValue('blob:bad-image')
+
+        await expect(createInlayFromData(new Uint8Array([0x00, 0x01]))).rejects.toThrow(
+            /Failed to decode/,
+        )
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:bad-image')
+        expect(store.size).toBe(0)
+    })
+
+    test('rejects instead of hanging when the image cannot be decoded', async () => {
+        await expect(createInlayFromData('data:bad-image')).rejects.toThrow(/Failed to decode/)
+        expect(store.size).toBe(0)
+    })
+
+    test('rejects strings that are not data URIs', async () => {
+        await expect(createInlayFromData('https://example.com/x.png')).rejects.toThrow(
+            /must be an image data URI/,
+        )
+        expect(store.size).toBe(0)
+    })
+})
+
 describe('set -> get round-trip', () => {
     test('preserves metadata through setInlayAsset -> getInlayAsset', async () => {
         await fc.assert(
@@ -450,7 +554,9 @@ describe('set -> get round-trip', () => {
                 async (id, name, ext, width, height) => {
                     store.clear()
                     const blob = new Blob(['data'], { type: 'application/octet-stream' })
+                    const now = Date.now()
                     const asset: InlayAsset = {
+                        created: now,
                         data: blob,
                         ext,
                         height,
@@ -463,6 +569,7 @@ describe('set -> get round-trip', () => {
 
                     const result = await getInlayAsset(id)
                     expect(result).toMatchObject({
+                        created: now,
                         data: expect.any(String),
                         ext,
                         height,
@@ -497,5 +604,27 @@ describe('set -> remove -> get', () => {
                 expect(await getInlayAsset(id)).toBeNull()
             }),
         )
+    })
+})
+
+describe('saveInlayedSignature', () => {
+    test('stores signature asset with created timestamp and returns id', async () => {
+        const signature: Parameters<typeof saveInlayedSignature>[1] = {
+            signatures: [{ type: 'text', content: 'thought' }],
+            sourceFormat: 0 as Parameters<typeof saveInlayedSignature>[1]['sourceFormat'],
+            source: 'gemini-2.5-pro',
+        }
+
+        const result = await saveInlayedSignature('sig-1', signature)
+        expect(result).toBe('sig-1')
+
+        const stored = store.get('sig-1') as InlayAsset
+        expect(stored).toMatchObject({
+            created: expect.any(Number),
+            data: JSON.stringify(signature),
+            ext: 'json',
+            name: 'sig-1',
+            type: 'signature',
+        })
     })
 })

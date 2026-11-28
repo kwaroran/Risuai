@@ -51,6 +51,7 @@
   import DevTool from "./DevTool.svelte";
     import QuickSettingsGui from "../Others/QuickSettingsGUI.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
+    import { RISU_SIDEBAR_DRAG_TYPE } from "src/ts/dragTypes";
   let sideBarMode = $state(0);
   let editMode = $state(false);
   let menuMode = $state(0);
@@ -69,7 +70,7 @@
   let charImages: sortType[] = $state([]);
   let IconRounded = $state(false)
   let openFolders:string[] = $state([])
-  let currentDrag: DragData = $state(null)
+  let currentDrag: DragData | null = $state(null)
   interface Props {
     openGrid?: any;
     hidden?: boolean;
@@ -313,6 +314,9 @@
         db.characterOrder.splice(mainIndex.index, 1)
       }
     }
+
+    DBState.db.characterOrder = db.characterOrder
+    checkCharOrder()
   }
 
   type DragEv = DragEvent & {
@@ -324,7 +328,7 @@
   }
   const avatarDragStart = (ind:DragData, e:DragEv) => {
     e.dataTransfer.setData('text/plain', '');
-    e.dataTransfer.setData('application/x-risu-internal', 'true');
+    e.dataTransfer.setData(RISU_SIDEBAR_DRAG_TYPE, 'true');
     currentDrag = ind
     const avatar = e.currentTarget.querySelector('.avatar')
     if(avatar){
@@ -332,21 +336,60 @@
     }
   }
 
+  const clearCurrentDrag = () => {
+    currentDrag = null
+  }
+
+  $effect(() => {
+    if (typeof window === 'undefined') return
+
+    window.addEventListener('dragend', clearCurrentDrag)
+    window.addEventListener('drop', clearCurrentDrag)
+    window.addEventListener('blur', clearCurrentDrag)
+
+    return () => {
+      window.removeEventListener('dragend', clearCurrentDrag)
+      window.removeEventListener('drop', clearCurrentDrag)
+      window.removeEventListener('blur', clearCurrentDrag)
+    }
+  })
+
+  const getCurrentSidebarDrag = (e:DragEvent) => {
+    if(!currentDrag || !e.dataTransfer?.types.includes(RISU_SIDEBAR_DRAG_TYPE)){
+      return null
+    }
+    return currentDrag
+  }
+
   const avatarDragOver = (e:DragEv) => {
+    if(!getCurrentSidebarDrag(e)){
+      return
+    }
     e.preventDefault()
+    e.stopPropagation()
     e.dataTransfer.dropEffect = 'move'
   }
 
   const avatarDrop = (ind:DragData, e:DragEv) => {
+    const drag = getCurrentSidebarDrag(e)
+    if(!drag){
+      return
+    }
     e.preventDefault()
+    e.stopPropagation()
     try {
-      if(currentDrag){
-        createFolder(currentDrag,ind)
-      }
-    } catch (error) {}
+      createFolder(drag,ind)
+    } catch (error) {
+      console.error('avatarDrop error:', error)
+    } finally {
+      clearCurrentDrag()
+    }
   }
 
-  const preventAll = (e:Event) => {
+  const preventAll = (e:DragEvent) => {
+    if(!getCurrentSidebarDrag(e)){
+      return
+    }
     e.preventDefault()
     e.stopPropagation()
     return false
@@ -435,14 +478,14 @@
 >
   {#if !DBState.db.hamburgerButtonBottom}
   <button
-    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500 risu-sidebar-menu"
     onclick={() => {
       menuMode = 1 - menuMode;
     }}><ListIcon />
   </button>
   <div class="mt-2 border-b border-b-selected w-full relative text-white ">
     {#if menuMode === 1}
-      <div class="absolute w-20 min-w-20 flex border-b-selected border-b bg-bgcolor flex-col items-center pt-2 rounded-b-md z-20 pb-2">
+      <div class="absolute w-20 min-w-20 flex border-b-selected border-b bg-bgcolor flex-col items-center pt-2 rounded-b-md z-20 pb-2 risu-sidebar-popout">
         <BarIcon
         onClick={() => {
           if ($settingsOpen) {
@@ -498,17 +541,23 @@
   {/if}
   <div class="flex grow w-full flex-col items-center overflow-x-hidden overflow-y-auto pr-0">
     <div class="h-4 min-h-4 w-14" role="listitem" ondragover={(e) => {
+      if(!getCurrentSidebarDrag(e)){ return }
       e.preventDefault()
+      e.stopPropagation()
       e.dataTransfer.dropEffect = 'move'
       e.currentTarget.classList.add('bg-green-500')
     }} ondragleave={(e) => {
       e.currentTarget.classList.remove('bg-green-500')
     }} ondrop={(e) => {
+      const drag = getCurrentSidebarDrag(e)
+      if(!drag){ return }
       e.preventDefault()
+      e.stopPropagation()
       e.currentTarget.classList.remove('bg-green-500')
-      const da = currentDrag
-      if(da){
-        inserter(da,{index:0})
+      try {
+        inserter(drag,{index:0})
+      } finally {
+        clearCurrentDrag()
       }
     }} ondragenter={preventAll}></div>
     {#each charImages as char, ind}
@@ -516,6 +565,7 @@
         role="listitem"
         draggable="true"
         ondragstart={(e) => {avatarDragStart({index:ind}, e)}}
+        ondragend={clearCurrentDrag}
         ondragover={avatarDragOver}
         ondrop={(e) => {avatarDrop({index:ind}, e)}}
         ondragenter={preventAll}
@@ -652,17 +702,25 @@
             'bg-darkbg/20'
           }"></div>
           <div class="h-4 min-h-4 w-14 relative z-10" role="listitem" ondragover={(e) => {
+            if(!getCurrentSidebarDrag(e)){ return }
             e.preventDefault()
+            e.stopPropagation()
             e.dataTransfer.dropEffect = 'move'
             e.currentTarget.classList.add('bg-green-500')
           }} ondragleave={(e) => {
             e.currentTarget.classList.remove('bg-green-500')
           }} ondrop={(e) => {
+            const drag = getCurrentSidebarDrag(e)
+            if(!drag){ return }
             e.preventDefault()
+            e.stopPropagation()
             e.currentTarget.classList.remove('bg-green-500')
-            const da = currentDrag
-            if(da && char.type === 'folder'){
-              inserter(da,{index:0,folder:char.id})
+            try {
+              if(char.type === 'folder'){
+                inserter(drag,{index:0,folder:char.id})
+              }
+            } finally {
+              clearCurrentDrag()
             }
           }} ondragenter={preventAll}></div>
           {#each char.folder as char2, ind}
@@ -670,6 +728,7 @@
               role="listitem"
               draggable="true"
               ondragstart={(e) => {if(char.type === 'folder'){avatarDragStart({index: ind, folder:char.id}, e)}}}
+              ondragend={clearCurrentDrag}
               ondragover={avatarDragOver}
               ondrop={(e) => {if(char.type === 'folder'){avatarDrop({index: ind, folder:char.id}, e)}}}
               ondragenter={preventAll}
@@ -703,17 +762,25 @@
               </div>
             </div>
             <div class="h-4 min-h-4 w-14 relative z-20" role="listitem" ondragover={(e) => {
+              if(!getCurrentSidebarDrag(e)){ return }
               e.preventDefault()
+              e.stopPropagation()
               e.dataTransfer.dropEffect = 'move'
               e.currentTarget.classList.add('bg-green-500')
             }} ondragleave={(e) => {
               e.currentTarget.classList.remove('bg-green-500')
             }} ondrop={(e) => {
+              const drag = getCurrentSidebarDrag(e)
+              if(!drag){ return }
               e.preventDefault()
+              e.stopPropagation()
               e.currentTarget.classList.remove('bg-green-500')
-              const da = currentDrag
-              if(da && char.type === 'folder'){
-                inserter(da,{index:ind+1,folder:char.id})
+              try {
+                if(char.type === 'folder'){
+                  inserter(drag,{index:ind+1,folder:char.id})
+                }
+              } finally {
+                clearCurrentDrag()
               }
             }} ondragenter={preventAll}></div>
           {/each}
@@ -721,21 +788,27 @@
         {/key}
       {/if}
       <div class="h-4 min-h-4 w-14" role="listitem" ondragover={((e) => {
+        if(!getCurrentSidebarDrag(e)){ return }
         e.preventDefault()
+        e.stopPropagation()
         e.dataTransfer.dropEffect = 'move'
         e.currentTarget.classList.add('bg-green-500')
       })} ondragleave={(e) => {
         e.currentTarget.classList.remove('bg-green-500')
       }} ondrop={(e) => {
+        const drag = getCurrentSidebarDrag(e)
+        if(!drag){ return }
         e.preventDefault()
+        e.stopPropagation()
         e.currentTarget.classList.remove('bg-green-500')
-        const da = currentDrag
-        if(da){
-          inserter(da,{index:ind+1})
+        try {
+          inserter(drag,{index:ind+1})
+        } finally {
+          clearCurrentDrag()
         }
       }} ondragenter={preventAll}></div>
     {/each}
-    <div class="flex flex-col items-center gap-2 px-2">
+    <div class="flex flex-col items-center gap-2 px-2 risu-sidebar-add" class:risu-round-icons={IconRounded}>
       <BaseRoundedButton
         onClick={async () => {
           addCharacter({reseter}) 
@@ -756,7 +829,7 @@
   {#if DBState.db.hamburgerButtonBottom}
   <div class="border-t border-t-selected w-full relative text-white ">
     {#if menuMode === 1}
-      <div class="absolute bottom-full w-20 min-w-20 flex border-t-selected border-t bg-bgcolor flex-col items-center pt-2 rounded-t-md z-20 pb-2">
+      <div class="absolute bottom-full w-20 min-w-20 flex border-t-selected border-t bg-bgcolor flex-col items-center pt-2 rounded-t-md z-20 pb-2 risu-sidebar-popout">
         <BarIcon
         onClick={() => {
           if ($settingsOpen) {
@@ -810,7 +883,7 @@
     {/if}
   </div>
   <button
-    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500"
+    class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-blue-500 risu-sidebar-menu"
     onclick={() => {
       menuMode = 1 - menuMode;
     }}><ListIcon />
@@ -878,7 +951,7 @@
         </div>
       </div>
     {:else}
-      <div class="w-full h-8 min-h-8 border-l border-b border-r border-selected relative bottom-6 rounded-b-md flex">
+      <div class="w-full h-8 min-h-8 border-l border-b border-r border-selected relative bottom-6 rounded-b-md flex risu-sidebar-tabs">
         <button onclick={() => {
           devTool = false
           botMakerMode.set(false)

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { PlusIcon, PencilIcon, TrashIcon, DownloadIcon, HardDriveUploadIcon } from "@lucide/svelte";
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
     import { language } from "src/lang";
     import Help from "src/lib/Others/Help.svelte";
@@ -18,11 +19,25 @@
     import { untrack } from "svelte";
     import { tokenizePreset } from "src/ts/process/prompt";
     import { getCharToken } from "src/ts/tokenizer";
-    import { PlusIcon, PencilIcon, TrashIcon, DownloadIcon, HardDriveUploadIcon } from "@lucide/svelte";
     import { alertError, alertInput, alertConfirm, alertNormal } from "src/ts/alert";
     import { createHypaV3Preset } from "src/ts/process/memory/hypav3";
 
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0);
+
+    async function importComfyWorkflow() {
+        const file = await selectSingleFile(['json'])
+        if (!file) {
+            return
+        }
+        const text = new TextDecoder().decode(file.data)
+        try {
+            JSON.parse(text)
+        } catch {
+            alertError(language.comfyWorkflowInvalidJson)
+            return
+        }
+        DBState.db.comfyConfig.workflow = text
+    }
 
     // HypaV3
     $effect(() => {
@@ -226,7 +241,7 @@
 
 
 {#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4">
+    <div class="flex w-full rounded-md border border-darkborderc mb-4 risu-seg">
         <button onclick={() => {
             submenu = 0
         }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
@@ -313,14 +328,15 @@
 
             <span class="text-textcolor">Model</span>
             <SelectInput className="mb-4" bind:value={DBState.db.NAIImgModel} >
+                <OptionInput value="nai-diffusion-5-full" >nai-diffusion-5-full</OptionInput>
+                <OptionInput value="nai-diffusion-5-full-medium" >nai-diffusion-5-full-medium</OptionInput>
+                <OptionInput value="nai-diffusion-5-curated" >nai-diffusion-5-curated</OptionInput>
                 <OptionInput value="nai-diffusion-4-5-full" >nai-diffusion-4-5-full</OptionInput>
                 <OptionInput value="nai-diffusion-4-5-curated" >nai-diffusion-4-5-curated</OptionInput>
                 <OptionInput value="nai-diffusion-4-full" >nai-diffusion-4-full</OptionInput>
                 <OptionInput value="nai-diffusion-4-curated-preview" >nai-diffusion-4-curated-preview</OptionInput>
                 <OptionInput value="nai-diffusion-3" >nai-diffusion-3</OptionInput>
                 <OptionInput value="nai-diffusion-furry-3" >nai-diffusion-furry-3</OptionInput>
-                <OptionInput value="nai-diffusion-2" >nai-diffusion-2</OptionInput>
-
             </SelectInput>
 
             <span class="text-textcolor">Width</span>
@@ -690,8 +706,11 @@
             <span class="text-textcolor mt-2">ComfyUI {language.providerURL}</span>
             <TextInput size="sm" marginBottom placeholder="http://127.0.0.1:8188" bind:value={DBState.db.comfyUiUrl}/>
 
-            <span class="text-textcolor">Workflow <Help key="comfyWorkflow" /></span>
-            <TextInput size="sm" marginBottom bind:value={DBState.db.comfyConfig.workflow}/>
+            <span class="text-textcolor">{language.comfyWorkflow} <Help key="comfyWorkflow" /></span>
+            <TextAreaInput size="sm" fullwidth height="32" bind:value={DBState.db.comfyConfig.workflow}/>
+            <div class="mt-2 mb-4 flex items-center">
+                <button class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={importComfyWorkflow}><HardDriveUploadIcon size={24}/></button>
+            </div>
 
             <span class="text-textcolor">Timeout (sec)</span>
             <NumberInput size="sm" marginBottom bind:value={DBState.db.comfyConfig.timeout} min={1} max={120} />
@@ -1054,7 +1073,7 @@
         {:else if DBState.db.hypaV3}
             <span class="max-w-full mb-6 text-sm text-wrap wrap-break-word text-textcolor2">{language.hypaV3Settings.descriptionLabel}</span>
             <span class="text-textcolor">Preset</span>
-            <select class={"border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
+            <select class={"risu-select border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
                 bind:value={DBState.db.hypaV3PresetId}
             >
                 {#each DBState.db.hypaV3Presets as preset, i}

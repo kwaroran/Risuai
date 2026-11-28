@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore, irisStore, customSideBarConfigDialogStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, ShowRealmFrameStore, openPresetList, openPersonaList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, popUpEditorStore, loadoutModalStore, onboardingModalStore, irisStore, customSideBarConfigDialogStore } from './ts/stores.svelte';
     import Sidebar from './lib/SideBars/Sidebar.svelte';
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
@@ -30,12 +30,16 @@
     import PluginAlertModal from './lib/Others/PluginAlertModal.svelte';
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
-    import sendSound from './etc/send.mp3'
+    import { createKeepAliveAudio } from './ts/keepAliveAudio';
     import PopupEditor from './lib/Others/PopupEditor.svelte';
     import LoadoutModal from './lib/Others/LoadoutModal.svelte';
+    import OnboardingModal from './lib/Others/OnboardingModal.svelte';
     import IrisModal from './lib/Others/IrisModal.svelte';
     import Legal from './lib/Others/Legal.svelte';
     import CustomSidebarConfig from './lib/Others/CustomSidebarConfig.svelte';
+    import { RISU_APP_INTERNAL_DRAG_TYPE, RISU_SIDEBAR_DRAG_TYPE } from './ts/dragTypes';
+    import { startAuroraArt } from './ts/gui/auroraArt';
+    import { ColorSchemeTypeStore } from './ts/gui/colorscheme';
 
 
   
@@ -44,38 +48,74 @@
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
+    let keepAliveAudio: HTMLAudioElement | null = null
+
+    const getMainDropEffect = (e:DragEvent): DataTransfer['dropEffect'] => {
+        const types = Array.from(e.dataTransfer?.types ?? [])
+        if(types.includes(RISU_SIDEBAR_DRAG_TYPE)){
+            return 'none'
+        }
+        if(types.includes(RISU_APP_INTERNAL_DRAG_TYPE)){
+            return 'none'
+        }
+        return types.includes('Files') ? 'copy' : 'none'
+    }
+
+    const markAppInternalDrag = (e:DragEvent) => {
+        e.dataTransfer?.setData(RISU_APP_INTERNAL_DRAG_TYPE, 'true')
+    }
+
+    // The Aurora theme styles the whole app from styles.css, keyed on these classes
+    $effect(() => {
+        const aurora = DBState.db.theme === 'aurora'
+        const dark = $ColorSchemeTypeStore === 'dark'
+        const root = document.documentElement
+        root.classList.toggle('risu-aurora', aurora)
+        root.classList.toggle('risu-aurora-light', aurora && !dark)
+        root.classList.toggle('risu-aurora-font', aurora && (DBState.db.font ?? 'default') === 'default')
+        if (!aurora) {
+            return
+        }
+        return startAuroraArt(dark)
+    })
+
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
+    const dropEffect = getMainDropEffect(e)
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'link'
-}} ondrop={async (e) => {
-    e.preventDefault()
-    if (e.dataTransfer.types.includes('application/x-risu-internal')) {
+    e.dataTransfer.dropEffect = dropEffect
+}} ondragstart={markAppInternalDrag} ondrop={async (e) => {
+    const types = Array.from(e.dataTransfer.types ?? [])
+    if (types.includes(RISU_APP_INTERNAL_DRAG_TYPE) || types.includes(RISU_SIDEBAR_DRAG_TYPE)) {
+        e.preventDefault()
         return
     }
     const file = e.dataTransfer.files[0]
-    if (file) {
-        const name = file.name.toLowerCase()
+    if (!file) {
+        e.preventDefault()
+        return
+    }
+    e.preventDefault()
+    const name = file.name.toLowerCase()
 
-        if (name.endsWith('.risup')) {
-            const data = new Uint8Array(await file.arrayBuffer())
-            await importPreset({ name: file.name, data })
-            alertNormal(language.successImport)
-        } else if (name.endsWith('.risum')) {
-            const data = new Uint8Array(await file.arrayBuffer())
-            const module = await readModule(Buffer.from(data))
-            DBState.db.modules.push(module)
-            alertNormal(language.successImport)
-        } else {
-            await importCharacterProcess({
-                name: file.name,
-                data: file
-            })
-            checkCharOrder()
-        }
+    if (name.endsWith('.risup')) {
+        const data = new Uint8Array(await file.arrayBuffer())
+        await importPreset({ name: file.name, data })
+        alertNormal(language.successImport)
+    } else if (name.endsWith('.risum')) {
+        const data = new Uint8Array(await file.arrayBuffer())
+        const module = await readModule(Buffer.from(data))
+        DBState.db.modules.push(module)
+        alertNormal(language.successImport)
+    } else {
+        await importCharacterProcess({
+            name: file.name,
+            data: file
+        })
+        checkCharOrder()
     }
 }} onclick={() => {
     if(keepingSessionAlive){
@@ -89,18 +129,29 @@
             break
         }
         case 'sound':{
-            console.log("Starting silent audio to keep session alive")
-            const silentAudio = new Audio(sendSound);
-            silentAudio.loop = true;
-            silentAudio.volume = 0.000001;
-            silentAudio.play();
-            keepingSessionAlive = true;
+            console.log("Starting inaudible audio to keep session alive")
+            if(!keepAliveAudio){
+                keepAliveAudio = createKeepAliveAudio()
+                // Paused by the OS or by another app taking audio focus; restart on the next click
+                keepAliveAudio.addEventListener('pause', () => {
+                    keepingSessionAlive = false
+                })
+            }
+            keepingSessionAlive = true
+            keepAliveAudio.play().catch(() => {
+                keepingSessionAlive = false
+            })
+            if('mediaSession' in navigator){
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'Risuai'
+                })
+            }
             break
         }
     }
 
 }}>
-    {#if !import.meta.env.VITE_RISU_LEGAL_CONFIGURED}
+    {#if !(import.meta.env.VITE_RISU_LEGAL_CONFIGURED || globalThis.__RISU_LEGAL_CONFIGURED__)}
         <Legal />
     {:else if aprilFools}
 
@@ -202,7 +253,7 @@
             {#if (!$DynamicGUI)}
                 <Sidebar openGrid={() => {gridOpen = true}} hidden={!$sideBarStore} />
             {:else}
-                <div class="top-0 w-full h-full left-0 z-30 flex flex-row items-center" class:fixed={$sideBarStore} class:hidden={!$sideBarStore} >
+                <div class="top-0 w-full h-full left-0 z-30 flex flex-row items-center risu-sidebar-overlay" class:fixed={$sideBarStore} class:hidden={!$sideBarStore} >
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <Sidebar openGrid={() => {gridOpen = true}}  hidden={false} />
 
@@ -250,6 +301,9 @@
     {/if}
     {#if loadoutModalStore.open}
         <LoadoutModal />
+    {/if}
+    {#if onboardingModalStore.open}
+        <OnboardingModal />
     {/if}
     {#if irisStore.open}
         <IrisModal />

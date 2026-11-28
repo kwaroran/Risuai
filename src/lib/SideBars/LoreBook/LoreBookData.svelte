@@ -96,7 +96,7 @@
 
     
 </script>
-<div class={"w-full flex flex-col " + (
+<div class={"w-full flex flex-col risu-list-item " + (
     isLastInContainer ? 
         'pb-0 mb-0 border-0' : // Last item in container: no border
         'pb-2 mb-2 border-b border-b-selected last:pb-0 last:mb-0 last:border-0'
@@ -104,7 +104,7 @@
     class:no-sort={value.mode === 'folder' && openFolders > 0}
     data-risu-idx={idx} data-risu-idgroup={idgroup}
 >
-    <div class="flex items-center transition-colors w-full p-1">
+    <div class="flex items-center transition-colors w-full p-1 risu-list-row">
 
     {#if value.mode !== 'child'}
         <button class="endflex valuer border-darkborderc flex items-center" onclick={() => {
@@ -194,7 +194,7 @@
     </div>
     {#if open}
         {#if value.mode === 'folder'}
-        <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2">
+        <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2 risu-list-editor">
             <span class="text-textcolor mt-6 mb-2">{language.folderName}</span>
             <TextInput size="sm" bind:value={value.comment}/>
 
@@ -202,7 +202,7 @@
                 <LoreBookList externalLoreBooks={externalLoreBooks} showFolder={value.key} />
             </div>
             
-            <div class="mt-2 flex gap-1">
+            <div class="mt-2 flex gap-1 risu-icon-row">
                 <button class="text-textcolor2 hover:text-textcolor" onclick={() => {
                     externalLoreBooks.push({
                         key: '',
@@ -221,7 +221,7 @@
             </div>
         </div>
         {:else}
-        <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2">
+        <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2 risu-list-editor">
             <span class="text-textcolor mt-6">{language.name} <Help key="loreName"/></span>
             <TextInput size="sm" bind:value={value.comment}/>
             {#if !lorePlus}
@@ -257,9 +257,9 @@
             <span class="text-textcolor mt-4 mb-2">{language.prompt}</span>
             <TextAreaInput highlight autocomplete="off" bind:value={value.content} />
             {#await getTokens(value.content)}
-                <span class="text-textcolor2 mt-2 mb-2 text-sm">{tokens} {language.tokens}</span>
+                <span class="text-textcolor2 mt-2 mb-2 text-sm risu-token-count">{tokens} {language.tokens}</span>
             {:then e}
-                <span class="text-textcolor2 mt-2 mb-2 text-sm">{e} {language.tokens}</span>
+                <span class="text-textcolor2 mt-2 mb-2 text-sm risu-token-count">{e} {language.tokens}</span>
             {/await}
             <div class="flex items-center mt-4">
                 <Check bind:check={value.alwaysActive} name={language.alwaysActive}/>

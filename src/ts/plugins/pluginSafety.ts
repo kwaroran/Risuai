@@ -57,12 +57,17 @@ export async function checkCodeSafety(code: string): Promise<CheckResult> {
 
     const hashedCode = await hasher(new TextEncoder().encode(code));
     const cacheKey = `safety-${hashedCode}`;
-    const cachedResult = localStorage.getItem(cacheKey);
-    if (cachedResult) {
-        const got =  JSON.parse(cachedResult) as CheckResult;
-        if (got.checkerVersion === checkerVersion) {
-            return got;
+    try {
+        const cachedResult = localStorage.getItem(cacheKey);
+        if (cachedResult) {
+            const got = JSON.parse(cachedResult) as CheckResult;
+            if (got.checkerVersion === checkerVersion) {
+                return got;
+            }
+            localStorage.removeItem(cacheKey);
         }
+    } catch {
+        try { localStorage.removeItem(cacheKey); } catch {}
     }
 
     try {
@@ -150,8 +155,29 @@ export async function checkCodeSafety(code: string): Promise<CheckResult> {
         userAlertKey: 'errorInVerification'
     })
 
-    localStorage.setItem(cacheKey, JSON.stringify({ isSafe: errors.length === 0, errors, checkerVersion, modifiedCode:code }));
-    return { isSafe: errors.length === 0, errors, checkerVersion, modifiedCode: code};
+    const result: CheckResult = { isSafe: errors.length === 0, errors, checkerVersion, modifiedCode: code };
+    try {
+        localStorage.setItem(cacheKey, JSON.stringify(result));
+    } catch {
+        purgeSafetyCache(cacheKey);
+        try { localStorage.setItem(cacheKey, JSON.stringify(result)); } catch {}
+    }
+    return result;
+}
+
+function purgeSafetyCache(keepKey?: string) {
+    try {
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith('safety-') && key !== keepKey) {
+                toRemove.push(key);
+            }
+        }
+        for (const key of toRemove) {
+            localStorage.removeItem(key);
+        }
+    } catch {}
 }
 
 function validateNode(node: any, type: DangerousNodeType, name: string | undefined, errors: PluginSafetyErrors[]) {

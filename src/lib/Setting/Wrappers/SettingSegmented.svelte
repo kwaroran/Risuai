@@ -36,7 +36,8 @@
 
 <span class="text-textcolor {item.classes ?? ''}">
     {getLabel(item)}
-    {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
+    {#if item.showExperimental}<Help key="experimental"/>{/if}
+    {#if item.helpKey}<Help key={item.helpKey as any} unrecommended={item.helpUnrecommended ?? false}/>{/if}
 </span>
 <SegmentedControl
     bind:value={(DBState.db as any)[item.bindKey]}

@@ -3,13 +3,15 @@ import localforage from "localforage";
 import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { LocalWriter, forageStorage, requiresFullEncoderReload } from "../globalApi.svelte";
 import { isTauri } from "src/ts/platform"
-import { decodeRisuSave, encodeRisuSaveLegacy } from "../storage/risuSave";
+import { decodeRisuSave, encodeRisuSave } from "../storage/risuSave";
+import { saveKV } from "../storage/saveKV";
 import { getDatabase, setDatabaseLite } from "../storage/database.svelte";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { encryptBuffer, sleep } from "../util";
+import { decryptBuffer, encryptBuffer, sleep } from "../util";
 import { hubURL } from "../characterCards";
 import { language } from "src/lang";
-import { getColdStorageItem, listColdDataKeys, setColdStorageItem } from "../process/coldstorage.svelte";
+import { collectColdStorageBackupPayloads, confirmIncompleteColdStorageOperation, getColdStorageBackupKey, getColdStorageItem, isColdStorageBackupData, isValidColdStorageItem, listColdDataKeys, listPluginStorageColdKeys, pluginStorage, setColdStorageItem } from "../process/coldstorage.svelte";
+import { getPluginStorageIndexPointer } from "../process/coldstorageData";
 import { DBState } from "../stores.svelte";
 
 function getBasename(data:string){
@@ -19,23 +21,15 @@ function getBasename(data:string){
     return lasts
 }
 
-function getColdStorageBackupKey(name: string): string | null {
-    const match = name.match(/^(?:coldstorage[/_])?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.json$/)
-    return match?.[1] ?? null
-}
-
-function isColdStorageBackupData(data: unknown): boolean {
-    if (Array.isArray(data)) {
-        return true
-    }
-
-    return !!data
-        && typeof data === 'object'
-        && ('character' in data || 'message' in data)
-}
-
 export async function SaveLocalBackup(){
     alertWait("Saving local backup...")
+    const db = getDatabase()
+    const coldStoragePayloads = await collectColdStorageBackupPayloads(db)
+    const unavailableColdStorageKeys = [...coldStoragePayloads.missingKeys, ...coldStoragePayloads.invalidKeys]
+    if(!await confirmIncompleteColdStorageOperation(db, unavailableColdStorageKeys, 'backup')){
+        return
+    }
+
     const writer = new LocalWriter()
     const r = await writer.init()
     if(!r){
@@ -43,7 +37,6 @@ export async function SaveLocalBackup(){
         return
     }
 
-    const db = getDatabase()
     const assetMap = new Map<string, { charName: string, assetName: string }>()
     if (db.characters) {
         for (const char of db.characters) {
@@ -160,27 +153,17 @@ export async function SaveLocalBackup(){
         }
     }
 
-    if(!forageStorage.isAccount){
-        //save coldstorages
-        const coldKeys = await listColdDataKeys()
-        for(let i=0;i<coldKeys.length;i++){
-            const key = coldKeys[i]
-            let message = `Saving local Backup Cold data... (${i + 1} / ${coldKeys.length})`
-            alertWait(message)
-            const data = await getColdStorageItem(key)
-            if(data){
-                const encoded = new TextEncoder().encode(JSON.stringify(data))
-                await writer.writeBackup(`coldstorage_${key}.json`, encoded)
-            } else {
-                missingAssets.push(`coldstorage_${key}.json`)
-            }
-        }
+    for(let i=0;i<coldStoragePayloads.payloads.length;i++){
+        const payload = coldStoragePayloads.payloads[i]
+        let message = `Saving local Backup Cold data... (${i + 1} / ${coldStoragePayloads.payloads.length})`
+        alertWait(message)
+        await writer.writeBackup(payload.backupName, payload.encoded)
     }
 
     const dbWithoutAccount = { ...db, account: undefined }
-    let dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
+    let dbData = await encodeRisuSave(dbWithoutAccount, { compression: true, kv: saveKV })
 
-    if(forageStorage.isAccount && location.origin.endsWith('risuai.xyz')){
+    if(location.origin.endsWith('risuai.xyz')){
         const time = Date.now()
         const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${time}`)).json()).key
         const encrypted = await encryptBuffer(dbData, key)
@@ -235,6 +218,13 @@ export async function SavePartialLocalBackup(){
     }
     
     alertWait("Saving partial local backup...")
+    const db = getDatabase()
+    const coldStoragePayloads = await collectColdStorageBackupPayloads(db)
+    const unavailableColdStorageKeys = [...coldStoragePayloads.missingKeys, ...coldStoragePayloads.invalidKeys]
+    if(!await confirmIncompleteColdStorageOperation(db, unavailableColdStorageKeys, 'backup')){
+        return
+    }
+
     const writer = new LocalWriter()
     const r = await writer.init()
     if(!r){
@@ -242,7 +232,6 @@ export async function SavePartialLocalBackup(){
         return
     }
 
-    const db = getDatabase()
     const assetMap = new Map<string, { charName: string, assetName: string }>()
     
     // Only collect main profile images for both characters and groups
@@ -384,25 +373,15 @@ export async function SavePartialLocalBackup(){
         }
     }
 
-    if(!forageStorage.isAccount){
-        //save coldstorages
-        const coldKeys = await listColdDataKeys()
-        for(let i=0;i<coldKeys.length;i++){
-            const key = coldKeys[i]
-            let message = `Saving partial local Backup Cold data... (${i + 1} / ${coldKeys.length})`
-            alertWait(message)
-            const data = await getColdStorageItem(key)
-            if(data){
-                const encoded = new TextEncoder().encode(JSON.stringify(data))
-                await writer.writeBackup(`coldstorage_${key}.json`, encoded)
-            } else {
-                missingAssets.push(`coldstorage_${key}.json`)
-            }
-        }
+    for(let i=0;i<coldStoragePayloads.payloads.length;i++){
+        const payload = coldStoragePayloads.payloads[i]
+        let message = `Saving partial local Backup Cold data... (${i + 1} / ${coldStoragePayloads.payloads.length})`
+        alertWait(message)
+        await writer.writeBackup(payload.backupName, payload.encoded)
     }
 
     const dbWithoutAccount = { ...db, account: undefined }
-    const dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
+    const dbData = await encodeRisuSave(dbWithoutAccount, { compression: true, kv: saveKV })
 
     alertWait(`Saving partial local backup... (Saving database)`) 
 
@@ -448,6 +427,11 @@ export function LoadLocalBackup(){
             const CHUNK_SIZE = 1024 * 1024; // 1MB chunk size
             let bytesRead = 0;
             let remainingBuffer = new Uint8Array();
+            let pendingDatabase: Uint8Array | null = null;
+            const restoredColdStorageKeys = new Set<string>();
+            //items that don't look like character/chat data may be pluginStorage values,
+            //which can only be identified once the database (written last) is decoded
+            const pendingPluginColdStorage = new Map<string, unknown>();
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -500,55 +484,27 @@ export function LoadLocalBackup(){
                     }
 
                     else if (name === 'database.risudat') {
-                        let db = new Uint8Array(data);
-                        if(encryptionMeta.type === 'account' && encryptionMeta.time){
-                            try {
-                                const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
-                                const decrypted = await encryptBuffer(db, key)
-                                db = new Uint8Array(decrypted)
-                            }
-                            catch (e) {
-                                console.error('Failed to decrypt database backup:', e)
-                                alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
-                            }
-                        }
-                        const dbData = await decodeRisuSave(db);
-                        setDatabaseLite(dbData);
-                        requiresFullEncoderReload.state = true;
-                        if (isTauri) {
-                            await writeFile('database/database.bin', db, { baseDir: BaseDirectory.AppData });
-                            await relaunch();
-                            alertStore.set({
-                                type: "wait",
-                                msg: "Success, Refreshing your app."
-                            });
-                        } else {
-                            await forageStorage.setItem('database/database.bin', db);
-                            location.search = '';
-                            alertStore.set({
-                                type: "wait",
-                                msg: "Success, Refreshing your app."
-                            });
-                        }
+                        pendingDatabase = new Uint8Array(data);
                     }
                     
                     else {
                         const coldStorageKey = getColdStorageBackupKey(name)
                         let handledAsColdStorage = false
 
-                        if (coldStorageKey && forageStorage.isAccount) {
+                        if (coldStorageKey) {
                             handledAsColdStorage = true
-                        }
-                        else if (coldStorageKey) {
                             try {
                                 const text = new TextDecoder().decode(data)
                                 const jsonData = JSON.parse(text)
 
                                 if (isColdStorageBackupData(jsonData)) {
-                                    await setColdStorageItem(coldStorageKey, jsonData)
-                                    handledAsColdStorage = true
+                                    if(await setColdStorageItem(coldStorageKey, jsonData)){
+                                        restoredColdStorageKeys.add(coldStorageKey)
+                                    } else {
+                                        console.error(`Failed to restore cold storage item ${coldStorageKey}`)
+                                    }
                                 } else {
-                                    console.warn(`Skipping invalid cold storage backup item ${name}`)
+                                    pendingPluginColdStorage.set(coldStorageKey, jsonData)
                                 }
                             } catch (e) {
                                 console.error(`Failed to parse cold storage item ${coldStorageKey}:`, e)
@@ -571,6 +527,93 @@ export function LoadLocalBackup(){
                     offset += 4 + nameLength + 4 + dataLength;
                 }
                 remainingBuffer = remainingBuffer.slice(offset);
+            }
+
+            if(!pendingDatabase){
+                alertError('Failed, Is file corrupted?')
+                return
+            }
+
+            let db = pendingDatabase;
+            if(encryptionMeta.type === 'account' && encryptionMeta.time){
+                try {
+                    const key = (await (await fetch(`https://sv.risuai.xyz/cryptokey?key=${encryptionMeta.time}`)).json()).key
+                    const decrypted = await decryptBuffer(db, key)
+                    db = new Uint8Array(decrypted)
+                }
+                catch (e) {
+                    console.error('Failed to decrypt database backup:', e)
+                    alertError('Failed to decrypt database backup, will attempt to load it without decryption.')
+                }
+            }
+            const { database: dbData, kv: kvData } = await decodeRisuSave(db);
+            const restorePendingPluginItem = async (key: string) => {
+                if(!pendingPluginColdStorage.has(key)){
+                    return
+                }
+                const value = pendingPluginColdStorage.get(key)
+                pendingPluginColdStorage.delete(key)
+                if(await setColdStorageItem(key, value)){
+                    restoredColdStorageKeys.add(key)
+                } else {
+                    console.error(`Failed to restore cold storage item ${key}`)
+                }
+            }
+            //the plugin storage index has to be restored first: it lists the large plugin storage items
+            const pluginStorageIndex = getPluginStorageIndexPointer(dbData)
+            if(pluginStorageIndex){
+                await restorePendingPluginItem(pluginStorageIndex)
+            }
+            const legacyPluginStorageKeys = new Set(listPluginStorageColdKeys(dbData))
+            const pluginStorageColdKeys = new Set([
+                ...legacyPluginStorageKeys,
+                ...await pluginStorage.referencedIds(dbData.pluginCustomStorage)
+            ])
+            for(const key of Array.from(pendingPluginColdStorage.keys())){
+                if(!pluginStorageColdKeys.has(key)){
+                    console.warn(`Skipping invalid cold storage backup item ${key}`)
+                    continue
+                }
+                await restorePendingPluginItem(key)
+            }
+            const missingColdStorageKeys:string[] = []
+            for(const key of await listColdDataKeys(dbData)){
+                if(restoredColdStorageKeys.has(key)){
+                    continue
+                }
+                const isPluginStorage = pluginStorageColdKeys.has(key)
+                let existingColdStorage = await getColdStorageItem(key)
+                if(legacyPluginStorageKeys.has(key)){
+                    //legacy per-key items may hold null
+                    existingColdStorage ??= null
+                } else {
+                    existingColdStorage ??= undefined
+                }
+                if(!isValidColdStorageItem(existingColdStorage, isPluginStorage)){
+                    missingColdStorageKeys.push(key)
+                }
+            }
+            if(!await confirmIncompleteColdStorageOperation(dbData, missingColdStorageKeys, 'restore')){
+                return
+            }
+
+            setDatabaseLite(dbData);
+            saveKV.load(kvData);
+            requiresFullEncoderReload.state = true;
+            if (isTauri) {
+                await writeFile('database/database.bin', db, { baseDir: BaseDirectory.AppData });
+                await relaunch();
+                alertStore.set({
+                    type: "wait",
+                    msg: "Success, Refreshing your app."
+                });
+            } else {
+                await forageStorage.setItem('database/database.bin', db);
+                location.search = '';
+                alertStore.set({
+                    type: "wait",
+                    msg: "Success, Refreshing your app."
+                });
             }
 
             alertNormal('Success');

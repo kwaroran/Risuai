@@ -258,7 +258,7 @@ async function loginToSionywSPAVersion(){
     const xWind = window.open(authUrl, '_blank')
     xWind?.focus()
     const msgEventCallback = async (event:MessageEvent) => {
-        if(event.origin.startsWith('https://account.sionyw.com')){
+        if(event.origin === 'https://account.sionyw.com'){
             let response:{
                 code:string,
             } = event.data

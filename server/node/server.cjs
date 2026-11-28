@@ -1,7 +1,18 @@
 const express = require('express');
 const app = express();
+const requestBodyLimit = '100mb';
+const requestBodyLimitLabel = '100 MiB';
 if (process.env.TRUST_PROXY) {
     app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+}
+// Express 4 does not catch rejected promises from async handlers; forward them to next()
+for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
+    const register = app[method].bind(app);
+    app[method] = (path, ...handlers) => register(path, ...handlers.map((handler) =>
+        typeof handler === 'function' && handler.length < 4
+            ? (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
+            : handler
+    ));
 }
 const http = require('http');
 const path = require('path');
@@ -13,9 +24,24 @@ const crypto = require('crypto')
 const rateLimit = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 app.use(express.static(path.join(process.cwd(), 'dist'), {index: false}));
-app.use(express.json({ limit: '100mb' }));
-app.use(express.raw({ type: 'application/octet-stream', limit: '100mb' }));
-app.use(express.text({ limit: '100mb' }));
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.raw({ type: 'application/octet-stream', limit: requestBodyLimit }));
+app.use(express.text({ limit: requestBodyLimit }));
+app.use((error, req, res, next) => {
+    if (error?.type === 'entity.too.large' && req.path === '/api/write' && req.is('application/octet-stream')) {
+        console.error('[Storage] Rejected oversized request:', {
+            size: error.length,
+            limit: error.limit,
+        });
+        res.status(413).send({
+            error: 'Storage payload is too large',
+            code: 'PAYLOAD_TOO_LARGE',
+            message: `Storage writes are limited to ${requestBodyLimitLabel}.`,
+        });
+        return;
+    }
+    next(error);
+});
 const {pipeline} = require('stream/promises')
 const https = require('https');
 const sslPath = path.join(process.cwd(), 'server/node/ssl/certificate');
@@ -33,6 +59,26 @@ if(!existsSync(savePath)){
 const passwordPath = path.join(process.cwd(), 'save', '__password')
 if(existsSync(passwordPath)){
     password = readFileSync(passwordPath, 'utf-8')
+}
+
+// One-time token for the first password setup, only shown in the server log
+let setupToken = password === '' ? crypto.randomBytes(32).toString('hex') : ''
+
+function isValidSetupToken(token) {
+    if (!setupToken || typeof token !== 'string') {
+        return false;
+    }
+    const expected = Buffer.from(setupToken);
+    const received = Buffer.from(token);
+    return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+}
+
+function logSetupLink(protocol, port) {
+    if (!setupToken) {
+        return;
+    }
+    console.log('[Server] No password is set. Open this link to set it up (replace localhost with your server address if remote):');
+    console.log(`[Server] ${protocol}://localhost:${port}/#setup=${setupToken}`);
 }
 
 const knownPublicKeysPath = path.join(process.cwd(), 'save', '__known_public_key_hashes.json')
@@ -77,18 +123,13 @@ const loginRouteLimiter = rateLimit({
     message: { error: 'Too many attempts. Please wait and try again later.' }
 });
 function isHex(str) {
-    return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
+    return hexRegex.test(str.toUpperCase().trim());
 }
 
 async function hashJSON(json){
     const hash = crypto.createHash('sha256');
     hash.update(JSON.stringify(json));
     return hash.digest('hex');
-}
-
-function isAuthorizedRequest(req) {
-    const authHeader = normalizeAuthHeader(req.headers['risu-auth']);
-    return !!authHeader && authHeader.trim() === password.trim();
 }
 
 function normalizeAuthHeader(authHeader) {
@@ -154,20 +195,6 @@ async function isAuthorizedJwtHeader(authHeader) {
     } catch {
         return false;
     }
-}
-
-async function isAuthorizedProxyRequest(req) {
-    if (isAuthorizedRequest(req)) {
-        return true;
-    }
-    return await isAuthorizedJwtHeader(req.headers['risu-auth']);
-}
-
-async function checkProxyAuth(req, res) {
-    if (isAuthorizedRequest(req)) {
-        return true;
-    }
-    return await checkAuth(req, res);
 }
 
 function getRequestTimeoutMs(timeoutHeader) {
@@ -615,7 +642,8 @@ app.get('/', async (req, res, next) => {
         const mainIndex = await fs.readFile(path.join(process.cwd(), 'dist', 'index.html'))
         const root = htmlparser.parse(mainIndex)
         const head = root.querySelector('head')
-        head.innerHTML = `<script>globalThis.__NODE__ = true</script>` + head.innerHTML
+        const legalConfigured = process.env.VITE_RISU_LEGAL_CONFIGURED?.trim().toUpperCase() === 'TRUE';
+        head.innerHTML = `<script>globalThis.__NODE__ = true;globalThis.__RISU_LEGAL_CONFIGURED__ = ${legalConfigured}</script>` + head.innerHTML
         
         res.send(root.toString())
     } catch (error) {
@@ -740,7 +768,7 @@ async function checkAuth(req, res, returnOnlyStatus = false){
 }
 
 const reverseProxyFunc = async (req, res, next) => {
-    if(!await checkProxyAuth(req, res)){
+    if(!await checkAuth(req, res)){
         return;
     }
     
@@ -821,7 +849,7 @@ const reverseProxyFunc = async (req, res, next) => {
 }
 
 const reverseProxyFunc_get = async (req, res, next) => {
-    if(!await checkProxyAuth(req, res)){
+    if(!await checkAuth(req, res)){
         return;
     }
     
@@ -957,24 +985,22 @@ async function hubProxyFunc(req, res) {
     ];
 
     try {
-        let externalURL = '';
-
-        const pathHeader = req.headers['x-risu-node-path'];
-        if (pathHeader) {
-            const decodedPath = decodeURIComponent(pathHeader);
-            externalURL = decodedPath;
-        } else {
-            const pathAndQuery = req.originalUrl.replace(/^\/hub-proxy/, '');
-            externalURL = hubURL + pathAndQuery;
+        const hubOrigin = new URL(hubURL).origin;
+        const pathAndQuery = req.originalUrl.replace(/^\/hub-proxy/, '');
+        const externalURL = new URL(hubURL + pathAndQuery);
+        if (externalURL.origin !== hubOrigin) {
+            res.status(400).send({ error: 'Invalid hub path' });
+            return;
         }
-        
+
         const headersToSend = { ...req.headers };
         delete headersToSend.host;
         delete headersToSend.connection;
         delete headersToSend['content-length'];
         delete headersToSend['x-risu-node-path'];
+        delete headersToSend['risu-auth'];
+        delete headersToSend.cookie;
 
-        const hubOrigin = new URL(hubURL).origin;
         headersToSend.origin = hubOrigin;
 
         //if Authorization header is "Server-Auth, set the token to be Server-Auth
@@ -1007,7 +1033,12 @@ async function hubProxyFunc(req, res) {
         res.status(response.status);
 
         if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-            const redirectUrl = response.headers.get('location');
+            const redirectUrl = new URL(response.headers.get('location'), externalURL);
+            if (redirectUrl.origin !== hubOrigin) {
+                res.removeHeader('location');
+                res.status(502).send({ error: 'Hub redirected to a different origin' });
+                return;
+            }
             const newHeaders = { ...headersToSend };
             const redirectResponse = await fetch(redirectUrl, {
                 method: req.method,
@@ -1055,7 +1086,7 @@ app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
 app.post('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
-    if (!await checkProxyAuth(req, res)) {
+    if (!await checkAuth(req, res)) {
         return;
     }
 
@@ -1104,7 +1135,7 @@ app.post('/proxy-stream-jobs', authenticatedRouteLimiter, async (req, res) => {
 });
 
 app.delete('/proxy-stream-jobs/:jobId', authenticatedRouteLimiter, async (req, res) => {
-    if (!await checkProxyAuth(req, res)) {
+    if (!await checkAuth(req, res)) {
         return;
     }
     const job = proxyStreamJobs.get(req.params.jobId);
@@ -1148,7 +1179,7 @@ app.post('/api/login', loginRouteLimiter, async (req, res) => {
         res.status(400).send({error: 'Password not set'})
         return;
     }
-    if(req.body.password && req.body.password.trim() === password.trim()){
+    if(typeof req.body?.password === 'string' && req.body.password && req.body.password.trim() === password.trim()){
         knownPublicKeysHashes.push(await hashJSON(req.body.publicKey))
         writeFileSync(knownPublicKeysPath, JSON.stringify(knownPublicKeysHashes), 'utf-8')
         res.send({status:'success'})
@@ -1169,15 +1200,30 @@ app.post('/api/crypto', async (req, res) => {
 })
 
 
-app.post('/api/set_password', async (req, res) => {
-    if(password === ''){
-        password = req.body.password
-        writeFileSync(passwordPath, password, 'utf-8')
-        res.send({status: 'success'})
-    }
-    else{
+app.post('/api/set_password', loginRouteLimiter, async (req, res) => {
+    if(password !== ''){
         res.status(400).send("already set")
+        return
     }
+    if(!isValidSetupToken(req.body?.setupToken)){
+        res.status(403).send({error: 'Invalid setup link. Open the setup link printed in the server log.'})
+        return
+    }
+    const newPassword = req.body?.password
+    if(typeof newPassword !== 'string' || newPassword === ''){
+        res.status(400).send({error: 'Invalid password'})
+        return
+    }
+    try {
+        writeFileSync(passwordPath, newPassword, 'utf-8')
+    } catch (error) {
+        console.error('[Server] Failed to save password:', error)
+        res.status(500).send({error: 'Failed to save password'})
+        return
+    }
+    password = newPassword
+    setupToken = ''
+    res.send({status: 'success'})
 })
 
 app.get('/api/read', authenticatedRouteLimiter, async (req, res, next) => {
@@ -1261,7 +1307,7 @@ app.get('/api/list', authenticatedRouteLimiter, async (req, res, next) => {
     }
 });
 
-app.post('/api/write', authenticatedRouteLimiter, async (req, res, next) => {
+app.post('/api/write', authenticatedRouteLimiter, async (req, res) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1273,7 +1319,17 @@ app.post('/api/write', authenticatedRouteLimiter, async (req, res, next) => {
         });
         return;
     }
-    if(!isHex(filePath)){
+    const normalizedFilePath = filePath.trim();
+    if(!isHex(normalizedFilePath)){
+        res.status(400).send({
+            error:'Invaild Path'
+        });
+        return;
+    }
+
+    const normalizedSavePath = path.resolve(savePath);
+    const storageFilePath = path.resolve(normalizedSavePath, normalizedFilePath);
+    if (!storageFilePath.startsWith(`${normalizedSavePath}${path.sep}`)) {
         res.status(400).send({
             error:'Invaild Path'
         });
@@ -1281,12 +1337,29 @@ app.post('/api/write', authenticatedRouteLimiter, async (req, res, next) => {
     }
 
     try {
-        await fs.writeFile(path.join(savePath, filePath), fileContent);
+        await fs.writeFile(storageFilePath, fileContent);
         res.send({
             success: true
         });
     } catch (error) {
-        next(error);
+        const storageKey = Buffer.from(normalizedFilePath, 'hex').toString('utf-8');
+        const errorCode = typeof error?.code === 'string' ? error.code : 'WRITE_FAILED';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const relativeStoragePath = path.relative(process.cwd(), storageFilePath) || path.basename(storageFilePath);
+        const clientErrorMessage = errorMessage.split(storageFilePath).join(`.${path.sep}${relativeStoragePath}`);
+        const status = errorCode === 'ENOSPC' || errorCode === 'EDQUOT' ? 507 : 500;
+
+        console.error('[Storage] Failed to write item:', {
+            key: storageKey,
+            size: fileContent.byteLength,
+            code: errorCode,
+            message: errorMessage,
+        });
+        res.status(status).send({
+            error: 'Failed to write storage item',
+            code: errorCode,
+            message: clientErrorMessage,
+        });
     }
 });
 
@@ -1432,7 +1505,7 @@ function setupProxyStreamWebSocket(server) {
             }
 
             const auth = reqUrl.searchParams.get('risu-auth') || req.headers['risu-auth'];
-            if (!await isAuthorizedProxyRequest({ headers: { 'risu-auth': auth } })) {
+            if (!await isAuthorizedJwtHeader(auth)) {
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
                 socket.destroy();
                 return;
@@ -1510,6 +1583,7 @@ async function startServer() {
             server.listen(port, () => {
                 console.log("[Server] HTTPS server is running.");
                 console.log(`[Server] https://localhost:${port}/`);
+                logSetupLink('https', port);
             });
         } else {
             // HTTP
@@ -1518,6 +1592,7 @@ async function startServer() {
             server.listen(port, () => {
                 console.log("[Server] HTTP server is running.");
                 console.log(`[Server] http://localhost:${port}/`);
+                logSetupLink('http', port);
             });
         }
     } catch (error) {

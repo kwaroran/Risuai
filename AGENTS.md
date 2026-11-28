@@ -86,7 +86,7 @@ risuai-newest/
 
 ### Prerequisites
 
-- Node.js 20.19+ or 22.12+ and pnpm
+- Node.js 22.13+ and pnpm
 - Rust and Cargo (for Tauri builds)
 
 ### Development
@@ -200,6 +200,7 @@ See `plugins.md` for comprehensive plugin development guide.
 - Multiple UI modes: Classic, WaifuLike, WaifuCut
 - Dynamic GUI switching based on viewport
 - No traditional router; uses conditional rendering in App.svelte
+- In-app drag-and-drop uses custom MIME types to avoid conflicting with file imports; see `src/ts/dragTypes.ts`
 
 ## Supported AI Providers
 

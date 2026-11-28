@@ -343,25 +343,12 @@ export async function importPlugin(code:string|null = null, argu:{
         let apiInternalVersion: 2|'2.1'|'3.0' = '2.1'
 
         if(apiVersion === '2.1'){
-            const safety = await checkCodeSafety(jsFile)
-            if(!safety.isSafe){
-                pluginAlertModalStore.errors = safety.errors
-                pluginAlertModalStore.open = true
-                
-                //I can use event but lazy
-                while(pluginAlertModalStore.open){
-                    await sleep(100)
-                }
-
-                if(pluginAlertModalStore.errors.length > 0){
-                    return
-                }
-            }
-            apiInternalVersion = '2.1'
+            showError('Your plugin specifies API version 2.1, which is outdated and no longer supported. Please update your plugin to use at least API version 3.0.')
+            return
         }
         else if(apiVersion === '2.0'){
             //Only block installing
-            showError('Your code does not include //@api or specifies API version 2.0, which is outdated. Please update your plugin to use at least API version 2.1.')
+            showError('Your code does not include //@api or specifies API version 2.0, which is outdated. Please update your plugin to use at least API version 3.0.')
             return
         }
         else if(apiVersion === '3.0'){
@@ -462,6 +449,8 @@ export type PluginV2ProviderOptions = {
 
 export type EditFunction = (content: string) => string | null | undefined | Promise<string | null | undefined>
 type ReplacerFunction = (content: OpenAIChat[], type: string) => OpenAIChat[] | Promise<OpenAIChat[]>
+type ChatOutputListenerArg = { char: any, chat: any, characterIndex: number, chatIndex: number, messageIndex: number }
+type ChatOutputListener = (arg: ChatOutputListenerArg) => void | Promise<void>
 
 export const pluginV2 = {
     providers: new Map<string, (arg: PluginV2ProviderArgument, abortSignal?: AbortSignal) => Promise<{ success: boolean, content: string | ReadableStream<string> }>>(),
@@ -472,6 +461,7 @@ export const pluginV2 = {
     editinput: new Set<EditFunction>(),
     replacerbeforeRequest: new Set<ReplacerFunction>(),
     replacerafterRequest: new Set<(content: string, type: string) => string | Promise<string>>(),
+    chatOutput: new Set<ChatOutputListener>(),
     unload: new Set<() => void | Promise<void>>(),
     loaded: false
 }
@@ -562,6 +552,22 @@ export const getV2PluginAPIs = () => {
             }
             else {
                 throw (`replacer handler named ${name} not found`)
+            }
+        },
+        addRisuChatListener: (mode: string, func: ChatOutputListener) => {
+            if (mode === 'output') {
+                pluginV2.chatOutput.add(func)
+            }
+            else {
+                throw (`chat listener mode ${mode} not found`)
+            }
+        },
+        removeRisuChatListener: (mode: string, func: ChatOutputListener) => {
+            if (mode === 'output') {
+                pluginV2.chatOutput.delete(func)
+            }
+            else {
+                throw (`chat listener mode ${mode} not found`)
             }
         },
         onUnload: (func: () => void | Promise<void>) => {
@@ -708,9 +714,8 @@ export const getV2PluginAPIs = () => {
         },
         pluginStorage: {
             getItem: (key: string) => {
-                const db = getDatabase({ snapshot: true });
-                db.pluginCustomStorage ??= {}
-                return db.pluginCustomStorage[key] || null;
+                const value = getDatabase().pluginCustomStorage?.[key];
+                return value ? $state.snapshot(value) : null;
             },
             setItem: (key: string, value: string) => {
                 const db = getDatabase();
@@ -747,7 +752,10 @@ export const getV2PluginAPIs = () => {
             const db = getDatabase();
             db.pluginCustomStorage ??= {}
             for (const key of Object.keys(newDb)) {
-                if (allowedDbKeys.includes(key)) {
+                if (key === 'pluginCustomStorage') {
+                    db.pluginCustomStorage = keepPluginStorageInternals(db.pluginCustomStorage, newDb[key]);
+                }
+                else if (allowedDbKeys.includes(key)) {
                     (db as any)[key] = newDb[key];
                 }
                 else{
@@ -762,10 +770,24 @@ export const getV2PluginAPIs = () => {
             for (const key of Object.keys(newDb)) {
                 if (key === 'plugins') {
                     console.warn('[WARN] Plugin attempted to access plugin directly. this would be blocked in future versions. Instead, use the provided APIs to manage plugins. Attempting to handle plugin installation via plugin for new plugins in the provided database object.')
-                    newDb[key] = await handlePluginInstallViaPlugin(newDb.plugins)
+                    const approvedPlugins = await handlePluginInstallViaPlugin(newDb.plugins)
+                    const mergedPlugins = [...(db.plugins ?? [])]
+                    for (const approved of approvedPlugins) {
+                        const index = mergedPlugins.findIndex((plugin) => plugin.name === approved.name)
+                        if (index !== -1) {
+                            mergedPlugins[index] = approved
+                        }
+                        else {
+                            mergedPlugins.push(approved)
+                        }
+                    }
+                    newDb[key] = mergedPlugins
                 }
                 
-                if (allowedDbKeys.includes(key)) {
+                if (key === 'pluginCustomStorage') {
+                    db.pluginCustomStorage = keepPluginStorageInternals(db.pluginCustomStorage, newDb[key]);
+                }
+                else if (allowedDbKeys.includes(key)) {
                     (db as any)[key] = newDb[key];
                 }
                 else{
@@ -808,6 +830,23 @@ export const getV2PluginAPIs = () => {
     }
 }
 
+/**
+ * Plugin storage internals (index pointer, legacy per-key map) are managed by the plugin storage store.
+ * Keep them when a plugin writes back a (possibly stale) pluginCustomStorage object.
+ */
+function keepPluginStorageInternals(current: {[key:string]:any} | undefined, incoming: any) {
+    const next = (incoming && typeof incoming === 'object') ? { ...incoming } : {}
+    for (const key of ['_coldpluginIndex', '_coldplugin']) {
+        if (current && Object.prototype.hasOwnProperty.call(current, key)) {
+            next[key] = current[key]
+        }
+        else {
+            delete next[key]
+        }
+    }
+    return next
+}
+
 export async function loadV2Plugin(plugins: RisuPlugin[]) {
 
     if (pluginV2.loaded) {
@@ -820,6 +859,7 @@ export async function loadV2Plugin(plugins: RisuPlugin[]) {
         pluginV2.editoutput.clear()
         pluginV2.editprocess.clear()
         pluginV2.editinput.clear()
+        pluginV2.chatOutput.clear()
     }
 
     pluginV2.loaded = true
@@ -931,7 +971,9 @@ export async function handlePluginInstallViaPlugin(plugins: RisuPlugin[]){
                 console.warn(`Plugin "${plugin.name}" has version "${plugin.version}", which is not supported for installation via plugin. Only API version 3.0 plugins can be installed via plugin. Skipping installation of this plugin.`)
                 continue
             }
-            const confirmation = await alertConfirm(language.confirmInstallPluginViaPlugin.replace('{plugin}', plugin.name))
+            const replacing = DBState.db.plugins.some((p: RisuPlugin) => p.name === plugin.name)
+            const message = replacing ? language.confirmReplacePluginViaPlugin : language.confirmInstallPluginViaPlugin
+            const confirmation = await alertConfirm(message.replace('{plugin}', plugin.name))
             if(confirmation){
                 trimmedPlugins.push(plugin)
             }

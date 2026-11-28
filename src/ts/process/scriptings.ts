@@ -2,12 +2,12 @@ import { asBuffer } from 'src/ts/util';
 import { getChatVar, getGlobalChatVar, setChatVar } from "../parser/chatVar.svelte";
 import { hasher, type simpleCharacterArgument, risuChatParser } from "../parser/parser.svelte";
 import { LuaEngine, LuaFactory } from "wasmoon";
-import { getCurrentCharacter, getCurrentChat, getDatabase, setDatabase, type Chat, type character, type groupChat, type triggerscript } from "../storage/database.svelte";
+import { getCurrentCharacter, getCurrentChat, getDatabase, type Chat, type character, type groupChat, type Message, type triggerscript } from "../storage/database.svelte";
 import { get } from "svelte/store";
 import { DBState, ReloadChatPointer, ReloadGUIPointer, selectedCharID } from "../stores.svelte";
 import { alertSelect, alertError, alertInput, alertNormal, alertConfirm } from "../alert";
 import { HypaProcesser } from "./memory/hypamemory";
-import { generateAIImage, type NAIImageGenOptions } from "./stableDiff";
+import { generateAIImage, type ImageGenerationOptions } from "./stableDiff";
 import { writeInlayImage, getInlayAsset } from "./files/inlays";
 import type { OpenAIChat, MultiModal } from "./index.svelte";
 import { requestChatData, type StreamResponseChunk } from "./request/request";
@@ -18,7 +18,7 @@ import { tokenize } from "../tokenizer";
 import { fetchNative, readImage } from "../globalApi.svelte";
 import { loadLoreBookV3Prompt } from './lorebook.svelte';
 import { getPersonaPrompt, getUserName, getUserIcon } from '../util';
-let luaFactory:LuaFactory
+let luaFactory: LuaFactory
 let ScriptingSafeIds = new Set<string>()
 let ScriptingEditDisplayIds = new Set<string>()
 let ScriptingLowLevelIds = new Set<string>()
@@ -29,11 +29,12 @@ interface BasicScriptingEngineState {
     code?: string;
     mutex: Mutex;
     chat?: Chat;
-    setVar?: (key:string, value:string) => void,
+    setVar?: (key:string, value:string) => boolean|void,
     getVar?: (key:string) => string,
 }
 
 interface LuaScriptingEngineState extends BasicScriptingEngineState {
+    editListeners?: Set<string>;
     engine?: LuaEngine;
     type: 'lua';
 }
@@ -53,7 +54,7 @@ export async function runScripted(code:string, arg:{
     char?:character|groupChat|simpleCharacterArgument,
     chat?:Chat
     data?: string|OpenAIChat[],
-    setVar?: (key:string, value:string) => void,
+    setVar?: (key:string, value:string) => boolean|void,
     getVar?: (key:string) => string,
     lowLevelAccess?: boolean,
     meta?: object,
@@ -76,7 +77,7 @@ export async function runScripted(code:string, arg:{
         await ensureLuaFactory()
     }
     let ScriptingEngineState = await getOrCreateEngineState(mode, type);
-    
+
     return await ScriptingEngineState.mutex.runExclusive(async () => {
         ScriptingEngineState.chat = chat
         ScriptingEngineState.setVar = setVar
@@ -85,11 +86,16 @@ export async function runScripted(code:string, arg:{
             let declareAPI:(name: string, func:Function) => void
 
             if(ScriptingEngineState.type === 'lua'){
-                console.log('Creating new Lua engine for mode:', mode)
+                console.log('Creating new Lua engine for mode:', mode) 
                 ScriptingEngineState.engine?.global.close()
                 ScriptingEngineState.code = code
-                ScriptingEngineState.engine = await luaFactory.createEngine({injectObjects: true})
+                ScriptingEngineState.engine = await luaFactory.createEngine({injectObjects: true, enableProxy: false})
                 const luaEngine = ScriptingEngineState.engine
+                const editListeners = new Set<string>()
+                ScriptingEngineState.editListeners = editListeners
+                luaEngine.global.set('__registerEditListener', (eventType: string) => {
+                    editListeners.add(eventType)
+                })
                 declareAPI = (name:string, func:Function) => {
                     luaEngine.global.set(name, func)
                 }
@@ -110,6 +116,14 @@ export async function runScripted(code:string, arg:{
                     return
                 }
                 ScriptingEngineState.setVar(key, value)
+            })
+            declareAPI('setChatVarChanged', (id:string,key:string, value:string) => {
+                if(!ScriptingSafeIds.has(id) && !ScriptingEditDisplayIds.has(id)){
+                    return
+                }
+                if(ScriptingEngineState.setVar(key, value) === true){
+                    return true
+                }
             })
             declareAPI('getGlobalVar', (id:string, key:string) => {
                 return getGlobalChatVar(key)
@@ -132,11 +146,11 @@ export async function runScripted(code:string, arg:{
                 }
                 alertNormal(value)
             })
-            declareAPI('alertInput', (id:string, value:string) => {
+            declareAPI('alertInput', (id:string, value:string, defaultValue?:string) => {
                 if(!ScriptingSafeIds.has(id)){
                     return
                 }
-                return alertInput(value)
+                return alertInput(value, undefined, defaultValue)
             })
             declareAPI('alertSelect', (id:string, value:string[]) => {
                 if(!ScriptingSafeIds.has(id)){
@@ -159,9 +173,32 @@ export async function runScripted(code:string, arg:{
                 const data = {
                     role: chat.role,
                     data: chat.data,
-                    time: chat.time ?? 0
+                    time: chat.time ?? 0,
+                    chatId: chat.chatId
                 }
                 return JSON.stringify(data)
+            })
+
+            declareAPI('getChatData', (id:string, index:number) => {
+                const chat = ScriptingEngineState.chat.message.at(index)
+                return chat?.data ?? ''
+            })
+
+            declareAPI('getChatRole', (id:string, index:number) => {
+                const chat = ScriptingEngineState.chat.message.at(index)
+                return chat?.role ?? ''
+            })
+
+            declareAPI('getRecentChatsMain', (id:string, count:number) => {
+                const chats = ScriptingEngineState.chat.message
+                const safeCount = Math.max(0, Math.floor(count || 0))
+                const start = Math.max(0, chats.length - safeCount)
+                return JSON.stringify(chats.slice(start).map((v) => ({
+                    role: v.role,
+                    data: v.data,
+                    time: v.time ?? 0,
+                    chatId: v.chatId,
+                })))
             })
 
             declareAPI('setChat', (id:string, index:number, value:string) => {
@@ -225,7 +262,8 @@ export async function runScripted(code:string, arg:{
                     return {
                         role: v.role,
                         data: v.data,
-                        time: v.time ?? 0
+                        time: v.time ?? 0,
+                        chatId: v.chatId
                     }
                 }))
                 return data
@@ -251,12 +289,24 @@ export async function runScripted(code:string, arg:{
                     return
                 }
                 const realValue = JSON.parse(value)
+                const byChatId = new Map<string, Message>()
+                for(const message of ScriptingEngineState.chat.message){
+                    if(message.chatId){
+                        byChatId.set(message.chatId, message)
+                    }
+                }
 
                 ScriptingEngineState.chat.message = realValue.map((v) => {
-                    return {
-                        role: v.role,
-                        data: v.data
+                    const role:'user'|'char' = v.role === 'user' ? 'user' : 'char'
+                    const data = v.data ?? ''
+                    const original = byChatId.get(v.chatId)
+                    if(!original){
+                        return { role, data }
                     }
+                    byChatId.delete(v.chatId)
+                    original.role = role
+                    original.data = data
+                    return original
                 })
             })
 
@@ -360,19 +410,26 @@ export async function runScripted(code:string, arg:{
                 }
             })
 
-            declareAPI('generateImage', async (id:string, value:string, negValue:string = '', optionsStr:string = '') => {
+            declareAPI('generateImage', async (id: string, value: string, negValue: string = '', options?: ImageGenerationOptions & { name?: string }) => {
                 if(!ScriptingLowLevelIds.has(id)){
                     return
                 }
+                const orientation = options?.orientation
+                if(orientation !== undefined && orientation !== 'landscape' && orientation !== 'portrait'){
+                    return 'Error: Image orientation must be landscape or portrait, received ' + orientation
+                }
+
                 try {
-                    const options = parseLuaOptions(optionsStr) as NAIImageGenOptions
                     const gen = await generateAIImage(value, char as character, negValue, 'inlay', options)
                     if(!gen){
                         return 'Error: Image generation failed'
                     }
+
                     const imgHTML = new Image()
                     imgHTML.src = gen
-                    const inlay = await writeInlayImage(imgHTML)
+
+                    const name = typeof options?.name === 'string' && options.name ? options.name : undefined
+                    const inlay = await writeInlayImage(imgHTML, { name })
                     return `{{inlay::${inlay}}}`
                 } catch (error) {
                     // Keep failures inside the script instead of aborting the whole run
@@ -911,14 +968,22 @@ export async function runScripted(code:string, arg:{
                     }
                 }
 
-                const options = parseLuaOptions(optionsStr) as { streaming?: boolean }
+                const options = parseLuaOptions(optionsStr) as { mode?: string, streaming?: boolean }
+                const modes = new Set(['emotion', 'memory', 'otherAx', 'submodel', 'translate'])
+                const mode = options.mode ?? 'otherAx'
+                if (!modes.has(mode)) {
+                    return JSON.stringify({
+                        result: 'Error: Invalid axLLM mode: ' + mode,
+                        success: false
+                    })
+                }
                 const result = await requestChatData({
                     formated: promptbody,
                     bias: {},
                     useStreaming: options.streaming === true,
                     forceStreaming: options.streaming === true,
                     noMultiGen: true,
-                }, 'otherAx')
+                }, mode as 'emotion' | 'memory' | 'otherAx' | 'submodel' | 'translate')
 
                 if(result.type === 'fail'){
                     return JSON.stringify({
@@ -1083,14 +1148,32 @@ export async function runScripted(code:string, arg:{
                         }
                         break
                     }
+                    case 'onFormSubmit':{
+                        const func = luaEngine.global.get('onFormSubmit')
+                        if(func){
+                            res = await func(accessKey, data, JSON.stringify(meta))
+                        }
+                        break
+                    }
                     case 'editRequest':
                     case 'editDisplay':
                     case 'editInput':
                     case 'editOutput':{
+                        if (!ScriptingEngineState.editListeners?.has(mode)) {
+                            res = data
+                            break
+                        }
                         const func = luaEngine.global.get('callListenMain')
                         if(func){
-                            res = await func(mode, accessKey, JSON.stringify(data), JSON.stringify(meta))
-                            res = JSON.parse(res)
+                            // editDisplay takes a raw string, and must output a raw string
+                            const directString = mode === 'editDisplay'
+                            const value = directString ? data : JSON.stringify(data)
+                            const serializedMeta = JSON.stringify(meta)
+
+                            res = await func(mode, accessKey, value, serializedMeta)
+                            if (!directString) {
+                                res = JSON.parse(res)
+                            }
                         }
                         break
                     }
@@ -1234,6 +1317,10 @@ function getFullChat(id)
     return json.decode(getFullChatMain(id))
 end
 
+function getRecentChats(id, count)
+    return json.decode(getRecentChatsMain(id, count))
+end
+
 function setFullChat(id, value)
     setFullChatMain(id, json.encode(value))
 end
@@ -1279,21 +1366,25 @@ local editOutputFuncs = {}
 function listenEdit(type, func)
     if type == 'editRequest' then
         editRequestFuncs[#editRequestFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editDisplay' then
         editDisplayFuncs[#editDisplayFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editInput' then
         editInputFuncs[#editInputFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
     if type == 'editOutput' then
         editOutputFuncs[#editOutputFuncs + 1] = func
+        __registerEditListener(type)
         return
     end
 
@@ -1308,6 +1399,11 @@ end
 function setState(id, name, value)
     local escapedName = "__"..name
     setChatVar(id, escapedName, json.encode(value))
+end
+
+function setStateChanged(id, name, value)
+    local escapedName = "__"..name
+    return setChatVarChanged(id, escapedName, json.encode(value))
 end
 
 function async(callback)
@@ -1340,29 +1436,39 @@ function async(callback)
     end
 end
 
-callListenMain = async(function(type, id, value, meta)
-    local realValue = json.decode(value)
+callListenMain = async(function(eventType, id, value, meta)
+    local realValue = value
     local realMeta = json.decode(meta)
 
-    if type == 'editRequest' then
+    if eventType == 'editDisplay' then
+        local realValue = value
+        for _, func in ipairs(editDisplayFuncs) do
+            local output = func(id, realValue, realMeta)
+            local outputType = type(output)
+            if outputType == 'string' then
+                realValue = output
+            else
+                print('Error: Lua editDisplay must return a string, received ' .. outputType)
+            end
+        end
+        return realValue
+    end
+
+    realValue = json.decode(value)
+
+    if eventType == 'editRequest' then
         for _, func in ipairs(editRequestFuncs) do
             realValue = func(id, realValue, realMeta)
         end
     end
 
-    if type == 'editDisplay' then
-        for _, func in ipairs(editDisplayFuncs) do
-            realValue = func(id, realValue, realMeta)
-        end
-    end
-
-    if type == 'editInput' then
+    if eventType == 'editInput' then
         for _, func in ipairs(editInputFuncs) do
             realValue = func(id, realValue, realMeta)
         end
     end
 
-    if type == 'editOutput' then
+    if eventType == 'editOutput' then
         for _, func in ipairs(editOutputFuncs) do
             realValue = func(id, realValue, realMeta)
         end
@@ -1418,10 +1524,12 @@ export async function runLuaEditTrigger<T extends string|OpenAIChat[]>(char:char
     }
 }
 
-export async function runLuaButtonTrigger(char:character|groupChat|simpleCharacterArgument, data:string):Promise<any>{
+export async function runLuaInteractionTrigger(type: 'button'|'form', char: character|simpleCharacterArgument, triggerKey: string, meta?: object): Promise<any> {
+    const mode = type === 'button' ? 'onButtonClick' : 'onFormSubmit'
+
     let runResult
     try {
-        const triggers = char.type === 'group' ? getModuleTriggers() : char.triggerscript.map<triggerscript>((v) => ({
+        const triggers = char.triggerscript.map<triggerscript>((v) => ({
             ...v,
             lowLevelAccess: char.type !== 'simple' ? char.lowLevelAccess ?? false : false
         })).concat(getModuleTriggers())
@@ -1429,10 +1537,11 @@ export async function runLuaButtonTrigger(char:character|groupChat|simpleCharact
         for(let trigger of triggers){
             if(trigger?.effect?.[0]?.type === 'triggerlua'){
                 runResult = await runScripted(trigger.effect[0].code, {
-                    char: char,
+                    char,
+                    data: triggerKey,
                     lowLevelAccess: trigger.lowLevelAccess,
-                    mode: 'onButtonClick',
-                    data: data
+                    meta,
+                    mode,
                 })
             }
         }

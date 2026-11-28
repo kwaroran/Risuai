@@ -3,14 +3,15 @@ import { getDatabase } from "./database.svelte"
 import localforage from "localforage"
 import { alertLogin, alertNormalWait, alertStore } from "../alert"
 import { forageStorage, getUncleanables, getUncleanablesSync } from "../globalApi.svelte"
-import { encodeRisuSaveLegacy } from "./risuSave"
+import { encodeRisuSave } from "./risuSave"
+import { saveKV } from "./saveKV"
 import { v4 } from "uuid"
 import { language } from "src/lang"
 import { sleep } from "../util"
 import { fetchProtectedResource } from "../sionyw"
 
 export const AccountWarning = writable('')
-const risuSession = Date.now().toFixed(0)
+let risuSession = ''
 const cachedForage = localforage.createInstance({name: "risuaiAccountCached"})
 
 let seenWarnings:string[] = []
@@ -35,6 +36,15 @@ export class AccountStorage{
         while((!da) || da.status === 403){
 
             const saveDate = Date.now().toFixed(0)
+
+            if(risuSession === ''){
+                da = await fetchProtectedResource('/api/account/getsessionnumber', {
+                    method: "GET"
+                })
+
+                const json = await da.json()
+                risuSession = `${json.sessionNumber}`
+            }
 
             da = await fetchProtectedResource('/api/account/write', {
                 method: "POST",
@@ -197,7 +207,7 @@ export async function unMigrationAccount() {
     }
 
     db.account = null
-    await MigrationStorage.setItem('database/database.bin', encodeRisuSaveLegacy(db))
+    await MigrationStorage.setItem('database/database.bin', await encodeRisuSave(db, { kv: saveKV }))
 
     alertStore.set({
         type: "none",

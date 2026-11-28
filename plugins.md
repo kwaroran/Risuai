@@ -343,7 +343,7 @@ Use dedicated methods for standard attributes:
 
 ```javascript
 // For links, use createAnchorElement
-const link = rootDoc.createAnchorElement('https://example.com');
+const link = await rootDoc.createAnchorElement('https://example.com');
 
 // For styles, use style methods
 await element.setStyle('color', 'red');
@@ -400,19 +400,25 @@ const rects = await element.getClientRects();
 
 #### Event Listeners
 
-Event listeners have security restrictions and return unique IDs:
+Event listeners have security restrictions and return unique IDs. Listeners receive events that reach the element via normal DOM propagation, while non-bubbling events such as scroll fire only on the element itself:
 
 ```javascript
 // Add event listener - returns ID for later removal
 const listenerId = await element.addEventListener('click', async (event) => {
   console.log('Element clicked!');
-
-  // Do something with the event
-  const target = event.target;
 }, { capture: false });
 
 // Remove event listener using the ID
 await element.removeEventListener('click', listenerId);
+```
+
+To listen document-wide, use the `SafeDocument` from `getRootDocument()`:
+
+```javascript
+const rootDoc = await Risuai.getRootDocument();
+const id = await rootDoc.addEventListener('keydown', async (event) => {
+  console.log('Key pressed anywhere!');
+});
 ```
 
 **Allowed Events (Unlimited):**
@@ -493,6 +499,12 @@ const observer = await Risuai.createMutationObserver(async (mutations) => {
     for (const node of addedNodes) {
       console.log(`Node added: ${await node.nodeName()}`);
     }
+
+    // getRemovedNodes() returns SafeClassArray<SafeElement>
+    const removedNodes = await Risuai.unwarpSafeArray(await mutation.getRemovedNodes());
+    for (const node of removedNodes) {
+      console.log(`Node removed: ${await node.nodeName()}`);
+    }
   }
 });
 
@@ -505,6 +517,8 @@ await observer.observe(body, {
   attributes: true
 });
 ```
+
+Note: `getAddedNodes()`/`getRemovedNodes()` contain HTML element nodes only; text nodes and SVG elements are excluded.
 
 ### SafeClassArray
 
@@ -895,7 +909,34 @@ const imageData = await Risuai.readImage('asset-id');
 
 // Save assets
 const savedPath = await Risuai.saveAsset(assetData);
+
+// Create an inlay from image data; renders in chat via {{inlay::<id>}}
+// Asks for the 'inlay' permission; returns null if the user declines
+const inlayId = await Risuai.createInlay(imageBytes, { name: 'generated.png' });
 ```
+
+#### Inlay Assets (user-attached images / audio / video)
+
+Inlay assets are files the **user attaches** to a chat message (e.g. drag-and-dropped images). Raw message text contains a placeholder of the form `{{inlayed::<uuid>}}` referencing the asset.
+
+```javascript
+// In a custom provider handler, recover the user-attached image:
+const charIdx = await Risuai.getCurrentCharacterIndex();
+const chatIdx = await Risuai.getCurrentChatIndex();
+const chat = await Risuai.getChatFromIndex(charIdx, chatIdx);
+const lastMsg = chat.message[chat.message.length - 1];
+
+const m = lastMsg.data.match(/\{\{inlayed::([a-f0-9-]+)\}\}/i);
+if (m) {
+  const inlay = await Risuai.readInlay(m[1]);
+  // inlay.data === "data:image/png;base64,iVBORw0..."
+  // inlay.ext  === "png"
+  // inlay.type === "image"
+  // ... forward to external multi-modal API (Anthropic / OpenAI / etc.)
+}
+```
+
+`readInlay(id)` returns `null` if no asset exists for the given UUID. Supported `type` values: `'image' | 'video' | 'audio' | 'signature'`.
 
 ### Theming
 
@@ -1142,7 +1183,9 @@ if (granted) {
 }
 ```
 
-**Available permissions:** `'fetchLogs'`, `'db'`, `'mainDom'`, `'replacer'`
+**Available permissions:** `'fetchLogs'`, `'db'`, `'dbWrite'`, `'mainDom'`, `'replacer'`, `'inlay'`
+
+`'dbWrite'` is requested automatically by `setDatabase`, `setDatabaseLite`, `setCharacter`, `setCharacterToIndex` and `setChatToIndex`. If the user declines, the write is skipped.
 
 ### Fetch Logs
 
@@ -1366,10 +1409,10 @@ Add clear comments and metadata:
     }, async () => {
         const char = await Risuai.getCharacter();
 
-        const rootDoc = Risuai.getRootDocument();
-        const body = rootDoc.querySelector('body');
+        const rootDoc = await Risuai.getRootDocument();
+        const body = await rootDoc.querySelector('body');
 
-        const infoBox = rootDoc.createElement('div');
+        const infoBox = await rootDoc.createElement('div');
         await infoBox.setStyle('position', 'fixed');
         await infoBox.setStyle('top', '50%');
         await infoBox.setStyle('left', '50%');
@@ -1411,10 +1454,10 @@ Add clear comments and metadata:
 
 (async () => {
   try {
-    const rootDoc = Risuai.getRootDocument();
+    const rootDoc = await Risuai.getRootDocument();
 
     // Add a status indicator
-    const indicator = rootDoc.createElement('div');
+    const indicator = await rootDoc.createElement('div');
     await indicator.setStyle('position', 'fixed');
     await indicator.setStyle('bottom', '10px');
     await indicator.setStyle('right', '10px');
@@ -1424,20 +1467,32 @@ Add clear comments and metadata:
     await indicator.setStyle('borderRadius', '5px');
     await indicator.setTextContent('Plugin Active');
 
-    const body = rootDoc.querySelector('body');
+    const body = await rootDoc.querySelector('body');
     if (body) {
       await body.appendChild(indicator);
     }
 
     // Monitor DOM changes
+    // Mark the indicator so the callback can skip its own updates
+    await indicator.setAttribute('x-dom-monitor', 'indicator');
+
     let changeCount = 0;
-    const observer = Risuai.createMutationObserver(async (mutations) => {
-      changeCount += mutations.length;
+    const observer = await Risuai.createMutationObserver(async (mutations) => {
+      let counted = 0;
+      for (const mutation of await Risuai.unwarpSafeArray(mutations)) {
+        const target = await mutation.getTarget();
+        // Updating the indicator below is itself a mutation inside body;
+        // counting it would retrigger this callback forever
+        if (await target.getAttribute('x-dom-monitor') === 'indicator') continue;
+        counted++;
+      }
+      if (counted === 0) return;
+      changeCount += counted;
       await indicator.setTextContent(`Changes: ${changeCount}`);
     });
 
     if (body) {
-      observer.observe(body, {
+      await observer.observe(body, {
         childList: true,
         subtree: true,
         attributes: false
@@ -1560,7 +1615,7 @@ await element.setInnerHTML('<script>alert("XSS")</script>');
 // Result: empty element (script removed)
 
 // Use event listeners instead
-const button = rootDoc.createElement('button');
+const button = await rootDoc.createElement('button');
 await button.setTextContent('Click Me');
 await button.addEventListener('click', async () => {
   console.log('Button clicked!');
@@ -1573,15 +1628,15 @@ await button.addEventListener('click', async () => {
 
 ```javascript
 // L Wrong - these are separate contexts
-const rootDoc = Risuai.getRootDocument();
-rootDoc.querySelector('#my-iframe-element'); // Won't find it
+const rootDoc = await Risuai.getRootDocument();
+await rootDoc.querySelector('#my-iframe-element'); // Won't find it
 
 //  Correct - access each separately
 // Your iframe's DOM:
 document.getElementById('my-iframe-element');
 
 // Risuai's main DOM:
-const rootDoc = Risuai.getRootDocument();
+const rootDoc = await Risuai.getRootDocument();
 await rootDoc.querySelector('.Risuai-element');
 ```
 

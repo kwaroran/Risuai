@@ -148,7 +148,7 @@
     }
 </script>
 
-<div class="flex w-full rounded-md border border-darkborderc mb-4 overflow-x-auto h-16 min-h-16 overflow-y-clip">
+<div class="flex w-full rounded-md border border-darkborderc mb-4 risu-seg overflow-x-auto h-16 min-h-16 overflow-y-clip">
     <button onclick={() => {
         submenu = 0
     }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>

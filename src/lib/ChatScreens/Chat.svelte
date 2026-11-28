@@ -4,7 +4,7 @@
     import { ColorSchemeTypeStore } from "src/ts/gui/colorscheme"
     import { longpress } from "src/ts/gui/longtouch"
     import { getModelInfo } from "src/ts/model/modellist"
-    import { runLuaButtonTrigger } from 'src/ts/process/scriptings'
+    import { runLuaInteractionTrigger } from 'src/ts/process/scriptings'
     import { risuChatParser } from "src/ts/process/scripts"
     import { runTrigger } from 'src/ts/process/triggers'
     import { sayTTS } from "src/ts/process/tts"
@@ -17,7 +17,7 @@
     import { language } from "../../lang"
     import { alertClear, alertConfirm, alertInput, alertNormal, alertRequestData, alertWait } from "../../ts/alert"
     import { ParseMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser/parser.svelte"
-    import { getCurrentCharacter, getCurrentChat, setCurrentChat, type MessageGenerationInfo } from "../../ts/storage/database.svelte"
+    import { getCurrentCharacter, getCurrentChat, setCurrentChat, type MessageGenerationInfo, type StreamingDisplayOptimizationMode } from "../../ts/storage/database.svelte"
     import { selectedCharID } from "../../ts/stores.svelte"
     import { HideIconStore, ReloadGUIPointer, selIdState } from "../../ts/stores.svelte"
     import AutoresizeArea from "../UI/GUI/TextAreaResizable.svelte"
@@ -31,7 +31,10 @@
     let statusMessage:string = $state('')
     let retranslate = $state(false)
     let editTranslationMode = $state(false)
+    let loadingTranslationEdit = $state(false)
     let editTranslationText = $state('')
+    let editTranslationKey: string | null = null
+    let chatBodyRevision = $state(0)
     let bodyRoot:HTMLElement|null = $state(null)
     interface Props {
         message?: string;
@@ -53,6 +56,9 @@
         totalPages?: number;
         isComment?: boolean;
         disabled?: boolean | 'allBefore';
+        isOptimizedStreamingMessage?: boolean;
+        streamingOptimizationMode?: StreamingDisplayOptimizationMode;
+        rawStreamingText?: string;
     }
 
     let {
@@ -75,11 +81,27 @@
         totalPages = 1,
         isComment = false,
         disabled = false,
+        isOptimizedStreamingMessage = false,
+        streamingOptimizationMode = 'off',
+        rawStreamingText = message,
     }: Props = $props();
 
     let msgDisplay = $state('')
     let translated = $state(false)
     let partialEditEnabled = $state(true)
+    let translationViewControlsDisabled = $derived(editMode || editTranslationMode || loadingTranslationEdit)
+    let originalEditControlDisabled = $derived(editTranslationMode || loadingTranslationEdit)
+    let translationEditControlDisabled = $derived(editMode || loadingTranslationEdit)
+
+    export function updateStreamingDisplay(state: {
+        isOptimizedStreamingMessage: boolean
+        streamingOptimizationMode: StreamingDisplayOptimizationMode
+        rawStreamingText: string
+    }){
+        isOptimizedStreamingMessage = state.isOptimizedStreamingMessage
+        streamingOptimizationMode = state.streamingOptimizationMode
+        rawStreamingText = state.rawStreamingText
+    }
 
     async function rm(e:MouseEvent, rec?:boolean){
         if(e.shiftKey){
@@ -114,12 +136,68 @@
         DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = message
     }
 
-    function handlePartialEditSave(e: CustomEvent<{ newData: string }>) {
-        if (idx >= 0) {
-            message = e.detail.newData
-            DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = e.detail.newData
-            displaya(e.detail.newData)
+    function startOriginalEdit() {
+        if (originalEditControlDisabled) return
+        editMode = true
+    }
+
+    function toggleOriginalEdit() {
+        if (originalEditControlDisabled) return
+
+        if (editMode) {
+            editMode = false
+            edit()
+        } else {
+            startOriginalEdit()
         }
+    }
+
+    function toggleTranslation() {
+        if (translationViewControlsDisabled) return
+        translated = !translated
+    }
+
+    function requestRetranslation() {
+        if (translationViewControlsDisabled) return
+        retranslate = true
+    }
+
+    async function handlePartialEditSave(e: CustomEvent<{ newData: string; target: 'original' | 'translation'; translationKey?: string }>) {
+        if (idx < 0) return
+
+        if (e.detail.target === 'translation') {
+            if (!e.detail.translationKey) return
+
+            await updateTranslationCache(e.detail.translationKey, e.detail.newData)
+            return
+        }
+
+        message = e.detail.newData
+        DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].data = e.detail.newData
+        displaya(e.detail.newData)
+    }
+
+    async function updateTranslationCache(key: string, data: string) {
+        await setLLMCache(key, data)
+        editTranslationText = data
+        chatBodyRevision += 1
+    }
+
+    async function getTranslationPartialEditContext() {
+        if (!translated || DBState.db.translatorType !== 'llm') {
+            return null
+        }
+
+        const key = await getTranslationCacheKey()
+        if (!key) {
+            return null
+        }
+        const data = await getLLMCache(key)
+        if (data === null) {
+            return null
+        }
+
+        return { key, data }
     }
 
     function getCbsCondition(){
@@ -149,15 +227,28 @@
     }
 
     async function loadTranslationForEdit() {
-        const key = await getTranslationCacheKey()
-        const cached = await getLLMCache(key)
-        editTranslationText = cached ?? ''
-        editTranslationMode = true
+        if (translationViewControlsDisabled) return
+
+        loadingTranslationEdit = true
+        try {
+            const key = await getTranslationCacheKey()
+            const cached = await getLLMCache(key)
+            editTranslationKey = key
+            editTranslationText = cached ?? ''
+            editTranslationMode = true
+        } catch (error) {
+            editTranslationKey = null
+            throw error
+        } finally {
+            loadingTranslationEdit = false
+        }
     }
 
     async function saveTranslationEdit() {
-        const key = await getTranslationCacheKey()
-        await setLLMCache(key, editTranslationText)
+        if (editTranslationKey === null) return
+
+        await updateTranslationCache(editTranslationKey, editTranslationText)
+        editTranslationKey = null
         editTranslationMode = false
     }
 
@@ -175,16 +266,25 @@
 
 
     let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
+    let displayMessage = $derived(isOptimizedStreamingMessage ? rawStreamingText : message)
+    let renderRawStreaming = $derived(isOptimizedStreamingMessage && streamingOptimizationMode === 'strong')
+
+    function updateDisplayedMessage(){
+        if(renderRawStreaming){
+            return
+        }
+        displaya(displayMessage)
+    }
 
     $effect.pre(() => {
-        displaya(message)
+        updateDisplayedMessage()
     });
 
     const unsubscribers:Unsubscriber[] = []
 
     onMount(()=>{
         unsubscribers.push(ReloadGUIPointer.subscribe((v) => {
-            displaya(message)
+            updateDisplayedMessage()
         }))
     })
 
@@ -227,7 +327,7 @@
                     triggerId: triggerId || undefined,
                 }) :
             btnEvent ?
-                await runLuaButtonTrigger(currentChar, btnEvent) :
+                await runLuaInteractionTrigger('button', currentChar, btnEvent) :
             null
 
         if(triggerResult) {
@@ -242,6 +342,46 @@
             setTimeout(() => {
                 CurrentTriggerIdStore.set(null)
             }, 100) // Small delay to allow display mode to complete
+        }
+    }
+
+    async function handleFormTriggerWithin(event: SubmitEvent) {
+        // Regardless of attribute presence, prevent undesirable site exits via form submission
+        event.preventDefault()
+
+        const currentChar = getCurrentCharacter()
+        if (currentChar.type === 'group') {
+            return
+        }
+
+        const target = event.target as HTMLFormElement
+        const formEvent = target.getAttribute('risu-form')
+
+        if (!formEvent) {
+            return
+        }
+
+        const data: Record<string, FormDataEntryValue | FormDataEntryValue[]> = Object.create(null)
+        for (const [key, value] of new FormData(target, event.submitter)) {
+            if (Object.hasOwn(data, key)) {
+                if (Array.isArray(data[key])) {
+                    data[key].push(value)
+                } else {
+                    data[key] = [data[key], value]
+                }
+            } else {
+                data[key] = value
+            }
+        }
+
+        const triggerResult = await runLuaInteractionTrigger('form', currentChar, formEvent, { data })
+
+        if(triggerResult) {
+            setCurrentChat(triggerResult.chat)
+            ReloadChatPointer.update((v) => {
+                v[idx] = (v[idx] ?? 0) + 1
+                return v
+            })
         }
     }
 
@@ -327,18 +467,17 @@
             </button>
         {/if}
         {#if DBState.db.translatorType === 'llm' && translated}
-            <button class="text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1
-                            hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center"
-                    onclick={() => {
-                        retranslate = true
-                    }}
+            <button class={"text-sm p-1 text-textcolor2 border-darkborderc float-end mr-2 my-1 rounded-md transition-all flex justify-center items-center " + (translationViewControlsDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:ring-darkbutton hover:ring-3 hover:text-textcolor')}
+                    disabled={translationViewControlsDisabled}
+                    onclick={requestRetranslation}
             >
                 <RefreshCcwIcon size={20} />
                 <span class="ml-1">
                     {language.retranslate}
                 </span>
             </button>
-            <button class={"text-sm p-1 border-darkborderc float-end mr-2 my-1 hover:ring-darkbutton hover:ring-3 rounded-md hover:text-textcolor transition-all flex justify-center items-center " + (editTranslationMode ? 'text-blue-400' : 'text-textcolor2')}
+            <button class={"text-sm p-1 border-darkborderc float-end mr-2 my-1 rounded-md transition-all flex justify-center items-center " + (editTranslationMode ? 'text-blue-400 hover:ring-darkbutton hover:ring-3 hover:text-textcolor' : translationEditControlDisabled ? 'text-textcolor2 opacity-50 cursor-not-allowed' : 'text-textcolor2 hover:ring-darkbutton hover:ring-3 hover:text-textcolor')}
+                    disabled={translationEditControlDisabled}
                     onclick={() => {
                         if(editTranslationMode){
                             saveTranslationEdit()
@@ -361,7 +500,8 @@
         <AutoresizeArea bind:value={editTranslationText} handleLongPress={() => {
             saveTranslationEdit()
         }} />
-    {:else if editMode}
+    {/if}
+    {#if editMode}
         <AutoresizeArea bind:value={message} handleLongPress={() => {
             editMode = false
         }} />
@@ -398,11 +538,12 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span class="text chat-width chattext prose minw-0"
+            class:hidden={editTranslationMode}
             class:prose-invert={$ColorSchemeTypeStore}
             bind:this={bodyRoot}
             onclick={() => {
-            if(DBState.db.clickToEdit && idx > -1){
-                editMode = true
+            if(DBState.db.clickToEdit && idx > -1 && !isOptimizedStreamingMessage){
+                startOriginalEdit()
             }
         }}
             style:font-size="{0.875 * (DBState.db.zoomsize / 100)}rem"
@@ -416,25 +557,30 @@
                     {msgDisplay}
                     {name}
                     {bodyRoot}
+                    renderRevision={chatBodyRevision}
                     modelShortName={
                         messageGenerationInfo ? getModelInfo(messageGenerationInfo?.model).shortName : ''
                     }
                     role={role ?? null}
                     bind:translated={translated}
                     bind:translating={translating}
-                    bind:retranslate={retranslate} />
+                    bind:retranslate={retranslate}
+                    {renderRawStreaming}
+                    {rawStreamingText} />
             {/key}
-            {#if idx >= 0 && !editMode && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
-                <PartialEditController
-                    messageData={message}
-                    chatIndex={idx}
-                    {bodyRoot}
-                    blockEditEnabled={DBState.db.enableBlockPartialEdit}
-                    dragEditEnabled={DBState.db.enableDragPartialEdit}
-                    on:save={handlePartialEditSave}
-                />
-            {/if}
         </span>
+        {#if idx >= 0 && !editMode && !editTranslationMode && !isOptimizedStreamingMessage && partialEditEnabled && (DBState.db.enableBlockPartialEdit || DBState.db.enableDragPartialEdit)}
+            <PartialEditController
+                messageData={message}
+                chatIndex={idx}
+                {bodyRoot}
+                blockEditEnabled={DBState.db.enableBlockPartialEdit}
+                dragEditEnabled={DBState.db.enableDragPartialEdit}
+                translatedView={translated}
+                getTranslationEditContext={getTranslationPartialEditContext}
+                on:save={handlePartialEditSave}
+            />
+        {/if}
     {/if}
 {/snippet}
 
@@ -482,6 +628,9 @@
 {#snippet majorIconButtonsBody(showNames:boolean)}
     {#if DBState.db.useChatCopy && !blankMessage}
     <button class="flex items-center hover:text-blue-500 transition-colors button-icon-copy" onclick={async ()=>{
+        const copyText = renderRawStreaming
+            ? risuChatParser(rawStreamingText, {chara: name, chatID: idx, rmVar: true, visualize: true, cbsConditions: getCbsCondition()})
+            : msgDisplay
         if(window.navigator.clipboard.write){
             try {
                 alertWait(language.loading)
@@ -489,7 +638,7 @@
 
                 const parser = new DOMParser()
                 const doc = parser.parseFromString(
-                    await ParseMarkdown(msgDisplay, getCurrentCharacter(), 'normal', idx, getCbsCondition())
+                    await ParseMarkdown(copyText, getCurrentCharacter(), 'normal', idx, getCbsCondition())
                 , 'text/html')
                 
                 doc.querySelectorAll('mark').forEach((el) => {
@@ -686,7 +835,7 @@
 
                 await window.navigator.clipboard.write([
                     new ClipboardItem({
-                        'text/plain': new Blob([msgDisplay], {type: 'text/plain'}),
+                        'text/plain': new Blob([copyText], {type: 'text/plain'}),
                         'text/html': new Blob([html], {type: 'text/html'})
                     })
                 ])
@@ -695,12 +844,12 @@
             }
             catch (e) {
                 alertClear()
-                window.navigator.clipboard.writeText(msgDisplay).then(() => {
+                window.navigator.clipboard.writeText(copyText).then(() => {
                     setStatusMessage(language.copied)
                 })
             }
         }
-        window.navigator.clipboard.writeText(msgDisplay).then(() => {
+        window.navigator.clipboard.writeText(copyText).then(() => {
             setStatusMessage(language.copied)
         })
     }}>
@@ -713,7 +862,7 @@
 {#if idx > -1}
     {#if DBState.db.characters[selIdState.selId].type !== 'group' && DBState.db.characters[selIdState.selId].ttsMode !== 'none' && (DBState.db.characters[selIdState.selId].ttsMode)}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-tts" onclick={()=>{
-            return sayTTS(null, message)
+            return sayTTS(null, isOptimizedStreamingMessage ? rawStreamingText : message)
         }}>
             <Volume2Icon size={20}/>
             {#if showNames}
@@ -734,26 +883,25 @@
 {/snippet}
 
 {#snippet translationButton(showNames = false)}
-    {#if DBState.db.translator !== '' && !blankMessage}
-        <button class={"flex items-center cursor-pointer hover:text-blue-500 transition-colors button-icon-translate " + (translated ? 'text-blue-400':'')} class:translating={translating} onclick={async () => {
-            translated = !translated
-        }}>
+    {#if DBState.db.translator !== '' && !blankMessage && !isOptimizedStreamingMessage}
+        <button
+            class={"flex items-center transition-colors button-icon-translate " + (translationViewControlsDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:text-blue-500') + (translated ? ' text-blue-400' : '')}
+            class:translating={translating}
+            disabled={translationViewControlsDisabled}
+            onclick={toggleTranslation}
+        >
             <LanguagesIcon />
             {#if showNames}
                 <span class="ml-1">{language.translate}</span>
             {/if}
         </button>
     {/if}
-    {#if idx > -1}
-        <button class={"flex items-center hover:text-blue-500 transition-colors button-icon-edit "+(editMode?'text-blue-400':'')} onclick={() => {
-            if(!editMode){
-                editMode = true
-            }
-            else{
-                editMode = false
-                edit()
-            }
-        }}>
+    {#if idx > -1 && !isOptimizedStreamingMessage}
+        <button
+            class={"flex items-center transition-colors button-icon-edit " + (editMode ? 'text-blue-400 hover:text-blue-500' : originalEditControlDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-500')}
+            disabled={originalEditControlDisabled}
+            onclick={toggleOriginalEdit}
+        >
             <PencilIcon size={20}/>
 
             {#if showNames}
@@ -1033,7 +1181,8 @@
      data-chat-index={idx}
      data-chat-id={DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.chatId ?? ''}
      style={isLastMemory ? `border-top:${DBState.db.memoryLimitThickness}px solid rgba(98, 114, 164, 0.7);` : ''}
-     onclickcapture={handleButtonTriggerWithin}>
+     onclickcapture={handleButtonTriggerWithin}
+     onsubmitcapture={handleFormTriggerWithin}>
     <div class="text-textcolor mt-1 ml-4 mr-4 mb-1 p-2 bg-transparent grow border-t-gray-900 border-opacity/30 border-transparent flexium items-start max-w-full" >
         {#if DBState.db.theme === 'mobilechat' && !blankMessage}
             <div class={role === 'user' ? "flex items-start w-full justify-end" : "flex items-start"}>
@@ -1089,6 +1238,37 @@
             </div>
         {:else if DBState.db.theme === 'customHTML' && !blankMessage}
             {@render renderGuiHtmlPart(RenderGUIHtml(DBState.db.guiHTML))}
+        {:else if DBState.db.theme === 'aurora' && !blankMessage && DBState.db.characters[selIdState.selId]?.chaId !== "§playground"}
+            <!-- Aurora: the user's turns sit in bubbles on the right, replies flow as plain text -->
+            {#if role === 'user'}
+                <div class="risu-aurora-msg risu-aurora-user">
+                    <div class="risu-aurora-bubble">
+                        {@render textBox()}
+                    </div>
+                    <div class="risu-aurora-tools">
+                        {@render iconButtons()}
+                    </div>
+                    <div class="risu-aurora-meta">
+                        {@render genInfo()}
+                    </div>
+                </div>
+            {:else}
+                <div class="risu-aurora-msg risu-aurora-char">
+                    <div class="risu-aurora-head">
+                        {#if !$HideIconStore}
+                            {@render senderIcon({rounded: true, styleFix: 'height:1.75rem;width:1.75rem;min-width:1.75rem'})}
+                            <span class="risu-aurora-name">{name}</span>
+                        {/if}
+                        <div class="risu-aurora-meta">
+                            {@render genInfo()}
+                        </div>
+                        <div class="risu-aurora-tools">
+                            {@render iconButtons()}
+                        </div>
+                    </div>
+                    {@render textBox()}
+                </div>
+            {/if}
         {:else}
             {@render senderIcon({rounded: DBState.db.roundIcons})}
             <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">

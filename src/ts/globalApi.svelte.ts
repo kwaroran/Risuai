@@ -14,7 +14,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { open } from '@tauri-apps/plugin-shell'
 import streamSaver from 'streamsaver';
-import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat } from "./storage/database.svelte";
+import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, type character, type groupChat, appSubVer } from "./storage/database.svelte";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
@@ -25,7 +25,8 @@ import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { loadRisuAccountData } from "./drive/accounter";
-import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
+import { decodeRisuSave, RisuSaveEncoder, type toSaveType } from "./storage/risuSave";
+import { saveKV } from "./storage/saveKV";
 import { AutoStorage } from "./storage/autoStorage";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -45,6 +46,7 @@ import { isTauri, isNodeServer } from "./platform";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 import { getNodeServerProxyAuth } from "./storage/nodeStorage";
+import { OpfsStorage } from "./storage/opfsStorage";
 
 export const forageStorage = new AutoStorage()
 
@@ -324,7 +326,8 @@ export async function saveDb() {
 
     let encoder = new RisuSaveEncoder()
     await encoder.init(getDatabase(), {
-        compression: forageStorage.isAccount
+        compression: forageStorage.isAccount,
+        kv: saveKV
     })
 
     $effect.root(() => {
@@ -407,20 +410,23 @@ export async function saveDb() {
     let lastDbData = new Uint8Array(0)
     await sleep(1000)
     while (true) {
-        if (!changed) {
+        //SaveKV is not reactive: it reports its own changes
+        if (!changed && !saveKV.hasDirty()) {
             await sleep(500)
             continue
         }
 
         saving.state = true
         changed = false
+        let kvDirty: string[] = []
         try {
 
             if (requiresFullEncoderReload.state) {
                 encoder = new RisuSaveEncoder()
                 await encoder.init(getDatabase(), {
                     compression: forageStorage.isAccount,
-                    skipRemoteSavingOnCharacters: false
+                    skipRemoteSavingOnCharacters: false,
+                    kv: saveKV
                 })
                 requiresFullEncoderReload.state = false
             }
@@ -444,9 +450,12 @@ export async function saveDb() {
                 continue
             }
 
+            kvDirty = saveKV.takeDirty()
+            toSave.kv = kvDirty
             await encoder.set(db, toSave)
             const encoded = encoder.encode()
             if (!encoded) {
+                saveKV.markDirty(kvDirty)
                 await sleep(1000)
                 continue
             }
@@ -472,6 +481,8 @@ export async function saveDb() {
             await saveDbKei()
             await sleep(500)
         } catch (error) {
+            //the KV blocks were not written; encode them again on the next attempt
+            saveKV.markDirty(kvDirty)
             savetrys += 1
             if (savetrys > 4) {
                 alertError(error)
@@ -482,6 +493,141 @@ export async function saveDb() {
         }
 
         saving.state = false
+    }
+}
+
+const dbBackupPrefix = 'database/dbbackup-'
+const dbBackupSuffix = '.bin'
+const webLocalForageDbName = 'risuai'
+const webLocalForageStoreName = 'keyvaluepairs'
+
+function parseDbBackupKey(key: string): number | null {
+    if (!key.startsWith(dbBackupPrefix) || !key.endsWith(dbBackupSuffix)) {
+        return null
+    }
+
+    const valueText = key.slice(dbBackupPrefix.length, -dbBackupSuffix.length)
+
+    if (!/^\d+$/.test(valueText)) {
+        return null
+    }
+
+    const value = Number(valueText)
+
+    return Number.isNaN(value) ? null : value
+}
+
+function openWebLocalForageDb(): Promise<IDBDatabase | null> {
+    if (typeof indexedDB === 'undefined') {
+        return Promise.resolve(null)
+    }
+
+    return new Promise((resolve) => {
+        const request = indexedDB.open(webLocalForageDbName)
+
+        request.onerror = () => {
+            resolve(null)
+        }
+
+        request.onsuccess = () => {
+            resolve(request.result)
+        }
+    })
+}
+
+async function canUseIndexedDbBackupFastPath(): Promise<boolean> {
+    if (isNodeServer) {
+        return false
+    }
+
+    await forageStorage.Init()
+
+    if (forageStorage.isAccount) {
+        return false
+    }
+
+    if (forageStorage.realStorage instanceof OpfsStorage) {
+        return false
+    }
+
+    const driver = (forageStorage.realStorage as { driver?: () => string }).driver?.()
+
+    return driver === 'asyncStorage'
+}
+
+async function getDbBackupsFromIndexedDB(): Promise<number[] | null> {
+    const db = await openWebLocalForageDb()
+
+    if (!db) {
+        return null
+    }
+
+    try {
+        if (!db.objectStoreNames.contains(webLocalForageStoreName)) {
+            return null
+        }
+
+        const backups: number[] = []
+
+        await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(webLocalForageStoreName, 'readonly')
+            const store = tx.objectStore(webLocalForageStoreName)
+            // Use U+FFFF as an upper-bound sentinel to scan only keys with this prefix.
+            const range = IDBKeyRange.bound(dbBackupPrefix, dbBackupPrefix + '\uffff')
+            const request = store.openKeyCursor(range)
+
+            request.onerror = () => reject(request.error)
+
+            request.onsuccess = () => {
+                const cursor = request.result
+
+                if (!cursor) {
+                    resolve()
+                    return
+                }
+
+                const backup = parseDbBackupKey(String(cursor.key))
+
+                if (backup !== null) {
+                    backups.push(backup)
+                }
+
+                cursor.continue()
+            }
+        })
+
+        backups.sort((a, b) => b - a)
+
+        const deleteKeys: string[] = []
+
+        while (backups.length > 20) {
+            const last = backups.pop()
+
+            if (last !== undefined) {
+                deleteKeys.push(`${dbBackupPrefix}${last}${dbBackupSuffix}`)
+            }
+        }
+
+        if (deleteKeys.length > 0) {
+            await new Promise<void>((resolve, reject) => {
+                const tx = db.transaction(webLocalForageStoreName, 'readwrite')
+                const store = tx.objectStore(webLocalForageStoreName)
+
+                for (const key of deleteKeys) {
+                    store.delete(key)
+                }
+
+                tx.oncomplete = () => resolve()
+                tx.onerror = () => reject(tx.error)
+                tx.onabort = () => reject(tx.error)
+            })
+        }
+
+        return backups
+    } catch {
+        return null
+    } finally {
+        db.close()
     }
 }
 
@@ -502,7 +648,7 @@ export async function getDbBackups() {
             if (key.name.startsWith("dbbackup-")) {
                 let da = key.name.substring(9)
                 da = da.substring(0, da.length - 4)
-                backups.push(parseInt(da))
+                backups.push(parseInt(da, 10))
             }
         }
         backups.sort((a, b) => b - a)
@@ -513,17 +659,28 @@ export async function getDbBackups() {
         return backups
     }
     else {
-        const keys = await forageStorage.keys()
+        if (await canUseIndexedDbBackupFastPath()) {
+            const indexedBackups = await getDbBackupsFromIndexedDB()
 
+            if (indexedBackups) {
+                return indexedBackups
+            }
+        }
+
+        const keys = await forageStorage.keys()
         const backups = keys
-            .filter(key => key.startsWith('database/dbbackup-'))
-            .map(key => parseInt(key.slice(18, -4)))
-            .sort((a, b) => b - a);
+            .map(parseDbBackupKey)
+            .filter((key): key is number => key !== null)
+            .sort((a, b) => b - a)
 
         while (backups.length > 20) {
             const last = backups.pop()
-            await forageStorage.removeItem(`database/dbbackup-${last}.bin`)
+
+            if (last !== undefined) {
+                await forageStorage.removeItem(`${dbBackupPrefix}${last}${dbBackupSuffix}`)
+            }
         }
+
         return backups
     }
 }
@@ -834,7 +991,7 @@ async function fetchWithTauri(url: string, arg: GlobalFetchArgs): Promise<Global
         addFetchLogInGlobalFetch(data, ok, url, arg, response.status);
         return { ok, data, headers: Object.fromEntries(response.headers), status: response.status };
     } catch (error) {
-
+        return { ok: false, data: `${error}`, headers: {}, status: 400 };
     }
 }
 
@@ -912,7 +1069,7 @@ export async function getUncleanables(db: Database, uptype: 'basename' | 'pure' 
         for(let cha of db.characters){
             if(cha?.coldstorage){
                 const coldData = await getColdStorageItem(cha.coldstorage!)
-                if(coldData.character && coldData.character.chaId === cha.chaId){
+                if(coldData?.character && coldData.character.chaId === cha.chaId){
                     cha = coldData.character
                 }
             }
@@ -1078,28 +1235,28 @@ export function replaceDbResources(db: Database, replacer: { [key: string]: stri
  */
 export function checkCharOrder() {
     DBState.db.characterOrder = DBState.db.characterOrder ?? []
-    let ordered = []
+    const ordered = new Set<string>()
     for (let i = 0; i < DBState.db.characterOrder.length; i++) {
         const folder = DBState.db.characterOrder[i]
         if (typeof (folder) !== 'string' && folder) {
             for (const f of folder.data) {
-                ordered.push(f)
+                ordered.add(f)
             }
         }
         if (typeof (folder) === 'string') {
-            ordered.push(folder)
+            ordered.add(folder)
         }
     }
 
-    let charIdList: string[] = []
+    const charIdSet = new Set<string>()
 
     for (let i = 0; i < DBState.db.characters.length; i++) {
         const char = DBState.db.characters[i]
         const charId = char.chaId
         if (!char.trashTime) {
-            charIdList.push(charId)
+            charIdSet.add(charId)
         }
-        if (!ordered.includes(charId)) {
+        if (!ordered.has(charId)) {
             if (charId !== '§temp' && charId !== '§playground' && !char.trashTime) {
                 DBState.db.characterOrder.push(charId)
             }
@@ -1122,7 +1279,7 @@ export function checkCharOrder() {
             }
             for (let i2 = 0; i2 < data.data.length; i2++) {
                 const data2 = data.data[i2]
-                if (!charIdList.includes(data2)) {
+                if (!charIdSet.has(data2)) {
                     data.data.splice(i2, 1)
                     i2--;
                 }
@@ -1130,7 +1287,7 @@ export function checkCharOrder() {
             DBState.db.characterOrder[i] = data
         }
         else {
-            if (!charIdList.includes(data)) {
+            if (!charIdSet.has(data)) {
                 DBState.db.characterOrder.splice(i, 1)
                 i--;
             }
@@ -1326,6 +1483,13 @@ export class VirtualWriter {
 let fetchIndex = 0
 
 /**
+ * Per page load prefix for Tauri streamed fetch ids, so a request left running
+ * by a previous page load does not share an id with a new one.
+ * @type {string}
+ */
+const streamedFetchSessionId = Math.random().toString(36).slice(2, 10)
+
+/**
  * Stores native fetch data.
  * @type {{ [key: string]: StreamedFetchChunk[] }}
  */
@@ -1412,7 +1576,9 @@ if (isTauri) {
         } catch (error) {
             console.error(error)
         }
-    }).then((v) => {
+    }).then(async (v) => {
+        // Must finish before new requests start, or it would cancel them too
+        await invoke('cancel_all_streamed_fetch').catch(() => {})
         streamedFetchListening = true
     })
 }
@@ -1808,6 +1974,9 @@ export async function fetchNative(url: string, arg: {
             fetchIndex = 0
         }
         let fetchId = fetchIndex.toString().padStart(5, '0')
+        if (isTauri) {
+            fetchId = `${streamedFetchSessionId}-${fetchId}`
+        }
         nativeFetchData[fetchId] = []
         let resolved = false
 
@@ -1815,7 +1984,27 @@ export async function fetchNative(url: string, arg: {
         while (!streamedFetchListening) {
             await sleep(100)
         }
+
+        // The Rust request does not see AbortSignal, so stop it explicitly.
+        // Listens on arg.signal because timeoutSignal.cleanup() unlinks requestSignal
+        // from it once the Response is returned.
+        // Cancelling does not throw: the chat screen alerts anything fetchNative throws,
+        // and the chat request code checks its own signal after this returns.
+        let cancelled = false
+        const cancelStreamedFetch = () => {
+            if (!isTauri || resolved) {
+                return
+            }
+            cancelled = true
+            resolved = true
+            invoke('cancel_streamed_fetch', { id: fetchId }).catch(() => {})
+        }
+
         if (isTauri) {
+            if (requestSignal && requestSignal.aborted) {
+                throw new Error('aborted')
+            }
+            arg.signal?.addEventListener('abort', cancelStreamedFetch, { once: true })
             invoke('streamed_fetch', {
                 id: fetchId,
                 url: url,
@@ -1824,6 +2013,9 @@ export async function fetchNative(url: string, arg: {
                 method: arg.method,
                 timeout_secs: arg.requestTimeoutMs ? Math.max(1, Math.ceil(arg.requestTimeoutMs / 1000)) : undefined
             }).then((res) => {
+                if (cancelled) {
+                    return
+                }
                 try {
                     const parsedRes = JSON.parse(res as string)
                     if (!parsedRes.success) {
@@ -1859,24 +2051,37 @@ export async function fetchNative(url: string, arg: {
 
         const tauriReadableStream = new ReadableStream<Uint8Array>({
             async start(controller) {
-                while (!resolved || nativeFetchData[fetchId].length > 0) {
-                    if (nativeFetchData[fetchId].length > 0) {
-                        const data = nativeFetchData[fetchId].shift()
-                        if (data.type === 'chunk') {
-                            const chunk = Buffer.from(data.body, 'base64')
+                try {
+                    while (!resolved || nativeFetchData[fetchId].length > 0) {
+                        // Drain everything that arrived since the last tick and hand it over as one chunk,
+                        // so a busy renderer pays the per-chunk parse/render cost once per tick, not once per network chunk.
+                        const pending = nativeFetchData[fetchId].splice(0)
+                        const parts: Buffer[] = []
+                        for (const data of pending) {
+                            if (data.type === 'chunk') {
+                                parts.push(Buffer.from(data.body, 'base64'))
+                            }
+                            if (data.type === 'headers') {
+                                resHeaders = data.body
+                                status = data.status
+                            }
+                            if (data.type === 'end') {
+                                resolved = true
+                            }
+                        }
+                        if (parts.length > 0) {
+                            const chunk = parts.length === 1 ? parts[0] : Buffer.concat(parts)
                             controller.enqueue(chunk as unknown as Uint8Array)
                         }
-                        if (data.type === 'headers') {
-                            resHeaders = data.body
-                            status = data.status
-                        }
-                        if (data.type === 'end') {
-                            resolved = true
-                        }
+                        await sleep(10)
                     }
-                    await sleep(10)
+                    controller.close()
+                } finally {
+                    arg.signal?.removeEventListener('abort', cancelStreamedFetch)
                 }
-                controller.close()
+            },
+            cancel() {
+                cancelStreamedFetch()
             }
         })
 
@@ -2074,9 +2279,9 @@ export async function loadInternalBackup() {
         await readFile('database/' + selectedBackup, { baseDir: BaseDirectory.AppData })
     ) : (await forageStorage.getItem(selectedBackup))
 
-    setDatabase(
-        await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
-    )
+    const decoded = await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
+    setDatabase(decoded.database)
+    saveKV.load(decoded.kv)
 
     alertNormal('Loaded backup')
 
@@ -2181,8 +2386,11 @@ export function getLanguageCodes() {
 
 export function getVersionString(): string {
     let versionString = appVer
-    if (window.location.hostname === 'nightly.risuai.xyz') {
-        versionString = 'Nightly Build'
+    if(appSubVer) {
+        versionString += '-' + appSubVer
+    }
+    if (import.meta.env.VITE_RISU_NIGHTLY_BUILD === 'TRUE') {
+        versionString = 'Nightly Build ' + import.meta.env.VITE_RISU_BUILD_TIME
     }
     if (window.location.hostname === 'stable.risuai.xyz') {
         versionString += ' (Stable)';

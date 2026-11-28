@@ -100,6 +100,27 @@
 // ============================================================================
 
 /**
+ * Inlay asset shape returned by `risuai.readInlay`.
+ * `data` is a base64 data-URI string (e.g. `"data:image/png;base64,iVBORw0..."`).
+ */
+interface InlayAssetForPlugin {
+    /** Creation timestamp in milliseconds since the Unix epoch */
+    created?: number;
+    /** Base64 data-URI string (`data:<mime>;base64,...`) */
+    data: string;
+    /** File extension without leading dot (e.g. `"png"`, `"webp"`, `"mp3"`) */
+    ext: string;
+    /** Original asset filename */
+    name: string;
+    /** Asset category */
+    type: 'image' | 'video' | 'audio' | 'signature';
+    /** Pixel height (for images/videos) */
+    height?: number;
+    /** Pixel width (for images/videos) */
+    width?: number;
+}
+
+/**
  * MCP tool definition
  */
 interface MCPToolDef {
@@ -248,6 +269,22 @@ type ScriptMode = 'display' | 'output' | 'input' | 'process';
  * Replacer type
  */
 type ReplacerType = 'beforeRequest' | 'afterRequest';
+
+/**
+ * Argument passed to chat lifecycle listeners
+ */
+type ChatOutputListenerArg = {
+    /** Current character */
+    char: any;
+    /** Current chat */
+    chat: any;
+    /** Index of the character in the database. Use with `setCharacterToIndex`. */
+    characterIndex: number;
+    /** Index of the chat within the character. Use with `setChatToIndex`. */
+    chatIndex: number;
+    /** Current index of the generated message in `chat.message`, or -1 if it is no longer present */
+    messageIndex: number;
+};
 
 /**
  * Risuai Plugin definition
@@ -773,6 +810,7 @@ interface SafeElement {
      * - Keyboard: keydown, keyup, keypress
      *
      * listener function receives trimmed event object with common properties only.
+     * listeners receive events that reach the element via normal DOM propagation; for document-wide listening, use the SafeDocument from getRootDocument().
      * 
      * @example
      * ```typescript
@@ -792,9 +830,9 @@ interface SafeElement {
 
     /**
      * Removes an event listener using its ID
-     * @param type - Event type
+     * @param type - Event type (for compatibility; removal is resolved by ID)
      * @param id - Listener ID returned by addEventListener
-     * @param options - Event listener options
+     * @param options - Event listener options (for compatibility)
      */
     removeEventListener(
         type: string,
@@ -930,6 +968,8 @@ interface SafeMutationRecord {
     getTarget(): Promise<SafeElement>;
     /** Added nodes in mutation */
     getAddedNodes(): Promise<SafeClassArray<SafeElement>>;
+    /** Removed nodes in mutation */
+    getRemovedNodes(): Promise<SafeClassArray<SafeElement>>;
 }
 
 /**
@@ -948,6 +988,11 @@ interface SafeMutationObserver {
      * @returns Promise that resolves when observer is set up
      */
     observe(element: SafeElement, options: MutationObserverInit): Promise<void>;
+
+    /**
+     * Stops observing all target elements for changes
+     */
+    disconnect(): Promise<void>;
 }
 
 // ============================================================================
@@ -1099,6 +1144,8 @@ interface SafeLocalStorage {
     removeItem(key: string): Promise<void>;
     clear(): Promise<void>;
     key(index: number): Promise<string | null>;
+    /** Gets all keys (only keys stored through safeLocalStorage) */
+    keys(): Promise<string[]>;
     length(): Promise<number>;
 }
 
@@ -1299,6 +1346,46 @@ interface RisuaiPluginAPI {
      * @returns Chat object or null if not found
      */
     getChatFromIndex(characterIndex: number, chatIndex: number): Promise<any|null>;
+
+    /**
+     * Parses Risu CBS macros using the currently selected character and active chat.
+     * Set processRegex to also run the editprocess script pipeline after CBS parsing.
+     * The editprocess pipeline can invoke plugin script handlers and action scripts,
+     * which may modify the active chat.
+     * @param text - Text containing CBS macros
+     * @param options - Parser context options
+     * @returns Parsed text
+     *
+     * @example
+     * ```typescript
+     * const text = await risuai.parseRisuChat('Hello, {{user}}', {
+     *   role: 'user',
+     *   processRegex: true,
+     * });
+     * ```
+     */
+    parseRisuChat(text: string, options?: {
+        /** Existing message index used by chat-aware CBS macros. Defaults to -1. */
+        messageIndex?: number;
+        /** Message role used by role-aware CBS macros. */
+        role?: string;
+        /**
+         * Run the editprocess script pipeline after CBS parsing.
+         * This can invoke plugin handlers and action scripts that modify the active chat.
+         */
+        processRegex?: boolean;
+        /** Enable chat variable writes from CBS macros. */
+        runVar?: boolean;
+        /** Remove unresolved variable macros. */
+        rmVar?: boolean;
+        /** Use tokenizer-accurate parsing behavior where supported. */
+        tokenizeAccurate?: boolean;
+        /** Additional CBS condition flags. */
+        cbsConditions?: {
+            firstmsg?: boolean;
+            chatRole?: string;
+        };
+    }): Promise<string>;
     
 
     /**
@@ -1409,12 +1496,17 @@ interface RisuaiPluginAPI {
 
     /**
      * Sets the database (lightweight save)
-     * @param db - DatabaseSubset object to save
+     * The `plugins` property is ignored.
+     * Requires the `dbWrite` permission; the write is skipped if the user declines.
+     * @param db - DatabaseSubset object to save, excluding `plugins`
      */
-    setDatabaseLite(db: DatabaseSubset): Promise<void>;
+    setDatabaseLite(db: Omit<DatabaseSubset, 'plugins'>): Promise<void>;
 
     /**
      * Sets the database (full save with sync)
+     * In `plugins`, only API 3.0 plugins that are new or whose script changed are applied,
+     * each after the user confirms. Removing, reordering, enabling or disabling plugins is ignored.
+     * Requires the `dbWrite` permission; the write is skipped if the user declines.
      * @param db - DatabaseSubset object to save
      */
     setDatabase(db: DatabaseSubset): Promise<void>;
@@ -1680,8 +1772,8 @@ interface RisuaiPluginAPI {
      * ```typescript
      * await risuai.addTTSPreprocessor(async (ctx) => {
      *   if (ctx.ttsMode !== 'openai') return;
-     *   return { text: ctx.text.replace(/\*(.*?)\*/g, '') };
-     * });
+     *   return { text: ctx.text.replace(/[*](.*?)[*]/g, '') };
+     * };
      * ```
      */
     addTTSPreprocessor(
@@ -1795,6 +1887,63 @@ interface RisuaiPluginAPI {
         func: Function
     ): Promise<void>;
 
+    // ========== Chat Listeners ==========
+
+    /**
+     * Adds a listener that fires after a model output has been processed and
+     * committed to the chat.
+     *
+     * The listener runs once per output event after streaming completes, after the
+     * existing Lua `output` trigger has finished, and after host-side output
+     * transformations such as inlay screen processing have been written to the chat.
+     * Listeners are awaited sequentially and receive the same event snapshot. A slow
+     * listener delays the remaining chat flow. To run background work without
+     * blocking, fire off an async function without awaiting it inside the listener.
+     *
+     * The listener receives plain snapshots of `char` and the committed chat,
+     * matching the convention of `getCharacterFromIndex` / `getChatFromIndex`.
+     * Mutations to those snapshots do not propagate back to the host. To persist
+     * changes from background work, use `characterIndex`, `chatIndex`, and
+     * `messageIndex` with APIs such as `setChatToIndex`. If you need to merge with
+     * changes saved by another listener, read the latest chat with `getChatFromIndex`
+     * before saving.
+     *
+     * The `characterIndex` and `chatIndex` are captured when the listener fires,
+     * so background work can locate the original chat even if the user navigates
+     * elsewhere. `messageIndex` is resolved against the provided chat snapshot and
+     * points to the model output message when it is still present. It may be -1 if a
+     * Lua output trigger or host-side output processing removed that message.
+     *
+     * Modes:
+     * - 'output': fires after an AI message is appended to or updated in the chat
+     *
+     * @param mode - Listener mode
+     * @param func - Listener function. Receives the current character, chat, and generated message index.
+     *
+     * @example
+     * ```typescript
+     * await risuai.addRisuChatListener('output', async ({ chat, messageIndex }) => {
+     *   const message = chat.message[messageIndex];
+     *   if (!message) return;
+     *   console.log('Model said:', message.data);
+     * });
+     * ```
+     */
+    addRisuChatListener(
+        mode: 'output',
+        func: (arg: ChatOutputListenerArg) => void | Promise<void>
+    ): Promise<void>;
+
+    /**
+     * Removes a chat listener.
+     * @param mode - Listener mode
+     * @param func - Listener function to remove
+     */
+    removeRisuChatListener(
+        mode: 'output',
+        func: (arg: ChatOutputListenerArg) => void | Promise<void>
+    ): Promise<void>;
+
     // ========== Body Interceptors ==========
 
     /**
@@ -1843,11 +1992,60 @@ interface RisuaiPluginAPI {
     readImage(path?: string): Promise<any>;
 
     /**
+     * Reads an inlay asset (image / audio / video / signature) attached by the
+     * user in chat, by its UUID. The UUID can be extracted from raw message
+     * text via the `{{inlayed::<uuid>}}` placeholder
+     * (`getChatFromIndex(...).message[i].data`).
+     *
+     * Returns `null` if no asset exists for that UUID.
+     *
+     * @param id - Inlay UUID
+     * @returns Asset with `data` as a base64 data-URI string, or `null`
+     *
+     * @example
+     * ```typescript
+     * const m = rawMessageData.match(/\{\{inlayed::([a-f0-9-]+)\}\}/i);
+     * if (m) {
+     *     const inlay = await risuai.readInlay(m[1]);
+     *     // inlay.data === "data:image/png;base64,iVBORw0..."
+     *     // inlay.ext  === "png"
+     *     // inlay.type === "image"
+     * }
+     * ```
+     */
+    readInlay(id: string): Promise<InlayAssetForPlugin | null>;
+
+    /**
      * Saves an asset
      * @param data - Asset data
      * @returns Saved asset path
      */
     saveAsset(data: any): Promise<string>;
+
+    /**
+     * Creates an inlay from image data, embeddable in chat messages via the
+     * `{{inlay::id}}` syntax. Unlike `saveAsset`, inlays live in inlay storage
+     * rather than the character card, so generating many images does not grow
+     * the card. The image is re-encoded as PNG (animated GIF/WEBP keep only the
+     * first frame) and downscaled to fit 1024x1024 total pixels, matching the
+     * built-in image generation inlays.
+     *
+     * @param data - Image bytes (JPEG, PNG, GIF, WEBP, ...) as a Uint8Array, or
+     * an image data URI string. Remote URLs are rejected — fetch them with
+     * `nativeFetch` and pass the bytes. The Uint8Array's buffer is transferred
+     * to the host and detached after the call; pass a copy if you still need it.
+     * @param options - `name` sets the display name in the inlay explorer; defaults to the id.
+     * @returns The inlay id; insert `{{inlay::<id>}}` into a message to render it.
+     * `null` if the user denies the inlay permission.
+     * @throws Error if the data is not decodable image data, or the string is not a data URI.
+     *
+     * @example
+     * ```typescript
+     * const id = await risuai.createInlay(imageBytes, { name: 'generated.png' });
+     * // then insert `{{inlay::${id}}}` into a chat message
+     * ```
+     */
+    createInlay(data: Uint8Array | string, options?: { name?: string }): Promise<string | null>;
 
     // ========== Plugin Management ==========
 
@@ -1891,7 +2089,7 @@ interface RisuaiPluginAPI {
 
     /**
      * Requests permission for a specific action
-     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'mainDom')
+     * @param permission - Permission string (e.g. 'fetchLogs'|'db'|'dbWrite'|'mainDom')
      * @returns True if permission granted, false otherwise
      */
     requestPluginPermission(permission: string): Promise<boolean>;
